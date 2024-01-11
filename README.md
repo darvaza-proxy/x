@@ -6,6 +6,11 @@ on the standard library, `darvaza.org/core` and the
 
 ## Packages
 
+### darvaza.org/x/config
+
+[darvaza.org/x/config](https://daravaza.org/x/config) provides helpers
+for reading config files.
+
 ### darvaza.org/x/web
 
 [darvaza.org/x/web](https://daravaza.org/x/web) provides helpers
