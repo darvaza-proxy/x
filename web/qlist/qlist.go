@@ -60,7 +60,7 @@ func (q QualityValue) Get(attr string) (string, bool) {
 }
 
 func (q QualityValue) String() string {
-	var s []string
+	s := make([]string, 0, len(q.attrs)+2)
 
 	s = append(s, q.Value())
 
