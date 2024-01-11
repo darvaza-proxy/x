@@ -95,11 +95,11 @@ func (err *HTTPError) writeError(rw http.ResponseWriter) {
 	code := err.Status()
 
 	rw.WriteHeader(code)
-	fmt.Fprintln(rw, ErrorText(code))
+	_, _ = fmt.Fprintln(rw, ErrorText(code))
 
 	if err.Err != nil {
 		if msg := err.Err.Error(); msg != "" {
-			fmt.Fprint(rw, "\n", msg)
+			_, _ = fmt.Fprint(rw, "\n", msg)
 		}
 	}
 }
