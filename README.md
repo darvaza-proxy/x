@@ -1,5 +1,9 @@
 # Darvaza Extra
 
+`darvaza.org/x` hosts specialized packages that only depend
+on the standard library, `darvaza.org/core` and the
+`darvaza.org/slog.Logger` interface.
+
 ## Packages
 
 ### darvaza.org/x/web
