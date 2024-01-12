@@ -55,35 +55,27 @@ var TestHello13 = []byte{
 
 func Test_GetInfo12(t *testing.T) {
 	ci := GetInfo(TestHello12)
-	fmt.Println()
-	fmt.Println()
-	fmt.Println("Version is:", VersionName(ci.Vers))
-	fmt.Println("Chiper Suites:", CipherSuites(ci.CipherSuites))
-	fmt.Println("Compression Methods:", CompressionMethods(ci.CompressionMethods))
-	fmt.Println("Supported Algos:", SignatureAlgos(ci.SupportedSignatureAlgorithms))
-	fmt.Println("Supported Versions:", SupportedVersions(ci.SupportedVersions))
-	fmt.Println("Requested SNI:", ci.ServerName)
-	fmt.Println("ALPN:", ci.ALPNProtocols)
-	if ci.ServerName == "" || ci.ServerName != "example.ulfheim.net" {
-		t.Fatalf("decode failed, wanted example.ulfheim.net got %s", ci.ServerName)
-	}
-	fmt.Println()
-	fmt.Println()
+	testGetInfo(t, ci, "example.ulfheim.net")
 }
+
 func Test_GetInfo13(t *testing.T) {
 	ci := GetInfo(TestHello13)
-	fmt.Println()
-	fmt.Println()
-	fmt.Println("Version is:", VersionName(ci.Vers))
-	fmt.Println("Chiper Suites:", CipherSuites(ci.CipherSuites))
-	fmt.Println("Compression Methods:", CompressionMethods(ci.CompressionMethods))
-	fmt.Println("Supported Algos:", SignatureAlgos(ci.SupportedSignatureAlgorithms))
-	fmt.Println("Supported Versions:", SupportedVersions(ci.SupportedVersions))
-	fmt.Println("Requested SNI:", ci.ServerName)
-	fmt.Println("ALPN:", ci.ALPNProtocols)
-	if ci.ServerName == "" || ci.ServerName != "example.ulfheim.net" {
-		t.Fatalf("decode failed, wanted example.ulfheim.net got %s", ci.ServerName)
+	testGetInfo(t, ci, "example.ulfheim.net")
+}
+
+func testGetInfo(t *testing.T, ci *ClientHelloInfo, serverName string) {
+	_, _ = fmt.Println()
+	_, _ = fmt.Println()
+	_, _ = fmt.Println("Version is:", VersionName(ci.Vers))
+	_, _ = fmt.Println("Chiper Suites:", CipherSuites(ci.CipherSuites))
+	_, _ = fmt.Println("Compression Methods:", CompressionMethods(ci.CompressionMethods))
+	_, _ = fmt.Println("Supported Algos:", SignatureAlgos(ci.SupportedSignatureAlgorithms))
+	_, _ = fmt.Println("Supported Versions:", SupportedVersions(ci.SupportedVersions))
+	_, _ = fmt.Println("Requested SNI:", ci.ServerName)
+	_, _ = fmt.Println("ALPN:", ci.ALPNProtocols)
+	if ci.ServerName == "" || ci.ServerName != serverName {
+		t.Fatalf("decode failed, wanted %s got %s", serverName, ci.ServerName)
 	}
-	fmt.Println()
-	fmt.Println()
+	_, _ = fmt.Println()
+	_, _ = fmt.Println()
 }
