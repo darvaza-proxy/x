@@ -15,6 +15,7 @@ TMPDIR ?= .tmp
 GOLANGCI_LINT_VERSION ?= v1.55
 REVIVE_VERSION ?= v1.3.6
 
+GOLANGCI_LINT ?= $(GOBIN)/golangci-lint
 GOLANGCI_LINT_URL ?= github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 REVIVE ?= $(GOBIN)/revive
