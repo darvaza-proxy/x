@@ -98,15 +98,11 @@ func readUint16LengthPrefixed(s *cryptobyte.String, out *[]byte) bool {
 	return s.ReadUint16LengthPrefixed((*cryptobyte.String)(out))
 }
 
-// TODO: reimplemet and fix revive
-//
 //revive:disable:cognitive-complexity
 //revive:disable:cyclomatic
-//revive:disable:function-length
 func (m *ClientHelloInfo) unmarshal(data []byte) bool {
 	//revive:enable:cognitive-complexity
 	//revive:enable:cyclomatic
-	//revive:enable:function-length
 	*m = ClientHelloInfo{raw: data}
 	s := cryptobyte.String(data)
 
@@ -144,6 +140,14 @@ func (m *ClientHelloInfo) unmarshal(data []byte) bool {
 		return true
 	}
 
+	return m.unmarshalExtensions(s)
+}
+
+// revive:disable:cognitive-complexity
+// revive:disable:cyclomatic
+func (m *ClientHelloInfo) unmarshalExtensions(s cryptobyte.String) bool {
+	// revive:enable:cognitive-complexity
+	// revive:enable:cyclomatic
 	var extensions cryptobyte.String
 	if !s.ReadUint16LengthPrefixed(&extensions) || !s.Empty() {
 		return false
@@ -152,6 +156,8 @@ func (m *ClientHelloInfo) unmarshal(data []byte) bool {
 	for !extensions.Empty() {
 		var extension uint16
 		var extData cryptobyte.String
+		var ok bool
+
 		if !extensions.ReadUint16(&extension) ||
 			!extensions.ReadUint16LengthPrefixed(&extData) {
 			return false
@@ -159,202 +165,287 @@ func (m *ClientHelloInfo) unmarshal(data []byte) bool {
 
 		switch extension {
 		case extensionServerName:
-			// RFC 6066, Section 3
-			var nameList cryptobyte.String
-			if !extData.ReadUint16LengthPrefixed(&nameList) || nameList.Empty() {
-				return false
-			}
-			for !nameList.Empty() {
-				var nameType uint8
-				var serverName cryptobyte.String
-				if !nameList.ReadUint8(&nameType) ||
-					!nameList.ReadUint16LengthPrefixed(&serverName) ||
-					serverName.Empty() {
-					return false
-				}
-				if nameType != 0 {
-					continue
-				}
-				if len(m.ServerName) != 0 {
-					// Multiple names of the same name_type are prohibited.
-					return false
-				}
-				m.ServerName = string(serverName)
-				// An SNI value may not include a trailing dot.
-				if strings.HasSuffix(m.ServerName, ".") {
-					return false
-				}
-			}
+			ok = m.unmarshalServerName(&extData)
 		case extensionStatusRequest:
-			// RFC 4366, Section 3.6
-			var statusType uint8
-			var ignored cryptobyte.String
-			if !extData.ReadUint8(&statusType) ||
-				!extData.ReadUint16LengthPrefixed(&ignored) ||
-				!extData.ReadUint16LengthPrefixed(&ignored) {
-				return false
-			}
-			m.ocspStapling = statusType == statusTypeOCSP
+			ok = m.unmarshalStatusRequest(&extData)
 		case extensionSupportedCurves:
-			// RFC 4492, sections 5.1.1 and RFC 8446, Section 4.2.7
-			var curves cryptobyte.String
-			if !extData.ReadUint16LengthPrefixed(&curves) || curves.Empty() {
-				return false
-			}
-			for !curves.Empty() {
-				var curve uint16
-				if !curves.ReadUint16(&curve) {
-					return false
-				}
-				m.supportedCurves = append(m.supportedCurves, CurveID(curve))
-			}
+			ok = m.unmarshalSupportedCurves(&extData)
 		case extensionSupportedPoints:
-			// RFC 4492, Section 5.1.2
-			if !readUint8LengthPrefixed(&extData, &m.supportedPoints) ||
-				len(m.supportedPoints) == 0 {
-				return false
-			}
+			ok = m.unmarshalSupportedPoints(&extData)
 		case extensionSessionTicket:
-			// RFC 5077, Section 3.2
-			m.ticketSupported = true
-			extData.ReadBytes(&m.sessionTicket, len(extData))
+			ok = m.unmarshalSessionTicket(&extData)
 		case extensionSignatureAlgorithms:
-			// RFC 5246, Section 7.4.1.4.1
-			var sigAndAlgs cryptobyte.String
-			if !extData.ReadUint16LengthPrefixed(&sigAndAlgs) || sigAndAlgs.Empty() {
-				return false
-			}
-			for !sigAndAlgs.Empty() {
-				var sigAndAlg uint16
-				if !sigAndAlgs.ReadUint16(&sigAndAlg) {
-					return false
-				}
-				m.SupportedSignatureAlgorithms = append(
-					m.SupportedSignatureAlgorithms, SignatureScheme(sigAndAlg))
-			}
+			ok = m.unmarshalSignatureAlgorithms(&extData)
 		case extensionSignatureAlgorithmsCert:
-			// RFC 8446, Section 4.2.3
-			var sigAndAlgs cryptobyte.String
-			if !extData.ReadUint16LengthPrefixed(&sigAndAlgs) || sigAndAlgs.Empty() {
-				return false
-			}
-			for !sigAndAlgs.Empty() {
-				var sigAndAlg uint16
-				if !sigAndAlgs.ReadUint16(&sigAndAlg) {
-					return false
-				}
-				m.SupportedSignatureAlgorithmsCert = append(
-					m.SupportedSignatureAlgorithmsCert, SignatureScheme(sigAndAlg))
-			}
+			ok = m.unmarshalSignatureAlgorithmsCert(&extData)
 		case extensionRenegotiationInfo:
-			// RFC 5746, Section 3.2
-			if !readUint8LengthPrefixed(&extData, &m.secureRenegotiation) {
-				return false
-			}
-			m.secureRenegotiationSupported = true
+			ok = m.unmarshalRenegotiationInfo(&extData)
 		case extensionALPN:
-			// RFC 7301, Section 3.1
-			var protoList cryptobyte.String
-			if !extData.ReadUint16LengthPrefixed(&protoList) || protoList.Empty() {
-				return false
-			}
-			for !protoList.Empty() {
-				var proto cryptobyte.String
-				if !protoList.ReadUint8LengthPrefixed(&proto) || proto.Empty() {
-					return false
-				}
-				m.ALPNProtocols = append(m.ALPNProtocols, string(proto))
-			}
+			ok = m.unmarshalALPN(&extData)
 		case extensionSCT:
-			// RFC 6962, Section 3.3.1
-			m.scts = true
+			ok = m.unmarshalSCT(&extData)
 		case extensionSupportedVersions:
-			// RFC 8446, Section 4.2.1
-			// TODO: Fix revive
-			//revive:disable:unexported-naming
-			var VersList cryptobyte.String
-			//revive:enable:unexported-naming
-			if !extData.ReadUint8LengthPrefixed(&VersList) || VersList.Empty() {
-				return false
-			}
-			for !VersList.Empty() {
-				// TODO: Fix revive
-				//revive:disable:unexported-naming
-				var Vers uint16
-				//revive:enable:unexported-naming
-				if !VersList.ReadUint16(&Vers) {
-					return false
-				}
-				m.SupportedVersions = append(m.SupportedVersions, Vers)
-			}
+			ok = m.unmarshalSupportedVersions(&extData)
 		case extensionCookie:
-			// RFC 8446, Section 4.2.2
-			if !readUint16LengthPrefixed(&extData, &m.cookie) ||
-				len(m.cookie) == 0 {
-				return false
-			}
+			ok = m.unmarshalCookie(&extData)
 		case extensionKeyShare:
-			// RFC 8446, Section 4.2.8
-			var clientShares cryptobyte.String
-			if !extData.ReadUint16LengthPrefixed(&clientShares) {
-				return false
-			}
-			for !clientShares.Empty() {
-				var ks keyShare
-				if !clientShares.ReadUint16((*uint16)(&ks.group)) ||
-					!readUint16LengthPrefixed(&clientShares, &ks.data) ||
-					len(ks.data) == 0 {
-					return false
-				}
-				m.keyShares = append(m.keyShares, ks)
-			}
+			ok = m.unmarshalKeyShare(&extData)
 		case extensionEarlyData:
-			// RFC 8446, Section 4.2.10
-			m.earlyData = true
+			ok = m.unmarshalEarlyData(&extData)
 		case extensionPSKModes:
-			// RFC 8446, Section 4.2.9
-			if !readUint8LengthPrefixed(&extData, &m.pskModes) {
-				return false
-			}
+			ok = m.unmarshalPSKModes(&extData)
 		case extensionPreSharedKey:
-			// RFC 8446, Section 4.2.11
 			if !extensions.Empty() {
 				return false // pre_shared_key must be the last extension
 			}
-			var identities cryptobyte.String
-			if !extData.ReadUint16LengthPrefixed(&identities) || identities.Empty() {
-				return false
-			}
-			for !identities.Empty() {
-				var psk pskIdentity
-				if !readUint16LengthPrefixed(&identities, &psk.label) ||
-					!identities.ReadUint32(&psk.obfuscatedTicketAge) ||
-					len(psk.label) == 0 {
-					return false
-				}
-				m.pskIdentities = append(m.pskIdentities, psk)
-			}
-			var binders cryptobyte.String
-			if !extData.ReadUint16LengthPrefixed(&binders) || binders.Empty() {
-				return false
-			}
-			for !binders.Empty() {
-				var binder []byte
-				if !readUint8LengthPrefixed(&binders, &binder) ||
-					len(binder) == 0 {
-					return false
-				}
-				m.pskBinders = append(m.pskBinders, binder)
-			}
+			ok = m.unmarshalPreSharedKey(&extData)
 		default:
 			// Ignore unknown extensions.
 			continue
 		}
 
-		if !extData.Empty() {
+		if !ok || !extData.Empty() {
 			return false
 		}
 	}
 
+	return true
+}
+
+// revive:disable:cognitive-complexity
+func (m *ClientHelloInfo) unmarshalServerName(extData *cryptobyte.String) bool {
+	// revive:enable:cognitive-complexity
+	// RFC 6066, Section 3
+	var nameList cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&nameList) || nameList.Empty() {
+		return false
+	}
+	for !nameList.Empty() {
+		var nameType uint8
+		var serverName cryptobyte.String
+		if !nameList.ReadUint8(&nameType) ||
+			!nameList.ReadUint16LengthPrefixed(&serverName) ||
+			serverName.Empty() {
+			return false
+		}
+		if nameType != 0 {
+			continue
+		}
+		if len(m.ServerName) != 0 {
+			// Multiple names of the same name_type are prohibited.
+			return false
+		}
+		m.ServerName = string(serverName)
+		// An SNI value may not include a trailing dot.
+		if strings.HasSuffix(m.ServerName, ".") {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalStatusRequest(extData *cryptobyte.String) bool {
+	// RFC 4366, Section 3.6
+	var statusType uint8
+	var ignored cryptobyte.String
+	if !extData.ReadUint8(&statusType) ||
+		!extData.ReadUint16LengthPrefixed(&ignored) ||
+		!extData.ReadUint16LengthPrefixed(&ignored) {
+		return false
+	}
+	m.ocspStapling = statusType == statusTypeOCSP
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalSupportedCurves(extData *cryptobyte.String) bool {
+	// RFC 4492, sections 5.1.1 and RFC 8446, Section 4.2.7
+	var curves cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&curves) || curves.Empty() {
+		return false
+	}
+	for !curves.Empty() {
+		var curve uint16
+		if !curves.ReadUint16(&curve) {
+			return false
+		}
+		m.supportedCurves = append(m.supportedCurves, CurveID(curve))
+	}
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalSupportedPoints(extData *cryptobyte.String) bool {
+	// RFC 4492, Section 5.1.2
+	if !readUint8LengthPrefixed(extData, &m.supportedPoints) ||
+		len(m.supportedPoints) == 0 {
+		return false
+	}
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalSessionTicket(extData *cryptobyte.String) bool {
+	// RFC 5077, Section 3.2
+	m.ticketSupported = true
+	extData.ReadBytes(&m.sessionTicket, len(*extData))
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalSignatureAlgorithms(extData *cryptobyte.String) bool {
+	// RFC 5246, Section 7.4.1.4.1
+	var sigAndAlgs cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&sigAndAlgs) || sigAndAlgs.Empty() {
+		return false
+	}
+	for !sigAndAlgs.Empty() {
+		var sigAndAlg uint16
+		if !sigAndAlgs.ReadUint16(&sigAndAlg) {
+			return false
+		}
+		m.SupportedSignatureAlgorithms = append(
+			m.SupportedSignatureAlgorithms, SignatureScheme(sigAndAlg))
+	}
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalSignatureAlgorithmsCert(extData *cryptobyte.String) bool {
+	// RFC 8446, Section 4.2.3
+	var sigAndAlgs cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&sigAndAlgs) || sigAndAlgs.Empty() {
+		return false
+	}
+	for !sigAndAlgs.Empty() {
+		var sigAndAlg uint16
+		if !sigAndAlgs.ReadUint16(&sigAndAlg) {
+			return false
+		}
+		m.SupportedSignatureAlgorithmsCert = append(
+			m.SupportedSignatureAlgorithmsCert, SignatureScheme(sigAndAlg))
+	}
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalRenegotiationInfo(extData *cryptobyte.String) bool {
+	// RFC 5746, Section 3.2
+
+	if !readUint8LengthPrefixed(extData, &m.secureRenegotiation) {
+		return false
+	}
+	m.secureRenegotiationSupported = true
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalALPN(extData *cryptobyte.String) bool {
+	// RFC 7301, Section 3.1
+	var protoList cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&protoList) || protoList.Empty() {
+		return false
+	}
+	for !protoList.Empty() {
+		var proto cryptobyte.String
+		if !protoList.ReadUint8LengthPrefixed(&proto) || proto.Empty() {
+			return false
+		}
+		m.ALPNProtocols = append(m.ALPNProtocols, string(proto))
+	}
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalSCT(_ *cryptobyte.String) bool {
+	// RFC 6962, Section 3.3.1
+	m.scts = true
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalSupportedVersions(extData *cryptobyte.String) bool {
+	// RFC 8446, Section 4.2.1
+	// TODO: Fix revive
+	//revive:disable:unexported-naming
+	var VersList cryptobyte.String
+	//revive:enable:unexported-naming
+	if !extData.ReadUint8LengthPrefixed(&VersList) || VersList.Empty() {
+		return false
+	}
+	for !VersList.Empty() {
+		// TODO: Fix revive
+		//revive:disable:unexported-naming
+		var Vers uint16
+		//revive:enable:unexported-naming
+		if !VersList.ReadUint16(&Vers) {
+			return false
+		}
+		m.SupportedVersions = append(m.SupportedVersions, Vers)
+	}
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalCookie(extData *cryptobyte.String) bool {
+	// RFC 8446, Section 4.2.2
+	if !readUint16LengthPrefixed(extData, &m.cookie) ||
+		len(m.cookie) == 0 {
+		return false
+	}
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalKeyShare(extData *cryptobyte.String) bool {
+	// RFC 8446, Section 4.2.8
+	var clientShares cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&clientShares) {
+		return false
+	}
+	for !clientShares.Empty() {
+		var ks keyShare
+		if !clientShares.ReadUint16((*uint16)(&ks.group)) ||
+			!readUint16LengthPrefixed(&clientShares, &ks.data) ||
+			len(ks.data) == 0 {
+			return false
+		}
+		m.keyShares = append(m.keyShares, ks)
+	}
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalEarlyData(_ *cryptobyte.String) bool {
+	// RFC 8446, Section 4.2.10
+	m.earlyData = true
+	return true
+}
+
+func (m *ClientHelloInfo) unmarshalPSKModes(extData *cryptobyte.String) bool {
+	// RFC 8446, Section 4.2.9
+	return readUint8LengthPrefixed(extData, &m.pskModes)
+}
+
+// revive:disable:cognitive-complexity
+// revive:disable:cyclomatic
+func (m *ClientHelloInfo) unmarshalPreSharedKey(extData *cryptobyte.String) bool {
+	// revive:enable:cognitive-complexity
+	// revive:enable:cyclomatic
+	// RFC 8446, Section 4.2.11
+	var identities cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&identities) || identities.Empty() {
+		return false
+	}
+	for !identities.Empty() {
+		var psk pskIdentity
+		if !readUint16LengthPrefixed(&identities, &psk.label) ||
+			!identities.ReadUint32(&psk.obfuscatedTicketAge) ||
+			len(psk.label) == 0 {
+			return false
+		}
+		m.pskIdentities = append(m.pskIdentities, psk)
+	}
+
+	var binders cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&binders) || binders.Empty() {
+		return false
+	}
+	for !binders.Empty() {
+		var binder []byte
+		if !readUint8LengthPrefixed(&binders, &binder) ||
+			len(binder) == 0 {
+			return false
+		}
+		m.pskBinders = append(m.pskBinders, binder)
+	}
 	return true
 }
