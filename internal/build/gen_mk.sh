@@ -61,15 +61,8 @@ gen_revive_exclude() {
 	done
 }
 
-for cmd in $COMMANDS; do
-	all="$(prefixed $cmd $PROJECTS)"
-	depsx=
-
-	cat <<EOT
-.PHONY: $cmd $all
-$cmd: $all
-
-EOT
+gen_make_targets() {
+	local cmd="$1" name="$2" dir="$3" mod="$4" deps="$5"
 
 	# default calls
 	case "$cmd" in
@@ -110,10 +103,6 @@ EOT
 	*)
 		sequential=false ;;
 	esac
-
-	while IFS=: read name dir mod deps; do
-
-		deps=$(echo "$deps" | tr ',' ' ')
 
 		# cd $dir
 		if [ "." = "$dir" ]; then
@@ -186,6 +175,21 @@ $cmd-$name:${deps:+ $(prefixed $cmd $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $
 $(echo "$callx" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|")
 
 EOT
+}
+
+for cmd in $COMMANDS; do
+	all="$(prefixed $cmd $PROJECTS)"
+	depsx=
+
+	cat <<EOT
+.PHONY: $cmd $all
+$cmd: $all
+EOT
+
+	while IFS=: read name dir mod deps; do
+		deps=$(echo "$deps" | tr ',' ' ')
+
+		gen_make_targets "$cmd" "$name" "$dir" "$mod" "$deps"
 	done < "$INDEX"
 done
 
