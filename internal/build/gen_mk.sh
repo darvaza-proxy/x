@@ -113,26 +113,24 @@ EOT
 
 gen_make_targets() {
 	local cmd="$1" name="$2" dir="$3" mod="$4" deps="$5"
+	local call= callu= callx=
+	local depsx= cmdx=
+	local sequential=
 
 	# default calls
 	case "$cmd" in
 	tidy)
-		call="$(cat <<-EOT | packed
-		\$(GO) mod tidy
+		# unconditional
+		callu="\$(GO) mod tidy"
 
 		# go vet and revive only if there are .go files
 		#
-		$(cat <<-EOL | packed_oneline
-			set -e
-			FILES="\$\$(\$(GO) list -f '{{len .GoFiles}}')"
-			if [ -n "\$\$FILES" ]; then
-				\$(GO) vet ./...
-				\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
-			fi
-			EOL
-			)
+		call="$(cat <<-EOT | packed
+		\$(GO) vet ./...
+		\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
 		EOT
 		)"
+
 		depsx="fmt \$(REVIVE)"
 		;;
 	up)
@@ -162,7 +160,6 @@ gen_make_targets() {
 			cd="cd '$dir'; "
 		fi
 
-		callx="$call"
 		if [ "$name" = root ]; then
 			# special case
 			case "$cmd" in
@@ -179,17 +176,24 @@ gen_make_targets() {
 
 			[ -z "$cmdx" ] || cmdx="\$(GO) $cmdx -v ./..."
 
-			if [ "up" = "$cmd" ]; then
-				callx="$cmdx
+			case "$cmd" in
+			up)
+				# unconditional because of the tools
+				callu="$cmdx
 \$(GO) mod tidy
 $(gen_install_tools)"
-			elif [ "get" = "$cmd" ]; then
-				callx="$cmdx
+				;;
+			get)
+				# unconditional because of the tools
+				callu="$cmdx
 $(gen_install_tools)"
-			elif [ -n "$cmdx" ]; then
-				classx="$cmdx"
-			fi
-
+				;;
+			*)
+				callx="$call"
+				;;
+			esac
+		else
+			callx="$call"
 		fi
 
 		if [ "build" = "$cmd" ]; then
@@ -220,11 +224,21 @@ $(gen_install_tools)"
 			deps=
 		fi
 
+		files=GO_FILES_$(gen_var_name "$name")
 		cat <<EOT
 
 $cmd-$name:${deps:+ $(prefixed $cmd $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $name)
-$(echo "$callx" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|")
 EOT
+	if [ -n "$callu" ]; then
+		# unconditionally
+		echo "$callu" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
+	fi
+	if [ -n "$callx" ]; then
+		# only if there are files
+		echo "ifneq (\$($files),)"
+		echo "$callx" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
+		echo "endif"
+	fi
 }
 
 gen_files_lists
