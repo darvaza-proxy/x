@@ -35,7 +35,7 @@ func GetInfo(buf []byte) *ClientHelloInfo {
 	}
 
 	// handshake message type
-	if uint8(buf[5]) != typeClientHello {
+	if buf[5] != typeClientHello {
 		return nil
 	}
 
