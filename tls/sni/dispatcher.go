@@ -3,7 +3,6 @@ package sni
 import (
 	"context"
 	"crypto/tls"
-	"io/fs"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -15,15 +14,6 @@ import (
 
 var (
 	_ net.Listener = (*Dispatcher)(nil)
-)
-
-var (
-	// ErrClosed is returned after Close() or Cancel()
-	ErrClosed = fs.ErrClosed
-	// ErrInvalid is returned when arguments aren't valid
-	ErrInvalid = fs.ErrInvalid
-	// ErrExists is returned when something is already created
-	ErrExists = fs.ErrExist
 )
 
 // A Handler is a function that will take responsibility over a given
@@ -101,7 +91,7 @@ func (d *Dispatcher) init() {
 // Serve starts processing the underlying net.Listener
 func (d *Dispatcher) Serve(ln net.Listener) error {
 	if ln == nil {
-		return ErrInvalid
+		return core.ErrInvalid
 	}
 
 	d.mu.Lock()
@@ -111,7 +101,7 @@ func (d *Dispatcher) Serve(ln net.Listener) error {
 
 	if d.ln != nil {
 		d.mu.Unlock()
-		return ErrExists
+		return core.ErrExists
 	}
 	d.ln = ln
 	d.mu.Unlock()
@@ -253,7 +243,7 @@ func (d *Dispatcher) Accept() (net.Conn, error) {
 	err := d.Err()
 	if err == nil {
 		if d.cancelled.Load() {
-			return nil, ErrClosed
+			return nil, context.Canceled
 		}
 		core.Panic("unreachable")
 	}
