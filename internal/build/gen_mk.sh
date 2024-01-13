@@ -9,8 +9,8 @@ COMMANDS="tidy get build test up"
 
 TAB=$(printf "\t")
 
-escape_dot() {
-	echo "$1" | sed -e 's|\.|\\.|g'
+escape_dir() {
+	echo "$1" | sed -e 's|/|\\/|g' -e 's|\.|\\.|g'
 }
 
 expand() {
@@ -92,7 +92,7 @@ EOT
 	while IFS=: read name dir mod deps; do
 		files=GO_FILES_$(gen_var_name "$name")
 		filter="-e '/^\.$/d;'"
-		[ "x$dir" = "x." ] || filter="$filter -e '/^$(escape_dot "$dir")$/d;'"
+		[ "x$dir" = "x." ] || filter="$filter -e '/^$(escape_dir "$dir")$/d;'"
 		out_pat="$(cut -d: -f2 "$INDEX" | eval "sed $filter -e 's|$|/%|'" | tr '\n' ' ' | sed -e 's| \+$||')"
 
 		if [ "x$dir" = "x." ]; then

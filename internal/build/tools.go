@@ -1,3 +1,3 @@
 //go:build tools
 
-package tools
+package build
