@@ -9,14 +9,12 @@ import (
 	"sync/atomic"
 
 	"darvaza.org/core"
-	"darvaza.org/darvaza/shared/sync/httpgroup"
 	"darvaza.org/slog"
 	"darvaza.org/slog/handlers/discard"
 )
 
 var (
-	_ net.Listener     = (*Dispatcher)(nil)
-	_ httpgroup.Server = (*Dispatcher)(nil)
+	_ net.Listener = (*Dispatcher)(nil)
 )
 
 var (
@@ -294,7 +292,7 @@ func (d *Dispatcher) Wait() error {
 }
 
 // Cancel initiates a shut down. it will prevent
-// new dispatchs and cancel existing workers, but
+// new dispatches and cancel existing workers, but
 // the responsibility of closing the listener is on
 // the tls.Listener
 func (d *Dispatcher) Cancel() {
