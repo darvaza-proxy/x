@@ -10,7 +10,8 @@ GOPATH ?= $(shell $(GO) env GOPATH)
 GOBIN ?= $(GOPATH)/bin
 
 TOOLSDIR := $(CURDIR)/internal/build
-TMPDIR ?= .tmp
+TMPDIR ?= $(CURDIR)/.tmp
+OUTDIR ?= $(TMPDIR)
 
 GOLANGCI_LINT_VERSION ?= v1.55
 REVIVE_VERSION ?= v1.3.6
@@ -32,7 +33,7 @@ Q = $(if $(filter 1,$V),,@)
 M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
 
 GO_BUILD = $(GO) build -v
-GO_BUILD_CMD= $(GO_BUILD) -o "$(OUTDIR)"
+GO_BUILD_CMD = $(GO_BUILD) -o "$(OUTDIR)"
 
 all: get generate tidy build
 
