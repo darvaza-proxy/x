@@ -9,7 +9,6 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
-	"darvaza.org/slog/handlers/discard"
 )
 
 var (
@@ -78,11 +77,7 @@ func (d *Dispatcher) init() {
 	d.ctx, d.cancel = context.WithCancel(ctx)
 
 	// Logger
-	log := d.Logger
-	if log == nil {
-		log = discard.New()
-	}
-	d.log = log
+	d.log = d.Logger
 
 	// Callbacks
 	d.wg.OnError(d.onError)
@@ -153,11 +148,16 @@ func (d *Dispatcher) handle(conn net.Conn) error {
 
 	if d.GetHandler == nil {
 		// no need to get the ClientHelloInfo here
-		d.debug(conn.RemoteAddr()).
-			Print("connected")
+		if l, ok := d.debug(conn.RemoteAddr()); ok {
+			l.Print("connected")
+		}
 		return d.defaultHandler(d.ctx, conn)
 	}
 
+	return d.handleCHI(conn)
+}
+
+func (d *Dispatcher) handleCHI(conn net.Conn) error {
 	// Get ClientHelloInfo
 	chi, conn2, err := PeekClientHelloInfo(d.ctx, conn)
 	if err != nil {
@@ -165,9 +165,10 @@ func (d *Dispatcher) handle(conn net.Conn) error {
 		return err
 	}
 
-	d.debug(conn.RemoteAddr()).
-		WithField("sni", chi.ServerName).
-		Print("connected")
+	if l, ok := d.debug(conn.RemoteAddr()); ok {
+		l.WithField("sni", chi.ServerName).
+			Print("connected")
+	}
 
 	// Get alternative handler
 	h := d.GetHandler(chi)
@@ -186,18 +187,23 @@ func (d *Dispatcher) defaultHandler(_ context.Context, conn net.Conn) error {
 func (d *Dispatcher) catch(peer net.Addr, err error) error {
 	if peer == nil {
 		// Accept
-		d.error(nil, err).Printf("accept: %s", err)
+		if l, ok := d.error(nil, err); ok {
+			l.Printf("accept: %s", err)
+		}
 		return err
 	}
 
 	if err != nil {
 		// don't propagate connection errors
-
-		d.error(peer, err).Print(err)
+		if l, ok := d.error(peer, err); ok {
+			l.Print(err)
+		}
 		return nil
 	}
 
-	d.debug(peer).Print("done")
+	if l, ok := d.debug(peer); ok {
+		l.Print("done")
+	}
 	return nil
 }
 
@@ -296,18 +302,26 @@ func (d *Dispatcher) Cancelled() bool {
 	return d.cancelled.Load()
 }
 
-func (d *Dispatcher) debug(peer net.Addr) slog.Logger {
+func (d *Dispatcher) debug(peer net.Addr) (slog.Logger, bool) {
 	return d.loggerWithFields(slog.Debug, peer, nil)
 }
 
-func (d *Dispatcher) error(peer net.Addr, err error) slog.Logger {
+func (d *Dispatcher) error(peer net.Addr, err error) (slog.Logger, bool) {
 	return d.loggerWithFields(slog.Error, peer, err)
 }
 
-func (d *Dispatcher) loggerWithFields(level slog.LogLevel, peer net.Addr, err error) slog.Logger {
-	l := d.log.WithLevel(level).
-		WithField("dispatcher", d.ln.Addr().String())
+func (d *Dispatcher) loggerWithFields(level slog.LogLevel, peer net.Addr, err error) (slog.Logger, bool) {
+	l := d.log
+	if l == nil {
+		return nil, false
+	}
 
+	l, ok := l.WithLevel(level).WithEnabled()
+	if !ok {
+		return nil, false
+	}
+
+	l = l.WithField("dispatcher", d.ln.Addr().String())
 	if peer != nil {
 		l = l.WithField("peer", peer.String())
 	}
@@ -316,5 +330,5 @@ func (d *Dispatcher) loggerWithFields(level slog.LogLevel, peer net.Addr, err er
 		l = l.WithField(slog.ErrorFieldName, err)
 	}
 
-	return l
+	return l, true
 }
