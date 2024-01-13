@@ -225,12 +225,23 @@ func (d *Dispatcher) onError(err error) error {
 	return nil
 }
 
-// Shutdown initiates a shutdown and waits until the workers are done.
-// The given Context isn't used, its only to allow implementing the
-// httpgroup.Server interface
-func (d *Dispatcher) Shutdown(context.Context) error {
+// Shutdown initiates a shutdown and waits until the workers are done
+// or the given context times out.
+func (d *Dispatcher) Shutdown(ctx context.Context) error {
 	d.Cancel()
-	return d.wg.Wait()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = d.wg.Wait()
+	}()
+
+	select {
+	case <-done:
+		return d.wg.Err()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Accept returns a connection that wasn't dispatched through
