@@ -3,7 +3,7 @@ module darvaza.org/x/config
 go 1.20
 
 require (
-	darvaza.org/core v0.11.4
+	darvaza.org/core v0.12.0
 	github.com/amery/defaults v0.1.0
 	github.com/go-playground/validator/v10 v10.16.0
 	mvdan.cc/sh/v3 v3.7.0
