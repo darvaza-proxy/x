@@ -3,29 +3,16 @@ package sni
 import (
 	"context"
 	"crypto/tls"
-	"io/fs"
 	"net"
 	"sync"
 	"sync/atomic"
 
 	"darvaza.org/core"
-	"darvaza.org/darvaza/shared/sync/httpgroup"
 	"darvaza.org/slog"
-	"darvaza.org/slog/handlers/discard"
 )
 
 var (
-	_ net.Listener     = (*Dispatcher)(nil)
-	_ httpgroup.Server = (*Dispatcher)(nil)
-)
-
-var (
-	// ErrClosed is returned after Close() or Cancel()
-	ErrClosed = fs.ErrClosed
-	// ErrInvalid is returned when arguments aren't valid
-	ErrInvalid = fs.ErrInvalid
-	// ErrExists is returned when something is already created
-	ErrExists = fs.ErrExist
+	_ net.Listener = (*Dispatcher)(nil)
 )
 
 // A Handler is a function that will take responsibility over a given
@@ -90,11 +77,7 @@ func (d *Dispatcher) init() {
 	d.ctx, d.cancel = context.WithCancel(ctx)
 
 	// Logger
-	log := d.Logger
-	if log == nil {
-		log = discard.New()
-	}
-	d.log = log
+	d.log = d.Logger
 
 	// Callbacks
 	d.wg.OnError(d.onError)
@@ -103,7 +86,7 @@ func (d *Dispatcher) init() {
 // Serve starts processing the underlying net.Listener
 func (d *Dispatcher) Serve(ln net.Listener) error {
 	if ln == nil {
-		return ErrInvalid
+		return core.ErrInvalid
 	}
 
 	d.mu.Lock()
@@ -113,7 +96,7 @@ func (d *Dispatcher) Serve(ln net.Listener) error {
 
 	if d.ln != nil {
 		d.mu.Unlock()
-		return ErrExists
+		return core.ErrExists
 	}
 	d.ln = ln
 	d.mu.Unlock()
@@ -165,11 +148,16 @@ func (d *Dispatcher) handle(conn net.Conn) error {
 
 	if d.GetHandler == nil {
 		// no need to get the ClientHelloInfo here
-		d.debug(conn.RemoteAddr()).
-			Print("connected")
+		if l, ok := d.debug(conn.RemoteAddr()); ok {
+			l.Print("connected")
+		}
 		return d.defaultHandler(d.ctx, conn)
 	}
 
+	return d.handleCHI(conn)
+}
+
+func (d *Dispatcher) handleCHI(conn net.Conn) error {
 	// Get ClientHelloInfo
 	chi, conn2, err := PeekClientHelloInfo(d.ctx, conn)
 	if err != nil {
@@ -177,9 +165,10 @@ func (d *Dispatcher) handle(conn net.Conn) error {
 		return err
 	}
 
-	d.debug(conn.RemoteAddr()).
-		WithField("sni", chi.ServerName).
-		Print("connected")
+	if l, ok := d.debug(conn.RemoteAddr()); ok {
+		l.WithField("sni", chi.ServerName).
+			Print("connected")
+	}
 
 	// Get alternative handler
 	h := d.GetHandler(chi)
@@ -198,18 +187,23 @@ func (d *Dispatcher) defaultHandler(_ context.Context, conn net.Conn) error {
 func (d *Dispatcher) catch(peer net.Addr, err error) error {
 	if peer == nil {
 		// Accept
-		d.error(nil, err).Printf("accept: %s", err)
+		if l, ok := d.error(nil, err); ok {
+			l.Printf("accept: %s", err)
+		}
 		return err
 	}
 
 	if err != nil {
 		// don't propagate connection errors
-
-		d.error(peer, err).Print(err)
+		if l, ok := d.error(peer, err); ok {
+			l.Print(err)
+		}
 		return nil
 	}
 
-	d.debug(peer).Print("done")
+	if l, ok := d.debug(peer); ok {
+		l.Print("done")
+	}
 	return nil
 }
 
@@ -231,12 +225,23 @@ func (d *Dispatcher) onError(err error) error {
 	return nil
 }
 
-// Shutdown initiates a shutdown and waits until the workers are done.
-// The given Context isn't used, its only to allow implementing the
-// httpgroup.Server interface
-func (d *Dispatcher) Shutdown(context.Context) error {
+// Shutdown initiates a shutdown and waits until the workers are done
+// or the given context times out.
+func (d *Dispatcher) Shutdown(ctx context.Context) error {
 	d.Cancel()
-	return d.wg.Wait()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = d.wg.Wait()
+	}()
+
+	select {
+	case <-done:
+		return d.wg.Err()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Accept returns a connection that wasn't dispatched through
@@ -255,7 +260,7 @@ func (d *Dispatcher) Accept() (net.Conn, error) {
 	err := d.Err()
 	if err == nil {
 		if d.cancelled.Load() {
-			return nil, ErrClosed
+			return nil, context.Canceled
 		}
 		core.Panic("unreachable")
 	}
@@ -294,7 +299,7 @@ func (d *Dispatcher) Wait() error {
 }
 
 // Cancel initiates a shut down. it will prevent
-// new dispatchs and cancel existing workers, but
+// new dispatches and cancel existing workers, but
 // the responsibility of closing the listener is on
 // the tls.Listener
 func (d *Dispatcher) Cancel() {
@@ -308,18 +313,26 @@ func (d *Dispatcher) Cancelled() bool {
 	return d.cancelled.Load()
 }
 
-func (d *Dispatcher) debug(peer net.Addr) slog.Logger {
+func (d *Dispatcher) debug(peer net.Addr) (slog.Logger, bool) {
 	return d.loggerWithFields(slog.Debug, peer, nil)
 }
 
-func (d *Dispatcher) error(peer net.Addr, err error) slog.Logger {
+func (d *Dispatcher) error(peer net.Addr, err error) (slog.Logger, bool) {
 	return d.loggerWithFields(slog.Error, peer, err)
 }
 
-func (d *Dispatcher) loggerWithFields(level slog.LogLevel, peer net.Addr, err error) slog.Logger {
-	l := d.log.WithLevel(level).
-		WithField("dispatcher", d.ln.Addr().String())
+func (d *Dispatcher) loggerWithFields(level slog.LogLevel, peer net.Addr, err error) (slog.Logger, bool) {
+	l := d.log
+	if l == nil {
+		return nil, false
+	}
 
+	l, ok := l.WithLevel(level).WithEnabled()
+	if !ok {
+		return nil, false
+	}
+
+	l = l.WithField("dispatcher", d.ln.Addr().String())
 	if peer != nil {
 		l = l.WithField("peer", peer.String())
 	}
@@ -328,5 +341,5 @@ func (d *Dispatcher) loggerWithFields(level slog.LogLevel, peer net.Addr, err er
 		l = l.WithField(slog.ErrorFieldName, err)
 	}
 
-	return l
+	return l, true
 }
