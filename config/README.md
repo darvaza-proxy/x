@@ -36,6 +36,10 @@ Expand shell-style variables:
 * `FromReader()`
 * `FromFile()`
 
+## Loader
+
+Attempts to decode an object from one of a list of filenames.
+
 ## Validations
 
 Wrappers for [`github.com/go-playground/validator/v10`][go-playground-validator]:
