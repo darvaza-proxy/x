@@ -93,6 +93,13 @@ func (l *Loader[T]) doReadDecode(fSys fs.FS, name string) (*T, error) {
 	return dec.Decode(name, data)
 }
 
+// New creates a new object
+func (l *Loader[T]) New() (*T, error) {
+	l.remember(nil, "")
+	v := new(T)
+	return l.applyOptions(v)
+}
+
 func (l *Loader[T]) applyOptions(v *T) (*T, error) {
 	for _, opt := range l.Options {
 		if err := opt(v); err != nil {
