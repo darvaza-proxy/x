@@ -112,6 +112,21 @@ func (l *Loader[T]) tryFallback() (*T, error) {
 	}
 }
 
+// New creates a new object
+func (l *Loader[T]) New() (*T, error) {
+	var err error
+	var v *T
+
+	l.remember(nil, "")
+	if l.Fallback == nil {
+		v = new(T)
+	} else if v, err = l.Fallback(); err != nil {
+		return nil, err
+	}
+
+	return l.applyOptions(v)
+}
+
 func (l *Loader[T]) applyOptions(v *T) (*T, error) {
 	for _, opt := range l.Options {
 		if err := opt(v); err != nil {
