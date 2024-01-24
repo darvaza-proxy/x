@@ -6,6 +6,9 @@ import (
 	"os"
 )
 
+// An Option if a function used to configure an object after decoding.
+type Option[T any] func(*T) error
+
 // Loader tries to load an object from the first success on a list
 // of options.
 type Loader[T any] struct {
@@ -19,6 +22,10 @@ type Loader[T any] struct {
 	// indicates we should try the next option instead of
 	// failing. [os.IsNotExist] is always tested first.
 	IsSkip func(error) bool
+
+	// Options are applied to objects after decoding and
+	// before Load() returns.
+	Options []Option[T]
 }
 
 // Last returns the filename last used. empty if it was the
@@ -53,7 +60,7 @@ func (l *Loader[T]) tryLoad(fSys fs.FS, names []string) (*T, error) {
 		v, err := l.doReadDecode(fSys, name)
 		switch {
 		case err == nil:
-			return v, nil
+			return l.applyOptions(v)
 		case os.IsNotExist(err), l.IsSkip != nil && l.IsSkip(err):
 			continue
 		default:
@@ -82,4 +89,14 @@ func (l *Loader[T]) doReadDecode(fSys fs.FS, name string) (*T, error) {
 	}
 
 	return dec.Decode(name, data)
+}
+
+func (l *Loader[T]) applyOptions(v *T) (*T, error) {
+	for _, opt := range l.Options {
+		if err := opt(v); err != nil {
+			return nil, NewPathError("", "init", err)
+		}
+	}
+
+	return v, nil
 }
