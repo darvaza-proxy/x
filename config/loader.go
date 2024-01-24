@@ -4,6 +4,8 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
+	"strings"
 )
 
 // An Option if a function used to configure an object after decoding.
@@ -99,4 +101,72 @@ func (l *Loader[T]) applyOptions(v *T) (*T, error) {
 	}
 
 	return v, nil
+}
+
+// Join combines a list of directories with a name and an optional list of extensions.
+// This are `/` separated, absolute, but without the initial `/`.
+// Following [fs.ValidPath] rules. Final result is cleaned.
+func Join(directories []string, base string, extensions []string) ([]string, error) {
+	l := len(directories)
+	names, err := joinedNames(base, extensions)
+
+	if err != nil || l == 0 {
+		return names, err
+	}
+
+	out := make([]string, 0, len(names)*l)
+	for _, dir := range directories {
+		switch {
+		case dir == "":
+			dir = "."
+		case fs.ValidPath(dir):
+			dir = path.Clean(dir)
+		default:
+			return out, joinInvalid(dir)
+		}
+
+		for _, name := range names {
+			out = append(out, path.Join(dir, name))
+		}
+	}
+
+	return out, nil
+}
+
+func joinedNames(base string, extensions []string) ([]string, error) {
+	if base == "" || strings.Contains(base, "/") {
+		return nil, joinInvalid(base)
+	}
+
+	l := len(extensions)
+	if l == 0 {
+		return []string{base}, nil
+	}
+
+	out := make([]string, 0, l)
+	for _, ext := range extensions {
+		s := joinName(base, ext)
+		if !fs.ValidPath(s) {
+			return out, joinInvalid(s)
+		}
+
+		out = append(out, s)
+	}
+
+	return out, nil
+}
+
+func joinName(base, ext string) string {
+	switch {
+	case ext == "":
+		return base
+	case ext[0] == '.':
+		return base + ext
+	default:
+		return base + "." + ext
+	}
+}
+
+func joinInvalid(name string) *fs.PathError {
+	return NewPathError(name, "join", fs.ErrInvalid)
 }
