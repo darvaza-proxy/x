@@ -1,0 +1,59 @@
+# Darvaza Config
+
+[![Go Reference][godoc-badge]][godoc]
+[![Go Report Card][goreport-badge]][goreport]
+
+`darvaza.org/x/config` provides helpers
+for dealing with config files.
+
+[godoc]: https://pkg.go.dev/darvaza.org/x/config
+[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/config.svg
+[goreport]: https://goreportcard.com/report/darvaza.org/x/config
+[goreport-badge]: https://goreportcard.com/badge/darvaza.org/x/config
+
+[darvaza-core]: https://pkg.go.dev/darvaza.org/core
+[darvaza-penne]: https://pkg.go.dev/darvaza.org/penne
+[darvaza-sidecar]: https://pkg.go.dev/darvaza.org/sidecar
+[darvaza-x]: https://github.com/darvaza-proxy/x
+
+[amery-defaults]: https://pkg.go.dev/github.com/amery/defaults
+[go-playground-validator]: https://pkg.go.dev/github.com/go-playground/validator/v10
+
+## Default values
+
+Wrappers for [`github.com/amery/defaults`][amery-defaults]:
+
+* `SetDefaults()`
+* `Set()`
+* `CanUpdate()`
+
+## Environment
+
+Expand shell-style variables:
+
+* `FromString()`
+* `FromBytes()`
+* `FromReader()`
+* `FromFile()`
+
+## Validations
+
+Wrappers for [`github.com/go-playground/validator/v10`][go-playground-validator]:
+
+* `Validate()`
+* `AsValidationError()`
+* and `Prepare()`. calling `SetDefaults()` and `Validate()`.
+
+## See also
+
+* [JPI Technologies' Open Source Software](https://oss.jpi.io/)
+* _darvaza libraries_
+  * [darvaza.org/core][darvaza-core]
+  * [darvaza.org/x][darvaza-x]
+* _darvaza servers_
+  * [darvaza.org/penne][darvaza-penne]
+  * [darvaza.org/sidecar][darvaza-sidecar]
+* _third party libraries_
+  * [github.com/amery/defaults][amery-defaults]
+  * [github.com/go-playground/validator][go-playground-validator]
+  * [mvdan.cc/sh](https://pkg.go.dev/mvdan.cc/sh/v3)
