@@ -142,6 +142,39 @@ func SysRuntimeDir(sub ...string) (string, error) {
 	return Join(dir, sub...), nil
 }
 
+// AllConfigDir returns a slice containing the application
+// configuration path on the current working directory, user mode,
+// and system mode.
+func AllConfigDir(sub ...string) []string {
+	var u string
+
+	out := make([]string, 0, 3)
+
+	// .
+	if s, _ := os.Getwd(); s != "" {
+		parts := partsFromSlash(s, sub...)
+		if len(parts) > 1 {
+			// ./app/foo -> ./foo
+			parts[1] = parts[0]
+			parts = parts[1:]
+		}
+
+		out = append(out, filepath.Join(parts...))
+	}
+
+	// ~
+	if u, _ = UserConfigDir(sub...); u != "" {
+		out = append(out, u)
+	}
+
+	// /
+	if s, _ := SysConfigDir(sub...); s != "" && s != u {
+		out = append(out, u)
+	}
+
+	return out
+}
+
 // Join combines file path parts in a OS specific way.
 // parts are allowed to be multipart themselves, using `/`
 // as delimiter.
