@@ -19,6 +19,11 @@ for dealing with config files.
 [amery-defaults]: https://pkg.go.dev/github.com/amery/defaults
 [go-playground-validator]: https://pkg.go.dev/github.com/go-playground/validator/v10
 
+## AppDir
+
+`appdir` contains helpers to determine the location of application
+specific files.
+
 ## Default values
 
 Wrappers for [`github.com/amery/defaults`][amery-defaults]:
