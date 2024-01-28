@@ -49,6 +49,7 @@ func (l *Loader[T]) NewFromFile(fSys fs.FS, names ...string) (*T, error) {
 		case err != nil:
 			return nil, NewPathError(l.lastName, "load", err)
 		case v != nil:
+			// success
 			return v, nil
 		}
 	}
@@ -105,6 +106,14 @@ func (l *Loader[T]) applyOptions(v *T) (*T, error) {
 		if err := opt(v); err != nil {
 			return nil, NewPathError("", "init", err)
 		}
+	}
+
+	if err := SetDefaults(v); err != nil {
+		return nil, NewPathError("", "init", err)
+	}
+
+	if err := Validate(v); err != nil {
+		return nil, NewPathError("", "validate", err)
 	}
 
 	return v, nil
