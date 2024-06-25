@@ -70,7 +70,11 @@ func listAllGlobFS(fSys fs.FS) ([]string, error) {
 	var out []string
 
 	err := fs.WalkDir(fSys, ".", func(path string, d fs.DirEntry, err error) error {
-		if d.Type().IsRegular() {
+		switch {
+		case err != nil:
+			// only pass root errors
+			return core.IIf(path == ".", err, nil)
+		case d.Type().IsRegular():
 			out = append(out, path)
 		}
 		return nil
