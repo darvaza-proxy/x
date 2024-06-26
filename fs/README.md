@@ -8,6 +8,12 @@ delimiters
 
 * `Glob` a type alias to keep the import-space clean
 * `GlobCompile` compiles a list of patterns
+* `GlobFS` walks a [fs.FS] and returns all matches of the specified patterns.
+  If no pattern is provided all entries not giving a `fs.Stat` error will be
+  returned.
+* `MatchFS` is similar to `GlobFS` but it takes a root value, which will be cleaned,
+  and a list of compiled `Glob` patterns. it will only fail if the root gives an error.
+* `MatchFuncFS` is an alternative to `MatchFS` which actually receives a checker function.
 
 ## Paths
 
