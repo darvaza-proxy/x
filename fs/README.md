@@ -24,3 +24,25 @@ paths starting with `/`, and also returns if the cleaned path satisfies [fs.Vali
 
 as leading `../` are supported, it can be used for concatenations and to clean
 absolute OS paths. `/..` will be returned if the reduction lead to that.
+
+## Proxies
+
+As this package is named `fs` and would shadow the standard `io.fs` package we include aliases
+and proxies of commonly used symbols.
+
+### Types
+
+* `fs.FileInfo`
+* `fs.DirInfo`
+* `fs.PathError`
+* `fs.StatFS`
+
+### Constants
+
+* `fs.ErrInvalid`
+* `fs.ErrExists`
+* `fs.ErrNotExists`
+
+### Functions
+
+* `fs.ValidPath`
