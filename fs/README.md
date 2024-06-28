@@ -25,6 +25,11 @@ paths starting with `/`, and also returns if the cleaned path satisfies [fs.Vali
 as leading `../` are supported, it can be used for concatenations and to clean
 absolute OS paths. `/..` will be returned if the reduction lead to that.
 
+### `Split`
+
+We also have a variant of [path.Split] which cleans the argument and splits `dir` and `file`
+without the trailing slash on `dir`.
+
 ## Proxies
 
 As this package is named `fs` and would shadow the standard `io.fs` package we include aliases
