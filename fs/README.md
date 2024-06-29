@@ -30,6 +30,34 @@ absolute OS paths. `/..` will be returned if the reduction lead to that.
 We also have a variant of [path.Split] which cleans the argument and splits `dir` and `file`
 without the trailing slash on `dir`.
 
+## Interfaces
+
+This package provides aliases of the standard `fs.FooFS` and adds the missing ones to
+gain parity with the `os` package.
+
+### Aliases
+
+* `fs.FS`
+* `fs.GlobFS`
+* `fs.ReadDirFS`
+* `fs.ReadFileFS`
+* `fs.StatFS`
+* `fs.SubFS`
+
+### New
+
+* `ChmodFS`
+* `ChtimesFS`
+* `MkdirFS`
+* `MkdirAllFS`
+* `MkdirTempFS`
+* `ReadlinkFS`
+* `RemoveFS`
+* `RemoveAllFS`
+* `RenameFS`
+* `SymlinkFS`
+* `WriteFileFS`
+
 ## Proxies
 
 As this package is named `fs` and would shadow the standard `io.fs` package we include aliases
@@ -38,9 +66,9 @@ and proxies of commonly used symbols.
 ### Types
 
 * `fs.FileInfo`
+* `fs.FileMode`
 * `fs.DirInfo`
 * `fs.PathError`
-* `fs.StatFS`
 
 ### Constants
 
