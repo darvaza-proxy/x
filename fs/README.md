@@ -6,14 +6,14 @@ We use the excellent https://github.com/gobwas/glob to compile
 file listing patterns, and `**` is supported to ignore the `/`
 delimiters
 
-* `Glob` a type alias to keep the import-space clean
+* `Matcher` a type alias of glob.Glob to keep the import-space clean
 * `GlobCompile` compiles a list of patterns
-* `GlobFS` walks a [fs.FS] and returns all matches of the specified patterns.
+* `Glob` walks a [fs.FS] and returns all matches of the specified patterns.
   If no pattern is provided all entries not giving a `fs.Stat` error will be
   returned.
-* `MatchFS` is similar to `GlobFS` but it takes a root value, which will be cleaned,
-  and a list of compiled `Glob` patterns. it will only fail if the root gives an error.
-* `MatchFuncFS` is an alternative to `MatchFS` which actually receives a checker function.
+* `Match` is similar to `Glob` but it takes a root value, which will be cleaned,
+  and a list of compiled `Matcher` patterns. it will only fail if the root gives an error.
+* `MatchFunc` is an alternative to `Match` which actually receives a checker function.
 
 ## Paths
 
