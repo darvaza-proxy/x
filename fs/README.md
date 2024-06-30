@@ -78,8 +78,10 @@ and proxies of commonly used symbols.
 ### Constants
 
 * `fs.ErrInvalid`
+* `fs.ErrPermission`
 * `fs.ErrExists`
 * `fs.ErrNotExists`
+* `fs.ErrClosed`
 
 ### Functions
 
