@@ -80,6 +80,7 @@ and proxies of commonly used symbols.
 * `fs.ErrInvalid`
 * `fs.ErrExists`
 * `fs.ErrNotExists`
+* `fs.ErrPermission`
 
 ### Functions
 

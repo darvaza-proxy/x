@@ -20,6 +20,8 @@ var (
 	ErrExist = fs.ErrExist
 	// ErrNotExist is an alias of the standard [fs.ErrNotExist] constant.
 	ErrNotExist = fs.ErrNotExist
+	// ErrPermission is an alias of the standard [fs.ErrPermission] constant.
+	ErrPermission = fs.ErrPermission
 )
 
 // ValidPath is a proxy to the standard [fs.ValidPath]
