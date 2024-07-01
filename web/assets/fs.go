@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"embed"
 	"net/http"
 
 	"darvaza.org/core"
@@ -58,15 +59,23 @@ type ETagsSetterFS interface {
 // NewFS creates a new assets [FS] from the given [fs.FS], optional root, and an
 // list of patterns. [github.com/gobwas/glob] patterns supported.
 func NewFS(base fs.FS, root string, patterns ...string) (FS, error) {
-	_, _, err := sanitizeNewFS(root, patterns)
-	switch {
-	case err != nil:
+	dir, globs, err := sanitizeNewFS(root, patterns)
+	if err != nil {
 		return nil, err
-	case base == nil:
-		return nil, core.QuietWrap(core.ErrInvalid, "base fs.FS not provided")
-	default:
-		return nil, core.Wrap(core.ErrTODO, "%T not yet supported", base)
 	}
+
+	switch v := base.(type) {
+	case embed.FS:
+		return unsafeNewEmbedFS(&v, dir, globs)
+	case *embed.FS:
+		return unsafeNewEmbedFS(v, dir, globs)
+	case nil:
+		err = core.QuietWrap(core.ErrInvalid, "base fs.FS not provided")
+	default:
+		err = core.Wrap(core.ErrTODO, "%T not yet supported", base)
+	}
+
+	return nil, err
 }
 
 func sanitizeNewFS(root string, patterns []string) (string, []fs.Matcher, error) {
