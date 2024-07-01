@@ -5,12 +5,12 @@ import "io/fs"
 type (
 	// FileInfo is an alias of the standard [fs.FileInfo] type.
 	FileInfo = fs.FileInfo
+	// FileMode is an alias of the standard [fs.FileMode] type.
+	FileMode = fs.FileMode
 	// DirEntry is an alias of the standard [fs.DirEntry] type.
 	DirEntry = fs.DirEntry
 	// PathError is an alias of the standard [fs.PathError] type.
 	PathError = fs.PathError
-	// StatFS is an alias of the standard [fs.StatFS] type.
-	StatFS = fs.StatFS
 )
 
 var (

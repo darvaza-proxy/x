@@ -6,14 +6,14 @@ We use the excellent https://github.com/gobwas/glob to compile
 file listing patterns, and `**` is supported to ignore the `/`
 delimiters
 
-* `Glob` a type alias to keep the import-space clean
+* `Matcher` a type alias of glob.Glob to keep the import-space clean
 * `GlobCompile` compiles a list of patterns
-* `GlobFS` walks a [fs.FS] and returns all matches of the specified patterns.
+* `Glob` walks a [fs.FS] and returns all matches of the specified patterns.
   If no pattern is provided all entries not giving a `fs.Stat` error will be
   returned.
-* `MatchFS` is similar to `GlobFS` but it takes a root value, which will be cleaned,
-  and a list of compiled `Glob` patterns. it will only fail if the root gives an error.
-* `MatchFuncFS` is an alternative to `MatchFS` which actually receives a checker function.
+* `Match` is similar to `Glob` but it takes a root value, which will be cleaned,
+  and a list of compiled `Matcher` patterns. it will only fail if the root gives an error.
+* `MatchFunc` is an alternative to `Match` which actually receives a checker function.
 
 ## Paths
 
@@ -30,6 +30,34 @@ absolute OS paths. `/..` will be returned if the reduction lead to that.
 We also have a variant of [path.Split] which cleans the argument and splits `dir` and `file`
 without the trailing slash on `dir`.
 
+## Interfaces
+
+This package provides aliases of the standard `fs.FooFS` and adds the missing ones to
+gain parity with the `os` package.
+
+### Aliases
+
+* `fs.FS`
+* `fs.GlobFS`
+* `fs.ReadDirFS`
+* `fs.ReadFileFS`
+* `fs.StatFS`
+* `fs.SubFS`
+
+### New
+
+* `ChmodFS`
+* `ChtimesFS`
+* `MkdirFS`
+* `MkdirAllFS`
+* `MkdirTempFS`
+* `ReadlinkFS`
+* `RemoveFS`
+* `RemoveAllFS`
+* `RenameFS`
+* `SymlinkFS`
+* `WriteFileFS`
+
 ## Proxies
 
 As this package is named `fs` and would shadow the standard `io.fs` package we include aliases
@@ -38,9 +66,9 @@ and proxies of commonly used symbols.
 ### Types
 
 * `fs.FileInfo`
+* `fs.FileMode`
 * `fs.DirInfo`
 * `fs.PathError`
-* `fs.StatFS`
 
 ### Constants
 

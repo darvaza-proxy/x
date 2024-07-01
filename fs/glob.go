@@ -8,13 +8,13 @@ import (
 	"darvaza.org/core"
 )
 
-// Glob is a compiled globbing pattern from https://github.com/gobwas/glob
-type Glob = glob.Glob
+// Matcher is a compiled globbing pattern from https://github.com/gobwas/glob
+type Matcher = glob.Glob
 
 // GlobCompile compiles a list of file globbing patterns using
 // https://github.com/gobwas/glob
-func GlobCompile(patterns ...string) ([]Glob, error) {
-	out := make([]Glob, 0, len(patterns))
+func GlobCompile(patterns ...string) ([]Matcher, error) {
+	out := make([]Matcher, 0, len(patterns))
 
 	for _, pat := range patterns {
 		g, err := glob.Compile(pat, '/')
@@ -27,22 +27,22 @@ func GlobCompile(patterns ...string) ([]Glob, error) {
 	return out, nil
 }
 
-// GlobFS returns all entries matching any of the given patterns.
-func GlobFS(fSys fs.FS, patterns ...string) ([]string, error) {
+// Glob returns all entries matching any of the given patterns.
+func Glob(fSys fs.FS, patterns ...string) ([]string, error) {
 	g, err := GlobCompile(patterns...)
 	if err != nil {
 		return nil, err
 	}
 
-	return MatchFS(fSys, ".", g...)
+	return Match(fSys, ".", g...)
 }
 
-// MatchFS returns all entries matching any of the given compiled glob patterns.
-func MatchFS(fSys fs.FS, root string, globs ...Glob) ([]string, error) {
-	return MatchFuncFS(fSys, root, newCheckerMatchAnyFS(globs))
+// Match returns all entries matching any of the given compiled glob patterns.
+func Match(fSys fs.FS, root string, globs ...Matcher) ([]string, error) {
+	return MatchFunc(fSys, root, newCheckerMatchAny(globs))
 }
 
-func newCheckerMatchAnyFS(globs []Glob) func(string, fs.DirEntry) bool {
+func newCheckerMatchAny(globs []Matcher) func(string, fs.DirEntry) bool {
 	if len(globs) == 0 {
 		return nil
 	}
@@ -57,10 +57,10 @@ func newCheckerMatchAnyFS(globs []Glob) func(string, fs.DirEntry) bool {
 	}
 }
 
-// MatchFuncFS returns all entries satisfying the given checker function.
+// MatchFunc returns all entries satisfying the given checker function.
 // If no function is provided, all entries will be listed.
 // Entries giving Stat error will be ignored.
-func MatchFuncFS(fSys fs.FS, root string, check func(string, fs.DirEntry) bool) ([]string, error) {
+func MatchFunc(fSys fs.FS, root string, check func(string, fs.DirEntry) bool) ([]string, error) {
 	var out []string
 
 	dir, ok := Clean(root)
