@@ -1,6 +1,6 @@
 module darvaza.org/x/config
 
-go 1.20
+go 1.21
 
 require (
 	darvaza.org/core v0.12.1

@@ -1,6 +1,6 @@
 module darvaza.org/x/fs
 
-go 1.19
+go 1.21
 
 require (
 	darvaza.org/core v0.13.3

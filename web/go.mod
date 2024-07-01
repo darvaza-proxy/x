@@ -1,6 +1,6 @@
 module darvaza.org/x/web
 
-go 1.20
+go 1.21
 
 require darvaza.org/core v0.13.3
 
