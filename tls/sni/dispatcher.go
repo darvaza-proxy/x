@@ -140,7 +140,7 @@ func (d *Dispatcher) handle(conn net.Conn) error {
 	if d.OnAccept != nil {
 		conn2, err := d.OnAccept(conn)
 		if err != nil {
-			defer conn.Close()
+			_ = conn.Close()
 			return err
 		}
 		conn = conn2
@@ -161,7 +161,7 @@ func (d *Dispatcher) handleCHI(conn net.Conn) error {
 	// Get ClientHelloInfo
 	chi, conn2, err := PeekClientHelloInfo(d.ctx, conn)
 	if err != nil {
-		defer conn.Close()
+		_ = conn.Close()
 		return err
 	}
 
