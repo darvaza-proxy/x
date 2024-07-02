@@ -22,9 +22,8 @@ var (
 	_ fs.FileInfo = (*EmbedMeta)(nil)
 	_ fs.DirEntry = (*EmbedMeta)(nil)
 
-	_ fs.File           = (*EmbedFile)(nil)
-	_ io.ReadSeekCloser = (*EmbedFile)(nil)
-	_ http.Handler      = (*EmbedFile)(nil)
+	_ File         = (*EmbedFile)(nil)
+	_ http.Handler = (*EmbedFile)(nil)
 )
 
 // embedFS is the data shared by all views of the given [embed.FS]
@@ -427,10 +426,7 @@ func (fd *EmbedFile) Seek(offset int64, whence int) (int64, error) {
 func (fd *EmbedFile) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	defer fd.Close()
 
-	name := fd.meta.Name()
-	modTime := fd.meta.ModTime()
-
-	http.ServeContent(rw, req, name, modTime, fd)
+	ServeFile(rw, req, fd)
 }
 
 // embedFS is the File data shared by all views of the given [embed.FS]
