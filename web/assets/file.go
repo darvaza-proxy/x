@@ -121,7 +121,28 @@ func getETags(file File) ([]string, error) {
 		return nil, err
 	}
 
-	return []string{hash}, nil
+	etags := []string{hash}
+
+	// try to remember
+	if f := getETagsSetter(file); f != nil {
+		f.SetETags(etags...)
+	}
+
+	return etags, nil
+}
+
+func getETagsSetter(file fs.File) ETagsSetter {
+	if f, ok := file.(ETagsSetter); ok {
+		return f
+	}
+
+	if fi, _ := file.Stat(); fi != nil {
+		if f, ok := fi.(ETagsSetter); ok {
+			return f
+		}
+	}
+
+	return nil
 }
 
 func serve500(rw http.ResponseWriter, req *http.Request, err error) {
