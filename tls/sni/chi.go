@@ -50,6 +50,8 @@ func ReadClientHelloInfo(ctx context.Context,
 
 	conn := readOnlyConn{reader: f}
 	conf := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		MaxVersion: tls.VersionTLS13,
 		GetConfigForClient: func(chi *tls.ClientHelloInfo) (*tls.Config, error) {
 			// copy
 			out = new(tls.ClientHelloInfo)
