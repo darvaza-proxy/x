@@ -16,10 +16,14 @@ type (
 var (
 	// ErrInvalid is an alias of the standard [fs.ErrInvalid] constant.
 	ErrInvalid = fs.ErrInvalid
+	// ErrPermission is an alias of the standard [fs.ErrPermission] constant.
+	ErrPermission = fs.ErrPermission
 	// ErrExist is an alias of the standard [fs.ErrExist] constant.
 	ErrExist = fs.ErrExist
 	// ErrNotExist is an alias of the standard [fs.ErrNotExist] constant.
 	ErrNotExist = fs.ErrNotExist
+	// ErrClosed is an alias of the standard [fs.ErrClosed] constant.
+	ErrClosed = fs.ErrClosed
 )
 
 // ValidPath is a proxy to the standard [fs.ValidPath]

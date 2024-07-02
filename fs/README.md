@@ -58,6 +58,11 @@ gain parity with the `os` package.
 * `SymlinkFS`
 * `WriteFileFS`
 
+### fs.File
+
+ * `fs.File`
+ * `fs.ReadDirFile`
+
 ## Proxies
 
 As this package is named `fs` and would shadow the standard `io.fs` package we include aliases
@@ -73,8 +78,10 @@ and proxies of commonly used symbols.
 ### Constants
 
 * `fs.ErrInvalid`
+* `fs.ErrPermission`
 * `fs.ErrExists`
 * `fs.ErrNotExists`
+* `fs.ErrClosed`
 
 ### Functions
 
