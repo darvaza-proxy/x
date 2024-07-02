@@ -1,8 +1,26 @@
 package assets
 
 import (
-	"io/fs"
+	"net/http"
+
+	"darvaza.org/core"
+	"darvaza.org/x/fs"
 )
+
+// FS represents an HTTP capable file system.
+type FS interface {
+	// FS is a standard Go file system
+	fs.FS
+
+	// ServeHTTP handles requests as normal and fails with a standard 404
+	http.Handler
+	// Middleware handles requests for known files and pass over the rest
+	Middleware() func(http.Handler) http.Handler
+
+	// SetResolver sets a helper that will extract the request path from
+	// the [http.Request]. by default req.URL.Path will be used.
+	SetResolver(func(*http.Request) (string, error))
+}
 
 // ContentTypedFS is the interface implemented by a file system
 // to get a file's MIME Content-Type
@@ -35,4 +53,46 @@ type ETagsSetterFS interface {
 	fs.FS
 
 	SetETags(string, ...string) ([]string, error)
+}
+
+// NewFS creates a new assets [FS] from the given [fs.FS], optional root, and an
+// list of patterns. [github.com/gobwas/glob] patterns supported.
+func NewFS(base fs.FS, root string, patterns ...string) (FS, error) {
+	_, _, err := sanitizeNewFS(root, patterns)
+	switch {
+	case err != nil:
+		return nil, err
+	case base == nil:
+		return nil, core.QuietWrap(core.ErrInvalid, "base fs.FS not provided")
+	default:
+		return nil, core.Wrap(core.ErrTODO, "%T not yet supported", base)
+	}
+}
+
+func sanitizeNewFS(root string, patterns []string) (string, []fs.Matcher, error) {
+	dir, ok := fs.Clean(root)
+	if !ok {
+		err := &fs.PathError{
+			Op:   "readdir",
+			Path: root,
+			Err:  fs.ErrInvalid,
+		}
+		return "", nil, err
+	}
+
+	globs, err := fs.GlobCompile(patterns...)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return dir, globs, err
+}
+
+// MustFS is equivalent to [NewFS] but panics on error.
+func MustFS(base fs.FS, root string, patterns ...string) FS {
+	o, err := NewFS(base, root, patterns...)
+	if err != nil {
+		panic(err)
+	}
+	return o
 }
