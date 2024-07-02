@@ -19,3 +19,18 @@ type ContentTypeSetterFS interface {
 
 	SetContentType(path, contentType string) (string, error)
 }
+
+// ETagedFS is the interface implemented by a file system
+type ETagedFS interface {
+	fs.FS
+
+	ETags(path string) ([]string, error)
+}
+
+// ETagsSetterFS is the interface implemented by a file system
+// to set a file's ETags
+type ETagsSetterFS interface {
+	fs.FS
+
+	SetETags(string, ...string) ([]string, error)
+}
