@@ -31,7 +31,10 @@ func ServeFile(rw http.ResponseWriter, req *http.Request, file File) {
 	}
 
 	// ETag
-	setETag(rw.Header(), file)
+	if err := setETag(rw.Header(), file); err != nil {
+		serve500(rw, req, err)
+		return
+	}
 
 	// TODO: Content-Encoding
 
@@ -67,13 +70,31 @@ func getContentType(file File, name string) (string, error) {
 	return TypeBySniffing(file)
 }
 
-func setETag(hdr http.Header, file File) {
+func setETag(hdr http.Header, file File) error {
 	_, haveETag := hdr["Etag"]
 	if !haveETag {
-		if tags := ETags(file); len(tags) > 0 {
+		tags, err := getETags(file)
+		switch {
+		case err != nil:
+			return err
+		case len(tags) > 0:
 			hdr["Etag"] = tags
 		}
 	}
+	return nil
+}
+
+func getETags(file File) ([]string, error) {
+	if tags := ETags(file); len(tags) > 0 {
+		return tags, nil
+	}
+
+	hash, err := BLAKE3SumFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return []string{hash}, nil
 }
 
 func serve500(rw http.ResponseWriter, req *http.Request, err error) {
