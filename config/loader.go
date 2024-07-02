@@ -88,7 +88,7 @@ func (l *Loader[T]) doReadDecode(fSys fs.FS, name string) (*T, error) {
 	}
 
 	if d, ok := dec.(io.Closer); ok {
-		defer d.Close()
+		defer func() { _ = d.Close() }()
 	}
 
 	return dec.Decode(name, data)
