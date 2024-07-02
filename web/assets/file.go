@@ -61,13 +61,40 @@ func getContentType(file File, name string) (string, error) {
 		return ct, nil
 	}
 
-	if ct := TypeByFilename(name); ct != "" {
-		// inferred from file extension
-		return ct, nil
+	// infer from file extension
+	ct := TypeByFilename(name)
+	if ct == "" {
+		var err error
+
+		// detect from content
+		ct, err = TypeBySniffing(file)
+		if err != nil {
+			return "", err
+		}
 	}
 
-	// detect from content
-	return TypeBySniffing(file)
+	if ct != "" {
+		// try to remember
+		if f := getContentTypeSetter(file); f != nil {
+			f.SetContentType(ct)
+		}
+	}
+
+	return ct, nil
+}
+
+func getContentTypeSetter(file fs.File) ContentTypeSetter {
+	if f, ok := file.(ContentTypeSetter); ok {
+		return f
+	}
+
+	if fi, _ := file.Stat(); fi != nil {
+		if f, ok := fi.(ContentTypeSetter); ok {
+			return f
+		}
+	}
+
+	return nil
 }
 
 func setETag(hdr http.Header, file File) error {
