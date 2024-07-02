@@ -51,7 +51,7 @@ func FromFile(filename string, getEnv func(string) string) (string, error) {
 	} else if file, err := os.Open(filename); err != nil {
 		return "", err
 	} else {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		f = file
 	}
 
