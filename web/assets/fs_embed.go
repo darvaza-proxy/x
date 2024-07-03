@@ -30,6 +30,13 @@ var (
 	_ ContentTypeSetter   = (*EmbedMeta)(nil)
 	_ ContentTyped        = (*EmbedFile)(nil)
 	_ ContentTypeSetter   = (*EmbedFile)(nil)
+
+	_ ETagedFS      = (*EmbedFS)(nil)
+	_ ETagsSetterFS = (*EmbedFS)(nil)
+	_ ETaged        = (*EmbedMeta)(nil)
+	_ ETagsSetter   = (*EmbedMeta)(nil)
+	_ ETaged        = (*EmbedFile)(nil)
+	_ ETagsSetter   = (*EmbedFile)(nil)
 )
 
 // embedFS is the data shared by all views of the given [embed.FS]
@@ -243,6 +250,28 @@ func (o *EmbedFS) SetContentType(name, contentType string) (string, error) {
 	return fm.SetContentType(contentType), nil
 }
 
+// ETags returns the the ETags associated to the named file. BLAKE3-256
+// of the content will be calculated if none has been set already
+func (o *EmbedFS) ETags(name string) ([]string, error) {
+	fm, err := o.getFile("stat", name)
+	if err != nil {
+		return nil, err
+	}
+	return fm.ETags(), nil
+}
+
+// SetETags sets the ETags for the named file.
+// Previous values will be discarded.
+// If none is provided, it will just return the current value.
+func (o *EmbedFS) SetETags(name string, tags ...string) ([]string, error) {
+	fm, err := o.getFile("stat", name)
+	if err != nil {
+		return nil, err
+	}
+
+	return fm.SetETags(tags...), nil
+}
+
 // Sub creates a view of the file system restricted to a particular
 // sub-directory. It will fail with [fs.ErrNotExist]
 // if there are no files in it.
@@ -421,6 +450,19 @@ func (fd *EmbedFile) SetContentType(contentType string) string {
 	return fd.meta.SetContentType(contentType)
 }
 
+// ETags returns the the ETags associated to the file. BLAKE3-256
+// of the content will be calculated if none has been set already
+func (fd *EmbedFile) ETags() []string {
+	return fd.meta.ETags()
+}
+
+// SetETags sets the ETags for the file.
+// Previous values will be discarded.
+// If none is provided, it will just return the current value.
+func (fd *EmbedFile) SetETags(tags ...string) []string {
+	return fd.meta.SetETags(tags...)
+}
+
 // Read reads up to len(b) bytes from the File and stores them in b. It returns
 // the number of bytes read and any error encountered. At end of file,
 // Read returns 0, io.EOF.
@@ -460,6 +502,7 @@ type embedMeta struct {
 	name string
 	path string
 	ct   string
+	tags []string
 }
 
 func (fm *embedMeta) Name() string { return fm.name }
@@ -490,6 +533,22 @@ func (fm *embedMeta) SetContentType(contentType string) string {
 	return fm.ct
 }
 
+// SetETags sets the ETags of the file.
+// Previous values will be discarded.
+// If none is provided, it will just return the current values.
+func (fm *embedMeta) SetETags(tags ...string) []string {
+	tags = CleanETags(tags...)
+
+	fm.mu.Lock()
+	defer fm.mu.Unlock()
+
+	if len(tags) > 0 {
+		fm.tags = tags
+	}
+
+	return copySlice(fm.tags)
+}
+
 func (fm *embedMeta) getContentType(fSys *EmbedFS) string {
 	fm.mu.Lock()
 	defer fm.mu.Unlock()
@@ -510,6 +569,27 @@ func (fm *embedMeta) getContentType(fSys *EmbedFS) string {
 	return ""
 }
 
+func (fm *embedMeta) getETags(fSys *EmbedFS) ([]string, error) {
+	fm.mu.Lock()
+	defer fm.mu.Unlock()
+
+	l := len(fm.tags)
+	if fSys != nil && l == 0 {
+		// compute
+		s, err := fm.computeETags(fSys)
+		if err != nil {
+			return nil, err
+		}
+
+		if l = len(s); l > 0 {
+			fm.tags = s
+		}
+	}
+
+	// return copy
+	return copySlice(fm.tags), nil
+}
+
 func (fm *embedMeta) computeContentType(fSys *EmbedFS) string {
 	// infer
 	if ct := TypeByFilename(fm.Name()); ct != "" {
@@ -522,6 +602,21 @@ func (fm *embedMeta) computeContentType(fSys *EmbedFS) string {
 	n, _ := io.ReadFull(file, buf)
 
 	return http.DetectContentType(buf[:n])
+}
+
+func (fm *embedMeta) computeETags(fSys *EmbedFS) ([]string, error) {
+	file, err := fSys.base.Open(fm.Path())
+	if err != nil {
+		return nil, err
+	}
+	defer unsafeClose(file)
+
+	hash, err := BLAKE3SumFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return []string{hash}, nil
 }
 
 // EmbedMeta contains all information we know about the embedded assets
@@ -551,6 +646,13 @@ func (fm *EmbedMeta) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 // ContentType returns the MIME Content-Type of the file
 func (fm *EmbedMeta) ContentType() string {
 	return fm.getContentType(fm.fs)
+}
+
+// ETags returns the the ETags associated to the file. BLAKE3-256
+// of the content will be calculated if none has been set already
+func (fm *EmbedMeta) ETags() []string {
+	tags, _ := fm.getETags(fm.fs)
+	return tags
 }
 
 func (fm *EmbedMeta) newFile() *EmbedFile {
