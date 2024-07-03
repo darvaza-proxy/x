@@ -38,7 +38,7 @@ func FromReader(f io.Reader, getEnv func(string) string) (string, error) {
 		return "", err
 	}
 
-	return FromString(string(b[:]), getEnv)
+	return FromString(string(b), getEnv)
 }
 
 // FromFile reads a file and expands shell-style variable
@@ -51,7 +51,7 @@ func FromFile(filename string, getEnv func(string) string) (string, error) {
 	} else if file, err := os.Open(filename); err != nil {
 		return "", err
 	} else {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		f = file
 	}
 
