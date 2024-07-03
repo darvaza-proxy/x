@@ -23,6 +23,13 @@ var (
 
 	_ File         = (*EmbedFile)(nil)
 	_ http.Handler = (*EmbedFile)(nil)
+
+	_ ContentTypedFS      = (*EmbedFS)(nil)
+	_ ContentTypeSetterFS = (*EmbedFS)(nil)
+	_ ContentTyped        = (*EmbedMeta)(nil)
+	_ ContentTypeSetter   = (*EmbedMeta)(nil)
+	_ ContentTyped        = (*EmbedFile)(nil)
+	_ ContentTypeSetter   = (*EmbedFile)(nil)
 )
 
 // embedFS is the data shared by all views of the given [embed.FS]
@@ -215,6 +222,27 @@ func (o *EmbedFS) Stat(name string) (fs.FileInfo, error) {
 	return fm, nil
 }
 
+// ContentType returns the MIME Content-Type of the named file.
+func (o *EmbedFS) ContentType(name string) (string, error) {
+	fm, err := o.getFile("open", name)
+	if err != nil {
+		return "", err
+	}
+
+	return fm.ContentType(), nil
+}
+
+// SetContentType sets the MIME Content-Type of the named file.
+// If none is provided, it will just return the current value.
+func (o *EmbedFS) SetContentType(name, contentType string) (string, error) {
+	fm, err := o.getFile("open", name)
+	if err != nil {
+		return "", err
+	}
+
+	return fm.SetContentType(contentType), nil
+}
+
 // Sub creates a view of the file system restricted to a particular
 // sub-directory. It will fail with [fs.ErrNotExist]
 // if there are no files in it.
@@ -382,6 +410,17 @@ func (fd *EmbedFile) Close() error {
 	return nil
 }
 
+// ContentType returns the MIME Content-Type of the file.
+func (fd *EmbedFile) ContentType() string {
+	return fd.meta.ContentType()
+}
+
+// SetContentType sets the MIME Content-Type of the file.
+// If none is provided, it will just return the current value.
+func (fd *EmbedFile) SetContentType(contentType string) string {
+	return fd.meta.SetContentType(contentType)
+}
+
 // Read reads up to len(b) bytes from the File and stores them in b. It returns
 // the number of bytes read and any error encountered. At end of file,
 // Read returns 0, io.EOF.
@@ -417,18 +456,72 @@ func (fd *EmbedFile) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 type embedMeta struct {
 	fs.FileInfo
 
+	mu   sync.Mutex
 	name string
 	path string
+	ct   string
 }
 
 func (fm *embedMeta) Name() string { return fm.name }
 func (fm *embedMeta) Path() string { return fm.path }
+
+// SetContentType sets the MIME Content-Type of the file.
+// If none is provided, it will just return the current value.
 
 func (fm *embedMeta) unsafeAddToFS(o *EmbedFS, path string) {
 	o.files[path] = &EmbedMeta{
 		embedMeta: fm,
 		fs:        o,
 	}
+}
+
+// SetContentType sets the MIME Content-Type of the file.
+// If none is provided, it will just return the current value.
+func (fm *embedMeta) SetContentType(contentType string) string {
+	s := strings.TrimSpace(contentType)
+
+	fm.mu.Lock()
+	defer fm.mu.Unlock()
+
+	if s != "" {
+		fm.ct = s
+	}
+
+	return fm.ct
+}
+
+func (fm *embedMeta) getContentType(fSys *EmbedFS) string {
+	fm.mu.Lock()
+	defer fm.mu.Unlock()
+
+	switch {
+	case fm.ct != "":
+		// known
+		return fm.ct
+	case fSys != nil:
+		// compute
+		if ct := fm.computeContentType(fSys); ct != "" {
+			// remember
+			fm.ct = ct
+			return ct
+		}
+	}
+
+	return ""
+}
+
+func (fm *embedMeta) computeContentType(fSys *EmbedFS) string {
+	// infer
+	if ct := TypeByFilename(fm.Name()); ct != "" {
+		return ct
+	}
+
+	// sniff
+	buf := make([]byte, 512)
+	file, _ := fSys.base.Open(fm.Path())
+	n, _ := io.ReadFull(file, buf)
+
+	return http.DetectContentType(buf[:n])
 }
 
 // EmbedMeta contains all information we know about the embedded assets
@@ -453,6 +546,11 @@ func (fm *EmbedMeta) Type() fs.FileMode { return fm.Mode() }
 func (fm *EmbedMeta) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	fd := fm.newFile()
 	fd.ServeHTTP(rw, req)
+}
+
+// ContentType returns the MIME Content-Type of the file
+func (fm *EmbedMeta) ContentType() string {
+	return fm.getContentType(fm.fs)
 }
 
 func (fm *EmbedMeta) newFile() *EmbedFile {
