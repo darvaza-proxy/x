@@ -1,5 +1,9 @@
 darvaza.org/core v0.13.3 h1:DOsidY49WXsWiJulOIxDq578h/3ekgx0trWxbvgv5bc=
 darvaza.org/core v0.13.3/go.mod h1:47Ydh67KnzjLNu1mzX3r2zpphbxQqEaihMsUq5GflQ4=
+darvaza.org/x/fs v0.2.1 h1:jVlhrV+DgLlZiQuE1hFYH3qjCHHCjbbA4wmqrDKK7ZU=
+darvaza.org/x/fs v0.2.1/go.mod h1:g1SYeO2j2yCw/z+WO7MIIhx5WJ889wUWPxWRCI0UfVs=
+github.com/gobwas/glob v0.2.3 h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y=
+github.com/gobwas/glob v0.2.3/go.mod h1:d3Ez4x06l9bZtSvzIay5+Yzi0fmZzPgnTbPcKjJAkT8=
 github.com/klauspost/cpuid/v2 v2.0.12 h1:p9dKCg8i4gmOxtv35DvrYoWqYzQrvEVdjQ762Y0OqZE=
 github.com/klauspost/cpuid/v2 v2.0.12/go.mod h1:g2LTdtYhdyuGPqyWyv7qRAmj1WBqxuObKfj5c0PQa7c=
 golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 h1:hNQpMuAJe5CtcUqCXaWga3FHu+kQvCqcsoVaQgSV60o=
