@@ -1,5 +1,18 @@
 # Helpers for implementing http.Handlers
 
+## Requests Handling
+
+### Resolver
+
+We call _Resolver_ a function that will give us the Path our resource should be handling,
+and for this task `darvaza.org/x/web` provides four helpers.
+
+* `WithResolver()` to attach a dedicated _Resolver_ to the request's context.
+* `Resolver()`, to retrieve a previously attached _Resolver_ from the request's context.
+* and a `Resolve()` helper that will use the above and call the specified _Resolver_, or
+  take the request's `URL.Path`, and then clean it to make sure its safe to use.
+* `CleanPath()` cleans and validates the path for `URL.Path` handling.
+
 ## Response Handlers
 
 Using `respond.WithRequest()` we compute our options and `PreferredContentType()`
