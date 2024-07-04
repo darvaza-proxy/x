@@ -6,7 +6,8 @@ import (
 
 // ContentTypeSetter is the interface that allows a [fs.File] or its
 // [fs.FileInfo] to assign a MIME Content-Type to it.
-// if empty it will be ignored
+// If empty it will be ignored.
+// On success the new value is returned.
 type ContentTypeSetter interface {
 	SetContentType(string) string
 }
@@ -44,9 +45,9 @@ func tryContentType(candidates ...any) string {
 }
 
 // ETagsSetter is the interface that allows a [fs.File] or its
-// [fs.FileInfo] to assign a ETags to it. Previous values will
-// be removed and returned. If none is provided, it will return
-// the current values unmodified.
+// [fs.FileInfo] to assign a ETags to it.
+// Any previous value will be replaced, unless none is provided.
+// The effective ETags set is returned.
 type ETagsSetter interface {
 	SetETags(...string) []string
 }
