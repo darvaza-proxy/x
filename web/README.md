@@ -13,6 +13,11 @@ and for this task `darvaza.org/x/web` provides four helpers.
   take the request's `URL.Path`, and then clean it to make sure its safe to use.
 * `CleanPath()` cleans and validates the path for `URL.Path` handling.
 
+### RESTful Handlers
+
+The `darvaza.org/x/web/resource` sub-package offers a `Resource[T]` wrapper to
+implement a RESTful interface to a particular resource.
+
 ## Response Handlers
 
 Using `respond.WithRequest()` we compute our options and `PreferredContentType()`
