@@ -79,22 +79,36 @@ func (err *HTTPError) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	case code < http.StatusBadRequest:
 		rw.WriteHeader(code)
 	default:
-		err.writeError(rw)
+		err.writeError(rw, req)
 	}
 }
 
-func (err *HTTPError) writeError(rw http.ResponseWriter) {
+func (err *HTTPError) writeError(rw http.ResponseWriter, req *http.Request) {
 	hdr := rw.Header()
 	for k, s := range err.Hdr {
 		// apply headers
 		hdr[k] = append(hdr[k], s...)
 	}
-	// override media type
-	hdr["Content-Type"] = []string{"text/plain; charset=UTF-8"}
 
 	code := err.HTTPStatus()
 
+	// sanitize header
+	delete(hdr, "Content-Length")
+	delete(hdr, "Content-Encoding")
+
+	if req.Method == "HEAD" {
+		// no content
+		delete(hdr, "Content-Type")
+
+		rw.WriteHeader(code)
+		return
+	}
+
+	// override media type
+	hdr["Content-Type"] = []string{"text/plain; charset=UTF-8"}
+
 	rw.WriteHeader(code)
+
 	_, _ = fmt.Fprintln(rw, ErrorText(code))
 
 	if err.Err != nil {
