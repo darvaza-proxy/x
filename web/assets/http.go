@@ -154,7 +154,7 @@ func newBadRequest(err error) httpError {
 	case httpError:
 		return e
 	case web.Error:
-		code = e.Status()
+		code = e.HTTPStatus()
 	}
 
 	if code < 400 {

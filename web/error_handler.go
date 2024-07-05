@@ -45,7 +45,7 @@ func HandleError(rw http.ResponseWriter, req *http.Request, err error) {
 		var code int
 
 		if e, ok := err.(Error); ok {
-			code = e.Status()
+			code = e.HTTPStatus()
 		}
 
 		h = &HTTPError{

@@ -17,7 +17,7 @@ var (
 // Error is an error that knows its HTTP Status Code
 type Error interface {
 	Error() string
-	Status() int
+	HTTPStatus() int
 }
 
 // HTTPError extends [core.WrappedError] with HTTP Status Code
@@ -27,8 +27,8 @@ type HTTPError struct {
 	Hdr  http.Header
 }
 
-// Status returns the StatusCode associated with the Error
-func (err *HTTPError) Status() int {
+// HTTPStatus returns the HTTP status code associated with the Error
+func (err *HTTPError) HTTPStatus() int {
 	switch {
 	case err.Code == 0:
 		return http.StatusOK
@@ -71,7 +71,7 @@ func (err *HTTPError) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	code := err.Status()
+	code := err.HTTPStatus()
 
 	switch {
 	case code == http.StatusOK:
@@ -92,7 +92,7 @@ func (err *HTTPError) writeError(rw http.ResponseWriter) {
 	// override media type
 	hdr["Content-Type"] = []string{"text/plain; charset=UTF-8"}
 
-	code := err.Status()
+	code := err.HTTPStatus()
 
 	rw.WriteHeader(code)
 	_, _ = fmt.Fprintln(rw, ErrorText(code))
@@ -107,7 +107,7 @@ func (err *HTTPError) writeError(rw http.ResponseWriter) {
 func (err *HTTPError) Error() string {
 	var msg string
 
-	text := ErrorText(err.Status())
+	text := ErrorText(err.HTTPStatus())
 	if err.Err != nil {
 		msg = err.Err.Error()
 	}
