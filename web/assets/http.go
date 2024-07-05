@@ -1,7 +1,10 @@
 package assets
 
 import (
-	"io/fs"
+	"net/http"
+
+	"darvaza.org/x/fs"
+	"darvaza.org/x/web"
 )
 
 // ContentTypeSetter is the interface that allows a [fs.File] or its
@@ -83,3 +86,85 @@ func tryETags(candidates ...any) []string {
 	}
 	return nil
 }
+
+// DefaultRequestResolver returns the requested path
+func DefaultRequestResolver(req *http.Request) (string, error) {
+	var path string
+
+	if req != nil {
+		path = req.URL.Path
+	}
+
+	return path, nil
+}
+
+// httpView is a private interface used to provide the basis for
+// [http.Handler] and Middleware() to a [FS].
+type httpView interface {
+	getResolver() func(*http.Request) (string, error)
+	getFileHandler(string) http.Handler
+}
+
+// httpError is an error that can render itself.
+type httpError interface {
+	web.Error
+	http.Handler
+}
+
+func serveHTTP(v httpView, rw http.ResponseWriter, req *http.Request, next http.Handler) {
+	var h http.Handler
+
+	f, err := getFileFromRequest(v, req)
+	switch {
+	case f != nil:
+		h = f
+	case err != errNotFound:
+		h = err
+	case next != nil:
+		h = next
+	default:
+		h = errNotFound
+	}
+
+	h.ServeHTTP(rw, req)
+}
+
+func getFileFromRequest(v httpView, req *http.Request) (http.Handler, httpError) {
+	r := v.getResolver()
+	path, err := r(req)
+
+	if err == nil && path != "" && path[0] == '/' {
+		path, ok := fs.Clean(path[1:])
+		if ok {
+			if h := v.getFileHandler(path); h != nil {
+				return h, nil
+			}
+
+			return nil, errNotFound
+		}
+	}
+
+	return nil, newBadRequest(err)
+}
+
+func newBadRequest(err error) httpError {
+	var code int
+
+	switch e := err.(type) {
+	case httpError:
+		return e
+	case web.Error:
+		code = e.Status()
+	}
+
+	if code < 400 {
+		code = http.StatusBadRequest
+	}
+
+	return &web.HTTPError{
+		Code: code,
+		Err:  err,
+	}
+}
+
+var errNotFound = &web.HTTPError{Code: http.StatusNotFound}

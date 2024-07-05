@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"io"
 	"strings"
 
 	"darvaza.org/core"
@@ -41,4 +42,31 @@ func Match(path string, globs []fs.Matcher) bool {
 	}
 
 	return match || len(globs) == 0
+}
+
+// unsafeClose does a Close() discarding errors
+func unsafeClose(f io.Closer) {
+	_ = f.Close()
+}
+
+// unsafeJoin joins two clean paths.
+func unsafeJoin(base, dir string) string {
+	switch {
+	case dir == ".":
+		return base
+	case base == ".":
+		return dir
+	default:
+		return base + "/" + dir
+	}
+}
+
+// copySlice creates a shallow copy of a given slice
+func copySlice[T any](src []T) []T {
+	if l := len(src); l > 0 {
+		dst := make([]T, l)
+		copy(dst, src)
+		return dst
+	}
+	return nil
 }
