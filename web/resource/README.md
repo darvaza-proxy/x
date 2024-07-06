@@ -52,6 +52,14 @@ Foo(http.ResponseWriter, *http.Request) error
 `Resource` extends the standard `req.Form` handling with it's own `ParseForm()` method that reads
 the content-type, handles JSON content, and returns an HTTP 400 error in case of problems.
 
+### Renderers
+
+`Resource` allows the registration of supported Media Types using the `WithRenderer()` option,
+and then the `Render()` method will call the correct one after checking the request's preference.
+
+If one wants to return a particular type when none of the supported media types are acceptable,
+it can be specified using the `WithIdentity()` option.
+
 ## Helpers
 
 * `SetHeader`

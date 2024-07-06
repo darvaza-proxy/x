@@ -8,6 +8,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/x/web"
+	"darvaza.org/x/web/qlist"
 )
 
 var (
@@ -18,10 +19,13 @@ var (
 // Resource is an http.Handler built around a given object
 // and a data type.
 type Resource[T any] struct {
-	check   CheckerFunc[T]
-	methods []string
+	check    CheckerFunc[T]
+	methods  []string
+	identity string
 
-	h map[string]HandlerFunc[T]
+	h  map[string]HandlerFunc[T]
+	r  map[string]HandlerFunc[T]
+	ql []qlist.QualityValue
 }
 
 // ServeHTTP handles the request initially using the TryServeHTTP method, and
@@ -132,6 +136,7 @@ func New[T any](x any, options ...OptionFunc[T]) (*Resource[T], error) {
 func newResource[T any](x any) *Resource[T] {
 	h := &Resource[T]{
 		h: make(map[string]HandlerFunc[T]),
+		r: make(map[string]HandlerFunc[T]),
 	}
 
 	if x != nil {
