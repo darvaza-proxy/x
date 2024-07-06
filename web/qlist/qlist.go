@@ -75,6 +75,26 @@ func (q QualityValue) String() string {
 	return strings.Join(s, ";")
 }
 
+// IsMediaType checks if the [QualityValue] represents
+// only specific Media Type and not a Media Range.
+func (q QualityValue) IsMediaType() bool {
+	return len(q.value) == 2 &&
+		q.quality > 0 &&
+		isMediaTypePart(q.value[0]) &&
+		isMediaTypePart(q.value[1])
+}
+
+func isMediaTypePart(s string) bool {
+	switch {
+	case s == "":
+		return false
+	case strings.Contains(s, "*"):
+		return false
+	default:
+		return strings.ToLower(s) == s
+	}
+}
+
 // Match answers the question if we match a target.
 // For an entry to match another it needs to have the
 // same number of parts, and each pair of parts be
