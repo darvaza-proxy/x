@@ -45,7 +45,7 @@ func HandleError(rw http.ResponseWriter, req *http.Request, err error) {
 		var code int
 
 		if e, ok := err.(Error); ok {
-			code = e.Status()
+			code = e.HTTPStatus()
 		}
 
 		h = &HTTPError{
@@ -55,4 +55,32 @@ func HandleError(rw http.ResponseWriter, req *http.Request, err error) {
 	}
 
 	h.ServeHTTP(rw, req)
+}
+
+// AsError converts a given error into an HTTP-aware one.
+// A nil argument will be treated as no error.
+// If the status code can't be inferred, a 500 will be assumed.
+func AsError(err error) error {
+	return AsErrorWithCode(err, http.StatusInternalServerError)
+}
+
+// AsErrorWithCode converts a given error into an HTTP-aware one using
+// the given status code when none could be inferred.
+// If a non-positive code is provided, a 500 will be assumed.
+func AsErrorWithCode(err error, code int) error {
+	switch e := err.(type) {
+	case nil:
+		return nil
+	case http.Handler:
+		return err
+	case Error:
+		if c := e.HTTPStatus(); c != 0 {
+			code = c
+		}
+	}
+
+	return &HTTPError{
+		Code: core.IIf(code > 0, code, http.StatusInternalServerError),
+		Err:  err,
+	}
 }

@@ -17,7 +17,7 @@ var (
 // Error is an error that knows its HTTP Status Code
 type Error interface {
 	Error() string
-	Status() int
+	HTTPStatus() int
 }
 
 // HTTPError extends [core.WrappedError] with HTTP Status Code
@@ -27,8 +27,8 @@ type HTTPError struct {
 	Hdr  http.Header
 }
 
-// Status returns the StatusCode associated with the Error
-func (err *HTTPError) Status() int {
+// HTTPStatus returns the HTTP status code associated with the Error
+func (err *HTTPError) HTTPStatus() int {
 	switch {
 	case err.Code == 0:
 		return http.StatusOK
@@ -71,7 +71,7 @@ func (err *HTTPError) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	code := err.Status()
+	code := err.HTTPStatus()
 
 	switch {
 	case code == http.StatusOK:
@@ -79,22 +79,36 @@ func (err *HTTPError) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	case code < http.StatusBadRequest:
 		rw.WriteHeader(code)
 	default:
-		err.writeError(rw)
+		err.writeError(rw, req)
 	}
 }
 
-func (err *HTTPError) writeError(rw http.ResponseWriter) {
+func (err *HTTPError) writeError(rw http.ResponseWriter, req *http.Request) {
 	hdr := rw.Header()
 	for k, s := range err.Hdr {
 		// apply headers
 		hdr[k] = append(hdr[k], s...)
 	}
+
+	code := err.HTTPStatus()
+
+	// sanitize header
+	delete(hdr, "Content-Length")
+	delete(hdr, "Content-Encoding")
+
+	if req.Method == "HEAD" {
+		// no content
+		delete(hdr, "Content-Type")
+
+		rw.WriteHeader(code)
+		return
+	}
+
 	// override media type
 	hdr["Content-Type"] = []string{"text/plain; charset=UTF-8"}
 
-	code := err.Status()
-
 	rw.WriteHeader(code)
+
 	_, _ = fmt.Fprintln(rw, ErrorText(code))
 
 	if err.Err != nil {
@@ -107,7 +121,7 @@ func (err *HTTPError) writeError(rw http.ResponseWriter) {
 func (err *HTTPError) Error() string {
 	var msg string
 
-	text := ErrorText(err.Status())
+	text := ErrorText(err.HTTPStatus())
 	if err.Err != nil {
 		msg = err.Err.Error()
 	}
