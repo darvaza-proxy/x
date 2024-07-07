@@ -7,6 +7,16 @@ import (
 	"darvaza.org/x/web/qlist"
 )
 
+const (
+	// ContentType is the canonical HTTP Content-Type header.
+	ContentType = "Content-Type"
+	// ContentLength is the canonical HTTP Content-Length header.
+	ContentLength = "Content-Length"
+
+	// JSON is the standard Media Type for JSON content.
+	JSON = "application/json; charset=utf-8"
+)
+
 // Render uses the Accept header to choose what renderer to use. If nothing acceptable
 // is supported, but an "identity" type has been set, that will be used.
 func (r *Resource[T]) Render(rw http.ResponseWriter, req *http.Request, data *T) error {
