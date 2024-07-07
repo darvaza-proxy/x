@@ -51,3 +51,7 @@ Foo(http.ResponseWriter, *http.Request) error
 
 `Resource` extends the standard `req.Form` handling with it's own `ParseForm()` method that reads
 the content-type, handles JSON content, and returns an HTTP 400 error in case of problems.
+
+## Helpers
+
+* `SetHeader`

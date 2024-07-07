@@ -1,6 +1,8 @@
 package resource
 
 import (
+	"fmt"
+	"net/http"
 	"sort"
 )
 
@@ -11,4 +13,13 @@ func sortedKeys[T any](m map[string]T) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// SetHeader sets a header value, optionally formatted.
+func SetHeader(rw http.ResponseWriter, key, value string, args ...any) {
+	if len(args) > 0 {
+		value = fmt.Sprintf(value, args...)
+	}
+
+	rw.Header().Set(key, value)
 }
