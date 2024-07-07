@@ -192,7 +192,7 @@ func ParseQualityValue(s string) (QualityValue, error) {
 		// attributes
 		q, m, ok := parseAttributes(fields[1:])
 
-		if len(v) == 0 || !ok {
+		if v == "" || !ok {
 			err := fmt.Errorf("invalid argument: %q", s)
 			return out, err
 		}
