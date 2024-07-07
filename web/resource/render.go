@@ -15,6 +15,8 @@ const (
 
 	// JSON is the standard Media Type for JSON content.
 	JSON = "application/json; charset=utf-8"
+	// HTML is the standard Media Type for HTML content.
+	HTML = "text/html; charset=utf-8"
 )
 
 // Render uses the Accept header to choose what renderer to use. If nothing acceptable

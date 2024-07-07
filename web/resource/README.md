@@ -60,9 +60,10 @@ and then the `Render()` method will call the correct one after checking the requ
 If one wants to return a particular type when none of the supported media types are acceptable,
 it can be specified using the `WithIdentity()` option.
 
-For convenience a `RenderJSON` helper is provided.
+For convenience a `RenderJSON` and `RenderHTML` helpers are provided.
 
 ## Helpers
 
 * `RenderJSON`
+* `RenderHTML`
 * `SetHeader`
