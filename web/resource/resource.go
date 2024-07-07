@@ -147,6 +147,9 @@ func newResource[T any](x any) *Resource[T] {
 
 		// Methods
 		addHandlers[T](h, x)
+
+		// Renderers
+		addRenderers[T](h, x)
 	}
 
 	return h

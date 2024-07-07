@@ -6,6 +6,16 @@ import (
 	"text/template"
 )
 
+func htmlRendererOf[T any](x any) (HandlerFunc[T], bool) {
+	if v, ok := x.(interface {
+		RenderHTML(http.ResponseWriter, *http.Request, *T) error
+	}); ok {
+		return v.RenderHTML, true
+	}
+
+	return nil, false
+}
+
 // RenderHTML compiles an html/template and sends it to the client after setting
 // Content-Type and Content-Length.  For HEAD only Content-Type is set.
 func RenderHTML(rw http.ResponseWriter, req *http.Request, tmpl *template.Template, data any) error {

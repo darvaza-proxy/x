@@ -6,6 +6,16 @@ import (
 	"net/http"
 )
 
+func jsonRendererOf[T any](x any) (HandlerFunc[T], bool) {
+	if v, ok := x.(interface {
+		RenderJSON(http.ResponseWriter, *http.Request, *T) error
+	}); ok {
+		return v.RenderJSON, true
+	}
+
+	return nil, false
+}
+
 // RenderJSON encodes the data as JSON and sends it to the client after setting
 // Content-Type and Content-Length.  For HEAD only Content-Type is set.
 func RenderJSON(rw http.ResponseWriter, req *http.Request, data any) error {

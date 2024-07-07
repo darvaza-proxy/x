@@ -71,3 +71,14 @@ func (r *Resource[T]) getRendererForRequest(req *http.Request) (HandlerFunc[T], 
 func (r *Resource[T]) getRenderer(mediaType string) HandlerFunc[T] {
 	return r.r[mediaType]
 }
+
+func addRenderers[T any](r *Resource[T], x any) {
+	// JSON
+	if fn, ok := jsonRendererOf[T](x); ok {
+		_ = r.addRenderer(JSON, fn)
+	}
+	// HTML
+	if fn, ok := htmlRendererOf[T](x); ok {
+		_ = r.addRenderer(HTML, fn)
+	}
+}

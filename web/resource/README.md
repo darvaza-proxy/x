@@ -62,6 +62,10 @@ it can be specified using the `WithIdentity()` option.
 
 For convenience a `RenderJSON` and `RenderHTML` helpers are provided.
 
+`New()` will automatically test for `RenderJSON` and `RenderHTML` methods in the object
+and registered `JSON` and `HTML` renderers for the resource, but the _identity_
+representation won't be assumed.
+
 ## Helpers
 
 * `RenderJSON`
