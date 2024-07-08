@@ -22,7 +22,7 @@ type Waiter func(context.Context) error
 // If zero, the [Waiter] will wait the default amount.
 func NewConstantWaiter(d time.Duration) func(context.Context) error {
 	if d < 0 {
-		return NewImmediateErrorWaiter(nil)
+		return NewImmediateErrorWaiter(ErrDoNotReconnect)
 	}
 
 	if d == 0 {
@@ -51,4 +51,14 @@ func NewImmediateErrorWaiter(err error) func(context.Context) error {
 			return err
 		}
 	}
+}
+
+// NewDoNotReconnectWaiter returns a Waiter that will return the
+// context cancellation cause, the specified error, or ErrDoNotReconnect.
+func NewDoNotReconnectWaiter(err error) func(context.Context) error {
+	if err == nil {
+		err = ErrDoNotReconnect
+	}
+
+	return NewImmediateErrorWaiter(err)
 }
