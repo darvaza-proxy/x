@@ -2,6 +2,7 @@
 package reconnect
 
 import (
+	"bufio"
 	"context"
 	"net"
 	"sync"
@@ -24,6 +25,8 @@ type Client struct {
 	writeTimeout time.Duration
 
 	conn net.Conn
+	in   *bufio.Reader
+	out  *bufio.Writer
 }
 
 // Config returns the [Config] object used when [Reload] is called.

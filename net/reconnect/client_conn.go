@@ -1,7 +1,16 @@
 package reconnect
 
 import (
+	"io"
 	"time"
+	// "darvaza.org/x/fs"
+)
+
+var (
+	_ io.Reader = (*Client)(nil)
+	_ io.Writer = (*Client)(nil)
+	// _ fs.Flusher = (*Client)(nil)
+	_ io.Closer = (*Client)(nil)
 )
 
 // ResetDeadline sets the connection's read and write deadlines using
@@ -67,4 +76,68 @@ func (c *Client) SetDeadline(read, write time.Duration) error {
 
 	t = TimeoutToAbsoluteTime(now, write)
 	return c.conn.SetWriteDeadline(t)
+}
+
+// Read implements a buffered io.Reader
+func (c *Client) Read(p []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.in != nil {
+		return c.in.Read(p)
+	}
+
+	return 0, ErrNotConnected
+}
+
+// Write implements a buffered io.Writer
+// warrantied to buffer all the given data or fail.
+func (c *Client) Write(p []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	w := c.out
+	if w == nil {
+		return 0, ErrNotConnected
+	}
+
+	total := 0
+	for len(p) > 0 {
+		n, err := w.Write(p)
+
+		switch {
+		case err != nil:
+			return total, err
+		default:
+			total += n
+			p = p[n:]
+		}
+	}
+
+	return total, nil
+}
+
+// Flush blocks until all the buffered output
+// has been written, or an error occurs.
+func (c *Client) Flush() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.out != nil {
+		return c.out.Flush()
+	}
+
+	return ErrNotConnected
+}
+
+// Close terminates the current connection
+func (c *Client) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+
+	return nil
 }
