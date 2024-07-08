@@ -1,6 +1,7 @@
 package reconnect
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"syscall"
@@ -57,6 +58,37 @@ func checkIsExpectable(err error) (is, certainly bool) {
 		return true, true
 	default:
 		// unknown
+		return false, false
+	}
+}
+
+// filterNonError checks if the cause of the shutdown is worth
+// reporting or it was initiated by the user instead.
+func filterNonError(err error) error {
+	if IsNonError(err) {
+		return nil
+	}
+
+	// error
+	return err
+}
+
+// IsNonError checks if the error is an actual error instead of
+// a manual shutdown.
+func IsNonError(err error) bool {
+	if err == nil {
+		return true
+	}
+
+	is, _ := core.IsErrorFn2(checkIsNonError, err)
+	return is
+}
+
+func checkIsNonError(err error) (is, certainly bool) {
+	switch err {
+	case nil, context.Canceled, ErrDoNotReconnect:
+		return true, true
+	default:
 		return false, false
 	}
 }
