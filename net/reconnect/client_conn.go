@@ -1,8 +1,12 @@
 package reconnect
 
 import (
+	"bufio"
 	"io"
+	"net"
 	"time"
+
+	"darvaza.org/core"
 	// "darvaza.org/x/fs"
 )
 
@@ -12,6 +16,56 @@ var (
 	// _ fs.Flusher = (*Client)(nil)
 	_ io.Closer = (*Client)(nil)
 )
+
+// dial attempts to stablish a connection to the server.
+func (c *Client) dial(network, addr string) (net.Conn, error) {
+	conn, err := c.dialer.DialContext(c.ctx, network, addr)
+	switch {
+	case conn != nil:
+		return conn, nil
+	case err == nil:
+		err = &net.OpError{
+			Op:  "dial",
+			Net: network,
+			Err: core.Wrap(ErrAbnormalConnect, addr),
+		}
+
+		fallthrough
+	default:
+		return nil, err
+	}
+}
+
+// reconnect waits before dialing
+func (c *Client) reconnect(network, addr string) (net.Conn, error) {
+	if fn := c.getWaitReconnect(); fn != nil {
+		if err := fn(c.ctx); err != nil {
+			return nil, err
+		}
+	}
+
+	return c.dial(network, addr)
+}
+
+// setConn prepares the Client to use the new net.Conn
+// and returns the previous, if any.
+func (c *Client) setConn(conn net.Conn) net.Conn {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.unsafeSetConn(conn)
+}
+
+func (c *Client) unsafeSetConn(conn net.Conn) (prev net.Conn) {
+	prev, c.conn = c.conn, conn
+	if conn == nil {
+		c.in, c.out = nil, nil
+	} else {
+		c.in = bufio.NewReader(conn)
+		c.out = bufio.NewWriter(conn)
+	}
+	return prev
+}
 
 // ResetDeadline sets the connection's read and write deadlines using
 // the default values.

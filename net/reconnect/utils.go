@@ -1,6 +1,21 @@
 package reconnect
 
-import "time"
+import (
+	"io"
+	"net"
+	"time"
+)
+
+func newDialer(keepalive, timeout time.Duration) *net.Dialer {
+	return &net.Dialer{
+		KeepAlive: keepalive,
+		Timeout:   timeout,
+	}
+}
+
+func unsafeClose(f io.Closer) {
+	_ = f.Close()
+}
 
 // TimeoutToAbsoluteTime adds the given [time.Duration] to a
 // base [time.Time].

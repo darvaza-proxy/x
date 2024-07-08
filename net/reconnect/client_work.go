@@ -2,6 +2,8 @@ package reconnect
 
 import (
 	"context"
+	"log"
+	"net"
 
 	"darvaza.org/core"
 )
@@ -67,7 +69,7 @@ func (c *Client) terminate(cause error) error {
 }
 
 // Go spawns a goroutine within the [Client]'s context.
-func (c *Client) Go(_ string, fn func(context.Context) error) {
+func (c *Client) Go(name string, fn func(context.Context) error) {
 	if fn == nil {
 		core.Panic("Client.Go called without a handler")
 	}
@@ -85,8 +87,113 @@ func (c *Client) Go(_ string, fn func(context.Context) error) {
 			return fn(c.ctx)
 		})
 
-		if IsFatal(err) {
+		if c.handlePossiblyFatalError(nil, err, name) != nil {
+			return
+		}
+	}()
+}
+
+// run implements the main loop
+func (c *Client) run() {
+	var conn net.Conn
+	var abort bool
+
+	defer func() {
+		// panic
+		if err := core.AsRecovered(recover()); err != nil {
+			// report and terminate
+			_ = c.doOnError(nil, err, "reconnect.Client")
 			_ = c.terminate(err)
 		}
 	}()
+
+	for !abort {
+		conn, abort = c.doConnect()
+
+		if conn != nil {
+			e1 := c.runSession(conn)
+			e2 := c.doOnDisconnect()
+
+			abort = c.runError(conn, e1, e2)
+		}
+	}
+}
+
+func (c *Client) runError(conn net.Conn, e1, e2 error) bool {
+	e1 = c.handlePossiblyFatalError(conn, e1, "")
+	e2 = c.handlePossiblyFatalError(conn, e2, "")
+	return e1 != nil || e2 != nil
+}
+
+func (c *Client) runSession(conn net.Conn) error {
+	defer unsafeClose(conn)
+
+	log.Println(conn, "connected")
+	if fn := c.getOnSession(); fn != nil {
+		var catch core.Catcher
+
+		return catch.Try(func() error {
+			return fn(c.ctx)
+		})
+	}
+
+	return nil
+}
+
+func (c *Client) doConnect() (net.Conn, bool) {
+	c.mu.Lock()
+	conn := c.conn
+	c.mu.Unlock()
+
+	if conn == nil {
+		var err error
+
+		network, address := c.getRemote()
+		conn, err = c.reconnect(network, address)
+		if abort := c.runError(nil, err, nil); abort {
+			// abort
+			return nil, true
+		}
+
+		if conn != nil {
+			c.setConn(conn)
+		}
+	}
+
+	// ready
+	return conn, false
+}
+
+func (c *Client) doOnDisconnect() error {
+	conn := c.setConn(nil)
+
+	log.Println(conn, "disconnected")
+	if fn := c.getOnDisconnect(); fn != nil {
+		return fn(c.ctx, conn)
+	}
+
+	return nil
+}
+
+func (c *Client) doOnError(conn net.Conn, err error, note string, args ...any) error {
+	err = core.Wrap(err, note, args...)
+	if fn := c.getOnError(); fn != nil {
+		return fn(c.ctx, conn, err)
+	}
+	return err
+}
+
+// handlePossiblyFatalError handles an error and returns nil if it wasn't fatal.
+// fatal errors should terminate the worker immediately.
+// the returned error is unfiltered.
+func (c *Client) handlePossiblyFatalError(conn net.Conn, err error, note string) error {
+	if err != nil {
+		err = c.doOnError(conn, err, note)
+		if IsFatal(err) {
+			_ = c.terminate(err)
+			return err // unfiltered
+		}
+	}
+
+	return nil
 }
