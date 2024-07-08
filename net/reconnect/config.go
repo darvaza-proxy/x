@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"time"
 
 	"darvaza.org/core"
+	"darvaza.org/x/config"
 )
 
 // A OptionFunc modifies a [Config] consistently before SetDefaults() and Validate().
@@ -20,6 +22,13 @@ var (
 // Config describes the operation of the Client.
 type Config struct {
 	Context context.Context
+
+	// ReadTimeout indicates the default what to use for the connection's
+	// read deadline. zero or negative means the deadline should be disabled.
+	ReadTimeout time.Duration `default:"2s"`
+	// WriteTimeout indicates the default what to use for the connection's
+	// write deadline. zero or negative means the deadline should be disabled.
+	WriteTimeout time.Duration `default:"2s"`
 
 	// immutable data
 	c   *Client
@@ -39,6 +48,10 @@ func (cfg *Config) busy() bool {
 
 // SetDefaults fills any gap in the config
 func (cfg *Config) SetDefaults() error {
+	if err := config.Set(cfg); err != nil {
+		return err
+	}
+
 	if cfg.Context == nil {
 		// either the immutable context or a fresh one
 		cfg.Context = core.Coalesce(cfg.ctx, context.Background())

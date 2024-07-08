@@ -3,7 +3,9 @@ package reconnect
 
 import (
 	"context"
+	"net"
 	"sync"
+	"time"
 
 	"darvaza.org/core"
 )
@@ -17,6 +19,11 @@ type Client struct {
 	err    error
 
 	cfg *Config
+
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+
+	conn net.Conn
 }
 
 // Config returns the [Config] object used when [Reload] is called.
@@ -48,6 +55,9 @@ func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 		cancel: cancel,
 
 		cfg: cfg,
+
+		readTimeout:  cfg.ReadTimeout,
+		writeTimeout: cfg.WriteTimeout,
 	}
 
 	cfg.unsafeBindClient(c)
