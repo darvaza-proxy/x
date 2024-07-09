@@ -97,3 +97,17 @@ func NewStatusNotModified() *HTTPError {
 		Code: http.StatusNotModified,
 	}
 }
+
+// NewStatusNotFound returns a 404 HTTP error.
+func NewStatusNotFound() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusNotFound,
+	}
+}
+
+// NewStatusNotAcceptable returns a 406 HTTP error.
+func NewStatusNotAcceptable() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusNotAcceptable,
+	}
+}

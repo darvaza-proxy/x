@@ -72,3 +72,5 @@ to redirect factories from formatted strings:
 and simple responses:
 
 * `NewStatusNotModified()` (304)
+* `NewStatusNotFound()` (404)
+* `NewStatusNotAcceptable()` (406)

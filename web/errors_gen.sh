@@ -60,6 +60,8 @@ done
 #
 for x in \
 	NotModified=304 \
+	NotFound=404 \
+	NotAcceptable=406 \
 	; do
 
 	name=${x%=*}
