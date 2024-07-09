@@ -4,6 +4,8 @@ go 1.21
 
 require (
 	darvaza.org/core v0.13.4
+	darvaza.org/slog v0.5.7
+	darvaza.org/slog/handlers/discard v0.4.11
 	darvaza.org/x/config v0.3.3
 	github.com/amery/defaults v0.1.0 // indirect
 )

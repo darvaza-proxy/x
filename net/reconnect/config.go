@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"darvaza.org/core"
+	"darvaza.org/slog"
 	"darvaza.org/x/config"
 	"darvaza.org/x/net"
 )
@@ -24,6 +25,7 @@ var (
 // Config describes the operation of the Client.
 type Config struct {
 	Context context.Context
+	Logger  slog.Logger
 
 	// Remote indicates the `host:port` address of the remote.
 	Remote string
@@ -87,6 +89,9 @@ func (cfg *Config) SetDefaults() error {
 		cfg.WaitReconnect = NewConstantWaiter(cfg.ReconnectDelay)
 	}
 
+	if cfg.Logger == nil {
+		cfg.Logger = newDefaultLogger()
+	}
 	return nil
 }
 
@@ -98,13 +103,15 @@ func (cfg *Config) Valid() error {
 		return errors.New("context missing")
 	case cfg.WaitReconnect == nil:
 		return errors.New("reconnect waiter missing")
-	default:
-		if err := cfg.validateRemote(cfg.Remote); err != nil {
-			return core.Wrap(err, "invalid remote")
-		}
-
-		// TODO: more rules
+	case cfg.Logger == nil:
+		return errors.New("logger missing")
 	}
+
+	if err := cfg.validateRemote(cfg.Remote); err != nil {
+		return core.Wrap(err, "invalid remote")
+	}
+
+	// TODO: more rules
 
 	if cfg.busy() {
 		// bound rules

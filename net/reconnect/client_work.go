@@ -2,7 +2,6 @@ package reconnect
 
 import (
 	"context"
-	"log"
 	"net"
 
 	"darvaza.org/core"
@@ -128,7 +127,7 @@ func (c *Client) runError(conn net.Conn, e1, e2 error) bool {
 func (c *Client) runSession(conn net.Conn) error {
 	defer unsafeClose(conn)
 
-	log.Println(conn, "connected")
+	c.SayRemote(conn, "connected")
 	if fn := c.getOnSession(); fn != nil {
 		var catch core.Catcher
 
@@ -167,7 +166,7 @@ func (c *Client) doConnect() (net.Conn, bool) {
 func (c *Client) doOnDisconnect() error {
 	conn := c.setConn(nil)
 
-	log.Println(conn, "disconnected")
+	c.SayRemote(conn, "disconnected")
 	if fn := c.getOnDisconnect(); fn != nil {
 		return fn(c.ctx, conn)
 	}
@@ -176,9 +175,9 @@ func (c *Client) doOnDisconnect() error {
 }
 
 func (c *Client) doOnError(conn net.Conn, err error, note string, args ...any) error {
-	err = core.Wrap(err, note, args...)
+	c.SayRemoteError(conn, err, note, args...)
 	if fn := c.getOnError(); fn != nil {
-		return fn(c.ctx, conn, err)
+		return fn(c.ctx, conn, core.Wrap(err, note, args...))
 	}
 	return err
 }

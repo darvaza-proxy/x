@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"darvaza.org/core"
+	"darvaza.org/slog"
 	"darvaza.org/x/net"
 )
 
@@ -23,6 +24,7 @@ type Client struct {
 	cfg     *Config
 	dialer  net.Dialer
 	address string
+	logger  slog.Logger
 
 	readTimeout  time.Duration
 	writeTimeout time.Duration
@@ -96,6 +98,7 @@ func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 		cfg:     cfg,
 		dialer:  cfg.ExportDialer(),
 		address: cfg.Remote,
+		logger:  cfg.Logger,
 
 		readTimeout:  cfg.ReadTimeout,
 		writeTimeout: cfg.WriteTimeout,

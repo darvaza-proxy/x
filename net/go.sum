@@ -1,5 +1,9 @@
 darvaza.org/core v0.13.4 h1:TUf65nlLqLjbAb5Jop3FDmx+m6wEh84RIKRC7drmTRk=
 darvaza.org/core v0.13.4/go.mod h1:3m8HHSeDlJYjEZ/zgjS1xgxjd+VSu5gTLrMQvaGu3Mk=
+darvaza.org/slog v0.5.7 h1:JWC0OqvzR435AidIRDp4T9kdWTURWkUjzP4R78Koq1Q=
+darvaza.org/slog v0.5.7/go.mod h1:12L03t+KYhsZ9IbfF+8if5w9Y91af2par+bSzeBVqIQ=
+darvaza.org/slog/handlers/discard v0.4.11 h1:wr34OnDoRaMV1eGgW7yUaupQxjkTnuHrJmYRPj64RHM=
+darvaza.org/slog/handlers/discard v0.4.11/go.mod h1:ynxyLmZzZ5mP4ACLhQs4MEuDyhkIzjz6DfBHUjhnIK4=
 darvaza.org/x/config v0.3.3 h1:yQUY6SdT++ZmXszGd6Ta8QSckZPJnUcx+duRe9MfI7I=
 darvaza.org/x/config v0.3.3/go.mod h1:XBuSwtZgSJCaPG86cUCxrpvVXsSxQzkvImswo/7GdX0=
 github.com/amery/defaults v0.1.0 h1:4AhTgLUnj8BPjVRBzg4+/cSCwPWPT6+yWCM4rD6Feyc=
