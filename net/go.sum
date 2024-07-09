@@ -1,11 +1,13 @@
-darvaza.org/core v0.13.4 h1:TUf65nlLqLjbAb5Jop3FDmx+m6wEh84RIKRC7drmTRk=
-darvaza.org/core v0.13.4/go.mod h1:3m8HHSeDlJYjEZ/zgjS1xgxjd+VSu5gTLrMQvaGu3Mk=
+darvaza.org/core v0.13.5 h1:09mEeRzgxz8wRZuWBqC5RcMOjQx5fG+wCUqoIyEu+vo=
+darvaza.org/core v0.13.5/go.mod h1:3m8HHSeDlJYjEZ/zgjS1xgxjd+VSu5gTLrMQvaGu3Mk=
 darvaza.org/slog v0.5.7 h1:JWC0OqvzR435AidIRDp4T9kdWTURWkUjzP4R78Koq1Q=
 darvaza.org/slog v0.5.7/go.mod h1:12L03t+KYhsZ9IbfF+8if5w9Y91af2par+bSzeBVqIQ=
 darvaza.org/slog/handlers/discard v0.4.11 h1:wr34OnDoRaMV1eGgW7yUaupQxjkTnuHrJmYRPj64RHM=
 darvaza.org/slog/handlers/discard v0.4.11/go.mod h1:ynxyLmZzZ5mP4ACLhQs4MEuDyhkIzjz6DfBHUjhnIK4=
 darvaza.org/x/config v0.3.3 h1:yQUY6SdT++ZmXszGd6Ta8QSckZPJnUcx+duRe9MfI7I=
 darvaza.org/x/config v0.3.3/go.mod h1:XBuSwtZgSJCaPG86cUCxrpvVXsSxQzkvImswo/7GdX0=
+darvaza.org/x/fs v0.2.4 h1:/CXzZPTwFm/TWs8uE29T4dvR5FDGhgeR7LfxocwHkC4=
+darvaza.org/x/fs v0.2.4/go.mod h1:Q/qom+szBUWnMxoVWZjfstZY3eIGe1eCzkKpTNMqzZM=
 github.com/amery/defaults v0.1.0 h1:4AhTgLUnj8BPjVRBzg4+/cSCwPWPT6+yWCM4rD6Feyc=
 github.com/amery/defaults v0.1.0/go.mod h1:duOYkvd60q8XOL1+vdSHx5ABTGDMU2iFKr5xJnMEpBk=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -20,6 +22,8 @@ github.com/go-playground/universal-translator v0.18.1 h1:Bcnm0ZwsGyWbCzImXv+pAJn
 github.com/go-playground/universal-translator v0.18.1/go.mod h1:xekY+UJKNuX9WP91TpwSH2VMlDf28Uj24BCp08ZFTUY=
 github.com/go-playground/validator/v10 v10.22.0 h1:k6HsTZ0sTnROkhS//R0O+55JgM8C4Bx7ia+JlgcnOao=
 github.com/go-playground/validator/v10 v10.22.0/go.mod h1:dbuPbCMFw/DrkbEynArYaCwl3amGuJotoKCe95atGMM=
+github.com/gobwas/glob v0.2.3 h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y=
+github.com/gobwas/glob v0.2.3/go.mod h1:d3Ez4x06l9bZtSvzIay5+Yzi0fmZzPgnTbPcKjJAkT8=
 github.com/leodido/go-urn v1.4.0 h1:WT9HwE9SGECu3lg4d/dIA+jxlljEa1/ffXKmRjqdmIQ=
 github.com/leodido/go-urn v1.4.0/go.mod h1:bvxc+MVxLKB4z00jd1z+Dvzr47oO32F/QSNjSBOlFxI=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
@@ -28,8 +32,8 @@ github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcU
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 golang.org/x/crypto v0.25.0 h1:ypSNr+bnYL2YhwoMt2zPxHFmbAN1KZs/njMG3hxUp30=
 golang.org/x/crypto v0.25.0/go.mod h1:T+wALwcMOSE0kXgUAnPAHqTLW+XHgcELELW8VaDgm/M=
-golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 h1:hNQpMuAJe5CtcUqCXaWga3FHu+kQvCqcsoVaQgSV60o=
-golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3/go.mod h1:idGWGoKP1toJGkd5/ig9ZLuPcZBC3ewk7SzmH0uou08=
+golang.org/x/exp v0.0.0-20240707233637-46b078467d37 h1:uLDX+AfeFCct3a2C7uIWBKMJIR3CJMhcgfrUAqjRK6w=
+golang.org/x/exp v0.0.0-20240707233637-46b078467d37/go.mod h1:M4RDyNAINzryxdtnbRXRL/OHtkFuWGRjvuhBJpk2IlY=
 golang.org/x/net v0.27.0 h1:5K3Njcw06/l2y9vpGCSdcxWOYHOUk3dVNGDXN+FvAys=
 golang.org/x/net v0.27.0/go.mod h1:dDi0PyhWNoiUOrAS8uXv/vnScO4wnHQO4mj9fn/RytE=
 golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=

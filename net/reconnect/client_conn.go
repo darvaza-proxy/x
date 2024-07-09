@@ -2,19 +2,18 @@ package reconnect
 
 import (
 	"bufio"
-	"io"
 	"net"
 	"time"
 
 	"darvaza.org/core"
-	// "darvaza.org/x/fs"
+	"darvaza.org/x/fs"
 )
 
 var (
-	_ io.Reader = (*Client)(nil)
-	_ io.Writer = (*Client)(nil)
-	// _ fs.Flusher = (*Client)(nil)
-	_ io.Closer = (*Client)(nil)
+	_ fs.Reader  = (*Client)(nil)
+	_ fs.Writer  = (*Client)(nil)
+	_ fs.Flusher = (*Client)(nil)
+	_ fs.Closer  = (*Client)(nil)
 )
 
 // dial attempts to stablish a connection to the server.
