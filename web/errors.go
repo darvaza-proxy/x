@@ -176,3 +176,11 @@ func ErrorText(code int) string {
 
 	return text
 }
+
+// NewStatusBadRequest returns a 400 HTTP error.
+func NewStatusBadRequest(err error) *HTTPError {
+	return &HTTPError{
+		Code: http.StatusBadRequest,
+		Err:  err,
+	}
+}

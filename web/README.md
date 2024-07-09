@@ -69,8 +69,13 @@ to redirect factories from formatted strings:
 * `NewStatusTemporaryRedirect(loc, ...)` (307)
 * `NewStatusPermanentRedirect(loc, ...)` (308)
 
+error wrappers:
+
+* `NewStatusBadRequest(err)` (400)
+
 and simple responses:
 
 * `NewStatusNotModified()` (304)
+* `NewStatusBadRequest(err)` (400)
 * `NewStatusNotFound()` (404)
 * `NewStatusNotAcceptable()` (406)
