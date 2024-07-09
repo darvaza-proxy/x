@@ -17,6 +17,8 @@ const (
 	JSON = "application/json; charset=utf-8"
 	// HTML is the standard Media Type for HTML content.
 	HTML = "text/html; charset=utf-8"
+	// TXT is the standard Media Type for plain text content.
+	TXT = "text/plain; charset=utf-8"
 )
 
 // RenderFunc converts a generic renderer taking any as data type into
@@ -92,5 +94,9 @@ func addRenderers[T any](r *Resource[T], x any) {
 	// HTML
 	if fn, ok := htmlRendererOf[T](x); ok {
 		_ = r.addRenderer(HTML, fn)
+	}
+	// TXT
+	if fn, ok := txtRendererOf[T](x); ok {
+		_ = r.addRenderer(TXT, fn)
 	}
 }

@@ -62,9 +62,9 @@ it can be specified using the `WithIdentity()` option.
 
 For convenience a `RenderJSON` and `RenderHTML` helpers are provided.
 
-`New()` will automatically test for `RenderJSON` and `RenderHTML` methods in the object
-and registered `JSON` and `HTML` renderers for the resource, but the _identity_
-representation won't be assumed.
+`New()` will automatically test for `RenderJSON`, `RenderHTML` and `RenderTXT` methods
+in the object and registered `JSON`, `HTML`  and `TXT` renderers for the `Resource` accordingly,
+but the _identity_ representation won't be assumed.
 
 The `RenderFunc()` helper can be used to turn an `any` rendering handler into a `HandlerFunc[T]`.
 
