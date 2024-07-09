@@ -71,32 +71,9 @@ func (err *HTTPError) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	code := err.HTTPStatus()
+	code, hdr := err.prepareHeaders(rw)
 
-	switch {
-	case code == http.StatusOK:
-		rw.WriteHeader(http.StatusNoContent)
-	case code < http.StatusBadRequest:
-		rw.WriteHeader(code)
-	default:
-		err.writeError(rw, req)
-	}
-}
-
-func (err *HTTPError) writeError(rw http.ResponseWriter, req *http.Request) {
-	hdr := rw.Header()
-	for k, s := range err.Hdr {
-		// apply headers
-		hdr[k] = append(hdr[k], s...)
-	}
-
-	code := err.HTTPStatus()
-
-	// sanitize header
-	delete(hdr, "Content-Length")
-	delete(hdr, "Content-Encoding")
-
-	if req.Method == "HEAD" {
+	if req.Method == "HEAD" || code < http.StatusBadRequest {
 		// no content
 		delete(hdr, "Content-Type")
 
@@ -116,6 +93,26 @@ func (err *HTTPError) writeError(rw http.ResponseWriter, req *http.Request) {
 			_, _ = fmt.Fprint(rw, "\n", msg)
 		}
 	}
+}
+
+func (err *HTTPError) prepareHeaders(rw http.ResponseWriter) (int, http.Header) {
+	// HTTP Status Code
+	code := err.HTTPStatus()
+	if code == http.StatusOK {
+		code = http.StatusNoContent
+	}
+
+	// Extend Headers
+	hdr := rw.Header()
+	for k, s := range err.Hdr {
+		hdr[k] = append(hdr[k], s...)
+	}
+
+	// sanitize header
+	delete(hdr, "Content-Length")
+	delete(hdr, "Content-Encoding")
+
+	return code, hdr
 }
 
 func (err *HTTPError) Error() string {
