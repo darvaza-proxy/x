@@ -40,3 +40,8 @@ func doRenderHTML(rw http.ResponseWriter, tmpl *template.Template, data any) err
 	_, err := buf.WriteTo(rw)
 	return err
 }
+
+// WithHTML is a shortcut for [WithRenderer] for [HTML].
+func WithHTML[T any](fn HandlerFunc[T]) OptionFunc[T] {
+	return WithRenderer(HTML, fn)
+}

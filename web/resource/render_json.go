@@ -37,3 +37,8 @@ func RenderJSON(rw http.ResponseWriter, req *http.Request, data any) error {
 	_, err = buf.WriteTo(rw)
 	return err
 }
+
+// WithJSON is a shortcut for [WithRenderer] for [JSON]
+func WithJSON[T any](fn HandlerFunc[T]) OptionFunc[T] {
+	return WithRenderer(JSON, fn)
+}
