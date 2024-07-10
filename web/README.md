@@ -56,3 +56,15 @@ it's a 500, compose a `web.HTTPError` and serve it.
   error is `http.Handler`-able
 * and `AsErrorWithCode()` to **suggest** an HTTP status code to be used instead of 500
   when it can't be determined.
+
+There are also `web.HTTPError` factories to create new errors, from a generic:
+
+* `NewHTTPError()` and `NewHTTPErrorf()` and a companion `ErrorText(code)` helper.
+
+to redirect factories from formatted strings:
+
+* `NewStatusMovedPermanently(loc, ...)` (301)
+* `NewStatusFound(loc, ...)` (302)
+* `NewStatusSeeOther(loc, ...)` (303)
+* `NewStatusTemporaryRedirect(loc, ...)` (307)
+* `NewStatusPermanentRedirect(loc, ...)` (308)
