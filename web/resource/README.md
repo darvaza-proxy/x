@@ -66,6 +66,8 @@ For convenience a `RenderJSON` and `RenderHTML` helpers are provided.
 and registered `JSON` and `HTML` renderers for the resource, but the _identity_
 representation won't be assumed.
 
+The `RenderFunc()` helper can be used to turn an `any` rendering handler into a `HandlerFunc[T]`.
+
 ## Helpers
 
 * `RenderJSON`

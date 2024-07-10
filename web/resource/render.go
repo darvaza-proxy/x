@@ -19,6 +19,18 @@ const (
 	HTML = "text/html; charset=utf-8"
 )
 
+// RenderFunc converts a generic renderer taking any as data type into
+// a stricter one taking *T instead.
+func RenderFunc[T any](fn func(http.ResponseWriter, *http.Request, any) error) HandlerFunc[T] {
+	if fn == nil {
+		return nil
+	}
+
+	return func(rw http.ResponseWriter, req *http.Request, data *T) error {
+		return fn(rw, req, data)
+	}
+}
+
 // Render uses the Accept header to choose what renderer to use. If nothing acceptable
 // is supported, but an "identity" type has been set, that will be used.
 func (r *Resource[T]) Render(rw http.ResponseWriter, req *http.Request, data *T) error {
