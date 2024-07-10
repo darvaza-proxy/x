@@ -68,3 +68,7 @@ to redirect factories from formatted strings:
 * `NewStatusSeeOther(loc, ...)` (303)
 * `NewStatusTemporaryRedirect(loc, ...)` (307)
 * `NewStatusPermanentRedirect(loc, ...)` (308)
+
+and simple responses:
+
+* `NewStatusNotModified()` (304)

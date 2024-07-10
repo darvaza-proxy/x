@@ -27,7 +27,7 @@ func NewStatusMovedPermanently(dest string, args ...any) *HTTPError {
 	}
 }
 
-// NewStatusFound returns a 301 redirect error.
+// NewStatusFound returns a 302 redirect error.
 func NewStatusFound(dest string, args ...any) *HTTPError {
 	if len(args) > 0 {
 		dest = fmt.Sprintf(dest, args...)
@@ -53,22 +53,6 @@ func NewStatusSeeOther(dest string, args ...any) *HTTPError {
 
 	return &HTTPError{
 		Code: http.StatusSeeOther,
-		Hdr: http.Header{
-			"Location": []string{dest},
-		},
-	}
-}
-
-// NewStatusNotModified returns a 304 redirect error.
-func NewStatusNotModified(dest string, args ...any) *HTTPError {
-	if len(args) > 0 {
-		dest = fmt.Sprintf(dest, args...)
-	}
-
-	dest, _ = fs.Clean(dest)
-
-	return &HTTPError{
-		Code: http.StatusNotModified,
 		Hdr: http.Header{
 			"Location": []string{dest},
 		},
@@ -104,5 +88,12 @@ func NewStatusPermanentRedirect(dest string, args ...any) *HTTPError {
 		Hdr: http.Header{
 			"Location": []string{dest},
 		},
+	}
+}
+
+// NewStatusNotModified returns a 304 HTTP error.
+func NewStatusNotModified() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusNotModified,
 	}
 }
