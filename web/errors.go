@@ -184,3 +184,13 @@ func NewStatusBadRequest(err error) *HTTPError {
 		Err:  err,
 	}
 }
+
+// NewStatusMethodNotAllowed returns a 405 HTTP error
+func NewStatusMethodNotAllowed(allowed ...string) *HTTPError {
+	return &HTTPError{
+		Code: http.StatusMethodNotAllowed,
+		Hdr: http.Header{
+			"Allowed": allowed,
+		},
+	}
+}

@@ -78,4 +78,5 @@ and simple responses:
 * `NewStatusNotModified()` (304)
 * `NewStatusBadRequest(err)` (400)
 * `NewStatusNotFound()` (404)
+* `NewStatusMethodNotAllowed(allowed...)` (405)
 * `NewStatusNotAcceptable()` (406)
