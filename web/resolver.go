@@ -23,6 +23,23 @@ func Resolver(ctx context.Context) (ResolverFunc, bool) {
 	return resolverCtxKey.Get(ctx)
 }
 
+// NewResolverMiddleware creates a middleware that will attach
+// a [ResolverFunc] to all requests.
+func NewResolverMiddleware(h ResolverFunc) func(http.Handler) http.Handler {
+	if h == nil {
+		return NoMiddleware
+	}
+
+	return NewMiddleware(func(rw http.ResponseWriter, req *http.Request, next http.Handler) {
+		ctx := WithResolver(req.Context(), h)
+		next.ServeHTTP(rw, req.WithContext(ctx))
+	})
+}
+
+var (
+	resolverCtxKey = core.NewContextKey[ResolverFunc]("Resolver")
+)
+
 // Resolve extracts the routing path from the request using
 // the Resolver in the context when available.
 //
@@ -70,7 +87,3 @@ func CleanPath(path string) (string, bool) {
 		return s, true
 	}
 }
-
-var (
-	resolverCtxKey = core.NewContextKey[ResolverFunc]("Resolver")
-)
