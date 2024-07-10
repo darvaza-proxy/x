@@ -70,6 +70,7 @@ header, and falling back to `"identity"` as magic type.
 `darvaza.org/x/web` provides a mechanism to hook an HTTP error handler to the request Context.
 
 * `WithErrorHandler()` to attach a `func(http.ResponseWriter, *http.Request, error)`
+* `NewErrorHandlerMiddleware()` to attach it to every request,
 * and `ErrorHandler()` to read it back.
 
 We also provide a basic implementation called `HandleError` which will first attempt
