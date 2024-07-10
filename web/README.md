@@ -2,6 +2,19 @@
 
 ## Requests Handling
 
+### Middleware
+
+To facilitate the implementation of standard `func(http.Handler) http.Handler`
+middleware the `MiddlewareFunc` interface and the `NewMiddleware()` factory were
+created.
+
+```go
+type MiddlewareFunc func(rw http.ResponseWriter, req *http.Request, next http.Handler)
+```
+
+The `next` argument is never `nil`, and a do-nothing `NoMiddleware` middleware was introduced.
+When `NoMiddleware()` is called without a handler, it will return a 404 handler.
+
 ### Resolver
 
 We call _Resolver_ a function that will give us the Path our resource should be handling,
