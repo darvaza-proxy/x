@@ -15,6 +15,10 @@ type MiddlewareFunc func(rw http.ResponseWriter, req *http.Request, next http.Ha
 The `next` argument is never `nil`, and a do-nothing `NoMiddleware` middleware was introduced.
 When `NoMiddleware()` is called without a handler, it will return a 404 handler.
 
+Alternatively there is `MiddlewareErrorFunc` and `NewMiddlewareError()` that allows the handler
+to return an error that is then passed to `HandleError()` and then to the registered
+`ErrorHandler`.
+
 ### Resolver
 
 We call _Resolver_ a function that will give us the Path our resource should be handling,
