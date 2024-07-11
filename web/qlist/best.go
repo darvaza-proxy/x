@@ -1,11 +1,15 @@
 package qlist
 
-import "net/http"
+import (
+	"net/http"
+
+	"darvaza.org/x/web/consts"
+)
 
 const (
 	// AcceptEncoding is the canonical name given to the header used
 	// to indicate compression options
-	AcceptEncoding = "Accept-Encoding"
+	AcceptEncoding = consts.AcceptEncoding
 )
 
 // FitnessAndQualityParsed finds the best accepted match

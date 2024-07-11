@@ -2,6 +2,8 @@ package respond
 
 import (
 	"net/http"
+
+	"darvaza.org/x/web/consts"
 )
 
 // OK prepares a 200 OK Response
@@ -23,7 +25,7 @@ func (r *Response) Accepted(rw http.ResponseWriter) *Response {
 func (r *Response) NoContent(rw http.ResponseWriter) {
 	r.WithWriter(rw).WithStatus(http.StatusNoContent)
 
-	r.hdrs.Del("Content-Type")
+	delete(r.hdrs, consts.ContentType)
 
 	r.writeHeaders()
 	r.rw.WriteHeader(r.Code())

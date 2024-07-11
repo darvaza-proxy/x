@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"darvaza.org/x/fs"
+	"darvaza.org/x/web/consts"
 )
 
 // NewStatusMovedPermanently returns a 301 redirect error.
@@ -22,7 +23,7 @@ func NewStatusMovedPermanently(dest string, args ...any) *HTTPError {
 	return &HTTPError{
 		Code: http.StatusMovedPermanently,
 		Hdr: http.Header{
-			"Location": []string{dest},
+			consts.Location: []string{dest},
 		},
 	}
 }
@@ -38,7 +39,7 @@ func NewStatusFound(dest string, args ...any) *HTTPError {
 	return &HTTPError{
 		Code: http.StatusFound,
 		Hdr: http.Header{
-			"Location": []string{dest},
+			consts.Location: []string{dest},
 		},
 	}
 }
@@ -54,7 +55,7 @@ func NewStatusSeeOther(dest string, args ...any) *HTTPError {
 	return &HTTPError{
 		Code: http.StatusSeeOther,
 		Hdr: http.Header{
-			"Location": []string{dest},
+			consts.Location: []string{dest},
 		},
 	}
 }
@@ -70,7 +71,7 @@ func NewStatusTemporaryRedirect(dest string, args ...any) *HTTPError {
 	return &HTTPError{
 		Code: http.StatusTemporaryRedirect,
 		Hdr: http.Header{
-			"Location": []string{dest},
+			consts.Location: []string{dest},
 		},
 	}
 }
@@ -86,7 +87,7 @@ func NewStatusPermanentRedirect(dest string, args ...any) *HTTPError {
 	return &HTTPError{
 		Code: http.StatusPermanentRedirect,
 		Hdr: http.Header{
-			"Location": []string{dest},
+			consts.Location: []string{dest},
 		},
 	}
 }

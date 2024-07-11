@@ -9,11 +9,18 @@ import (
 	"strings"
 
 	"darvaza.org/x/web"
+	"darvaza.org/x/web/consts"
 )
 
 // DefaultFormMaxMemory indicates the memory limit when parsing a form
 // used when ParseForm is called without a positive number.
 const DefaultFormMaxMemory = 1 << 20 // 1MiB
+
+var (
+	urlEncodedForm = consts.ContentTypeValue(consts.URLEncodedForm)
+	multiPartForm  = consts.ContentTypeValue(consts.MultiPartForm)
+	jsonEncoded    = consts.ContentTypeValue(consts.JSON)
+)
 
 // ParseForm is similar to the standard request.ParseForm() but it
 // handles urlencoded, multipart and JSON.
@@ -26,11 +33,11 @@ func ParseForm(req *http.Request, maxMemory int64) (err error) {
 
 	ct := getContentType(req)
 	switch ct {
-	case "application/x-www-form-urlencoded":
+	case urlEncodedForm:
 		err = req.ParseForm()
-	case "multipart/form-data":
+	case multiPartForm:
 		err = req.ParseMultipartForm(maxMemory)
-	case "application/json":
+	case jsonEncoded:
 		err = parseFormJSON(req, maxMemory)
 	default:
 		return &web.HTTPError{Code: http.StatusUnsupportedMediaType}
@@ -75,7 +82,7 @@ func parseFormJSON(req *http.Request, maxMemory int64) error {
 	}
 
 	switch strings.ToUpper(req.Method) {
-	case "POST", "PUT", "PATCH":
+	case consts.POST, consts.PUT, consts.PATCH:
 		req.PostForm = cloneValues(values)
 	default:
 		req.PostForm = make(url.Values)
@@ -98,6 +105,9 @@ func cloneValues(orig url.Values) url.Values {
 }
 
 func getContentType(req *http.Request) string {
-	s := strings.Split(req.Header.Get("Content-Type"), ";")[0]
-	return strings.ToLower(strings.TrimSpace(s))
+	if hdr := req.Header[consts.ContentType]; len(hdr) > 0 {
+		s := consts.ContentTypeValue(hdr[0])
+		return strings.ToLower(strings.TrimSpace(s))
+	}
+	return ""
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"darvaza.org/core"
+	"darvaza.org/x/web/consts"
 )
 
 var (
@@ -73,16 +74,16 @@ func (err *HTTPError) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	code, hdr := err.prepareHeaders(rw)
 
-	if req.Method == "HEAD" || code < http.StatusBadRequest {
+	if req.Method == consts.HEAD || code < http.StatusBadRequest {
 		// no content
-		delete(hdr, "Content-Type")
+		delete(hdr, consts.ContentType)
 
 		rw.WriteHeader(code)
 		return
 	}
 
 	// override media type
-	hdr["Content-Type"] = []string{"text/plain; charset=UTF-8"}
+	hdr[consts.ContentType] = []string{consts.TXT}
 
 	rw.WriteHeader(code)
 
@@ -109,8 +110,8 @@ func (err *HTTPError) prepareHeaders(rw http.ResponseWriter) (int, http.Header) 
 	}
 
 	// sanitize header
-	delete(hdr, "Content-Length")
-	delete(hdr, "Content-Encoding")
+	delete(hdr, consts.ContentLength)
+	delete(hdr, consts.ContentEncoding)
 
 	return code, hdr
 }

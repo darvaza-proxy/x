@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"darvaza.org/x/web"
+	"darvaza.org/x/web/consts"
 )
 
 // HandlerFunc represents a function [web.HandlerFunc] but taking a data
@@ -172,47 +173,30 @@ func patcherOf[T any](x any) (HandlerFunc[T], bool) {
 func addHandlers[T any](h *Resource[T], x any) {
 	// GET
 	if fn, ok := getterOf[T](x); ok {
-		h.h[GET] = fn
+		h.h[consts.GET] = fn
 	}
 	// HEAD
 	if fn, ok := peekerOf[T](x); ok {
-		h.h[HEAD] = fn
+		h.h[consts.HEAD] = fn
 	}
 	// POST
 	if fn, ok := posterOf[T](x); ok {
-		h.h[POST] = fn
+		h.h[consts.POST] = fn
 	}
 	// PUT
 	if fn, ok := putterOf[T](x); ok {
-		h.h[PUT] = fn
+		h.h[consts.PUT] = fn
 	}
 	// DELETE
 	if fn, ok := deleterOf[T](x); ok {
-		h.h[DELETE] = fn
+		h.h[consts.DELETE] = fn
 	}
 	// OPTIONS
 	if fn, ok := optionerOf[T](x); ok {
-		h.h[OPTIONS] = fn
+		h.h[consts.OPTIONS] = fn
 	}
 	// PATCH
 	if fn, ok := patcherOf[T](x); ok {
-		h.h[PATCH] = fn
+		h.h[consts.PATCH] = fn
 	}
 }
-
-const (
-	// GET represents the HTTP GET Method.
-	GET = "GET"
-	// HEAD represents the HTTP HEAD Method.
-	HEAD = "HEAD"
-	// POST represents the HTTP POST Method.
-	POST = "POST"
-	// PUT represents the HTTP PUT Method.
-	PUT = "PUT"
-	// DELETE represents the HTTP DELETE Method.
-	DELETE = "DELETE"
-	// OPTIONS represents the HTTP OPTIONS Method.
-	OPTIONS = "OPTIONS"
-	// PATCH represents the HTTP PATCH Method.
-	PATCH = "PATCH"
-)

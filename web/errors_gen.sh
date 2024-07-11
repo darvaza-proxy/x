@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"darvaza.org/x/fs"
+	"darvaza.org/x/web/consts"
 )
 EOT
 
@@ -49,7 +50,7 @@ func NewStatus$name(dest string, args ...any) *HTTPError {
 	return &HTTPError{
 		Code: http.Status$name,
 		Hdr: http.Header{
-			"Location": []string{dest},
+			consts.Location: []string{dest},
 		},
 	}
 }

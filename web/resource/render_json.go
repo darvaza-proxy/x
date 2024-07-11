@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+
+	"darvaza.org/x/web/consts"
 )
 
 func jsonRendererOf[T any](x any) (HandlerFunc[T], bool) {
@@ -19,9 +21,9 @@ func jsonRendererOf[T any](x any) (HandlerFunc[T], bool) {
 // RenderJSON encodes the data as JSON and sends it to the client after setting
 // Content-Type and Content-Length.  For HEAD only Content-Type is set.
 func RenderJSON(rw http.ResponseWriter, req *http.Request, data any) error {
-	SetHeader(rw, ContentType, JSON)
+	SetHeader(rw, consts.ContentType, consts.JSON)
 
-	if req.Method == HEAD {
+	if req.Method == consts.HEAD {
 		// done
 		return nil
 	}
@@ -31,7 +33,7 @@ func RenderJSON(rw http.ResponseWriter, req *http.Request, data any) error {
 		return err
 	}
 
-	SetHeader(rw, ContentLength, "%v", len(b))
+	SetHeader(rw, consts.ContentLength, "%v", len(b))
 
 	buf := bytes.NewBuffer(b)
 	_, err = buf.WriteTo(rw)
@@ -45,5 +47,5 @@ func WithJSON[T any](fn HandlerFunc[T]) OptionFunc[T] {
 	if fn == nil {
 		fn = RenderFunc[T](RenderJSON)
 	}
-	return WithRenderer(JSON, fn)
+	return WithRenderer(consts.JSON, fn)
 }

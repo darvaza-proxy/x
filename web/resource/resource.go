@@ -8,6 +8,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/x/web"
+	"darvaza.org/x/web/consts"
 	"darvaza.org/x/web/qlist"
 )
 
@@ -110,7 +111,7 @@ func (r *Resource[T]) Methods() []string {
 }
 
 func (r *Resource[T]) serveOptions(rw http.ResponseWriter, _ *http.Request, _ T) error {
-	rw.Header()["Allow"] = r.methods
+	rw.Header()[consts.Allowed] = r.methods
 	rw.WriteHeader(http.StatusNoContent)
 	return nil
 }
@@ -162,13 +163,13 @@ func (r *Resource[T]) setDefaults() error {
 	}
 
 	// HEAD
-	if r.h[HEAD] == nil && r.h[GET] != nil {
-		r.h[HEAD] = r.h[GET]
+	if r.h[consts.HEAD] == nil && r.h[consts.GET] != nil {
+		r.h[consts.HEAD] = r.h[consts.GET]
 	}
 
 	// OPTIONS
-	if r.h[OPTIONS] == nil {
-		r.h[OPTIONS] = r.serveOptions
+	if r.h[consts.OPTIONS] == nil {
+		r.h[consts.OPTIONS] = r.serveOptions
 	}
 
 	r.methods = core.SortedKeys(r.h)
