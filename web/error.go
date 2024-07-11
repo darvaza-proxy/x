@@ -64,7 +64,8 @@ func (err *HTTPError) DeleteHeader(key string) {
 }
 
 // ServeHTTP is a very primitive handler that will try to pass the error
-// to a [middleware.ErrorHandlerFunc] provided via the request's context.Context
+// to a [middleware.ErrorHandlerFunc] provided via the request's context.Context.
+// if it exists, otherwise it will invoke the [Render] method to serve it.
 func (err *HTTPError) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if h, ok := ErrorHandler(req.Context()); ok {
 		// pass over to the error handler
@@ -72,6 +73,11 @@ func (err *HTTPError) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	err.Render(rw, req)
+}
+
+// Render will serve the error ignoring the [ErrorHandler].
+func (err *HTTPError) Render(rw http.ResponseWriter, req *http.Request) {
 	code, hdr := err.prepareHeaders(rw)
 
 	if req.Method == consts.HEAD || code < http.StatusBadRequest {
