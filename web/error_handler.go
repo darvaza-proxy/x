@@ -29,29 +29,18 @@ var (
 // otherwise it serves the error directly using its own ServeHTTP if defined
 // or [HTTPError] if not.
 func HandleError(rw http.ResponseWriter, req *http.Request, err error) {
-	var h http.Handler
-
 	if fn, _ := ErrorHandler(req.Context()); fn != nil {
 		// pass over to the error handler
 		fn(rw, req, err)
 		return
 	}
 
-	if e, ok := err.(http.Handler); ok {
-		// direct
-		h = e
-	} else {
-		// assemble
-		var code int
+	code := http.StatusInternalServerError
 
-		if e, ok := err.(Error); ok {
-			code = e.HTTPStatus()
-		}
-
-		h = &HTTPError{
-			Code: core.IIf(code > 0, code, http.StatusInternalServerError),
-			Err:  err,
-		}
+	h, ok := AsErrorWithCode(err, code).(http.Handler)
+	if !ok {
+		// naked 500 then
+		h = &HTTPError{Code: code}
 	}
 
 	h.ServeHTTP(rw, req)
@@ -68,19 +57,45 @@ func AsError(err error) error {
 // the given status code when none could be inferred.
 // If a non-positive code is provided, a 500 will be assumed.
 func AsErrorWithCode(err error, code int) error {
-	switch e := err.(type) {
+	switch err.(type) {
 	case nil:
 		return nil
 	case http.Handler:
 		return err
-	case Error:
+	default:
+		return &HTTPError{
+			Code: getAsErrorCode(err, code),
+			Err:  err,
+			Hdr:  getAsErrorHeaders(err),
+		}
+	}
+}
+
+func getAsErrorCode(err error, code int) int {
+	if e, ok := err.(Error); ok {
 		if c := e.HTTPStatus(); c != 0 {
 			code = c
 		}
 	}
 
-	return &HTTPError{
-		Code: core.IIf(code > 0, code, http.StatusInternalServerError),
-		Err:  err,
+	if code > 0 {
+		return code
+	}
+
+	return http.StatusInternalServerError
+}
+
+func getAsErrorHeaders(err error) http.Header {
+	switch v := err.(type) {
+	case interface {
+		Header() http.Header
+	}:
+		return v.Header().Clone()
+	case interface {
+		Headers() http.Header
+	}:
+		return v.Headers().Clone()
+	default:
+		return nil
 	}
 }

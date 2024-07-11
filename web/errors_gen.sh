@@ -27,9 +27,8 @@ EOT
 #
 for x in \
 	MovedPermanently=301 \
-	Found=301 \
+	Found=302 \
 	SeeOther=303 \
-	NotModified=304 \
 	TemporaryRedirect=307 \
 	PermanentRedirect=308 \
 	; do
@@ -52,6 +51,28 @@ func NewStatus$name(dest string, args ...any) *HTTPError {
 		Hdr: http.Header{
 			"Location": []string{dest},
 		},
+	}
+}
+EOT
+done
+
+# basic
+#
+for x in \
+	NotModified=304 \
+	NotFound=404 \
+	NotAcceptable=406 \
+	; do
+
+	name=${x%=*}
+	code=${x#*=}
+
+	cat <<EOT
+
+// NewStatus$name returns a $code HTTP error.
+func NewStatus$name() *HTTPError {
+	return &HTTPError{
+		Code: http.Status$name,
 	}
 }
 EOT
