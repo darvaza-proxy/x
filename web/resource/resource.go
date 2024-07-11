@@ -100,7 +100,7 @@ func (r *Resource[T]) Methods() []string {
 	l := len(r.methods)
 	if l == 0 {
 		// early call.
-		return sortedKeys(r.h)
+		return core.SortedKeys(r.h)
 	}
 
 	// return copy
@@ -171,7 +171,7 @@ func (r *Resource[T]) setDefaults() error {
 		r.h[OPTIONS] = r.serveOptions
 	}
 
-	r.methods = sortedKeys(r.h)
+	r.methods = core.SortedKeys(r.h)
 	return nil
 }
 
