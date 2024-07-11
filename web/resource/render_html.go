@@ -2,8 +2,8 @@ package resource
 
 import (
 	"bytes"
+	"html/template"
 	"net/http"
-	"text/template"
 )
 
 func htmlRendererOf[T any](x any) (HandlerFunc[T], bool) {
