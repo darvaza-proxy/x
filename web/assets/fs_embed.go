@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"darvaza.org/x/fs"
+	"darvaza.org/x/web"
 )
 
 var (
@@ -392,13 +393,9 @@ func (o *EmbedFS) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 // Middleware returns a middleware handler to be used with this [EmbedFS],
 // allowing us to proceed when the requested file wasn't found.
 func (o *EmbedFS) Middleware() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(rw http.ResponseWriter, req *http.Request) {
-			serveHTTP(o, rw, req, next)
-		}
-
-		return http.HandlerFunc(fn)
-	}
+	return web.NewMiddleware(func(rw http.ResponseWriter, req *http.Request, next http.Handler) {
+		serveHTTP(o, rw, req, next)
+	})
 }
 
 // EmbedFile is a readable instance of an embedded static file.
