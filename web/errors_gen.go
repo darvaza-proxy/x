@@ -146,6 +146,20 @@ func NewStatusNotModified() *HTTPError {
 	}
 }
 
+// NewStatusUnauthorized returns a 401 HTTP error.
+func NewStatusUnauthorized() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusUnauthorized,
+	}
+}
+
+// NewStatusForbidden returns a 403 HTTP error.
+func NewStatusForbidden() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusForbidden,
+	}
+}
+
 // NewStatusNotFound returns a 404 HTTP error.
 func NewStatusNotFound() *HTTPError {
 	return &HTTPError{
