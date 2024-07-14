@@ -83,11 +83,11 @@ func (r *Resource[T]) getMethodHandler(req *http.Request) (HandlerFunc[T], strin
 	return nil, "", r.err405()
 }
 
-func (r *Resource[T]) checkRequest(req *http.Request) (*http.Request, *T, error) {
+func (r *Resource[T]) checkRequest(req *http.Request) (*http.Request, T, error) {
 	req2, data, err := r.check(req)
 	switch {
 	case err != nil:
-		return nil, nil, web.AsError(err)
+		return nil, data, web.AsError(err)
 	case req2 != nil:
 		return req2, data, nil
 	default:
@@ -109,7 +109,7 @@ func (r *Resource[T]) Methods() []string {
 	return out
 }
 
-func (r *Resource[T]) serveOptions(rw http.ResponseWriter, _ *http.Request, _ *T) error {
+func (r *Resource[T]) serveOptions(rw http.ResponseWriter, _ *http.Request, _ T) error {
 	rw.Header()["Allow"] = r.methods
 	rw.WriteHeader(http.StatusNoContent)
 	return nil

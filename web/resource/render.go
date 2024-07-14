@@ -28,14 +28,14 @@ func RenderFunc[T any](fn func(http.ResponseWriter, *http.Request, any) error) H
 		return nil
 	}
 
-	return func(rw http.ResponseWriter, req *http.Request, data *T) error {
+	return func(rw http.ResponseWriter, req *http.Request, data T) error {
 		return fn(rw, req, data)
 	}
 }
 
 // Render uses the Accept header to choose what renderer to use. If nothing acceptable
 // is supported, but an "identity" type has been set, that will be used.
-func (r *Resource[T]) Render(rw http.ResponseWriter, req *http.Request, data *T) error {
+func (r *Resource[T]) Render(rw http.ResponseWriter, req *http.Request, data T) error {
 	h, err := r.getRendererForRequest(req)
 	if err != nil {
 		return err
