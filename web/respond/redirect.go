@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"darvaza.org/core"
+	"darvaza.org/x/web/consts"
 )
 
 func (r *Response) redirect(rw http.ResponseWriter, loc string, code int) error {
@@ -12,16 +13,16 @@ func (r *Response) redirect(rw http.ResponseWriter, loc string, code int) error 
 
 	r.WithWriter(rw).WithStatus(code)
 	if loc != "" {
-		r.SetHeader("Location", loc)
+		r.SetHeader(consts.Location, loc)
 	}
-	r.SetHeader("Content-Type", "text/plain; charset=UTF-8")
+	r.SetHeader(consts.ContentType, consts.TXT)
 
 	r.writeHeaders()
 	r.rw.WriteHeader(code)
 
 	if loc == "" {
 		// did they set the location manually?
-		loc = r.hdrs.Get("Location")
+		loc = r.hdrs.Get(consts.Location)
 	}
 
 	if loc == "" {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"darvaza.org/x/web/consts"
 )
 
 // This module provides basic functions for handling mime-types. It can handle
@@ -16,7 +18,7 @@ import (
 const (
 	// Accept is the canonical header name used for negotiating a MIME Type
 	// for the content of the Request response
-	Accept = "Accept"
+	Accept = consts.Accept
 )
 
 // AsMediaRange converts a QualityValue into a valid MediaRange
@@ -69,7 +71,7 @@ func ParseMediaRangeHeaders(hdrs []string) (out QualityList, err error) {
 	return out, nil
 }
 
-// ParseMediaRangeString extracts a [QualityList] from a string representings on
+// ParseMediaRangeString extracts a [QualityList] from a string representing an
 // Accept header
 func ParseMediaRangeString(ranges string) (out QualityList, err error) {
 	for _, s := range strings.Split(ranges, ",") {

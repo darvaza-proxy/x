@@ -4,21 +4,8 @@ import (
 	"net/http"
 
 	"darvaza.org/core"
+	"darvaza.org/x/web/consts"
 	"darvaza.org/x/web/qlist"
-)
-
-const (
-	// ContentType is the canonical HTTP Content-Type header.
-	ContentType = "Content-Type"
-	// ContentLength is the canonical HTTP Content-Length header.
-	ContentLength = "Content-Length"
-
-	// JSON is the standard Media Type for JSON content.
-	JSON = "application/json; charset=utf-8"
-	// HTML is the standard Media Type for HTML content.
-	HTML = "text/html; charset=utf-8"
-	// TXT is the standard Media Type for plain text content.
-	TXT = "text/plain; charset=utf-8"
 )
 
 // RenderFunc converts a generic renderer taking any as data type into
@@ -89,14 +76,14 @@ func (r *Resource[T]) getRenderer(mediaType string) HandlerFunc[T] {
 func addRenderers[T any](r *Resource[T], x any) {
 	// JSON
 	if fn, ok := jsonRendererOf[T](x); ok {
-		_ = r.addRenderer(JSON, fn)
+		_ = r.addRenderer(consts.JSON, fn)
 	}
 	// HTML
 	if fn, ok := htmlRendererOf[T](x); ok {
-		_ = r.addRenderer(HTML, fn)
+		_ = r.addRenderer(consts.HTML, fn)
 	}
 	// TXT
 	if fn, ok := txtRendererOf[T](x); ok {
-		_ = r.addRenderer(TXT, fn)
+		_ = r.addRenderer(consts.TXT, fn)
 	}
 }

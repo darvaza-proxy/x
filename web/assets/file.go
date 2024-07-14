@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"darvaza.org/x/web"
+	"darvaza.org/x/web/consts"
 )
 
 // File represents seek-able [fs.File]
@@ -42,14 +43,14 @@ func ServeFile(rw http.ResponseWriter, req *http.Request, file File) {
 }
 
 func setContentType(hdr http.Header, file File, name string) error {
-	_, haveType := hdr["Content-Type"]
+	_, haveType := hdr[consts.ContentType]
 	if !haveType {
 		cType, err := getContentType(file, name)
 		switch {
 		case err != nil:
 			return err
 		case cType != "":
-			hdr["Content-Type"] = []string{cType}
+			hdr[consts.ContentType] = []string{cType}
 		}
 	}
 	return nil
@@ -98,14 +99,14 @@ func getContentTypeSetter(file fs.File) ContentTypeSetter {
 }
 
 func setETag(hdr http.Header, file File) error {
-	_, haveETag := hdr["Etag"]
+	_, haveETag := hdr[consts.ETag]
 	if !haveETag {
 		tags, err := getETags(file)
 		switch {
 		case err != nil:
 			return err
 		case len(tags) > 0:
-			hdr["Etag"] = tags
+			hdr[consts.ETag] = tags
 		}
 	}
 	return nil
@@ -121,14 +122,14 @@ func getETags(file File) ([]string, error) {
 		return nil, err
 	}
 
-	etags := []string{hash}
+	tags := []string{hash}
 
 	// try to remember
 	if f := getETagsSetter(file); f != nil {
-		f.SetETags(etags...)
+		f.SetETags(tags...)
 	}
 
-	return etags, nil
+	return tags, nil
 }
 
 func getETagsSetter(file fs.File) ETagsSetter {

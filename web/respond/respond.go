@@ -6,6 +6,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/x/web"
+	"darvaza.org/x/web/consts"
 	"darvaza.org/x/web/qlist"
 )
 
@@ -85,7 +86,7 @@ func (r *Response) writeHeaders() {
 
 	hdrs := r.rw.Header()
 	for key, s := range r.hdrs {
-		if key == "Content-Type" {
+		if key == consts.ContentType {
 			hasCT = true
 		}
 
@@ -94,7 +95,7 @@ func (r *Response) writeHeaders() {
 
 	if !hasCT {
 		if ct := r.h.ContentType(); ct != "" {
-			hdrs["Content-Type"] = []string{ct}
+			hdrs[consts.ContentType] = []string{ct}
 		}
 	}
 }

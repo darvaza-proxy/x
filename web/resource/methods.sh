@@ -33,6 +33,7 @@ import (
 	"net/http"
 
 	"darvaza.org/x/web"
+	"darvaza.org/x/web/consts"
 )
 
 // HandlerFunc represents a function [web.HandlerFunc] but taking a data
@@ -104,25 +105,12 @@ for x in $METHODS; do
 	cat <<EOT
 	// $verb
 	if fn, ok := ${accessor}[T](x); ok {
-		h.h[$verb] = fn
+		h.h[consts.$verb] = fn
 	}
 EOT
 done
 cat <<EOT
 }
-
-const (
 EOT
-for x in $METHODS; do
-	fn="${x%:*}"
-	verb="$(to_upper "$fn")"
-
-	cat <<EOT
-	// $verb represents the HTTP $verb Method.
-	$verb = "$verb"
-EOT
-
-done
-echo ")"
 
 mv "$GOFILE~" "$GOFILE"
