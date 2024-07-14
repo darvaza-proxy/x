@@ -2,12 +2,30 @@
 
 ## Requests Handling
 
+### Middleware
+
+To facilitate the implementation of standard `func(http.Handler) http.Handler`
+middleware the `MiddlewareFunc` interface and the `NewMiddleware()` factory were
+created.
+
+```go
+type MiddlewareFunc func(rw http.ResponseWriter, req *http.Request, next http.Handler)
+```
+
+The `next` argument is never `nil`, and a do-nothing `NoMiddleware` middleware was introduced.
+When `NoMiddleware()` is called without a handler, it will return a 404 handler.
+
+Alternatively there is `MiddlewareErrorFunc` and `NewMiddlewareError()` that allows the handler
+to return an error that is then passed to `HandleError()` and then to the registered
+`ErrorHandler`.
+
 ### Resolver
 
 We call _Resolver_ a function that will give us the Path our resource should be handling,
 and for this task `darvaza.org/x/web` provides four helpers.
 
 * `WithResolver()` to attach a dedicated _Resolver_ to the request's context.
+* `NewResolverMiddleware()` to attach one to every request.
 * `Resolver()`, to retrieve a previously attached _Resolver_ from the request's context.
 * and a `Resolve()` helper that will use the above and call the specified _Resolver_, or
   take the request's `URL.Path`, and then clean it to make sure its safe to use.
@@ -57,6 +75,7 @@ header, and falling back to `"identity"` as magic type.
 `darvaza.org/x/web` provides a mechanism to hook an HTTP error handler to the request Context.
 
 * `WithErrorHandler()` to attach a `func(http.ResponseWriter, *http.Request, error)`
+* `NewErrorHandlerMiddleware()` to attach it to every request,
 * and `ErrorHandler()` to read it back.
 
 We also provide a basic implementation called `HandleError` which will first attempt

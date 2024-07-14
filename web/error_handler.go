@@ -21,6 +21,19 @@ func ErrorHandler(ctx context.Context) (ErrorHandlerFunc, bool) {
 	return errCtxKey.Get(ctx)
 }
 
+// NewErrorHandlerMiddleware creates a middleware that will attach
+// a [ErrorHandlerFunc] to all requests.
+func NewErrorHandlerMiddleware(h ErrorHandlerFunc) func(http.Handler) http.Handler {
+	if h == nil {
+		return NoMiddleware
+	}
+
+	return NewMiddleware(func(rw http.ResponseWriter, req *http.Request, next http.Handler) {
+		ctx := WithErrorHandler(req.Context(), h)
+		next.ServeHTTP(rw, req.WithContext(ctx))
+	})
+}
+
 var (
 	errCtxKey = core.NewContextKey[ErrorHandlerFunc]("ErrorHandler")
 )
