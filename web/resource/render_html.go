@@ -8,7 +8,7 @@ import (
 
 func htmlRendererOf[T any](x any) (HandlerFunc[T], bool) {
 	if v, ok := x.(interface {
-		RenderHTML(http.ResponseWriter, *http.Request, *T) error
+		RenderHTML(http.ResponseWriter, *http.Request, T) error
 	}); ok {
 		return v.RenderHTML, true
 	}

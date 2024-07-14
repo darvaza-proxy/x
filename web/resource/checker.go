@@ -14,22 +14,24 @@ type Checker interface {
 // TChecker is a resource that knows how validate its requests,
 // and returns the relevant data
 type TChecker[T any] interface {
-	Check(*http.Request) (*http.Request, *T, error)
+	Check(*http.Request) (*http.Request, T, error)
 }
 
 // CheckerFunc is the signature of a function that pre-validates
 // requests and returns relevant data
-type CheckerFunc[T any] func(*http.Request) (*http.Request, *T, error)
+type CheckerFunc[T any] func(*http.Request) (*http.Request, T, error)
 
 // DefaultChecker is happy with any request that can resolve a
 // valid path but it doesn't do any alteration to the request
 // or its context.
-func DefaultChecker[T any](req *http.Request) (*http.Request, *T, error) {
+func DefaultChecker[T any](req *http.Request) (*http.Request, T, error) {
+	var zero T
+
 	_, err := web.Resolve(req)
 	if err != nil {
-		return nil, nil, err
+		return nil, zero, err
 	}
-	return req, nil, nil
+	return req, zero, nil
 }
 
 func checkerOf[T any](x any) (CheckerFunc[T], bool) {
@@ -37,9 +39,10 @@ func checkerOf[T any](x any) (CheckerFunc[T], bool) {
 	case TChecker[T]:
 		return v.Check, true
 	case Checker:
-		fn := func(req *http.Request) (*http.Request, *T, error) {
+		fn := func(req *http.Request) (*http.Request, T, error) {
+			var zero T
 			req2, err := v.Check(req)
-			return req2, nil, err
+			return req2, zero, err
 		}
 		return fn, true
 	default:

@@ -8,7 +8,7 @@ import (
 
 func jsonRendererOf[T any](x any) (HandlerFunc[T], bool) {
 	if v, ok := x.(interface {
-		RenderJSON(http.ResponseWriter, *http.Request, *T) error
+		RenderJSON(http.ResponseWriter, *http.Request, T) error
 	}); ok {
 		return v.RenderJSON, true
 	}

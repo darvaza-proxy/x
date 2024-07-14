@@ -12,12 +12,12 @@ import (
 
 // HandlerFunc represents a function [web.HandlerFunc] but taking a data
 // parameter.
-type HandlerFunc[T any] func(http.ResponseWriter, *http.Request, *T) error
+type HandlerFunc[T any] func(http.ResponseWriter, *http.Request, T) error
 
 // AsHandlerFunc wraps a [web.HandlerFunc] into a [HandlerFunc], discarding
 // the data pointer.
 func AsHandlerFunc[T any](fn web.HandlerFunc) HandlerFunc[T] {
-	return func(rw http.ResponseWriter, req *http.Request, _ *T) error {
+	return func(rw http.ResponseWriter, req *http.Request, _ T) error {
 		return fn(rw, req)
 	}
 }
@@ -29,7 +29,7 @@ type Getter interface {
 
 // TGetter represents a resource that handles GET requests with a data field.
 type TGetter[T any] interface {
-	Get(http.ResponseWriter, *http.Request, *T) error
+	Get(http.ResponseWriter, *http.Request, T) error
 }
 
 func getterOf[T any](x any) (HandlerFunc[T], bool) {
@@ -50,7 +50,7 @@ type Peeker interface {
 
 // TPeeker represents a resource that handles HEAD requests with a data field.
 type TPeeker[T any] interface {
-	Head(http.ResponseWriter, *http.Request, *T) error
+	Head(http.ResponseWriter, *http.Request, T) error
 }
 
 func peekerOf[T any](x any) (HandlerFunc[T], bool) {
@@ -71,7 +71,7 @@ type Poster interface {
 
 // TPoster represents a resource that handles POST requests with a data field.
 type TPoster[T any] interface {
-	Post(http.ResponseWriter, *http.Request, *T) error
+	Post(http.ResponseWriter, *http.Request, T) error
 }
 
 func posterOf[T any](x any) (HandlerFunc[T], bool) {
@@ -92,7 +92,7 @@ type Putter interface {
 
 // TPutter represents a resource that handles PUT requests with a data field.
 type TPutter[T any] interface {
-	Put(http.ResponseWriter, *http.Request, *T) error
+	Put(http.ResponseWriter, *http.Request, T) error
 }
 
 func putterOf[T any](x any) (HandlerFunc[T], bool) {
@@ -113,7 +113,7 @@ type Deleter interface {
 
 // TDeleter represents a resource that handles DELETE requests with a data field.
 type TDeleter[T any] interface {
-	Delete(http.ResponseWriter, *http.Request, *T) error
+	Delete(http.ResponseWriter, *http.Request, T) error
 }
 
 func deleterOf[T any](x any) (HandlerFunc[T], bool) {
@@ -134,7 +134,7 @@ type Optioner interface {
 
 // TOptioner represents a resource that handles OPTIONS requests with a data field.
 type TOptioner[T any] interface {
-	Options(http.ResponseWriter, *http.Request, *T) error
+	Options(http.ResponseWriter, *http.Request, T) error
 }
 
 func optionerOf[T any](x any) (HandlerFunc[T], bool) {
@@ -155,7 +155,7 @@ type Patcher interface {
 
 // TPatcher represents a resource that handles PATCH requests with a data field.
 type TPatcher[T any] interface {
-	Patch(http.ResponseWriter, *http.Request, *T) error
+	Patch(http.ResponseWriter, *http.Request, T) error
 }
 
 func patcherOf[T any](x any) (HandlerFunc[T], bool) {

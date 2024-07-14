@@ -30,7 +30,7 @@ when using the `DefaultChecker`
 
 The recommended workflow is to use `Check` to return a resource data pointer using
 ```go
-Check(*http.Request) (*http.Request, *T, error)
+Check(*http.Request) (*http.Request, T, error)
 ```
 but one with implicit `nil` data is also tested for.
 ```go
@@ -39,7 +39,7 @@ Check(*http.Request) (*http.Request, error)
 
 The data pointer can then be received by the FOO method handler via
 ```go
-Foo(http.ResponseWriter, *http.Request, *T) error
+Foo(http.ResponseWriter, *http.Request, T) error
 ```
 
 but one without data pointer is also tested for.

@@ -37,12 +37,12 @@ import (
 
 // HandlerFunc represents a function [web.HandlerFunc] but taking a data
 // parameter.
-type HandlerFunc[T any] func(http.ResponseWriter, *http.Request, *T) error
+type HandlerFunc[T any] func(http.ResponseWriter, *http.Request, T) error
 
 // AsHandlerFunc wraps a [web.HandlerFunc] into a [HandlerFunc], discarding
 // the data pointer.
 func AsHandlerFunc[T any](fn web.HandlerFunc) HandlerFunc[T] {
-	return func(rw http.ResponseWriter, req *http.Request, _ *T) error {
+	return func(rw http.ResponseWriter, req *http.Request, _ T) error {
 		return fn(rw, req)
 	}
 }
@@ -75,7 +75,7 @@ type $iface interface {
 
 // T${iface} represents a resource that handles $verb requests with a data field.
 type T${iface}[T any] interface {
-	$fn(http.ResponseWriter, *http.Request, *T) error
+	$fn(http.ResponseWriter, *http.Request, T) error
 }
 
 func ${accessor}[T any](x any) (HandlerFunc[T], bool) {
