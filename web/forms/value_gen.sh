@@ -30,10 +30,10 @@ to_lower() {
 
 gen() {
 	local x="$1" y="$2" g="$3"
-	local fn fn0 fn1
+	local fn fn0 fn1 fn2
 	local fn0s fn1s
-	local parse
-	local T ret
+	local parse format
+	local ordered T ret
 
 	fn="Parse${y}"
 	fn0="${x}Value"
@@ -42,9 +42,26 @@ gen() {
 	fn1="${fn0}${g}"
 	fn1s="${fn0s}${g}"
 
+	fn2="${fn1}InRange"
+
 	parse="Parse$g"
+	format="Format$g"
+	format_v="$format(value)"
+	ordered=true
 	T=true
 	ret=T
+
+	case "$y" in
+	Int|Uint)
+		format_v="$format(value, 10)"
+		;;
+	Float)
+		format_v="$format(value, 'f', -1)"
+		;;
+	Bool)
+		ordered=false
+		;;
+	esac
 
 	cat <<EOT
 
@@ -87,6 +104,29 @@ func ${fn1s}${T:+[T core.$g]}(req *http.Request, field string) (values []${ret},
 	return values, found, err
 }
 EOT
+
+	if $ordered; then
+		cat <<EOT
+
+// $fn2 reads a field from [http.Request#$x], after populating it if needed,
+// and returns a [core.$g] value, an indicator saying if it was actually,
+// and possibly an error.
+// Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
+// couldn't be converted to the intended type or if it's outside the specified
+// boundaries.
+func ${fn2}${T:+[T core.$g]}(req *http.Request, field string,
+	min, max ${ret}) (value ${ret}, found bool, err error) {
+	//
+	value, found, err = ${fn1}${T:+[T]}(req, field)
+	if err == nil && found {
+		if value < min || value > max {
+			err = errRange("$fn", $format_v)
+		}
+	}
+	return value, found, err
+}
+EOT
+	fi
 }
 
 for x in Form PostForm; do

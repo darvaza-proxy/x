@@ -49,6 +49,24 @@ func FormValuesSigned[T core.Signed](req *http.Request, field string) (values []
 	return values, found, err
 }
 
+// FormValueSignedInRange reads a field from [http.Request#Form], after populating it if needed,
+// and returns a [core.Signed] value, an indicator saying if it was actually,
+// and possibly an error.
+// Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
+// couldn't be converted to the intended type or if it's outside the specified
+// boundaries.
+func FormValueSignedInRange[T core.Signed](req *http.Request, field string,
+	min, max T) (value T, found bool, err error) {
+	//
+	value, found, err = FormValueSigned[T](req, field)
+	if err == nil && found {
+		if value < min || value > max {
+			err = errRange("ParseInt", FormatSigned(value, 10))
+		}
+	}
+	return value, found, err
+}
+
 // FormValueUnsigned reads a field from [http.Request#Form], after populating it if needed,
 // and returns a [core.Unsigned] value, an indicator saying if it was actually present
 // and possibly an error.
@@ -88,6 +106,24 @@ func FormValuesUnsigned[T core.Unsigned](req *http.Request, field string) (value
 	return values, found, err
 }
 
+// FormValueUnsignedInRange reads a field from [http.Request#Form], after populating it if needed,
+// and returns a [core.Unsigned] value, an indicator saying if it was actually,
+// and possibly an error.
+// Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
+// couldn't be converted to the intended type or if it's outside the specified
+// boundaries.
+func FormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string,
+	min, max T) (value T, found bool, err error) {
+	//
+	value, found, err = FormValueUnsigned[T](req, field)
+	if err == nil && found {
+		if value < min || value > max {
+			err = errRange("ParseUint", FormatUnsigned(value, 10))
+		}
+	}
+	return value, found, err
+}
+
 // FormValueFloat reads a field from [http.Request#Form], after populating it if needed,
 // and returns a [core.Float] value, an indicator saying if it was actually present
 // and possibly an error.
@@ -125,6 +161,24 @@ func FormValuesFloat[T core.Float](req *http.Request, field string) (values []T,
 		}
 	}
 	return values, found, err
+}
+
+// FormValueFloatInRange reads a field from [http.Request#Form], after populating it if needed,
+// and returns a [core.Float] value, an indicator saying if it was actually,
+// and possibly an error.
+// Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
+// couldn't be converted to the intended type or if it's outside the specified
+// boundaries.
+func FormValueFloatInRange[T core.Float](req *http.Request, field string,
+	min, max T) (value T, found bool, err error) {
+	//
+	value, found, err = FormValueFloat[T](req, field)
+	if err == nil && found {
+		if value < min || value > max {
+			err = errRange("ParseFloat", FormatFloat(value, 'f', -1))
+		}
+	}
+	return value, found, err
 }
 
 // FormValueBool reads a field from [http.Request#Form], after populating it if needed,
@@ -205,6 +259,24 @@ func PostFormValuesSigned[T core.Signed](req *http.Request, field string) (value
 	return values, found, err
 }
 
+// PostFormValueSignedInRange reads a field from [http.Request#PostForm], after populating it if needed,
+// and returns a [core.Signed] value, an indicator saying if it was actually,
+// and possibly an error.
+// Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
+// couldn't be converted to the intended type or if it's outside the specified
+// boundaries.
+func PostFormValueSignedInRange[T core.Signed](req *http.Request, field string,
+	min, max T) (value T, found bool, err error) {
+	//
+	value, found, err = PostFormValueSigned[T](req, field)
+	if err == nil && found {
+		if value < min || value > max {
+			err = errRange("ParseInt", FormatSigned(value, 10))
+		}
+	}
+	return value, found, err
+}
+
 // PostFormValueUnsigned reads a field from [http.Request#PostForm], after populating it if needed,
 // and returns a [core.Unsigned] value, an indicator saying if it was actually present
 // and possibly an error.
@@ -244,6 +316,24 @@ func PostFormValuesUnsigned[T core.Unsigned](req *http.Request, field string) (v
 	return values, found, err
 }
 
+// PostFormValueUnsignedInRange reads a field from [http.Request#PostForm], after populating it if needed,
+// and returns a [core.Unsigned] value, an indicator saying if it was actually,
+// and possibly an error.
+// Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
+// couldn't be converted to the intended type or if it's outside the specified
+// boundaries.
+func PostFormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string,
+	min, max T) (value T, found bool, err error) {
+	//
+	value, found, err = PostFormValueUnsigned[T](req, field)
+	if err == nil && found {
+		if value < min || value > max {
+			err = errRange("ParseUint", FormatUnsigned(value, 10))
+		}
+	}
+	return value, found, err
+}
+
 // PostFormValueFloat reads a field from [http.Request#PostForm], after populating it if needed,
 // and returns a [core.Float] value, an indicator saying if it was actually present
 // and possibly an error.
@@ -281,6 +371,24 @@ func PostFormValuesFloat[T core.Float](req *http.Request, field string) (values 
 		}
 	}
 	return values, found, err
+}
+
+// PostFormValueFloatInRange reads a field from [http.Request#PostForm], after populating it if needed,
+// and returns a [core.Float] value, an indicator saying if it was actually,
+// and possibly an error.
+// Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
+// couldn't be converted to the intended type or if it's outside the specified
+// boundaries.
+func PostFormValueFloatInRange[T core.Float](req *http.Request, field string,
+	min, max T) (value T, found bool, err error) {
+	//
+	value, found, err = PostFormValueFloat[T](req, field)
+	if err == nil && found {
+		if value < min || value > max {
+			err = errRange("ParseFloat", FormatFloat(value, 'f', -1))
+		}
+	}
+	return value, found, err
 }
 
 // PostFormValueBool reads a field from [http.Request#PostForm], after populating it if needed,

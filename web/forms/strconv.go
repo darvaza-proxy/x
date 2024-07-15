@@ -66,3 +66,11 @@ func FormatFloat[T core.Float](v T, fmt byte, prec int) string {
 func bitSize[T any](v T) int {
 	return int(reflect.TypeOf(v).Size()) * 8
 }
+
+func errRange(fn, s string) error {
+	return &strconv.NumError{
+		Func: fn,
+		Num:  s,
+		Err:  strconv.ErrRange,
+	}
+}
