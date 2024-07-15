@@ -116,3 +116,54 @@ func NewRouteParamsMiddleware(h RouteParamsFunc) func(http.Handler) http.Handler
 var (
 	routeParamsCtxKey = core.NewContextKey[RouteParamsFunc]("RouteParams")
 )
+
+// RouteParamFirst is an alternative to [RouteParamsTable.First() that will
+// only succeed if the parameter is of the requested type.
+func RouteParamFirst[T any](t RouteParamsTable, key string) (value T, ok bool) {
+	if t != nil {
+		if x, is := t.First(key); is {
+			return doRouteParamOne[T](x)
+		}
+	}
+	return value, false
+}
+
+// RouteParamLast is an alternative to [RouteParamsTable.Last() that will
+// only succeed if the parameter is of the requested type.
+func RouteParamLast[T any](t RouteParamsTable, key string) (value T, ok bool) {
+	if t != nil {
+		if x, is := t.Last(key); is {
+			return doRouteParamOne[T](x)
+		}
+	}
+	return value, false
+}
+
+// RouteParamAll is an alternative to [RouteParamsTable.Last() that will
+// only succeed if the parameter values are of the requested type.
+func RouteParamAll[T any](t RouteParamsTable, key string) (values []T, ok bool) {
+	if t != nil {
+		if a, is := t.All(key); is {
+			return doRouteParamSlice[T](a)
+		}
+	}
+	return nil, false
+}
+
+func doRouteParamOne[T any](x any) (value T, ok bool) {
+	value, ok = x.(T)
+	return value, ok
+}
+
+func doRouteParamSlice[T any](a []any) (values []T, ok bool) {
+	values = make([]T, 0, len(a))
+	for _, x := range a {
+		v, ok := x.(T)
+		if !ok {
+			return values, false
+		}
+
+		values = append(values, v)
+	}
+	return values, true
+}
