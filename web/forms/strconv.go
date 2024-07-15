@@ -45,6 +45,24 @@ func ParseBool[T core.Bool](s string) (T, error) {
 	}
 }
 
+// FormatSigned extends [strconv.FormatInt] working with
+// any [Signed] type.
+func FormatSigned[T core.Signed](v T, base int) string {
+	return strconv.FormatInt(int64(v), base)
+}
+
+// FormatUnsigned extends [strconv.FormatUint] working with
+// any [Unsigned] type.
+func FormatUnsigned[T core.Unsigned](v T, base int) string {
+	return strconv.FormatUint(uint64(v), base)
+}
+
+// FormatFloat extends [strconv.FormatFloat] working with
+// any [Float] type.
+func FormatFloat[T core.Float](v T, fmt byte, prec int) string {
+	return strconv.FormatFloat(float64(v), fmt, prec, bitSize(v))
+}
+
 func bitSize[T any](v T) int {
 	return int(reflect.TypeOf(v).Size()) * 8
 }
