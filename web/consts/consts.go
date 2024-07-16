@@ -19,6 +19,10 @@ const (
 	// Methods.
 	Allowed = "Allowed"
 
+	// CacheControl is the canonical header used to specify how long
+	// to cache the content.
+	CacheControl = "Cache-Control"
+
 	// ContentEncoding is the canonical Content-Encoding header
 	ContentEncoding = "Content-Encoding"
 	// ContentLength is the canonical Content-Length header
