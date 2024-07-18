@@ -206,3 +206,25 @@ func (c *Client) Close() error {
 
 	return nil
 }
+
+// RemoteAddr returns the remote address if connected.
+func (c *Client) RemoteAddr() net.Addr {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.conn != nil {
+		return c.conn.RemoteAddr()
+	}
+	return nil
+}
+
+// LocalAddr returns the local address if connected.
+func (c *Client) LocalAddr() net.Addr {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.conn != nil {
+		return c.conn.LocalAddr()
+	}
+	return nil
+}
