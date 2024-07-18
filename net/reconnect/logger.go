@@ -18,6 +18,17 @@ const (
 	LogFieldError = slog.ErrorFieldName
 )
 
+// WithDebug gets a logger at Debug level optionally annotated
+// by an IP address. If the Debug log-level is disabled, it
+// will return `nil, false`
+func (c *Client) WithDebug(addr net.Addr) (slog.Logger, bool) {
+	if l, ok := c.logger.Debug().WithEnabled(); ok {
+		l = logWithAddress(l, addr)
+		return l, true
+	}
+	return nil, false
+}
+
 // WithInfo gets a logger at Info level optionally annotated
 // by an IP address. If the Info log-level is disabled, it
 // will return `nil, false`
