@@ -75,6 +75,12 @@ func (c *Client) ResetDeadline() error {
 // ResetReadDeadline resets the connection's read deadline using
 // the default duration.
 func (c *Client) ResetReadDeadline() error {
+	return c.SetReadDeadline(c.readTimeout)
+}
+
+// SetReadDeadline sets the connections' read deadline to
+// the specified duration. Use zero or negative to disable it.
+func (c *Client) SetReadDeadline(d time.Duration) error {
 	now := time.Now()
 
 	c.mu.Lock()
@@ -84,13 +90,19 @@ func (c *Client) ResetReadDeadline() error {
 		return ErrNotConnected
 	}
 
-	t := TimeoutToAbsoluteTime(now, c.readTimeout)
+	t := TimeoutToAbsoluteTime(now, d)
 	return c.conn.SetReadDeadline(t)
 }
 
 // ResetWriteDeadline resets the connection's write deadline using
 // the default duration.
 func (c *Client) ResetWriteDeadline() error {
+	return c.SetWriteDeadline(c.writeTimeout)
+}
+
+// SetWriteDeadline sets the connections' write deadline to
+// the specified duration. Use zero or negative to disable it.
+func (c *Client) SetWriteDeadline(d time.Duration) error {
 	now := time.Now()
 
 	c.mu.Lock()
@@ -100,7 +112,7 @@ func (c *Client) ResetWriteDeadline() error {
 		return ErrNotConnected
 	}
 
-	t := TimeoutToAbsoluteTime(now, c.writeTimeout)
+	t := TimeoutToAbsoluteTime(now, d)
 	return c.conn.SetWriteDeadline(t)
 }
 
