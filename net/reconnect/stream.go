@@ -239,6 +239,7 @@ func (s *StreamSession[_, _]) Done() <-chan struct{} {
 
 // Send sends a message asynchronously, unless the queue is full.
 func (s *StreamSession[_, Output]) Send(m Output) error {
+	// TODO: implement TrySend() non-blocking variant via counter.
 	var err error
 	s.trySend(m, &err)
 	return err
