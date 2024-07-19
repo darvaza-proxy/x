@@ -19,7 +19,7 @@ var (
 	ErrDoNotReconnect = errors.New("don't reconnect")
 
 	// ErrNotConnected indicates the [Client] isn't currently connected.
-	ErrNotConnected = core.QuietWrap(fs.ErrClosed, "connection closed")
+	ErrNotConnected = core.QuietWrap(fs.ErrClosed, "not connected")
 
 	// ErrRunning indicates the [Client] has already being started.
 	ErrRunning = core.QuietWrap(syscall.EBUSY, "client already running")
