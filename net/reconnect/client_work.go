@@ -127,13 +127,17 @@ func (c *Client) runError(conn net.Conn, e1, e2 error) bool {
 func (c *Client) runSession(conn net.Conn) error {
 	defer unsafeClose(conn)
 
-	c.SayRemote(conn, "connected")
 	if fn := c.getOnSession(); fn != nil {
 		var catch core.Catcher
 
 		return catch.Try(func() error {
 			return fn(c.ctx)
 		})
+	}
+
+	// no handler, try logging it before closing the connection.
+	if l, ok := c.WithInfo(conn.LocalAddr()); ok {
+		l.Print("connected")
 	}
 
 	return nil
@@ -166,19 +170,34 @@ func (c *Client) doConnect() (net.Conn, bool) {
 func (c *Client) doOnDisconnect() error {
 	conn := c.setConn(nil)
 
-	c.SayRemote(conn, "disconnected")
 	if fn := c.getOnDisconnect(); fn != nil {
 		return fn(c.ctx, conn)
+	}
+
+	// no handler, try logging it before closing the connection.
+	if l, ok := c.WithInfo(conn.LocalAddr()); ok {
+		l.Print("disconnected")
 	}
 
 	return nil
 }
 
 func (c *Client) doOnError(conn net.Conn, err error, note string, args ...any) error {
-	c.SayRemoteError(conn, err, note, args...)
+	var addr net.Addr
+
 	if fn := c.getOnError(); fn != nil {
 		return fn(c.ctx, conn, core.Wrap(err, note, args...))
 	}
+
+	if conn != nil {
+		addr = conn.LocalAddr()
+	}
+
+	// no handler, try log the error here and pass it through.
+	if l, ok := c.WithError(addr, err); ok {
+		l.Printf(note, args...)
+	}
+
 	return err
 }
 
