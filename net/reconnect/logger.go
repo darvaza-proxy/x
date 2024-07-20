@@ -52,40 +52,6 @@ func (c *Client) WithError(addr net.Addr, err error) (slog.Logger, bool) {
 	return nil, false
 }
 
-// SayRemote makes a log entry optionally including the remote's address from
-// the [net.Conn]
-func (c *Client) SayRemote(conn net.Conn, note string, args ...any) {
-	var ra net.Addr
-	if conn != nil {
-		ra = conn.RemoteAddr()
-	}
-
-	if l, ok := c.WithInfo(ra); ok {
-		if len(args) > 0 {
-			l.Printf(note, args...)
-		} else {
-			l.Print(note)
-		}
-	}
-}
-
-// SayRemoteError makes an error log entry optionally include the
-// remote's address from the [net.Conn].
-func (c *Client) SayRemoteError(conn net.Conn, err error, note string, args ...any) {
-	var ra net.Addr
-	if conn != nil {
-		ra = conn.RemoteAddr()
-	}
-
-	if l, ok := c.WithError(ra, err); ok {
-		if len(args) > 0 {
-			l.Printf(note, args...)
-		} else {
-			l.Print(note)
-		}
-	}
-}
-
 func logWithAddress(l slog.Logger, addr net.Addr) slog.Logger {
 	if l != nil && !core.IsZero(addr) {
 		if s := addr.String(); s != "" {
