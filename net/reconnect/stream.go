@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/fs"
 
 	"darvaza.org/core"
+	"darvaza.org/x/fs"
 )
 
 var (
@@ -201,20 +201,29 @@ func (s *StreamSession[_, _]) readerStep(raw []byte) error {
 
 func (s *StreamSession[_, _]) runWriter(_ context.Context) error {
 	for req := range s.out {
-		if err := s.SetWriteDeadline(); err != nil {
+		if err := s.writeOne(req); err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		if err := s.MarshalTo(req, s.Conn); err != nil {
-			return err
-		}
+func (s *StreamSession[_, Output]) writeOne(req Output) error {
+	if err := s.SetWriteDeadline(); err != nil {
+		return err
+	}
 
-		if err := s.UnsetWriteDeadline(); err != nil {
+	if err := s.MarshalTo(req, s.Conn); err != nil {
+		return err
+	}
+
+	if f, ok := s.Conn.(fs.Flusher); ok {
+		if err := f.Flush(); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return s.UnsetWriteDeadline()
 }
 
 func (s *StreamSession[_, _]) killWriter() error {
