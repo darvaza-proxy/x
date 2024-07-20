@@ -222,6 +222,13 @@ func (s *StreamSession[_, _]) killWriter() error {
 	return nil
 }
 
+// Go spawns a goroutine within the session's context.
+func (s *StreamSession[_, _]) Go(fn func(context.Context) error) {
+	mustStarted(s)
+
+	s.wg.Go(fn, nil)
+}
+
 // Close initiates a shutdown of the session.
 func (s *StreamSession[_, _]) Close() error {
 	mustStarted(s)
