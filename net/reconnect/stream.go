@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/fs"
 
 	"darvaza.org/core"
+	"darvaza.org/x/fs"
 )
 
 var (
@@ -149,8 +149,19 @@ func (s *StreamSession[_, _]) Spawn() error {
 		return err
 	}
 
-	s.wg.Go(s.runReader, s.killReader)
+	barrier := make(chan struct{})
+
+	// reader
+	s.wg.Go(func(ctx context.Context) error {
+		close(barrier)
+		return s.runReader(ctx)
+	}, func() error {
+		return s.Conn.Close()
+	})
+	// writer
 	s.wg.Go(s.runWriter, s.killWriter)
+
+	<-barrier
 	return nil
 }
 
@@ -188,31 +199,43 @@ func (s *StreamSession[_, _]) readerStep(raw []byte) error {
 	return s.SetReadDeadline()
 }
 
-func (s *StreamSession[_, _]) killReader() error {
-	return s.Conn.Close()
-}
-
 func (s *StreamSession[_, _]) runWriter(_ context.Context) error {
 	for req := range s.out {
-		if err := s.SetWriteDeadline(); err != nil {
+		if err := s.writeOne(req); err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		if err := s.MarshalTo(req, s.Conn); err != nil {
-			return err
-		}
+func (s *StreamSession[_, Output]) writeOne(req Output) error {
+	if err := s.SetWriteDeadline(); err != nil {
+		return err
+	}
 
-		if err := s.UnsetWriteDeadline(); err != nil {
+	if err := s.MarshalTo(req, s.Conn); err != nil {
+		return err
+	}
+
+	if f, ok := s.Conn.(fs.Flusher); ok {
+		if err := f.Flush(); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return s.UnsetWriteDeadline()
 }
 
 func (s *StreamSession[_, _]) killWriter() error {
 	close(s.out)
 	return nil
+}
+
+// Go spawns a goroutine within the session's context.
+func (s *StreamSession[_, _]) Go(fn func(context.Context) error) {
+	mustStarted(s)
+
+	s.wg.Go(fn, nil)
 }
 
 // Close initiates a shutdown of the session.
