@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"syscall"
 	"time"
 
 	"darvaza.org/core"
@@ -48,6 +49,10 @@ type Config struct {
 	ReconnectDelay time.Duration
 	// WaitReconnect is a helper used to wait between re-connection attempts.
 	WaitReconnect Waiter
+
+	// OnSocket is called, when defined, against the raw socket before attempting to
+	// connect
+	OnSocket func(context.Context, syscall.RawConn) error
 
 	// OnSession is expected to block until it's done.
 	OnSession func(context.Context) error
@@ -147,7 +152,19 @@ func (cfg *Config) validateBusy() error {
 // ExportDialer creates a [net.Dialer] from the
 // [Config].
 func (cfg *Config) ExportDialer() net.Dialer {
-	return newDialer(cfg.KeepAlive, cfg.DialTimeout)
+	dialer := newDialer(cfg.KeepAlive, cfg.DialTimeout)
+	if fn := cfg.OnSocket; fn != nil {
+		dialer.ControlContext = newRawControl(fn)
+	}
+	return dialer
+}
+
+type rawControlFunc func(ctx context.Context, network, address string, c syscall.RawConn) error
+
+func newRawControl(fn func(context.Context, syscall.RawConn) error) rawControlFunc {
+	return func(ctx context.Context, _, _ string, c syscall.RawConn) error {
+		return fn(ctx, c)
+	}
 }
 
 func prepareNewConfig(cfg *Config, options ...OptionFunc) (*Config, error) {
