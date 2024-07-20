@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"darvaza.org/core"
@@ -18,7 +19,7 @@ type Client struct {
 	wg      sync.WaitGroup
 	ctx     context.Context
 	cancel  context.CancelCauseFunc
-	started bool
+	started atomic.Bool
 	err     error
 
 	cfg     *Config
@@ -56,27 +57,22 @@ func (c *Client) Reload() error {
 
 // Connect launches the [Client]
 func (c *Client) Connect() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.started {
+	// once
+	if !c.started.CompareAndSwap(false, true) {
 		return ErrRunning
 	}
 
-	network, address := c.unsafeGetRemote()
+	network, address := c.getRemote()
 	conn, err := c.dial(network, address)
 	if err = c.handlePossiblyFatalError(conn, err, ""); err != nil {
 		return err
 	}
 
 	c.wg.Add(1)
-	c.started = true
-	c.err = nil
-
 	go func() {
 		defer c.wg.Done()
 
-		c.run()
+		c.run(conn)
 	}()
 
 	return nil

@@ -93,8 +93,7 @@ func (c *Client) Go(name string, fn func(context.Context) error) {
 }
 
 // run implements the main loop
-func (c *Client) run() {
-	var conn net.Conn
+func (c *Client) run(conn net.Conn) {
 	var abort bool
 
 	defer func() {
@@ -107,13 +106,17 @@ func (c *Client) run() {
 	}()
 
 	for !abort {
-		conn, abort = c.doConnect()
-
 		if conn != nil {
+			// run
 			e1 := c.runSession(conn)
 			e2 := c.doOnDisconnect()
 
 			abort = c.runError(conn, e1, e2)
+		}
+
+		if !abort {
+			// reconnect
+			conn, abort = c.tryReconnect()
 		}
 	}
 }
@@ -127,10 +130,14 @@ func (c *Client) runError(conn net.Conn, e1, e2 error) bool {
 func (c *Client) runSession(conn net.Conn) error {
 	defer unsafeClose(conn)
 
+	// initialize
+	c.setConn(conn)
+
 	c.SayRemote(conn, "connected")
 	if fn := c.getOnSession(); fn != nil {
 		var catch core.Catcher
 
+		// hand over
 		return catch.Try(func() error {
 			return fn(c.ctx)
 		})
@@ -139,28 +146,16 @@ func (c *Client) runSession(conn net.Conn) error {
 	return nil
 }
 
-func (c *Client) doConnect() (net.Conn, bool) {
-	c.mu.Lock()
-	conn := c.conn
-	c.mu.Unlock()
-
-	if conn == nil {
-		var err error
-
-		network, address := c.getRemote()
-		conn, err = c.reconnect(network, address)
-		if abort := c.runError(nil, err, nil); abort {
-			// abort
-			return nil, true
-		}
-
-		if conn != nil {
-			c.setConn(conn)
-		}
+func (c *Client) tryReconnect() (net.Conn, bool) {
+	network, address := c.getRemote()
+	conn, err := c.reconnect(network, address)
+	if conn != nil {
+		// ready
+		return conn, false
 	}
 
-	// ready
-	return conn, false
+	abort := c.runError(nil, err, nil)
+	return nil, abort
 }
 
 func (c *Client) doOnDisconnect() error {
