@@ -53,6 +53,9 @@ type Config struct {
 	// OnSocket is called, when defined, against the raw socket before attempting to
 	// connect
 	OnSocket func(context.Context, syscall.RawConn) error
+	// OnConnect is called, when defined, immediately after the connection is established
+	// but before the session is created.
+	OnConnect func(context.Context, net.Conn) error
 
 	// OnSession is expected to block until it's done.
 	OnSession func(context.Context) error
