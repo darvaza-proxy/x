@@ -149,8 +149,19 @@ func (s *StreamSession[_, _]) Spawn() error {
 		return err
 	}
 
-	s.wg.Go(s.runReader, s.killReader)
+	barrier := make(chan struct{})
+
+	// reader
+	s.wg.Go(func(ctx context.Context) error {
+		close(barrier)
+		return s.runReader(ctx)
+	}, func() error {
+		return s.Conn.Close()
+	})
+	// writer
 	s.wg.Go(s.runWriter, s.killWriter)
+
+	<-barrier
 	return nil
 }
 
@@ -186,10 +197,6 @@ func (s *StreamSession[_, _]) readerStep(raw []byte) error {
 	s.in <- msg
 
 	return s.SetReadDeadline()
-}
-
-func (s *StreamSession[_, _]) killReader() error {
-	return s.Conn.Close()
 }
 
 func (s *StreamSession[_, _]) runWriter(_ context.Context) error {
