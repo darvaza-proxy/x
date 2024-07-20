@@ -30,6 +30,7 @@ type Client struct {
 	writeTimeout time.Duration
 
 	waitReconnect func(context.Context) error
+	onConnect     func(context.Context, net.Conn) error
 	onSession     func(context.Context) error
 	onDisconnect  func(context.Context, net.Conn) error
 	onError       func(context.Context, net.Conn, error) error
@@ -104,6 +105,7 @@ func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 		writeTimeout: cfg.WriteTimeout,
 
 		waitReconnect: cfg.WaitReconnect,
+		onConnect:     cfg.OnConnect,
 		onSession:     cfg.OnSession,
 		onDisconnect:  cfg.OnDisconnect,
 		onError:       cfg.OnError,
@@ -137,6 +139,13 @@ func (c *Client) getWaitReconnect() func(context.Context) error {
 	defer c.mu.Unlock()
 
 	return c.waitReconnect
+}
+
+func (c *Client) getOnConnect() func(context.Context, net.Conn) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.onConnect
 }
 
 func (c *Client) getOnSession() func(context.Context) error {

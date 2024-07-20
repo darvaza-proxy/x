@@ -20,19 +20,26 @@ var (
 func (c *Client) dial(network, addr string) (net.Conn, error) {
 	conn, err := c.dialer.DialContext(c.ctx, network, addr)
 	switch {
-	case conn != nil:
-		return conn, nil
-	case err == nil:
+	case err != nil:
+		return nil, err
+	case conn == nil:
 		err = &net.OpError{
 			Op:  "dial",
 			Net: network,
 			Err: core.Wrap(ErrAbnormalConnect, addr),
 		}
-
-		fallthrough
-	default:
 		return nil, err
 	}
+
+	if fn := c.getOnConnect(); fn != nil {
+		if err := fn(c.ctx, conn); err != nil {
+			defer unsafeClose(conn)
+
+			return nil, err
+		}
+	}
+
+	return conn, nil
 }
 
 // reconnect waits before dialing
