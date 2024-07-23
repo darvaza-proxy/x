@@ -19,9 +19,10 @@ func (c *Client) Wait() error {
 // by the user.
 func (c *Client) Err() error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	err := c.err
+	c.mu.Unlock()
 
-	return filterNonError(c.err)
+	return filterNonError(err)
 }
 
 // Done returns a channel that watches the [Client] workers,

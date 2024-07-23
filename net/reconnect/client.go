@@ -2,7 +2,6 @@
 package reconnect
 
 import (
-	"bufio"
 	"context"
 	"sync"
 	"sync/atomic"
@@ -37,8 +36,6 @@ type Client struct {
 	onError       func(context.Context, net.Conn, error) error
 
 	conn net.Conn
-	in   *bufio.Reader
-	out  *bufio.Writer
 }
 
 // Config returns the [Config] object used when [Reload] is called.
@@ -119,6 +116,7 @@ func Must(cfg *Config, options ...OptionFunc) *Client {
 	}
 	return c
 }
+
 func (c *Client) getRemote() (network, addr string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

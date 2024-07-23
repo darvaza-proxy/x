@@ -1,7 +1,6 @@
 package reconnect
 
 import (
-	"bufio"
 	"net"
 	"time"
 
@@ -10,10 +9,9 @@ import (
 )
 
 var (
-	_ fs.Reader  = (*Client)(nil)
-	_ fs.Writer  = (*Client)(nil)
-	_ fs.Flusher = (*Client)(nil)
-	_ fs.Closer  = (*Client)(nil)
+	_ fs.Reader = (*Client)(nil)
+	_ fs.Writer = (*Client)(nil)
+	_ fs.Closer = (*Client)(nil)
 )
 
 // dial attempts to stablish a connection to the server.
@@ -64,13 +62,19 @@ func (c *Client) setConn(conn net.Conn) net.Conn {
 
 func (c *Client) unsafeSetConn(conn net.Conn) (prev net.Conn) {
 	prev, c.conn = c.conn, conn
-	if conn == nil {
-		c.in, c.out = nil, nil
-	} else {
-		c.in = bufio.NewReader(conn)
-		c.out = bufio.NewWriter(conn)
-	}
 	return prev
+}
+
+// getConn returns the current connection, or an ErrNotConnected error
+func (c *Client) getConn() (net.Conn, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.conn != nil {
+		return c.conn, nil
+	}
+
+	return nil, ErrNotConnected
 }
 
 // ResetDeadline sets the connection's read and write deadlines using
@@ -89,16 +93,13 @@ func (c *Client) ResetReadDeadline() error {
 // the specified duration. Use zero or negative to disable it.
 func (c *Client) SetReadDeadline(d time.Duration) error {
 	now := time.Now()
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.conn == nil {
-		return ErrNotConnected
+	conn, err := c.getConn()
+	if err != nil {
+		return err
 	}
 
 	t := TimeoutToAbsoluteTime(now, d)
-	return c.conn.SetReadDeadline(t)
+	return conn.SetReadDeadline(t)
 }
 
 // ResetWriteDeadline resets the connection's write deadline using
@@ -111,16 +112,13 @@ func (c *Client) ResetWriteDeadline() error {
 // the specified duration. Use zero or negative to disable it.
 func (c *Client) SetWriteDeadline(d time.Duration) error {
 	now := time.Now()
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.conn == nil {
-		return ErrNotConnected
+	conn, err := c.getConn()
+	if err != nil {
+		return err
 	}
 
 	t := TimeoutToAbsoluteTime(now, d)
-	return c.conn.SetWriteDeadline(t)
+	return conn.SetWriteDeadline(t)
 }
 
 // SetDeadline sets the connections's read and write deadlines.
@@ -133,82 +131,44 @@ func (c *Client) SetDeadline(read, write time.Duration) error {
 	}
 
 	now := time.Now()
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.conn == nil {
-		return ErrNotConnected
+	conn, err := c.getConn()
+	if err != nil {
+		return err
 	}
 
 	t := TimeoutToAbsoluteTime(now, read)
-	if err := c.conn.SetReadDeadline(t); err != nil {
+	if err := conn.SetReadDeadline(t); err != nil {
 		return err
 	}
 
 	t = TimeoutToAbsoluteTime(now, write)
-	return c.conn.SetWriteDeadline(t)
+	return conn.SetWriteDeadline(t)
 }
 
-// Read implements a buffered io.Reader
+// Read reads from the TCP connection, if connected.
 func (c *Client) Read(p []byte) (int, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.in != nil {
-		return c.in.Read(p)
+	conn, err := c.getConn()
+	if err != nil {
+		return 0, err
 	}
 
-	return 0, ErrNotConnected
+	return conn.Read(p)
 }
 
-// Write implements a buffered io.Writer
-// warrantied to buffer all the given data or fail.
+// Write writes to the TCP connection, if connected.
 func (c *Client) Write(p []byte) (int, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	w := c.out
-	if w == nil {
-		return 0, ErrNotConnected
+	conn, err := c.getConn()
+	if err != nil {
+		return 0, err
 	}
 
-	total := 0
-	for len(p) > 0 {
-		n, err := w.Write(p)
-
-		switch {
-		case err != nil:
-			return total, err
-		default:
-			total += n
-			p = p[n:]
-		}
-	}
-
-	return total, nil
-}
-
-// Flush blocks until all the buffered output
-// has been written, or an error occurs.
-func (c *Client) Flush() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.out != nil {
-		return c.out.Flush()
-	}
-
-	return ErrNotConnected
+	return conn.Write(p)
 }
 
 // Close terminates the current connection
 func (c *Client) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.conn != nil {
-		return c.conn.Close()
+	if conn, _ := c.getConn(); conn != nil {
+		return conn.Close()
 	}
 
 	return nil
@@ -216,22 +176,16 @@ func (c *Client) Close() error {
 
 // RemoteAddr returns the remote address if connected.
 func (c *Client) RemoteAddr() net.Addr {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.conn != nil {
-		return c.conn.RemoteAddr()
+	if conn, _ := c.getConn(); conn != nil {
+		return conn.RemoteAddr()
 	}
 	return nil
 }
 
 // LocalAddr returns the local address if connected.
 func (c *Client) LocalAddr() net.Addr {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.conn != nil {
-		return c.conn.LocalAddr()
+	if conn, _ := c.getConn(); conn != nil {
+		return conn.LocalAddr()
 	}
 	return nil
 }
