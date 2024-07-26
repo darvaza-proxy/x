@@ -2,6 +2,7 @@ package reconnect
 
 import (
 	"context"
+	"time"
 
 	"darvaza.org/core"
 )
@@ -22,6 +23,40 @@ type WorkGroup interface {
 	Wait() error
 	Done() <-chan struct{}
 	Err() error
+}
+
+// A Shutdowner is an object that provides a Shutdown method
+// that takes a context with deadline to shutdown all associated
+// workers
+type Shutdowner interface {
+	Shutdown(context.Context) error
+}
+
+// NewShutdownFunc creates a shutdown [WorkerFunc], optionally
+// with a deadline.
+func NewShutdownFunc(s Shutdowner, tio time.Duration) WorkerFunc {
+	switch {
+	case s == nil:
+		// nothing to call
+		return nil
+	case tio > 0:
+		// graceful shutdown timeout
+		return func(ctx context.Context) error {
+			<-ctx.Done()
+
+			deadline := time.Now().Add(tio)
+			ctx2, cancel := context.WithDeadline(context.Background(), deadline)
+			defer cancel()
+
+			return s.Shutdown(ctx2)
+		}
+	default:
+		// just wait
+		return func(ctx context.Context) error {
+			<-ctx.Done()
+			return s.Shutdown(context.Background())
+		}
+	}
 }
 
 // NewCatchFunc creates a [CatcherFunc] turning any of the given
