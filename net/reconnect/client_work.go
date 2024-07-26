@@ -27,12 +27,12 @@ func (c *Client) Err() error {
 
 // Done returns a channel that watches the [Client] workers,
 // and provides the cancellation reason.
-func (c *Client) Done() <-chan error {
-	var barrier chan error
+func (c *Client) Done() <-chan struct{} {
+	var barrier chan struct{}
 
 	go func() {
 		defer close(barrier)
-		barrier <- c.Wait()
+		c.wg.Wait()
 	}()
 
 	return barrier
@@ -69,27 +69,39 @@ func (c *Client) terminate(cause error) error {
 }
 
 // Go spawns a goroutine within the [Client]'s context.
-func (c *Client) Go(name string, fn func(context.Context) error) {
-	if fn == nil {
-		core.Panic("Client.Go called without a handler")
+func (c *Client) Go(funcs ...WorkerFunc) {
+	for _, fn := range funcs {
+		if fn != nil {
+			c.spawnOne(fn, nil)
+		}
 	}
+}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
+// GoCatch spawns a goroutine within the [Client]'s context
+// optionally allowing filtering the error to stop cascading.
+func (c *Client) GoCatch(run WorkerFunc, catch CatcherFunc) {
+	if run != nil {
+		c.spawnOne(run, catch)
+	}
+}
 
+func (c *Client) spawnOne(run WorkerFunc, catch CatcherFunc) {
 	c.wg.Add(1)
+
 	go func() {
 		var catcher core.Catcher
 
 		defer c.wg.Done()
 
 		err := catcher.Do(func() error {
-			return fn(c.ctx)
+			return run(c.ctx)
 		})
 
-		if c.handlePossiblyFatalError(nil, err, name) != nil {
-			return
+		if err != nil && catch != nil {
+			err = catch(c.ctx, err)
 		}
+
+		_ = c.handlePossiblyFatalError(nil, err)
 	}()
 }
 
@@ -123,8 +135,8 @@ func (c *Client) run(conn net.Conn) {
 }
 
 func (c *Client) runError(conn net.Conn, e1, e2 error) bool {
-	e1 = c.handlePossiblyFatalError(conn, e1, "")
-	e2 = c.handlePossiblyFatalError(conn, e2, "")
+	e1 = c.handlePossiblyFatalError(conn, e1)
+	e2 = c.handlePossiblyFatalError(conn, e2)
 	return e1 != nil || e2 != nil
 }
 
@@ -200,9 +212,9 @@ func (c *Client) doOnError(conn net.Conn, err error, note string, args ...any) e
 // handlePossiblyFatalError handles an error and returns nil if it wasn't fatal.
 // fatal errors should terminate the worker immediately.
 // the returned error is unfiltered.
-func (c *Client) handlePossiblyFatalError(conn net.Conn, err error, note string) error {
+func (c *Client) handlePossiblyFatalError(conn net.Conn, err error) error {
 	if err != nil {
-		err = c.doOnError(conn, err, note)
+		err = c.doOnError(conn, err, "")
 		if IsFatal(err) {
 			_ = c.terminate(err)
 			return err // unfiltered

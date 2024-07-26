@@ -12,6 +12,10 @@ import (
 	"darvaza.org/x/net"
 )
 
+var (
+	_ WorkGroup = (*Client)(nil)
+)
+
 // Client is a reconnecting TCP Client
 type Client struct {
 	mu      sync.Mutex
@@ -62,7 +66,7 @@ func (c *Client) Connect() error {
 
 	network, address := c.getRemote()
 	conn, err := c.dial(network, address)
-	if err = c.handlePossiblyFatalError(conn, err, ""); err != nil {
+	if err = c.handlePossiblyFatalError(conn, err); err != nil {
 		return err
 	}
 
