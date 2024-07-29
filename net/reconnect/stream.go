@@ -12,6 +12,7 @@ import (
 
 var (
 	_ io.Closer = (*StreamSession[any, any])(nil)
+	_ WorkGroup = (*StreamSession[any, any])(nil)
 )
 
 // StreamSession provides an asynchronous stream session
@@ -149,19 +150,8 @@ func (s *StreamSession[_, _]) Spawn() error {
 		return err
 	}
 
-	barrier := make(chan struct{})
-
-	// reader
-	s.wg.Go(func(ctx context.Context) error {
-		close(barrier)
-		return s.runReader(ctx)
-	}, func() error {
-		return s.Conn.Close()
-	})
-	// writer
+	s.wg.Go(s.runReader, s.killReader)
 	s.wg.Go(s.runWriter, s.killWriter)
-
-	<-barrier
 	return nil
 }
 
@@ -199,6 +189,10 @@ func (s *StreamSession[_, _]) readerStep(raw []byte) error {
 	return s.SetReadDeadline()
 }
 
+func (s *StreamSession[_, _]) killReader() error {
+	return s.Conn.Close()
+}
+
 func (s *StreamSession[_, _]) runWriter(_ context.Context) error {
 	for req := range s.out {
 		if err := s.writeOne(req); err != nil {
@@ -232,10 +226,24 @@ func (s *StreamSession[_, _]) killWriter() error {
 }
 
 // Go spawns a goroutine within the session's context.
-func (s *StreamSession[_, _]) Go(fn func(context.Context) error) {
+func (s *StreamSession[_, _]) Go(funcs ...WorkerFunc) {
 	mustStarted(s)
 
-	s.wg.Go(fn, nil)
+	for _, fn := range funcs {
+		if fn != nil {
+			s.wg.Go(fn, nil)
+		}
+	}
+}
+
+// GoCatch spawns a goroutine within the session's context,
+// and allows a catcher function to filter returned errors.
+func (s *StreamSession[_, _]) GoCatch(run WorkerFunc, catch CatcherFunc) {
+	mustStarted(s)
+
+	if run != nil {
+		s.wg.GoCatch(run, catch)
+	}
 }
 
 // Close initiates a shutdown of the session.
@@ -244,6 +252,20 @@ func (s *StreamSession[_, _]) Close() error {
 
 	s.wg.Cancel(nil)
 	return nil
+}
+
+// Shutdown initiates a shutdown and wait until it's
+// done or the given context has expired.
+func (s *StreamSession[_, _]) Shutdown(ctx context.Context) error {
+	mustStarted(s)
+
+	s.wg.Cancel(nil)
+	select {
+	case <-s.Done():
+		return s.wg.Err()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Wait blocks until all workers are done.
@@ -258,6 +280,13 @@ func (s *StreamSession[_, _]) Done() <-chan struct{} {
 	mustStarted(s)
 
 	return s.wg.Done()
+}
+
+// Err returns the error that initiated a shutdown
+func (s *StreamSession[Input, Output]) Err() error {
+	mustStarted(s)
+
+	return s.wg.Err()
 }
 
 // Send sends a message asynchronously, unless the queue is full.
