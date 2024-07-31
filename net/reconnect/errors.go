@@ -47,8 +47,13 @@ func checkIsFatal(err error) (is, certainly bool) {
 			return false, true
 		}
 
-		// reconnect if temporary
-		return core.CheckIsTemporary(err)
+		// temporary errors are never fatal
+		if is, _ := core.CheckIsTemporary(err); is {
+			return false, true
+		}
+
+		// unknown
+		return false, false
 	}
 }
 
