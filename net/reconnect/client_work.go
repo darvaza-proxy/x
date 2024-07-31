@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"darvaza.org/core"
+	"darvaza.org/slog"
 )
 
 // Wait blocks until the [Client] workers have finished,
@@ -61,6 +62,11 @@ func (c *Client) terminate(cause error) error {
 
 	if cause == nil {
 		cause = context.Canceled
+	}
+
+	if l, ok := c.WithDebug(nil); ok {
+		l = l.WithField(slog.ErrorFieldName, cause)
+		l.Print("client terminated")
 	}
 
 	c.err = cause
