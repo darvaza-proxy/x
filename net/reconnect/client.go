@@ -66,7 +66,7 @@ func (c *Client) Connect() error {
 
 	network, address := c.getRemote()
 	conn, err := c.dial(network, address)
-	if err = c.handlePossiblyFatalError(conn, err); err != nil {
+	if err = c.handleConnectError(conn, err); err != nil {
 		return err
 	}
 

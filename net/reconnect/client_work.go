@@ -28,7 +28,7 @@ func (c *Client) Err() error {
 // Done returns a channel that watches the [Client] workers,
 // and provides the cancellation reason.
 func (c *Client) Done() <-chan struct{} {
-	var barrier chan struct{}
+	barrier := make(chan struct{})
 
 	go func() {
 		defer close(barrier)
@@ -171,7 +171,7 @@ func (c *Client) tryReconnect() (net.Conn, bool) {
 		return conn, false
 	}
 
-	abort := c.runError(nil, err, nil)
+	abort := c.handleReconnectError(err)
 	return nil, abort
 }
 
@@ -222,4 +222,30 @@ func (c *Client) handlePossiblyFatalError(conn net.Conn, err error) error {
 	}
 
 	return nil
+}
+
+func (c *Client) handleConnectError(conn net.Conn, err error) error {
+	var cancelled bool
+
+	switch err {
+	case nil:
+		return nil
+	case context.Canceled:
+		cancelled = true
+	}
+
+	err = c.handlePossiblyFatalError(conn, err)
+	switch {
+	case err != nil:
+		return err
+	case cancelled:
+		return context.Canceled
+	default:
+		return nil
+	}
+}
+
+func (c *Client) handleReconnectError(err error) bool {
+	err = c.handleConnectError(nil, err)
+	return err != nil
 }
