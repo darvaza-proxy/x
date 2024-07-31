@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"os"
 	"syscall"
 
 	"darvaza.org/core"
@@ -54,6 +55,7 @@ func checkIsFatal(err error) (is, certainly bool) {
 func checkIsExpectable(err error) (is, certainly bool) {
 	switch err {
 	case fs.ErrClosed,
+		os.ErrDeadlineExceeded,
 		syscall.ECONNABORTED,
 		syscall.ECONNREFUSED,
 		syscall.ECONNRESET:
