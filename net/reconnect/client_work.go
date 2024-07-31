@@ -28,7 +28,7 @@ func (c *Client) Err() error {
 // Done returns a channel that watches the [Client] workers,
 // and provides the cancellation reason.
 func (c *Client) Done() <-chan struct{} {
-	var barrier chan struct{}
+	barrier := make(chan struct{})
 
 	go func() {
 		defer close(barrier)
