@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"os"
 	"syscall"
 
 	"darvaza.org/core"
@@ -46,14 +47,20 @@ func checkIsFatal(err error) (is, certainly bool) {
 			return false, true
 		}
 
-		// reconnect if temporary
-		return core.CheckIsTemporary(err)
+		// temporary errors are never fatal
+		if is, _ := core.CheckIsTemporary(err); is {
+			return false, true
+		}
+
+		// unknown
+		return false, false
 	}
 }
 
 func checkIsExpectable(err error) (is, certainly bool) {
 	switch err {
 	case fs.ErrClosed,
+		os.ErrDeadlineExceeded,
 		syscall.ECONNABORTED,
 		syscall.ECONNREFUSED,
 		syscall.ECONNRESET:
