@@ -42,7 +42,8 @@ func headerExists(hdr http.Header, key string) bool {
 // or longer translated to "max-age", and otherwise
 // "no-cache"
 func SetCache(hdr http.Header, d time.Duration) {
-	hdr.Set(consts.CacheControl, cacheControlValue(d))
+	cacheControl := cacheControlValue(d)
+	hdr[consts.CacheControl] = []string{cacheControl}
 }
 
 func cacheControlValue(d time.Duration) string {
@@ -55,4 +56,9 @@ func cacheControlValue(d time.Duration) string {
 	}
 
 	return "no-cache"
+}
+
+// SetNoCache sets the Cache-Control header to "no-cache"
+func SetNoCache(hdr http.Header) {
+	hdr[consts.CacheControl] = []string{"no-cache"}
 }
