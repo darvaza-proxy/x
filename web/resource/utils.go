@@ -25,3 +25,8 @@ func SetHeaderUnlessExists(rw http.ResponseWriter, key, value string, args ...an
 func SetCache(rw http.ResponseWriter, d time.Duration) {
 	web.SetCache(rw.Header(), d)
 }
+
+// SetNoCache sets the Cache-Control header to "no-cache"
+func SetNoCache(rw http.ResponseWriter) {
+	web.SetNoCache(rw.Header())
+}
