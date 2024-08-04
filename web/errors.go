@@ -19,7 +19,7 @@ func NewStatusMethodNotAllowed(allowed ...string) *HTTPError {
 	return &HTTPError{
 		Code: http.StatusMethodNotAllowed,
 		Hdr: http.Header{
-			consts.Allowed: allowed,
+			consts.Allow: allowed,
 		},
 	}
 }

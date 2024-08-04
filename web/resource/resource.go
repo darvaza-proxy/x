@@ -111,7 +111,7 @@ func (r *Resource[T]) Methods() []string {
 }
 
 func (r *Resource[T]) serveOptions(rw http.ResponseWriter, _ *http.Request, _ T) error {
-	rw.Header()[consts.Allowed] = r.methods
+	rw.Header()[consts.Allow] = r.methods
 	rw.WriteHeader(http.StatusNoContent)
 	return nil
 }

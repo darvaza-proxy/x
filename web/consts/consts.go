@@ -15,9 +15,9 @@ const (
 	// to indicate compression options
 	AcceptEncoding = "Accept-Encoding"
 
-	// Allowed is the canonical header used to indicate the supported
+	// Allow is the canonical header used to indicate the supported
 	// Methods.
-	Allowed = "Allowed"
+	Allow = "Allow"
 
 	// CacheControl is the canonical header used to specify how long
 	// to cache the content.
