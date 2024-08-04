@@ -22,29 +22,19 @@ type ContentTyped interface {
 
 // ContentType checks if the [fs.File] or its [fs.FileInfo] effectively
 // provides the Content-Type, and returns it if so.
-func ContentType(file fs.File) string {
-	if ct := tryContentType(file); ct != "" {
+func ContentType(v any) string {
+	// direct test
+	ct, ok := tryContentType(v)
+	if ok {
 		return ct
 	}
 
-	fi, _ := file.Stat()
-	if fi != nil {
-		return tryContentType(fi)
+	// via fs.FileInfo
+	if fi, ok := tryStat(v); ok {
+		ct, _ = tryContentType(fi)
 	}
 
-	return ""
-}
-
-func tryContentType(candidates ...any) string {
-	for _, x := range candidates {
-		if v, ok := x.(ContentTyped); ok {
-			if ct := v.ContentType(); ct != "" {
-				return ct
-			}
-		}
-	}
-
-	return ""
+	return ct
 }
 
 // ETagsSetter is the interface that allows a [fs.File] or its
@@ -64,26 +54,17 @@ type ETaged interface {
 // ETags checks the [fs.File] and [fs.FileInfo] to see
 // if they implement the [ETaged] interface, and return
 // their output.
-func ETags(file fs.File) []string {
-	if s := tryETags(file); len(s) > 0 {
+func ETags(v any) []string {
+	if s, ok := tryETags(v); ok {
 		return s
 	}
 
-	if fi, _ := file.Stat(); fi != nil {
-		return tryETags(fi)
-	}
-
-	return nil
-}
-
-func tryETags(candidates ...any) []string {
-	for _, x := range candidates {
-		if v, ok := x.(ETaged); ok {
-			if s := v.ETags(); len(s) > 0 {
-				return s
-			}
+	if fi, ok := tryStat(v); ok {
+		if s, ok := tryETags(fi); ok {
+			return s
 		}
 	}
+
 	return nil
 }
 

@@ -60,3 +60,59 @@ func unsafeJoin(base, dir string) string {
 		return base + "/" + dir
 	}
 }
+
+func tryContentType(v any) (string, bool) {
+	var s string
+	if f, ok := v.(ContentTyped); ok {
+		s = f.ContentType()
+	}
+
+	return s, s != ""
+}
+
+func tryContentTypeSetter(v any) (ContentTypeSetter, bool) {
+	if f, ok := v.(ContentTypeSetter); ok {
+		return f, f != nil
+	}
+	return nil, false
+}
+
+func tryETags(v any) ([]string, bool) {
+	var tags []string
+
+	if f, ok := v.(ETaged); ok {
+		tags = f.ETags()
+	}
+
+	return tags, len(tags) > 0
+}
+
+func tryETagsSetter(v any) (ETagsSetter, bool) {
+	if f, ok := v.(ETagsSetter); ok {
+		return f, f != nil
+	}
+	return nil, false
+}
+
+func tryReadSeeker(v any) (fs.ReadSeeker, bool) {
+	f, ok := v.(io.ReadSeeker)
+	return f, ok
+}
+
+func tryStat(v any) (fs.FileInfo, bool) {
+	if f, ok := v.(interface {
+		Stat() (fs.FileInfo, error)
+	}); ok {
+		fi, err := f.Stat()
+		return fi, fi != nil && err == nil
+	}
+
+	if f, ok := v.(interface {
+		Info() (fs.FileInfo, error)
+	}); ok {
+		fi, err := f.Info()
+		return fi, fi != nil && err == nil
+	}
+
+	return nil, false
+}
