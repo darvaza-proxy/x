@@ -2,7 +2,9 @@ package assets
 
 import (
 	"io"
+	"net/http"
 	"strings"
+	"time"
 
 	"darvaza.org/core"
 	"darvaza.org/x/fs"
@@ -61,6 +63,16 @@ func unsafeJoin(base, dir string) string {
 	}
 }
 
+// headerExist checks if a canonical header has been specified
+func headerExist(hdr http.Header, name string) bool {
+	if v, ok := hdr[name]; ok {
+		if len(v) > 0 && v[0] != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func tryContentType(v any) (string, bool) {
 	var s string
 	if f, ok := v.(ContentTyped); ok {
@@ -95,8 +107,14 @@ func tryETagsSetter(v any) (ETagsSetter, bool) {
 }
 
 func tryReadSeeker(v any) (fs.ReadSeeker, bool) {
-	f, ok := v.(io.ReadSeeker)
-	return f, ok
+	switch f := v.(type) {
+	case io.ReadSeeker:
+		return f, true
+	case Asset:
+		return f.Content(), true
+	default:
+		return nil, false
+	}
 }
 
 func tryStat(v any) (fs.FileInfo, bool) {
@@ -115,4 +133,27 @@ func tryStat(v any) (fs.FileInfo, bool) {
 	}
 
 	return nil, false
+}
+
+func tryModTime(v any) (time.Time, bool) {
+	var modTime time.Time
+	if f, ok := v.(interface {
+		ModTime() time.Time
+	}); ok {
+		modTime = f.ModTime()
+	}
+
+	return modTime, !modTime.IsZero()
+}
+
+func getModTime(v any) (time.Time, bool) {
+	if t, ok := tryModTime(v); ok {
+		return t, true
+	}
+
+	if fi, ok := tryStat(v); ok {
+		return tryModTime(fi)
+	}
+
+	return time.Time{}, false
 }
