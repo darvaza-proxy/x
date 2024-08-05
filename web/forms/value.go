@@ -72,3 +72,99 @@ func PostFormValues[T core.String](req *http.Request, field string) (values []T,
 	}
 	return values, found, err
 }
+
+// FormValueFn reads a field from req.Form, and processes it through a helper function
+// to get the value.
+// FormValueFn also indicates if the field is missing, or if ParseForm or the conversion
+// failed.
+func FormValueFn[T any, S core.String](req *http.Request, field string,
+	fn func(S) (T, error)) (T, bool, error) {
+	//
+	if err := ParseForm(req, 0); err != nil {
+		var zero T
+		return zero, false, err
+	}
+
+	return doFormValueFn[T, S](req.Form, field, fn)
+}
+
+func doFormValueFn[T any, S core.String](values url.Values, field string,
+	fn func(S) (T, error)) (T, bool, error) {
+	//
+	s, found := doFormValue[string](values, field)
+	if !found {
+		var zero T
+		return zero, false, nil
+	}
+
+	v, err := fn(S(s))
+	if err != nil {
+		return v, true, core.Wrap(err, field)
+	}
+
+	return v, true, nil
+}
+
+// FormValuesFn reads a field from req.Form, and processes all values through a helper function
+// to get the values.
+// FormValuesFn also indicates if the field is missing, or if ParseForm or the conversion
+// failed.
+func FormValuesFn[T any, S core.String](req *http.Request, field string,
+	fn func(S) (T, error)) ([]T, bool, error) {
+	//
+	if err := ParseForm(req, 0); err != nil {
+		return nil, false, err
+	}
+
+	return doFormValuesFn[T, S](req.Form, field, fn)
+}
+
+func doFormValuesFn[T any, S core.String](values url.Values, field string,
+	fn func(S) (T, error)) ([]T, bool, error) {
+	//
+	ss, found := doFormValues[string](values, field)
+	if !found {
+		return nil, false, nil
+	}
+
+	out := make([]T, 0, len(ss))
+	for _, s := range ss {
+		v, err := fn(S(s))
+		if err != nil {
+			return out, true, core.Wrap(err, field)
+		}
+
+		out = append(out, v)
+	}
+
+	return out, true, nil
+}
+
+// PostFormValueFn reads a field from req.PostForm, and processes it through a helper function
+// to get the value.
+// PostFormValueFn also indicates if the field is missing, or if ParseForm or the conversion
+// failed.
+func PostFormValueFn[T any, S core.String](req *http.Request, field string,
+	fn func(S) (T, error)) (T, bool, error) {
+	//
+	if err := ParseForm(req, 0); err != nil {
+		var zero T
+		return zero, false, err
+	}
+
+	return doFormValueFn[T, S](req.PostForm, field, fn)
+}
+
+// PostFormValuesFn reads a field from req.PostForm, and processes all values through a helper function
+// to get the values.
+// PostFormValuesFn also indicates if the field is missing, or if ParseForm or the conversion
+// failed.
+func PostFormValuesFn[T any, S core.String](req *http.Request, field string,
+	fn func(S) (T, error)) ([]T, bool, error) {
+	//
+	if err := ParseForm(req, 0); err != nil {
+		return nil, false, err
+	}
+
+	return doFormValuesFn[T, S](req.PostForm, field, fn)
+}
