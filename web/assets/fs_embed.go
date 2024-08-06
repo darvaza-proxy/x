@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"darvaza.org/core"
 	"darvaza.org/x/fs"
 	"darvaza.org/x/web"
 )
@@ -543,7 +544,7 @@ func (fm *embedMeta) SetETags(tags ...string) []string {
 		fm.tags = tags
 	}
 
-	return copySlice(fm.tags)
+	return core.SliceCopy(fm.tags)
 }
 
 func (fm *embedMeta) getContentType(fSys *EmbedFS) string {
@@ -584,7 +585,7 @@ func (fm *embedMeta) getETags(fSys *EmbedFS) ([]string, error) {
 	}
 
 	// return copy
-	return copySlice(fm.tags), nil
+	return core.SliceCopy(fm.tags), nil
 }
 
 func (fm *embedMeta) computeContentType(fSys *EmbedFS) string {

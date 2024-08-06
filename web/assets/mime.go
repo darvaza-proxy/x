@@ -12,6 +12,9 @@ import (
 // TypeByFilename attempts to infer the ContentType from the filename.
 // It will return "" if unknown.
 func TypeByFilename(fileName string) string {
+	if fileName == "" {
+		return ""
+	}
 	return mime.TypeByExtension(filepath.Ext(fileName))
 }
 

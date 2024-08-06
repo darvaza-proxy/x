@@ -42,7 +42,7 @@ func ServeFile(rw http.ResponseWriter, req *http.Request, file File) {
 	http.ServeContent(rw, req, name, fi.ModTime(), file)
 }
 
-func setContentType(hdr http.Header, file File, name string) error {
+func setContentType(hdr http.Header, file any, name string) error {
 	_, haveType := hdr[consts.ContentType]
 	if !haveType {
 		cType, err := getContentType(file, name)
@@ -56,7 +56,7 @@ func setContentType(hdr http.Header, file File, name string) error {
 	return nil
 }
 
-func getContentType(file File, name string) (string, error) {
+func getContentType(file any, name string) (string, error) {
 	if ct := ContentType(file); ct != "" {
 		// self-describing
 		return ct, nil
@@ -68,7 +68,7 @@ func getContentType(file File, name string) (string, error) {
 		var err error
 
 		// detect from content
-		ct, err = TypeBySniffing(file)
+		ct, err = sniffContentType(file)
 		if err != nil {
 			return "", err
 		}
@@ -76,7 +76,7 @@ func getContentType(file File, name string) (string, error) {
 
 	if ct != "" {
 		// try to remember
-		if f := getContentTypeSetter(file); f != nil {
+		if f, ok := getContentTypeSetter(file); ok {
 			f.SetContentType(ct)
 		}
 	}
@@ -84,21 +84,29 @@ func getContentType(file File, name string) (string, error) {
 	return ct, nil
 }
 
-func getContentTypeSetter(file fs.File) ContentTypeSetter {
-	if f, ok := file.(ContentTypeSetter); ok {
-		return f
+func sniffContentType(v any) (string, error) {
+	if file, ok := tryReadSeeker(v); ok {
+		return TypeBySniffing(file)
 	}
 
-	if fi, _ := file.Stat(); fi != nil {
-		if f, ok := fi.(ContentTypeSetter); ok {
-			return f
+	return "", nil
+}
+
+func getContentTypeSetter(v any) (ContentTypeSetter, bool) {
+	if f, ok := tryContentTypeSetter(v); ok {
+		return f, true
+	}
+
+	if fi, ok := tryStat(v); ok {
+		if f, ok := tryContentTypeSetter(fi); ok {
+			return f, true
 		}
 	}
 
-	return nil
+	return nil, false
 }
 
-func setETag(hdr http.Header, file File) error {
+func setETag(hdr http.Header, file any) error {
 	_, haveETag := hdr[consts.ETag]
 	if !haveETag {
 		tags, err := getETags(file)
@@ -112,38 +120,49 @@ func setETag(hdr http.Header, file File) error {
 	return nil
 }
 
-func getETags(file File) ([]string, error) {
+func getETags(file any) ([]string, error) {
 	if tags := ETags(file); len(tags) > 0 {
 		return tags, nil
 	}
 
-	hash, err := BLAKE3SumFile(file)
-	if err != nil {
+	hash, err := sniffBLAKE3Sum(file)
+	switch {
+	case err != nil:
 		return nil, err
+	case hash == "":
+		return nil, nil
 	}
 
 	tags := []string{hash}
 
 	// try to remember
-	if f := getETagsSetter(file); f != nil {
+	if f, _ := getETagsSetter(file); f != nil {
 		f.SetETags(tags...)
 	}
 
 	return tags, nil
 }
 
-func getETagsSetter(file fs.File) ETagsSetter {
-	if f, ok := file.(ETagsSetter); ok {
-		return f
+func sniffBLAKE3Sum(v any) (string, error) {
+	if f, ok := tryReadSeeker(v); ok {
+		return BLAKE3SumFile(f)
 	}
 
-	if fi, _ := file.Stat(); fi != nil {
-		if f, ok := fi.(ETagsSetter); ok {
-			return f
+	return "", nil
+}
+
+func getETagsSetter(v any) (ETagsSetter, bool) {
+	if f, ok := tryETagsSetter(v); ok {
+		return f, true
+	}
+
+	if fi, ok := tryStat(v); ok {
+		if f, ok := tryETagsSetter(fi); ok {
+			return f, true
 		}
 	}
 
-	return nil
+	return nil, false
 }
 
 func serve500(rw http.ResponseWriter, req *http.Request, err error) {
