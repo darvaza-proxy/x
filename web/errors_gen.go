@@ -7,6 +7,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"darvaza.org/x/fs"
 	"darvaza.org/x/web/consts"
@@ -18,7 +19,11 @@ func NewStatusMovedPermanently(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusMovedPermanently,
@@ -34,7 +39,11 @@ func NewStatusFound(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusFound,
@@ -50,7 +59,11 @@ func NewStatusSeeOther(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusSeeOther,
@@ -66,7 +79,11 @@ func NewStatusTemporaryRedirect(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusTemporaryRedirect,
@@ -82,7 +99,11 @@ func NewStatusPermanentRedirect(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusPermanentRedirect,

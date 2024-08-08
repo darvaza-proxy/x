@@ -18,6 +18,7 @@ package $GOPACKAGE
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"darvaza.org/x/fs"
 	"darvaza.org/x/web/consts"
@@ -45,7 +46,11 @@ func NewStatus$name(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.Status$name,
