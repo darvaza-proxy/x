@@ -113,6 +113,22 @@ func NewStatusPermanentRedirect(dest string, args ...any) *HTTPError {
 	}
 }
 
+// NewStatusBadRequest returns a 400 HTTP error.
+func NewStatusBadRequest(err error) *HTTPError {
+	return &HTTPError{
+		Code: http.StatusBadRequest,
+		Err:  err,
+	}
+}
+
+// NewStatusInternalServerError returns a 500 HTTP error.
+func NewStatusInternalServerError(err error) *HTTPError {
+	return &HTTPError{
+		Code: http.StatusInternalServerError,
+		Err:  err,
+	}
+}
+
 // NewStatusNotModified returns a 304 HTTP error.
 func NewStatusNotModified() *HTTPError {
 	return &HTTPError{

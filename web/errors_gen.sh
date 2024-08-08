@@ -62,6 +62,28 @@ func NewStatus$name(dest string, args ...any) *HTTPError {
 EOT
 done
 
+# wrappers
+#
+for x in \
+	BadRequest=400 \
+	InternalServerError=500 \
+	; do
+
+	name=${x%=*}
+	code=${x#*=}
+
+	cat <<EOT
+
+// NewStatus$name returns a $code HTTP error.
+func NewStatus$name(err error) *HTTPError {
+	return &HTTPError{
+		Code: http.Status$name,
+		Err:  err,
+	}
+}
+EOT
+done
+
 # basic
 #
 for x in \
