@@ -18,6 +18,7 @@ package $GOPACKAGE
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"darvaza.org/x/fs"
 	"darvaza.org/x/web/consts"
@@ -45,7 +46,11 @@ func NewStatus$name(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.Status$name,
@@ -57,10 +62,39 @@ func NewStatus$name(dest string, args ...any) *HTTPError {
 EOT
 done
 
+# wrappers
+#
+for x in \
+	BadRequest=400 \
+	InternalServerError=500 \
+	; do
+
+	name=${x%=*}
+	code=${x#*=}
+
+	cat <<EOT
+
+// NewStatus$name returns a $code HTTP error,
+// unless the given error is already qualified.
+func NewStatus$name(err error) *HTTPError {
+	if e, ok := err.(*HTTPError); ok {
+		return e
+	}
+
+	return &HTTPError{
+		Code: http.Status$name,
+		Err:  err,
+	}
+}
+EOT
+done
+
 # basic
 #
 for x in \
 	NotModified=304 \
+	Unauthorized=401 \
+	Forbidden=403 \
 	NotFound=404 \
 	NotAcceptable=406 \
 	; do

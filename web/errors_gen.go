@@ -7,6 +7,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"darvaza.org/x/fs"
 	"darvaza.org/x/web/consts"
@@ -18,7 +19,11 @@ func NewStatusMovedPermanently(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusMovedPermanently,
@@ -34,7 +39,11 @@ func NewStatusFound(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusFound,
@@ -50,7 +59,11 @@ func NewStatusSeeOther(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusSeeOther,
@@ -66,7 +79,11 @@ func NewStatusTemporaryRedirect(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusTemporaryRedirect,
@@ -82,7 +99,11 @@ func NewStatusPermanentRedirect(dest string, args ...any) *HTTPError {
 		dest = fmt.Sprintf(dest, args...)
 	}
 
+	trailing := strings.HasSuffix(dest, "/")
 	dest, _ = fs.Clean(dest)
+	if trailing && !strings.HasSuffix(dest, "/") {
+		dest += "/"
+	}
 
 	return &HTTPError{
 		Code: http.StatusPermanentRedirect,
@@ -92,10 +113,50 @@ func NewStatusPermanentRedirect(dest string, args ...any) *HTTPError {
 	}
 }
 
+// NewStatusBadRequest returns a 400 HTTP error,
+// unless the given error is already qualified.
+func NewStatusBadRequest(err error) *HTTPError {
+	if e, ok := err.(*HTTPError); ok {
+		return e
+	}
+
+	return &HTTPError{
+		Code: http.StatusBadRequest,
+		Err:  err,
+	}
+}
+
+// NewStatusInternalServerError returns a 500 HTTP error,
+// unless the given error is already qualified.
+func NewStatusInternalServerError(err error) *HTTPError {
+	if e, ok := err.(*HTTPError); ok {
+		return e
+	}
+
+	return &HTTPError{
+		Code: http.StatusInternalServerError,
+		Err:  err,
+	}
+}
+
 // NewStatusNotModified returns a 304 HTTP error.
 func NewStatusNotModified() *HTTPError {
 	return &HTTPError{
 		Code: http.StatusNotModified,
+	}
+}
+
+// NewStatusUnauthorized returns a 401 HTTP error.
+func NewStatusUnauthorized() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusUnauthorized,
+	}
+}
+
+// NewStatusForbidden returns a 403 HTTP error.
+func NewStatusForbidden() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusForbidden,
 	}
 }
 
