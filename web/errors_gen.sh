@@ -74,8 +74,13 @@ for x in \
 
 	cat <<EOT
 
-// NewStatus$name returns a $code HTTP error.
+// NewStatus$name returns a $code HTTP error,
+// unless the given error is already qualified.
 func NewStatus$name(err error) *HTTPError {
+	if e, ok := err.(*HTTPError); ok {
+		return e
+	}
+
 	return &HTTPError{
 		Code: http.Status$name,
 		Err:  err,
