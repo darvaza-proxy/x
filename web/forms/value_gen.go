@@ -15,10 +15,12 @@ import (
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func FormValueSigned[T core.Signed](req *http.Request, field string) (value T, found bool, err error) {
+func FormValueSigned[T core.Signed](req *http.Request, field string,
+	base int) (value T, found bool, err error) {
+	//
 	s, found, err := FormValue[string](req, field)
 	if err == nil && found {
-		value, err = ParseSigned[T](s)
+		value, err = ParseSigned[T](s, base)
 		if err != nil {
 			err = core.Wrap(err, field)
 		}
@@ -32,13 +34,15 @@ func FormValueSigned[T core.Signed](req *http.Request, field string) (value T, f
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func FormValuesSigned[T core.Signed](req *http.Request, field string) (values []T, found bool, err error) {
+func FormValuesSigned[T core.Signed](req *http.Request, field string,
+	base int) (values []T, found bool, err error) {
+	//
 	ss, found, err := FormValues[string](req, field)
 	if err == nil && found {
 		values = make([]T, 0, len(ss))
 
 		for _, s := range ss {
-			v, err := ParseSigned[T](s)
+			v, err := ParseSigned[T](s, base)
 			if err != nil {
 				return values, true, core.Wrap(err, field)
 			}
@@ -55,10 +59,10 @@ func FormValuesSigned[T core.Signed](req *http.Request, field string) (values []
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
-func FormValueSignedInRange[T core.Signed](req *http.Request, field string,
+func FormValueSignedInRange[T core.Signed](req *http.Request, field string, base int,
 	min, max T) (value T, found bool, err error) {
 	//
-	value, found, err = FormValueSigned[T](req, field)
+	value, found, err = FormValueSigned[T](req, field, base)
 	if err == nil && found {
 		if value < min || value > max {
 			err = errRange("ParseInt", FormatSigned(value, 10))
@@ -72,10 +76,12 @@ func FormValueSignedInRange[T core.Signed](req *http.Request, field string,
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func FormValueUnsigned[T core.Unsigned](req *http.Request, field string) (value T, found bool, err error) {
+func FormValueUnsigned[T core.Unsigned](req *http.Request, field string,
+	base int) (value T, found bool, err error) {
+	//
 	s, found, err := FormValue[string](req, field)
 	if err == nil && found {
-		value, err = ParseUnsigned[T](s)
+		value, err = ParseUnsigned[T](s, base)
 		if err != nil {
 			err = core.Wrap(err, field)
 		}
@@ -89,13 +95,15 @@ func FormValueUnsigned[T core.Unsigned](req *http.Request, field string) (value 
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func FormValuesUnsigned[T core.Unsigned](req *http.Request, field string) (values []T, found bool, err error) {
+func FormValuesUnsigned[T core.Unsigned](req *http.Request, field string,
+	base int) (values []T, found bool, err error) {
+	//
 	ss, found, err := FormValues[string](req, field)
 	if err == nil && found {
 		values = make([]T, 0, len(ss))
 
 		for _, s := range ss {
-			v, err := ParseUnsigned[T](s)
+			v, err := ParseUnsigned[T](s, base)
 			if err != nil {
 				return values, true, core.Wrap(err, field)
 			}
@@ -112,10 +120,10 @@ func FormValuesUnsigned[T core.Unsigned](req *http.Request, field string) (value
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
-func FormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string,
+func FormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string, base int,
 	min, max T) (value T, found bool, err error) {
 	//
-	value, found, err = FormValueUnsigned[T](req, field)
+	value, found, err = FormValueUnsigned[T](req, field, base)
 	if err == nil && found {
 		if value < min || value > max {
 			err = errRange("ParseUint", FormatUnsigned(value, 10))
@@ -130,6 +138,7 @@ func FormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string,
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
 func FormValueFloat[T core.Float](req *http.Request, field string) (value T, found bool, err error) {
+	//
 	s, found, err := FormValue[string](req, field)
 	if err == nil && found {
 		value, err = ParseFloat[T](s)
@@ -147,6 +156,7 @@ func FormValueFloat[T core.Float](req *http.Request, field string) (value T, fou
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
 func FormValuesFloat[T core.Float](req *http.Request, field string) (values []T, found bool, err error) {
+	//
 	ss, found, err := FormValues[string](req, field)
 	if err == nil && found {
 		values = make([]T, 0, len(ss))
@@ -187,6 +197,7 @@ func FormValueFloatInRange[T core.Float](req *http.Request, field string,
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
 func FormValueBool[T core.Bool](req *http.Request, field string) (value T, found bool, err error) {
+	//
 	s, found, err := FormValue[string](req, field)
 	if err == nil && found {
 		value, err = ParseBool[T](s)
@@ -204,6 +215,7 @@ func FormValueBool[T core.Bool](req *http.Request, field string) (value T, found
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
 func FormValuesBool[T core.Bool](req *http.Request, field string) (values []T, found bool, err error) {
+	//
 	ss, found, err := FormValues[string](req, field)
 	if err == nil && found {
 		values = make([]T, 0, len(ss))
@@ -225,10 +237,12 @@ func FormValuesBool[T core.Bool](req *http.Request, field string) (values []T, f
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func PostFormValueSigned[T core.Signed](req *http.Request, field string) (value T, found bool, err error) {
+func PostFormValueSigned[T core.Signed](req *http.Request, field string,
+	base int) (value T, found bool, err error) {
+	//
 	s, found, err := PostFormValue[string](req, field)
 	if err == nil && found {
-		value, err = ParseSigned[T](s)
+		value, err = ParseSigned[T](s, base)
 		if err != nil {
 			err = core.Wrap(err, field)
 		}
@@ -242,13 +256,15 @@ func PostFormValueSigned[T core.Signed](req *http.Request, field string) (value 
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func PostFormValuesSigned[T core.Signed](req *http.Request, field string) (values []T, found bool, err error) {
+func PostFormValuesSigned[T core.Signed](req *http.Request, field string,
+	base int) (values []T, found bool, err error) {
+	//
 	ss, found, err := PostFormValues[string](req, field)
 	if err == nil && found {
 		values = make([]T, 0, len(ss))
 
 		for _, s := range ss {
-			v, err := ParseSigned[T](s)
+			v, err := ParseSigned[T](s, base)
 			if err != nil {
 				return values, true, core.Wrap(err, field)
 			}
@@ -265,10 +281,10 @@ func PostFormValuesSigned[T core.Signed](req *http.Request, field string) (value
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
-func PostFormValueSignedInRange[T core.Signed](req *http.Request, field string,
+func PostFormValueSignedInRange[T core.Signed](req *http.Request, field string, base int,
 	min, max T) (value T, found bool, err error) {
 	//
-	value, found, err = PostFormValueSigned[T](req, field)
+	value, found, err = PostFormValueSigned[T](req, field, base)
 	if err == nil && found {
 		if value < min || value > max {
 			err = errRange("ParseInt", FormatSigned(value, 10))
@@ -282,10 +298,12 @@ func PostFormValueSignedInRange[T core.Signed](req *http.Request, field string,
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func PostFormValueUnsigned[T core.Unsigned](req *http.Request, field string) (value T, found bool, err error) {
+func PostFormValueUnsigned[T core.Unsigned](req *http.Request, field string,
+	base int) (value T, found bool, err error) {
+	//
 	s, found, err := PostFormValue[string](req, field)
 	if err == nil && found {
-		value, err = ParseUnsigned[T](s)
+		value, err = ParseUnsigned[T](s, base)
 		if err != nil {
 			err = core.Wrap(err, field)
 		}
@@ -299,13 +317,15 @@ func PostFormValueUnsigned[T core.Unsigned](req *http.Request, field string) (va
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func PostFormValuesUnsigned[T core.Unsigned](req *http.Request, field string) (values []T, found bool, err error) {
+func PostFormValuesUnsigned[T core.Unsigned](req *http.Request, field string,
+	base int) (values []T, found bool, err error) {
+	//
 	ss, found, err := PostFormValues[string](req, field)
 	if err == nil && found {
 		values = make([]T, 0, len(ss))
 
 		for _, s := range ss {
-			v, err := ParseUnsigned[T](s)
+			v, err := ParseUnsigned[T](s, base)
 			if err != nil {
 				return values, true, core.Wrap(err, field)
 			}
@@ -322,10 +342,10 @@ func PostFormValuesUnsigned[T core.Unsigned](req *http.Request, field string) (v
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
-func PostFormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string,
+func PostFormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string, base int,
 	min, max T) (value T, found bool, err error) {
 	//
-	value, found, err = PostFormValueUnsigned[T](req, field)
+	value, found, err = PostFormValueUnsigned[T](req, field, base)
 	if err == nil && found {
 		if value < min || value > max {
 			err = errRange("ParseUint", FormatUnsigned(value, 10))
@@ -340,6 +360,7 @@ func PostFormValueUnsignedInRange[T core.Unsigned](req *http.Request, field stri
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
 func PostFormValueFloat[T core.Float](req *http.Request, field string) (value T, found bool, err error) {
+	//
 	s, found, err := PostFormValue[string](req, field)
 	if err == nil && found {
 		value, err = ParseFloat[T](s)
@@ -357,6 +378,7 @@ func PostFormValueFloat[T core.Float](req *http.Request, field string) (value T,
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
 func PostFormValuesFloat[T core.Float](req *http.Request, field string) (values []T, found bool, err error) {
+	//
 	ss, found, err := PostFormValues[string](req, field)
 	if err == nil && found {
 		values = make([]T, 0, len(ss))
@@ -397,6 +419,7 @@ func PostFormValueFloatInRange[T core.Float](req *http.Request, field string,
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
 func PostFormValueBool[T core.Bool](req *http.Request, field string) (value T, found bool, err error) {
+	//
 	s, found, err := PostFormValue[string](req, field)
 	if err == nil && found {
 		value, err = ParseBool[T](s)
@@ -414,6 +437,7 @@ func PostFormValueBool[T core.Bool](req *http.Request, field string) (value T, f
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
 func PostFormValuesBool[T core.Bool](req *http.Request, field string) (values []T, found bool, err error) {
+	//
 	ss, found, err := PostFormValues[string](req, field)
 	if err == nil && found {
 		values = make([]T, 0, len(ss))

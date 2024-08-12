@@ -34,6 +34,7 @@ gen() {
 	local fn0s fn1s
 	local parse format
 	local ordered T ret
+	local base
 
 	fn="Parse${y}"
 	fn0="${x}Value"
@@ -54,6 +55,7 @@ gen() {
 	case "$y" in
 	Int|Uint)
 		format_v="$format(value, 10)"
+		base=true
 		;;
 	Float)
 		format_v="$format(value, 'f', -1)"
@@ -70,10 +72,12 @@ gen() {
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func ${fn1}${T:+[T core.$g]}(req *http.Request, field string) (value ${ret}, found bool, err error) {
+func ${fn1}${T:+[T core.$g]}(req *http.Request, field string${base:+,
+	base int}) (value ${ret}, found bool, err error) {
+	//
 	s, found, err := ${fn0}[string](req, field)
 	if err == nil && found {
-		value, err = ${parse}${T:+[T]}(s)
+		value, err = ${parse}${T:+[T]}(s${base:+, base})
 		if err != nil {
 			err = core.Wrap(err, field)
 		}
@@ -87,13 +91,15 @@ func ${fn1}${T:+[T core.$g]}(req *http.Request, field string) (value ${ret}, fou
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type.
-func ${fn1s}${T:+[T core.$g]}(req *http.Request, field string) (values []${ret}, found bool, err error) {
+func ${fn1s}${T:+[T core.$g]}(req *http.Request, field string${base:+,
+	base int}) (values []${ret}, found bool, err error) {
+	//
 	ss, found, err := ${fn0s}[string](req, field)
 	if err == nil && found {
 		values = make([]$ret, 0, len(ss))
 
 		for _, s := range ss {
-			v, err := ${parse}${T:+[T]}(s)
+			v, err := ${parse}${T:+[T]}(s${base:+, base})
 			if err != nil {
 				return values, true, core.Wrap(err, field)
 			}
@@ -114,10 +120,10 @@ EOT
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
-func ${fn2}${T:+[T core.$g]}(req *http.Request, field string,
+func ${fn2}${T:+[T core.$g]}(req *http.Request, field string,${base:+ base int,}
 	min, max ${ret}) (value ${ret}, found bool, err error) {
 	//
-	value, found, err = ${fn1}${T:+[T]}(req, field)
+	value, found, err = ${fn1}${T:+[T]}(req, field${base:+, base})
 	if err == nil && found {
 		if value < min || value > max {
 			err = errRange("$fn", $format_v)

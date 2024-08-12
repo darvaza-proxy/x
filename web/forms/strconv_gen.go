@@ -10,8 +10,8 @@ import (
 
 // ParseSignedInRange parses a string and and returns a [core.Signed] value or a [strconv.NumError]
 // if invalid or it's outside the specified boundaries.
-func ParseSignedInRange[T core.Signed](s string, min, max T) (value T, err error) {
-	value, err = ParseSigned[T](s)
+func ParseSignedInRange[T core.Signed](s string, base int, min, max T) (value T, err error) {
+	value, err = ParseSigned[T](s, base)
 	if err == nil {
 		if value < min || value > max {
 			err = errRange("ParseInt", FormatSigned(value, 10))
@@ -22,8 +22,8 @@ func ParseSignedInRange[T core.Signed](s string, min, max T) (value T, err error
 
 // ParseUnsignedInRange parses a string and and returns a [core.Unsigned] value or a [strconv.NumError]
 // if invalid or it's outside the specified boundaries.
-func ParseUnsignedInRange[T core.Unsigned](s string, min, max T) (value T, err error) {
-	value, err = ParseUnsigned[T](s)
+func ParseUnsignedInRange[T core.Unsigned](s string, base int, min, max T) (value T, err error) {
+	value, err = ParseUnsigned[T](s, base)
 	if err == nil {
 		if value < min || value > max {
 			err = errRange("ParseUint", FormatUnsigned(value, 10))
