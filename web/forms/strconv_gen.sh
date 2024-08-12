@@ -34,10 +34,12 @@ gen() {
 	local fn2="${fn1}InRange"
 	local format="Format$g"
 	local format_v
+	local base=
 
 	case "$y" in
 	Int|Uint)
 		format_v="$format(value, 10)"
+		base=true
 		;;
 	Float)
 		format_v="$format(value, 'f', -1)"
@@ -48,8 +50,8 @@ gen() {
 
 // $fn2 parses a string and and returns a [$G] value or a [strconv.NumError]
 // if invalid or it's outside the specified boundaries.
-func ${fn2}[T $G](s string, min, max T) (value T, err error) {
-	value, err = ${fn1}[T](s)
+func ${fn2}[T $G](s string,${base:+ base int,} min, max T) (value T, err error) {
+	value, err = ${fn1}[T](s${base:+, base})
 	if err == nil {
 		if value < min || value > max {
 			err = errRange("$fn", $format_v)

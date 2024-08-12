@@ -10,15 +10,15 @@ import (
 
 // ParseSigned converts a string to a signed integer value
 // of the correct size for the type using [strconv.ParseInt].
-func ParseSigned[T core.Signed](s string) (v T, err error) {
-	n, err := strconv.ParseInt(s, 0, bitSize(v))
+func ParseSigned[T core.Signed](s string, base int) (v T, err error) {
+	n, err := strconv.ParseInt(s, base, bitSize(v))
 	return T(n), err
 }
 
 // ParseUnsigned converts a string to an unsigned integer value
 // of the correct size for the type using [strconv.ParseUint].
-func ParseUnsigned[T core.Unsigned](s string) (v T, err error) {
-	n, err := strconv.ParseUint(s, 0, bitSize(v))
+func ParseUnsigned[T core.Unsigned](s string, base int) (v T, err error) {
+	n, err := strconv.ParseUint(s, base, bitSize(v))
 	return T(n), err
 }
 
