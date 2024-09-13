@@ -25,7 +25,7 @@ func RouteParamValueFirstSigned[T core.Signed](t RouteParamsTable, key string,
 // and verify they are within the given boundaries.
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
-func RouteParamValueFirstSignedInRange[T core.Signed](t RouteParamsTable, key string,base int,
+func RouteParamValueFirstSignedInRange[T core.Signed](t RouteParamsTable, key string, base int,
 	min, max T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamFirst[string](t, key)
@@ -51,7 +51,7 @@ func RouteParamValueLastSigned[T core.Signed](t RouteParamsTable, key string,
 // and verify they are within the given boundaries.
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
-func RouteParamValueLastSignedInRange[T core.Signed](t RouteParamsTable, key string,base int,
+func RouteParamValueLastSignedInRange[T core.Signed](t RouteParamsTable, key string, base int,
 	min, max T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamLast[string](t, key)
@@ -118,7 +118,7 @@ func RouteParamValueFirstUnsigned[T core.Unsigned](t RouteParamsTable, key strin
 // and verify they are within the given boundaries.
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
-func RouteParamValueFirstUnsignedInRange[T core.Unsigned](t RouteParamsTable, key string,base int,
+func RouteParamValueFirstUnsignedInRange[T core.Unsigned](t RouteParamsTable, key string, base int,
 	min, max T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamFirst[string](t, key)
@@ -144,7 +144,7 @@ func RouteParamValueLastUnsigned[T core.Unsigned](t RouteParamsTable, key string
 // and verify they are within the given boundaries.
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
-func RouteParamValueLastUnsignedInRange[T core.Unsigned](t RouteParamsTable, key string,base int,
+func RouteParamValueLastUnsignedInRange[T core.Unsigned](t RouteParamsTable, key string, base int,
 	min, max T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamLast[string](t, key)
