@@ -61,8 +61,6 @@ func newCheckerMatchAny(globs []Matcher) func(string, fs.DirEntry) bool {
 // If no function is provided, all entries will be listed.
 // Entries giving Stat error will be ignored.
 func MatchFunc(fSys fs.FS, root string, check func(string, fs.DirEntry) bool) ([]string, error) {
-	var out []string
-
 	dir, ok := Clean(root)
 	if !ok {
 		err := &fs.PathError{
@@ -77,6 +75,16 @@ func MatchFunc(fSys fs.FS, root string, check func(string, fs.DirEntry) bool) ([
 		check = func(string, fs.DirEntry) bool { return true }
 	}
 
+	switch x := fSys.(type) {
+	case ReadDirFS:
+		return walkMatchFunc(x, dir, check)
+	default:
+		return nil, core.ErrNotImplemented
+	}
+}
+
+func walkMatchFunc(fSys ReadDirFS, dir string, check func(string, fs.DirEntry) bool) ([]string, error) {
+	var out []string
 	err := fs.WalkDir(fSys, dir, func(path string, di fs.DirEntry, err error) error {
 		switch {
 		case err != nil:
