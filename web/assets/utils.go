@@ -157,3 +157,34 @@ func getModTime(v any) (time.Time, bool) {
 
 	return time.Time{}, false
 }
+
+func newPathError(op, path string, err error) error {
+	switch e := err.(type) {
+	case nil:
+		return nil
+	case *fs.PathError:
+		if op == "" && path == "" {
+			return e
+		}
+
+		return &fs.PathError{
+			Op:   core.IIf(op != "", op, e.Op),
+			Path: core.IIf(path != "", path, e.Path),
+			Err:  e.Err,
+		}
+	default:
+		return &fs.PathError{
+			Op:   op,
+			Path: path,
+			Err:  e,
+		}
+	}
+}
+
+func newErrInvalid(op, path string) error {
+	return newPathError(op, path, fs.ErrInvalid)
+}
+
+func newErrNotExist(op, path string) error {
+	return newPathError(op, path, fs.ErrNotExist)
+}

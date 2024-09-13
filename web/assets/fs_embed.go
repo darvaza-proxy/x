@@ -91,20 +91,12 @@ func (o *EmbedFS) getPath(fm *EmbedMeta) string {
 // return [fs.PathError] in case of errors.
 func (o *EmbedFS) getFile(op, path string) (*EmbedMeta, error) {
 	if !fs.ValidPath(path) {
-		return nil, &fs.PathError{
-			Op:   op,
-			Path: path,
-			Err:  fs.ErrInvalid,
-		}
+		return nil, newErrInvalid(op, path)
 	}
 
 	fm, ok := o.files[path]
 	if !ok {
-		return nil, &fs.PathError{
-			Op:   op,
-			Path: path,
-			Err:  fs.ErrNotExist,
-		}
+		return nil, newErrNotExist(op, path)
 	}
 
 	return fm, nil
@@ -133,11 +125,7 @@ func NewEmbedFS(base *embed.FS, root string, patterns ...string) (*EmbedFS, erro
 func unsafeNewEmbedFS(base *embed.FS, root string, globs []fs.Matcher) (*EmbedFS, error) {
 	if base == nil {
 		// no base file system, no root either.
-		return nil, &fs.PathError{
-			Op:   "readdir",
-			Path: root,
-			Err:  fs.ErrNotExist,
-		}
+		return nil, newErrNotExist("readdir", root)
 	}
 
 	o := &EmbedFS{
@@ -169,12 +157,7 @@ func (o *EmbedFS) init(globs []fs.Matcher) error {
 		default:
 			fi, e := di.Info()
 			if e != nil {
-				err = &fs.PathError{
-					Op:   "stat",
-					Path: path,
-					Err:  e,
-				}
-				// abort
+				err = newPathError("stat", path, e)
 				return false
 			}
 
@@ -282,11 +265,7 @@ func (o *EmbedFS) Sub(dir string) (fs.FS, error) {
 	switch {
 	case !ok:
 		// bad directory
-		return nil, &fs.PathError{
-			Op:   "readdir",
-			Path: dir,
-			Err:  fs.ErrInvalid,
-		}
+		return nil, newErrInvalid("readdir", dir)
 	case root == ".":
 		// NO-OP
 		return o, nil
@@ -319,11 +298,7 @@ func (o *EmbedFS) unsafeSub(root string) (*EmbedFS, error) {
 		return out, nil
 	}
 
-	return nil, &fs.PathError{
-		Op:   "readdir",
-		Path: root,
-		Err:  fs.ErrNotExist,
-	}
+	return nil, newErrNotExist("readdir", root)
 }
 
 // Glob returns a list of files matching the given pattern.
