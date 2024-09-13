@@ -32,3 +32,10 @@ var (
 func ValidPath(name string) bool {
 	return fs.ValidPath(name)
 }
+
+// Stat is a proxy to the standard [fs.Stat] function
+// which attempts to get [fs.FileInfo] about the given
+// name on the given file system.
+func Stat(fSys fs.FS, name string) (fs.FileInfo, error) {
+	return fs.Stat(fSys, name)
+}
