@@ -69,10 +69,12 @@ func NewFS(base fs.FS, root string, patterns ...string) (FS, error) {
 		return unsafeNewEmbedFS(&v, dir, globs)
 	case *embed.FS:
 		return unsafeNewEmbedFS(v, dir, globs)
+	case fs.SubFS:
+		return unsafeNewWrapSubFS(v, dir, globs)
 	case nil:
 		err = core.QuietWrap(core.ErrInvalid, "base fs.FS not provided")
 	default:
-		err = core.Wrap(core.ErrTODO, "%T not yet supported", base)
+		return unsafeNewWrapFS(v, dir, globs)
 	}
 
 	return nil, err
