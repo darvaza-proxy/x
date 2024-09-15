@@ -78,6 +78,8 @@ func MatchFunc(fSys fs.FS, root string, check func(string, fs.DirEntry) bool) ([
 	switch x := fSys.(type) {
 	case ReadDirFS:
 		return walkMatchFunc(x, dir, check)
+	case GlobFS:
+		return globMatchFunc(x, dir, check)
 	default:
 		return nil, core.ErrNotImplemented
 	}
@@ -98,4 +100,34 @@ func walkMatchFunc(fSys ReadDirFS, dir string, check func(string, fs.DirEntry) b
 	})
 
 	return out, err
+}
+
+func globMatchFunc(fSys fs.GlobFS, root string, check func(string, fs.DirEntry) bool) ([]string, error) {
+	ss, err := fSys.Glob("**")
+	switch {
+	case err != nil:
+		return nil, core.ErrNotImplemented
+	case len(ss) == 0:
+		return ss, nil
+	default:
+		m := make(map[string]struct{})
+		for _, s := range ss {
+			if s, ok := globMatchFuncOne(fSys, root, s, check); ok {
+				m[s] = struct{}{}
+			}
+		}
+		return core.SortedKeys(m), nil
+	}
+}
+
+func globMatchFuncOne(fSys fs.FS, root, fullName string, check func(string, fs.DirEntry) bool) (string, bool) {
+	name, ok := unsafeCutRoot(fullName, root)
+	if ok {
+		fi, _ := fs.Stat(fSys, fullName)
+		if check(name, fs.FileInfoToDirEntry(fi)) {
+			return name, true
+		}
+	}
+
+	return "", false
 }
