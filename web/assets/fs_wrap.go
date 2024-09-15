@@ -311,6 +311,37 @@ func NewWrapFS(layers ...fs.FS) (*WrapFS, error) {
 	return out, nil
 }
 
+// unsafeNewWrapSubFS extends [NewFS] for arbitrary file systems supporting the [fs.SubFS]
+// interface.
+func unsafeNewWrapSubFS(v fs.SubFS, root string, gg []fs.Matcher) (*WrapFS, error) {
+	var fSys fs.FS
+
+	if root == "." {
+		fSys = v
+	} else if sub, err := v.Sub(root); err == nil {
+		fSys = sub
+	} else {
+		return nil, err
+	}
+
+	return unsafeNewWrapFS(fSys, ".", gg)
+}
+
+func unsafeNewWrapFS(fSys fs.FS, root string, gg []fs.Matcher) (*WrapFS, error) {
+	var globs [][]fs.Matcher
+	if len(gg) > 0 {
+		globs = append(globs, gg)
+	}
+
+	out := &WrapFS{
+		layers: []fs.FS{fSys},
+		globs:  globs,
+		root:   root,
+	}
+
+	return out, nil
+}
+
 // MustWrapFS is equivalent to [NewWrapFS] but panics on error
 func MustWrapFS(layers ...fs.FS) *WrapFS {
 	out, err := NewWrapFS(layers...)
