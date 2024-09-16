@@ -118,6 +118,10 @@ func tryReadSeeker(v any) (fs.ReadSeeker, bool) {
 }
 
 func tryStat(v any) (fs.FileInfo, bool) {
+	if fi, ok := v.(fs.FileInfo); ok {
+		return fi, true
+	}
+
 	if f, ok := v.(interface {
 		Stat() (fs.FileInfo, error)
 	}); ok {
