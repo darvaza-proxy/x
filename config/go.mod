@@ -8,7 +8,7 @@ require (
 )
 
 require (
-	github.com/go-playground/validator/v10 v10.22.0
+	github.com/go-playground/validator/v10 v10.22.1
 	mvdan.cc/sh/v3 v3.8.0
 )
 
