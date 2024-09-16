@@ -177,6 +177,7 @@ func (h *AssetHandler) init() error {
 				return err
 			}
 
+			h.ct = ct
 			h.parsedCT = []qlist.QualityValue{qv}
 		}
 	}
