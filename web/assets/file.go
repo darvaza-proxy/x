@@ -165,6 +165,13 @@ func getETagsSetter(v any) (ETagsSetter, bool) {
 	return nil, false
 }
 
+func getFileName(v any) (string, bool) {
+	if fi, ok := tryStat(v); ok {
+		return fi.Name(), true
+	}
+	return "", false
+}
+
 func serve500(rw http.ResponseWriter, req *http.Request, err error) {
 	h := &web.HTTPError{
 		Code: http.StatusInternalServerError,

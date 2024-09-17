@@ -165,7 +165,8 @@ func (h *AssetHandler) init() error {
 	defer h.mu.Unlock()
 
 	if h.parsedCT == nil {
-		ct, err := getContentType(h.Asset, "")
+		name, _ := getFileName(h.Asset)
+		ct, err := getContentType(h.Asset, name)
 		switch {
 		case err != nil:
 			return err
@@ -177,6 +178,7 @@ func (h *AssetHandler) init() error {
 				return err
 			}
 
+			h.ct = ct
 			h.parsedCT = []qlist.QualityValue{qv}
 		}
 	}
