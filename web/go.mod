@@ -3,8 +3,8 @@ module darvaza.org/x/web
 go 1.21
 
 require (
-	darvaza.org/core v0.14.6
-	darvaza.org/x/fs v0.2.6
+	darvaza.org/core v0.14.7
+	darvaza.org/x/fs v0.2.7
 )
 
 require lukechampine.com/blake3 v1.3.0
