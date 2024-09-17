@@ -81,12 +81,7 @@ func NewFS(base fs.FS, root string, patterns ...string) (FS, error) {
 func sanitizeNewFS(root string, patterns []string) (string, []fs.Matcher, error) {
 	dir, ok := fs.Clean(root)
 	if !ok {
-		err := &fs.PathError{
-			Op:   "readdir",
-			Path: root,
-			Err:  fs.ErrInvalid,
-		}
-		return "", nil, err
+		return "", nil, newErrInvalid("readdir", root)
 	}
 
 	globs, err := fs.GlobCompile(patterns...)

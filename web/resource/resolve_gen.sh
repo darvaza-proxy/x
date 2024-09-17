@@ -46,7 +46,7 @@ EOT
 // and verify they are within the given boundaries.
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
-func ${fn2}[T $G](t RouteParamsTable, key string,${base:+base int,}
+func ${fn2}[T $G](t RouteParamsTable, key string,${base:+ base int,}
 	min, max T) (value T, found bool, err error) {
 	//
 	s, found := ${fn}[string](t, key)
