@@ -32,3 +32,17 @@ var (
 func ValidPath(name string) bool {
 	return fs.ValidPath(name)
 }
+
+// ReadFile is a proxy to the standard [fs.ReadFile] function
+// which attempts to read the content of a file with a given name
+// on the given file system.
+func ReadFile(fSys fs.FS, name string) ([]byte, error) {
+	return fs.ReadFile(fSys, name)
+}
+
+// Stat is a proxy to the standard [fs.Stat] function
+// which attempts to get [fs.FileInfo] about the given
+// name on the given file system.
+func Stat(fSys fs.FS, name string) (fs.FileInfo, error) {
+	return fs.Stat(fSys, name)
+}
