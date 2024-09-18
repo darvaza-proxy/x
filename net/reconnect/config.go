@@ -8,9 +8,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/amery/defaults"
+
 	"darvaza.org/core"
 	"darvaza.org/slog"
-	"darvaza.org/x/config"
 	"darvaza.org/x/net"
 )
 
@@ -84,7 +85,7 @@ func (cfg *Config) busy() bool {
 
 // SetDefaults fills any gap in the config
 func (cfg *Config) SetDefaults() error {
-	if err := config.Set(cfg); err != nil {
+	if err := defaults.Set(cfg); err != nil {
 		return err
 	}
 
