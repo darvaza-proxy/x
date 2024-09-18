@@ -99,6 +99,9 @@ func (c *Client) SetReadDeadline(d time.Duration) error {
 	}
 
 	t := TimeoutToAbsoluteTime(now, d)
+	if l, ok := c.WithDebug(conn.RemoteAddr()); ok {
+		l.Printf("%+n(%s: %v)", core.Here(), "read", d)
+	}
 	return conn.SetReadDeadline(t)
 }
 
@@ -118,6 +121,9 @@ func (c *Client) SetWriteDeadline(d time.Duration) error {
 	}
 
 	t := TimeoutToAbsoluteTime(now, d)
+	if l, ok := c.WithDebug(conn.RemoteAddr()); ok {
+		l.Printf("%+n(%s: %v)", core.Here(), "write", d)
+	}
 	return conn.SetWriteDeadline(t)
 }
 
@@ -130,6 +136,7 @@ func (c *Client) SetDeadline(read, write time.Duration) error {
 		write = read
 	}
 
+	here := core.Here()
 	now := time.Now()
 	conn, err := c.getConn()
 	if err != nil {
@@ -137,11 +144,17 @@ func (c *Client) SetDeadline(read, write time.Duration) error {
 	}
 
 	t := TimeoutToAbsoluteTime(now, read)
+	if l, ok := c.WithDebug(conn.RemoteAddr()); ok {
+		l.Printf("%+n(%s: %v)", here, "read", read)
+	}
 	if err := conn.SetReadDeadline(t); err != nil {
 		return err
 	}
 
 	t = TimeoutToAbsoluteTime(now, write)
+	if l, ok := c.WithDebug(conn.RemoteAddr()); ok {
+		l.Printf("%+n(%s: %v)", here, "write", write)
+	}
 	return conn.SetWriteDeadline(t)
 }
 
