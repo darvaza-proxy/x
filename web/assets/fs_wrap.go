@@ -217,7 +217,7 @@ func (o *WrapFS) getResolver() func(*http.Request) (string, error) {
 // getFileHandler implements the [httpView] interface returns the first named file if
 // valid and existing.
 func (o *WrapFS) getFileHandler(name string) http.Handler {
-	var out *wrapFSFile
+	var out http.Handler
 
 	o.forEachNameLayer(name, func(fSys fs.FS, fName string) bool {
 		if f, ok := o.newFileHandler(fSys, fName); ok {
