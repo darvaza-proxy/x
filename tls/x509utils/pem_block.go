@@ -1,6 +1,7 @@
 package x509utils
 
 import (
+	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -72,4 +73,44 @@ func BlockToCertificate(block *pem.Block) (*x509.Certificate, error) {
 		return cert, nil
 	}
 	return nil, ErrIgnored
+}
+
+// EncodeBytes produces a PEM encoded block
+func EncodeBytes(label string, body []byte, headers map[string]string) []byte {
+	var b bytes.Buffer
+	_ = pem.Encode(&b, &pem.Block{
+		Type:    label,
+		Bytes:   body,
+		Headers: headers,
+	})
+	return b.Bytes()
+}
+
+// EncodePKCS1PrivateKey produces a PEM encoded RSA Private Key
+func EncodePKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+	var out []byte
+	if key != nil {
+		body := x509.MarshalPKCS1PrivateKey(key)
+		out = EncodeBytes("RSA PRIVATE KEY", body, nil)
+	}
+	return out
+}
+
+// EncodePKCS8PrivateKey produces a PEM encoded Private Key
+func EncodePKCS8PrivateKey(key PrivateKey) ([]byte, error) {
+	var out []byte
+	if key != nil {
+		body, err := x509.MarshalPKCS8PrivateKey(key)
+		if err != nil {
+			return nil, err
+		}
+		out = EncodeBytes("PRIVATE KEY", body, nil)
+	}
+	return out, nil
+}
+
+// EncodeCertificate produces a PEM encoded x509 Certificate
+// without optional headers
+func EncodeCertificate(der []byte) []byte {
+	return EncodeBytes("CERTIFICATE", der, nil)
 }
