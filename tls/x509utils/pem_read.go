@@ -3,6 +3,7 @@ package x509utils
 import (
 	"encoding/pem"
 	"io/fs"
+	"os"
 	"path"
 
 	"darvaza.org/core"
@@ -124,4 +125,42 @@ func splitReadDir(fSys fs.FS, dir string) ([]fs.DirEntry, []fs.DirEntry, error) 
 	}
 
 	return files, dirs, nil
+}
+
+// ReadStringPEM works over raw PEM data, a filename or directory reading
+// PEM blocks and invoking a callback for each.
+func ReadStringPEM(s string, cb DecodePEMBlockFunc) error {
+	if ReadPEM([]byte(s), cb) == nil {
+		// raw. done.
+		return nil
+	}
+
+	st, err := os.Stat(s)
+	if err == nil {
+		// string is a file path
+		return readOSPathPEM(s, st, cb)
+	}
+
+	if pe, ok := err.(*os.PathError); ok {
+		if pe.Err == os.ErrInvalid {
+			// not a path
+			err = fs.ErrInvalid
+		}
+	}
+
+	return err
+}
+
+func readOSPathPEM(s string, st fs.FileInfo, cb DecodePEMBlockFunc) error {
+	if st.IsDir() {
+		return ReadDirPEM(os.DirFS(s), ".", cb)
+	}
+
+	// file
+	b, err := os.ReadFile(s)
+	if err != nil {
+		return err
+	}
+
+	return ReadPEM(b, cb)
 }
