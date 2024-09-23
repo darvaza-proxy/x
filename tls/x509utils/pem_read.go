@@ -3,6 +3,7 @@ package x509utils
 import (
 	"encoding/pem"
 	"io/fs"
+	"path"
 
 	"darvaza.org/core"
 )
@@ -62,4 +63,65 @@ func ReadFilePEM(fSys fs.FS, filename string, cb DecodePEMBlockFunc) error {
 		}
 	}
 	return nil
+}
+
+// ReadDirPEM reads a directory recursively looking for PEM files
+func ReadDirPEM(fSys fs.FS, dir string, cb DecodePEMBlockFunc) error {
+	files, dirs, err := splitReadDir(fSys, dir)
+	switch {
+	case err != nil:
+		// invalid directory
+		return err
+	case cb == nil:
+		// nothing to run
+		return nil
+	default:
+		var errs core.CompoundError
+
+		// files first
+		if err = doReadDirPEM(fSys, dir, cb, ReadFilePEM, files); err != nil {
+			errs.AppendError(err)
+		}
+
+		// then sub-directories
+		if err = doReadDirPEM(fSys, dir, cb, ReadDirPEM, dirs); err != nil {
+			errs.AppendError(err)
+		}
+
+		return errs.AsError()
+	}
+}
+
+func doReadDirPEM(fSys fs.FS, dir string, cb DecodePEMBlockFunc,
+	fn func(fs.FS, string, DecodePEMBlockFunc) error, entries []fs.DirEntry) error {
+	//
+	var errs core.CompoundError
+
+	for _, fi := range entries {
+		fullName := path.Join(dir, fi.Name())
+		if err := fn(fSys, fullName, cb); err != nil {
+			errs.AppendError(err)
+		}
+	}
+
+	return errs.AsError()
+}
+
+func splitReadDir(fSys fs.FS, dir string) ([]fs.DirEntry, []fs.DirEntry, error) {
+	dd, err := fs.ReadDir(fSys, dir)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	files := make([]fs.DirEntry, 0, len(dd))
+	dirs := make([]fs.DirEntry, 0, len(dd))
+	for _, de := range dd {
+		if de.IsDir() {
+			dirs = append(dirs, de)
+		} else {
+			files = append(files, de)
+		}
+	}
+
+	return files, dirs, nil
 }
