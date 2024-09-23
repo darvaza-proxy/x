@@ -45,3 +45,21 @@ func readBlock(fSys fs.FS, filename string, block *pem.Block, rest []byte, cb De
 
 	return true
 }
+
+// ReadFilePEM reads a PEM file calling cb for each block
+func ReadFilePEM(fSys fs.FS, filename string, cb DecodePEMBlockFunc) error {
+	b, err := fs.ReadFile(fSys, filename)
+	if err != nil {
+		return err
+	}
+
+	err = ReadPEM(b, cb)
+	if err != nil {
+		return &fs.PathError{
+			Op:   "pem.Decode",
+			Path: filename,
+			Err:  err,
+		}
+	}
+	return nil
+}
