@@ -14,3 +14,21 @@ type Handle syscall.Handle
 
 // Sys returns the underlying type for syscall operations
 func (h Handle) Sys() syscall.Handle { return syscall.Handle(h) }
+
+// LockEx is a no-op function that simulates an advisory exclusive lock on the file
+// associated to the given [Handle].
+//
+// Note: This function does not provide actual locking functionality on Windows.
+// It exists for API compatibility with other platforms.
+//
+// TODO: implement
+func LockEx(Handle) error { return nil }
+
+// UnlockEx is a no-op function that releases an advisory lock on the file associated
+// with the given Handle.
+//
+// Note: This function does not provide actual locking functionality on Windows.
+// It exists for API compatibility with other platforms.
+//
+// TODO: implement
+func UnlockEx(Handle) error { return nil }
