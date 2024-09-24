@@ -20,3 +20,9 @@ func Open(filename string) (Handle, error) {
 func (h Handle) Close() error {
 	return syscall.Close(h.Sys())
 }
+
+// IsZero indicates the [Handle] doesn't refer to a possibly valid
+// descriptor
+func (h Handle) IsZero() bool {
+	return h <= ZeroHandle
+}
