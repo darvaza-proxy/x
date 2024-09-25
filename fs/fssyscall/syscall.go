@@ -3,13 +3,13 @@
 package fssyscall
 
 import (
-	"os"
+	"io/fs"
 	"syscall"
 )
 
 // Open performs [syscall.Open] returning a [Handle]
-func Open(filename string) (Handle, error) {
-	h, err := syscall.Open(filename, os.O_RDONLY, 0)
+func Open(filename string, mode int, perm fs.FileMode) (Handle, error) {
+	h, err := syscall.Open(filename, mode, uint32(perm))
 	if err != nil {
 		return ZeroHandle, err
 	}
