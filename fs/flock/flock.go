@@ -2,19 +2,22 @@
 package flock
 
 import (
+	"os"
+
 	syscall "darvaza.org/x/fs/fssyscall"
 )
 
 // LockEx locks a file by name
 func LockEx(filename string) (syscall.Handle, error) {
-	zero := syscall.ZeroHandle
+	const zero = syscall.ZeroHandle
 
-	h, err := syscall.Open(filename)
+	h, err := syscall.Open(filename, os.O_RDONLY, 0)
 	if err != nil {
 		return zero, err
 	}
 
-	if err = syscall.LockEx(h); err != nil {
+	err = syscall.LockEx(h)
+	if err != nil {
 		_ = h.Close()
 		return zero, err
 	}
