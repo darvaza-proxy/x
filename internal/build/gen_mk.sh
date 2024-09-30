@@ -102,7 +102,7 @@ EOT
 		cat <<-EOT
 		$files$TAB=$TAB$files_cmd
 		EOT
-	done < "$INDEX" | column -t -s "$TAB" -o " "
+	done < "$INDEX" | column -t -s "$TAB"
 }
 
 gen_make_targets() {
