@@ -3,7 +3,7 @@ module darvaza.org/x/net
 go 1.21
 
 require (
-	darvaza.org/core v0.14.8
+	darvaza.org/core v0.14.9
 	darvaza.org/slog v0.5.10
 	darvaza.org/slog/handlers/discard v0.4.13
 	darvaza.org/x/fs v0.3.1
