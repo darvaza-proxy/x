@@ -129,7 +129,7 @@ gen_make_targets() {
 		depsx="fmt"
 		;;
 	up)
-		call="\$(GO) get -u -v ./...
+		call="\$(GO) get -u \$(GOUP_FLAGS) \$(GOUP_PACKAGES)
 \$(GO) mod tidy"
 		;;
 	test)
@@ -159,17 +159,15 @@ gen_make_targets() {
 			# special case
 			case "$cmd" in
 			get)
-				cmdx="get -tags tools"
+				cmdx="get -tags tools -v ./..."
 				;;
 			up)
-				cmdx="get -tags tools -u"
+				cmdx="get -tags tools -u \$(GOUP_FLAGS) \$(GOUP_PACKAGES)"
 				;;
 			*)
 				cmdx=
 				;;
 			esac
-
-			[ -z "$cmdx" ] || cmdx="\$(GO) $cmdx -v ./..."
 
 			case "$cmd" in
 			up)
