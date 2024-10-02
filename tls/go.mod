@@ -3,8 +3,8 @@ module darvaza.org/x/tls
 go 1.21
 
 require (
-	darvaza.org/core v0.14.8
-	darvaza.org/slog v0.5.10
+	darvaza.org/core v0.14.10
+	darvaza.org/slog v0.5.11
 )
 
 require golang.org/x/crypto v0.27.0
