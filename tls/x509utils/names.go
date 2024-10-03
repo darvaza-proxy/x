@@ -91,3 +91,12 @@ func removeZone(name string) string {
 	}
 	return name[:idx]
 }
+
+// NameAsIP prepares a sanitised IP address name for matching certificates
+func NameAsIP(name string) (string, bool) {
+	if addr, err := core.ParseAddr(name); err == nil {
+		s := fmt.Sprintf("[%s]", addr)
+		return s, true
+	}
+	return "", false
+}
