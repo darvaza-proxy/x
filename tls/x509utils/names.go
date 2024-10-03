@@ -100,3 +100,13 @@ func NameAsIP(name string) (string, bool) {
 	}
 	return "", false
 }
+
+// NameAsSuffix prepares a sanitised hostname for matching
+// certificate patterns
+func NameAsSuffix(name string) (string, bool) {
+	if idx := strings.IndexRune(name, '.'); idx > 0 {
+		name = name[idx:]
+		return name, len(name) > 1
+	}
+	return "", false
+}

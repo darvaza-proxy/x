@@ -2,8 +2,6 @@ package x509utils
 
 import (
 	"testing"
-
-	"darvaza.org/core"
 )
 
 type nameAsTest struct {
@@ -26,6 +24,26 @@ func TestNameAsIP(t *testing.T) {
 		s, ok := NameAsIP(entry.Name)
 		if s != entry.Expected || ok != entry.Ok {
 			t.Errorf("NameAsIP(%q) -> %q, %v", entry.Name, s, ok)
+		}
+	}
+}
+
+func TestNameAsSuffix(t *testing.T) {
+	var entries = []nameAsTest{
+		{"foo.example.com", ".example.com", true},
+		{".example.com", "", false},
+		{"a.b.c", ".b.c", true},
+		{".b.c", "", false},
+		{"b.c", ".c", true},
+		{".c", "", false},
+		{"c", "", false},
+		{"", "", false},
+	}
+
+	for _, entry := range entries {
+		s, ok := NameAsSuffix(entry.Name)
+		if s != entry.Expected || ok != entry.Ok {
+			t.Errorf("NameAsSuffix(%q) -> %q, %v", entry.Name, s, ok)
 		}
 	}
 }
