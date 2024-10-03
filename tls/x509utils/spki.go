@@ -33,6 +33,17 @@ func SubjectPublicKeySHA224(pub crypto.PublicKey) (hash [sha256.Size224]byte, er
 	return sha256.Sum224(b), nil
 }
 
+// SubjectPublicKeySHA256 returns the SHA256 hash of the SubjectPublicKey
+// of a [crypto.PublicKey]
+func SubjectPublicKeySHA256(pub crypto.PublicKey) (hash [sha256.Size]byte, err error) {
+	b, err := SubjectPublicKeyBytes(pub)
+	if err != nil {
+		return hash, err
+	}
+
+	return sha256.Sum256(b), nil
+}
+
 // SubjectPublicKeyBytes extracts the SubjectPublicKey bytes
 // from a [crypto.PublicKey]
 func SubjectPublicKeyBytes(pub crypto.PublicKey) ([]byte, error) {
