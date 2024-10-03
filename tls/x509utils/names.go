@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"net/url"
 	"strings"
 
 	"darvaza.org/core"
@@ -49,6 +50,11 @@ func appendIPAddresses(names []string, addrs []net.IP) []string {
 		}
 	}
 	return names
+}
+
+// Hostname returns a sanitised hostname for a parsed URL
+func Hostname(u *url.URL) (string, bool) {
+	return SanitizeName(u.Host)
 }
 
 // SanitizeName takes a Hostname and returns the name (or address)
