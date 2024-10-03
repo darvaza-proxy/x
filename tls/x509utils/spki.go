@@ -3,6 +3,7 @@ package x509utils
 import (
 	"crypto"
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -19,6 +20,17 @@ func SubjectPublicKeySHA1(pub crypto.PublicKey) (hash [sha1.Size]byte, err error
 	}
 
 	return sha1.Sum(b), nil
+}
+
+// SubjectPublicKeySHA224 returns the SHA224 hash of the SubjectPublicKey
+// of a [crypto.PublicKey]
+func SubjectPublicKeySHA224(pub crypto.PublicKey) (hash [sha256.Size224]byte, err error) {
+	b, err := SubjectPublicKeyBytes(pub)
+	if err != nil {
+		return hash, err
+	}
+
+	return sha256.Sum224(b), nil
 }
 
 // SubjectPublicKeyBytes extracts the SubjectPublicKey bytes
