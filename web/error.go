@@ -158,7 +158,7 @@ func NewHTTPError(code int, err error, note string) *HTTPError {
 func NewHTTPErrorf(code int, err error, format string, args ...any) *HTTPError {
 	switch {
 	case err != nil:
-		err = core.Wrap(err, format, args...)
+		err = core.Wrapf(err, format, args...)
 	default:
 		err = fmt.Errorf(format, args...)
 		if err.Error() == "" {
