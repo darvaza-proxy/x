@@ -60,11 +60,11 @@ func FormValuesSigned[T core.Signed](req *http.Request, field string,
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
 func FormValueSignedInRange[T core.Signed](req *http.Request, field string, base int,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	value, found, err = FormValueSigned[T](req, field, base)
 	if err == nil && found {
-		if value < min || value > max {
+		if value < minV || value > maxV {
 			err = errRange("ParseInt", FormatSigned(value, 10))
 		}
 	}
@@ -121,11 +121,11 @@ func FormValuesUnsigned[T core.Unsigned](req *http.Request, field string,
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
 func FormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string, base int,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	value, found, err = FormValueUnsigned[T](req, field, base)
 	if err == nil && found {
-		if value < min || value > max {
+		if value < minV || value > maxV {
 			err = errRange("ParseUint", FormatUnsigned(value, 10))
 		}
 	}
@@ -180,11 +180,11 @@ func FormValuesFloat[T core.Float](req *http.Request, field string) (values []T,
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
 func FormValueFloatInRange[T core.Float](req *http.Request, field string,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	value, found, err = FormValueFloat[T](req, field)
 	if err == nil && found {
-		if value < min || value > max {
+		if value < minV || value > maxV {
 			err = errRange("ParseFloat", FormatFloat(value, 'f', -1))
 		}
 	}
@@ -282,11 +282,11 @@ func PostFormValuesSigned[T core.Signed](req *http.Request, field string,
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
 func PostFormValueSignedInRange[T core.Signed](req *http.Request, field string, base int,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	value, found, err = PostFormValueSigned[T](req, field, base)
 	if err == nil && found {
-		if value < min || value > max {
+		if value < minV || value > maxV {
 			err = errRange("ParseInt", FormatSigned(value, 10))
 		}
 	}
@@ -343,11 +343,11 @@ func PostFormValuesUnsigned[T core.Unsigned](req *http.Request, field string,
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
 func PostFormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string, base int,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	value, found, err = PostFormValueUnsigned[T](req, field, base)
 	if err == nil && found {
-		if value < min || value > max {
+		if value < minV || value > maxV {
 			err = errRange("ParseUint", FormatUnsigned(value, 10))
 		}
 	}
@@ -402,11 +402,11 @@ func PostFormValuesFloat[T core.Float](req *http.Request, field string) (values 
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
 func PostFormValueFloatInRange[T core.Float](req *http.Request, field string,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	value, found, err = PostFormValueFloat[T](req, field)
 	if err == nil && found {
-		if value < min || value > max {
+		if value < minV || value > maxV {
 			err = errRange("ParseFloat", FormatFloat(value, 'f', -1))
 		}
 	}

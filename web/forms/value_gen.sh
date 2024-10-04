@@ -121,11 +121,11 @@ EOT
 // couldn't be converted to the intended type or if it's outside the specified
 // boundaries.
 func ${fn2}${T:+[T core.$g]}(req *http.Request, field string,${base:+ base int,}
-	min, max ${ret}) (value ${ret}, found bool, err error) {
+	minV, maxV ${ret}) (value ${ret}, found bool, err error) {
 	//
 	value, found, err = ${fn1}${T:+[T]}(req, field${base:+, base})
 	if err == nil && found {
-		if value < min || value > max {
+		if value < minV || value > maxV {
 			err = errRange("$fn", $format_v)
 		}
 	}
