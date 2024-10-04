@@ -200,7 +200,7 @@ func (c *Client) doOnError(conn net.Conn, err error, note string, args ...any) e
 	var addr net.Addr
 
 	if fn := c.getOnError(); fn != nil {
-		return fn(c.ctx, conn, core.Wrap(err, note, args...))
+		return fn(c.ctx, conn, core.Wrapf(err, note, args...))
 	}
 
 	if conn != nil {

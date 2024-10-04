@@ -26,11 +26,12 @@ func RouteParamValueFirstSigned[T core.Signed](t RouteParamsTable, key string,
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func RouteParamValueFirstSignedInRange[T core.Signed](t RouteParamsTable, key string, base int,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamFirst[string](t, key)
 	if found {
-		value, err = forms.ParseSignedInRange[T](s, base, min, max)
+		value, err = forms.ParseSignedInRange[T](s,
+			base, minV, maxV)
 	}
 	return value, found, err
 }
@@ -52,11 +53,12 @@ func RouteParamValueLastSigned[T core.Signed](t RouteParamsTable, key string,
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func RouteParamValueLastSignedInRange[T core.Signed](t RouteParamsTable, key string, base int,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamLast[string](t, key)
 	if found {
-		value, err = forms.ParseSignedInRange[T](s, base, min, max)
+		value, err = forms.ParseSignedInRange[T](s,
+			base, minV, maxV)
 	}
 	return value, found, err
 }
@@ -86,13 +88,14 @@ func RouteParamValueAllSigned[T core.Signed](t RouteParamsTable, key string,
 // It also returns and indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func RouteParamValueAllSignedInRange[T core.Signed](t RouteParamsTable, key string, base int,
-	min, max T) (values []T, found bool, err error) {
+	minV, maxV T) (values []T, found bool, err error) {
 	//
 	ss, found := RouteParamAll[string](t, key)
 	if found {
 		values = make([]T, 0, len(ss))
 		for _, s := range ss {
-			v, err := forms.ParseSignedInRange[T](s, base, min, max)
+			v, err := forms.ParseSignedInRange[T](s,
+				base, minV, maxV)
 			if err != nil {
 				return values, true, err
 			}
@@ -119,11 +122,12 @@ func RouteParamValueFirstUnsigned[T core.Unsigned](t RouteParamsTable, key strin
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func RouteParamValueFirstUnsignedInRange[T core.Unsigned](t RouteParamsTable, key string, base int,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamFirst[string](t, key)
 	if found {
-		value, err = forms.ParseUnsignedInRange[T](s, base, min, max)
+		value, err = forms.ParseUnsignedInRange[T](s,
+			base, minV, maxV)
 	}
 	return value, found, err
 }
@@ -145,11 +149,12 @@ func RouteParamValueLastUnsigned[T core.Unsigned](t RouteParamsTable, key string
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func RouteParamValueLastUnsignedInRange[T core.Unsigned](t RouteParamsTable, key string, base int,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamLast[string](t, key)
 	if found {
-		value, err = forms.ParseUnsignedInRange[T](s, base, min, max)
+		value, err = forms.ParseUnsignedInRange[T](s,
+			base, minV, maxV)
 	}
 	return value, found, err
 }
@@ -179,13 +184,14 @@ func RouteParamValueAllUnsigned[T core.Unsigned](t RouteParamsTable, key string,
 // It also returns and indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func RouteParamValueAllUnsignedInRange[T core.Unsigned](t RouteParamsTable, key string, base int,
-	min, max T) (values []T, found bool, err error) {
+	minV, maxV T) (values []T, found bool, err error) {
 	//
 	ss, found := RouteParamAll[string](t, key)
 	if found {
 		values = make([]T, 0, len(ss))
 		for _, s := range ss {
-			v, err := forms.ParseUnsignedInRange[T](s, base, min, max)
+			v, err := forms.ParseUnsignedInRange[T](s,
+				base, minV, maxV)
 			if err != nil {
 				return values, true, err
 			}
@@ -211,11 +217,12 @@ func RouteParamValueFirstFloat[T core.Float](t RouteParamsTable, key string) (va
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func RouteParamValueFirstFloatInRange[T core.Float](t RouteParamsTable, key string,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamFirst[string](t, key)
 	if found {
-		value, err = forms.ParseFloatInRange[T](s, min, max)
+		value, err = forms.ParseFloatInRange[T](s,
+			minV, maxV)
 	}
 	return value, found, err
 }
@@ -236,11 +243,12 @@ func RouteParamValueLastFloat[T core.Float](t RouteParamsTable, key string) (val
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func RouteParamValueLastFloatInRange[T core.Float](t RouteParamsTable, key string,
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	s, found := RouteParamLast[string](t, key)
 	if found {
-		value, err = forms.ParseFloatInRange[T](s, min, max)
+		value, err = forms.ParseFloatInRange[T](s,
+			minV, maxV)
 	}
 	return value, found, err
 }
@@ -269,13 +277,14 @@ func RouteParamValueAllFloat[T core.Float](t RouteParamsTable, key string) (valu
 // It also returns and indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func RouteParamValueAllFloatInRange[T core.Float](t RouteParamsTable, key string,
-	min, max T) (values []T, found bool, err error) {
+	minV, maxV T) (values []T, found bool, err error) {
 	//
 	ss, found := RouteParamAll[string](t, key)
 	if found {
 		values = make([]T, 0, len(ss))
 		for _, s := range ss {
-			v, err := forms.ParseFloatInRange[T](s, min, max)
+			v, err := forms.ParseFloatInRange[T](s,
+				minV, maxV)
 			if err != nil {
 				return values, true, err
 			}

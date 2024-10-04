@@ -47,11 +47,12 @@ EOT
 // It also returns an indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func ${fn2}[T $G](t RouteParamsTable, key string,${base:+ base int,}
-	min, max T) (value T, found bool, err error) {
+	minV, maxV T) (value T, found bool, err error) {
 	//
 	s, found := ${fn}[string](t, key)
 	if found {
-		value, err = forms.Parse${g}InRange[T](s,${base:+ base,} min, max)
+		value, err = forms.Parse${g}InRange[T](s,
+			${base:+base, }minV, maxV)
 	}
 	return value, found, err
 }
@@ -108,13 +109,14 @@ EOT
 // It also returns and indicator if the parameter was present,
 // and potentially an error of [strconv.NumError] type.
 func ${fn2}[T $G](t RouteParamsTable, key string,${base:+ base int,}
-	min, max T) (values []T, found bool, err error) {
+	minV, maxV T) (values []T, found bool, err error) {
 	//
 	ss, found := ${fn}[string](t, key)
 	if found {
 		values = make([]T, 0, len(ss))
 		for _, s := range ss {
-			v, err := forms.Parse${g}InRange[T](s,${base:+ base,} min, max)
+			v, err := forms.Parse${g}InRange[T](s,
+				${base:+base, }minV, maxV)
 			if err != nil {
 				return values, true, err
 			}
