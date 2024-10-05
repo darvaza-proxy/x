@@ -3,7 +3,7 @@ module darvaza.org/x/config
 go 1.21
 
 require (
-	darvaza.org/core v0.15.0
+	darvaza.org/core v0.15.1
 	github.com/amery/defaults v0.1.0
 )
 
