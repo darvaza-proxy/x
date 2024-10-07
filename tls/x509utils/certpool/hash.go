@@ -4,6 +4,8 @@ import (
 	"crypto/x509"
 
 	"github.com/zeebo/blake3"
+
+	"darvaza.org/x/tls/x509utils"
 )
 
 const (
@@ -40,6 +42,24 @@ func HashCert(cert *x509.Certificate) (Hash, bool) {
 		return Hash{}, false
 	}
 	return Sum(cert.Raw), true
+}
+
+// HashSubject produces a blake3 digest of the raw subject of the Certificate
+func HashSubject(cert *x509.Certificate) (Hash, bool) {
+	if cert == nil || len(cert.RawSubject) == 0 {
+		return Hash{}, false
+	}
+	return Sum(cert.RawSubject), true
+}
+
+// HashSubjectPublicKey produces a blake3 digest of the PublicKey of the Certificate
+func HashSubjectPublicKey(cert *x509.Certificate) (Hash, bool) {
+	if cert != nil && cert.PublicKey != nil {
+		if b, err := x509utils.SubjectPublicKeyBytes(cert.PublicKey); err == nil {
+			return Sum(b), true
+		}
+	}
+	return Hash{}, false
 }
 
 // Sum is a shortcut to our preferred hash function, blake3.Sum256()
