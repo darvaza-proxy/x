@@ -39,6 +39,10 @@ func HashCert(cert *x509.Certificate) (Hash, bool) {
 	if cert == nil || len(cert.Raw) == 0 {
 		return Hash{}, false
 	}
+	return Sum(cert.Raw), true
+}
 
-	return blake3.Sum256(cert.Raw), true
+// Sum is a shortcut to our preferred hash function, blake3.Sum256()
+func Sum(data []byte) Hash {
+	return blake3.Sum256(data)
 }
