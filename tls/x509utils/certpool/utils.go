@@ -2,6 +2,11 @@ package certpool
 
 import (
 	"context"
+	"encoding/pem"
+	"io/fs"
+
+	"darvaza.org/core"
+	"darvaza.org/x/tls/x509utils"
 )
 
 func copyMap[K comparable, V any](m map[K]V, fn func(V) (V, bool)) map[K]V {
@@ -63,5 +68,31 @@ func deleteMapListMatchFn[K, V comparable](m map[K]*List[V], keys []K, eq func(v
 		if l, ok := m[key]; ok {
 			l.DeleteMatchFn(eq)
 		}
+	}
+}
+
+// revive:disable:flag-parameter
+func newCertAdder(pool *CertPool, caOnly bool, errs *core.CompoundError) x509utils.DecodePEMBlockFunc {
+	// revive:enable:flag-parameter
+
+	return func(_ fs.FS, fileName string, block *pem.Block) bool {
+		cert, err := x509utils.BlockToCertificate(block)
+		switch {
+		case cert != nil:
+			if !caOnly || cert.IsCA {
+				pool.AddCert(cert)
+			}
+		case errs == nil, err == nil, err == x509utils.ErrIgnored:
+			// ignore
+		case fileName != "":
+			errs.AppendError(&fs.PathError{
+				Op:   "ParseCertificate",
+				Path: fileName,
+				Err:  err,
+			})
+		default:
+			errs.AppendError(err)
+		}
+		return true
 	}
 }
