@@ -41,6 +41,9 @@ type CertPool interface {
 	Export() *x509.CertPool
 }
 
+// CertPoolIterFunc defines the type of function passed to CertPool.ForEach
+type CertPoolIterFunc func(context.Context, *x509.Certificate) bool
+
 // A CertPoolWriter extends the CertPool interface with write capabilities.
 type CertPoolWriter interface {
 	CertPool
