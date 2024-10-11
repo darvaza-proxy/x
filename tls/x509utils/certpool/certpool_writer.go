@@ -121,7 +121,7 @@ func (s *CertPool) Import(ctx context.Context, src x509utils.CertPool) (int, err
 		return 0, ErrNilReceiver
 	} else if err := ctx.Err(); err != nil {
 		return 0, err
-	} else if src == nil {
+	} else if src == nil || src == s {
 		return 0, nil
 	}
 
