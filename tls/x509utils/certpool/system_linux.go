@@ -48,10 +48,10 @@ func loadCertsFirstFile(pool *CertPool, errs *core.CompoundError, files ...strin
 	for _, fileName := range files {
 		err := loadCertsFile(addFn, fileName)
 		switch {
-		case pool.Count() > initial:
-			return
 		case err != nil:
 			errs.AppendError(err)
+		case pool.Count() > initial:
+			return
 		}
 	}
 }
@@ -84,18 +84,12 @@ func loadCertsFile(addFn x509utils.DecodePEMBlockFunc, fileName string) error {
 func loadCertsDir(pool *CertPool, dir string) error {
 	var errs core.CompoundError
 
-	initial := pool.Count()
 	addFn := newCertAdder(pool, SystemCAOnly, &errs)
-	err := x509utils.ReadDirPEM(os.DirFS(dir), ".", addFn)
-	switch {
-	case pool.Count() > initial:
-		// certs loaded. ignore errors
-		return nil
-	case err != nil:
+	if err := x509utils.ReadDirPEM(os.DirFS(dir), ".", addFn); err != nil {
 		errs.AppendError(err)
 	}
 
-	// amend Path
+	// amend PathError.Path
 	for i, err := range errs.Errs {
 		if e, ok := err.(*fs.PathError); ok {
 			errs.Errs[i] = amendPathError(e, dir)
