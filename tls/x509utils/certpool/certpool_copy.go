@@ -9,16 +9,35 @@ import (
 // Export assembles a [x509.CertPool] with all the certificates
 // contained in the store.
 func (s *CertPool) Export() *x509.CertPool {
-	out := x509.NewCertPool()
-	if s != nil {
-		s.mu.RLock()
-		defer s.mu.RUnlock()
+	if s == nil {
+		return x509.NewCertPool()
+	}
 
-		for _, ce := range s.hashed {
-			out.AddCert(ce.cert)
-		}
+	s.mu.Lock()
+	defer s.mu.RUnlock()
+	if out := s.cache; out != nil {
+		// cached
+		return out
+	}
+
+	// new
+	out := s.unsafeExport()
+	// remember
+	s.cache = out
+
+	return out
+}
+
+func (s *CertPool) unsafeExport() *x509.CertPool {
+	out := x509.NewCertPool()
+	for _, ce := range s.hashed {
+		out.AddCert(ce.cert)
 	}
 	return out
+}
+
+func (s *CertPool) unsafeInvalidateCache() {
+	s.cache = nil
 }
 
 // Copy creates a copy of the [CertPool] store, optionally

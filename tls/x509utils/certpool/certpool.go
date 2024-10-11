@@ -2,6 +2,7 @@
 package certpool
 
 import (
+	"crypto/x509"
 	"sync"
 
 	"darvaza.org/x/tls/x509utils"
@@ -15,6 +16,7 @@ var (
 type CertPool struct {
 	mu sync.RWMutex
 
+	cache    *x509.CertPool
 	hashed   map[Hash]*certPoolEntry
 	names    map[string]*List[*certPoolEntry]
 	patterns map[string]*List[*certPoolEntry]
@@ -70,6 +72,7 @@ func (s *CertPool) init() {
 }
 
 func (s *CertPool) reset() {
+	s.cache = nil
 	s.hashed = make(map[Hash]*certPoolEntry)
 	s.names = make(map[string]*List[*certPoolEntry])
 	s.patterns = make(map[string]*List[*certPoolEntry])
