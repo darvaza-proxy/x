@@ -16,7 +16,7 @@ var (
 )
 
 // SystemCertPool returns a Pool populated with the
-// system's valid CA certificates.
+// system's valid certificates.
 func SystemCertPool() (*CertPool, error) {
 	systemMutex.Lock()
 	defer systemMutex.Unlock()
@@ -29,14 +29,18 @@ func SystemCertPool() (*CertPool, error) {
 	}
 
 	// first call
-	roots, err := loadSystemCerts()
-	if err != nil {
-		// remember error
-		systemCertsErr = err
-		return nil, err
+	roots, err := NewSystemCertPool()
+	if roots.Count() > 0 {
+		// remember roots
+		systemCerts = roots
+		return roots.Copy(nil, false), nil
 	}
 
-	// remember roots
-	systemCerts = roots
-	return roots.Copy(nil, false), nil
+	if err == nil {
+		err = ErrNoCertificatesFound
+	}
+
+	// remember error
+	systemCertsErr = err
+	return nil, err
 }

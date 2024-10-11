@@ -4,6 +4,6 @@ package certpool
 
 import "darvaza.org/core"
 
-func loadSystemCerts() (*CertPool, error) {
+func NewSystemCertPool() (*CertPool, error) {
 	return nil, core.ErrTODO
 }

@@ -12,7 +12,10 @@ import (
 	"darvaza.org/x/tls/x509utils"
 )
 
-func loadSystemCerts() (*CertPool, error) {
+// NewSystemCertPool returns a [CertPool] populated
+// with all system valid certificates and an aggregation of
+// errors.
+func NewSystemCertPool() (*CertPool, error) {
 	var errs core.CompoundError
 	var pool CertPool
 
@@ -29,7 +32,7 @@ func loadSystemCerts() (*CertPool, error) {
 	switch {
 	case pool.Count() > 0:
 		// success
-		return &pool, nil
+		return &pool, errs.AsError()
 	case errs.Ok():
 		// no certs and no errors... don't bother again.
 		return nil, ErrNoCertificatesFound
