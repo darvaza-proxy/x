@@ -12,7 +12,7 @@ import (
 func (s *CertPool) Get(ctx context.Context, name string) (*x509.Certificate, error) {
 	if s == nil {
 		// invalid
-		return nil, ErrNilReceiver
+		return nil, core.ErrNilReceiver
 	}
 
 	sn, ok := x509utils.SanitizeName(name)
