@@ -49,37 +49,25 @@ func (s *CertPool) Delete(ctx context.Context, name string) error {
 	if !ok || s == nil {
 		return core.ErrInvalid
 	}
-
-	s.mu.Lock()
-	entries := s.getListForName(sn).Values()
-	s.mu.Unlock()
-
 	if err := ctx.Err(); err != nil {
-		// cancelled
 		return err
 	}
 
-	return s.doDeleteEntries(entries)
-}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-func (s *CertPool) doDeleteEntries(entries []*certPoolEntry) error {
-	if len(entries) > 0 {
-		// entries to unique hashes
-		core.SliceUniquify(&entries)
-		hashes := make([]Hash, len(entries))
-		for i, ce := range entries {
-			hashes[i] = ce.hash
-		}
+	// convert name to unique hashes
+	hashes := core.SliceAsFn(func(ce *certPoolEntry) (Hash, bool) {
+		return ce.Hash()
+	}, s.getListForName(sn).Values())
 
-		s.mu.Lock()
-		defer s.mu.Unlock()
+	core.SliceUniquify(&hashes)
 
-		if s.unsafeDeleteCerts(hashes...) > 0 {
-			return nil
-		}
+	if s.unsafeDeleteCerts(hashes...) > 0 {
+		return nil
 	}
 
-	return core.ErrNotExists
+	return core.Wrap(core.ErrNotExists, name)
 }
 
 // DeleteCert removes a certificate, by raw DER hash, from the store.
