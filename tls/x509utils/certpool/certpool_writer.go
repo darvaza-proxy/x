@@ -105,6 +105,7 @@ func (s *CertPool) unsafeDeleteCerts(hashes ...Hash) int {
 }
 
 func (s *CertPool) unsafeDeleteCertEntry(ce *certPoolEntry) {
+	s.unsafeInvalidateCache()
 	delete(s.hashed, ce.hash)
 
 	eq := func(p *certPoolEntry) bool {
@@ -240,11 +241,13 @@ func (s *CertPool) unsafeAddCertName(ce *certPoolEntry, name string) bool {
 	}
 
 	ce.names = append(ce.names, name)
+	s.unsafeInvalidateCache()
 	appendMapList(s.names, name, ce)
 	return true
 }
 
 func (s *CertPool) unsafeAddCertEntry(ce *certPoolEntry) {
+	s.unsafeInvalidateCache()
 	s.hashed[ce.hash] = ce
 	for _, name := range ce.names {
 		appendMapList(s.names, name, ce)
