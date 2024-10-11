@@ -16,7 +16,10 @@ type DecodePEMBlockFunc func(fSys fs.FS, filename string, block *pem.Block) bool
 // ReadPEM invoques a callback for each PEM block found
 // it can receive raw PEM data
 func ReadPEM(b []byte, cb DecodePEMBlockFunc) error {
-	if len(b) == 0 || cb == nil {
+	switch {
+	case len(b) == 0:
+		return ErrEmpty
+	case cb == nil:
 		// nothing do
 		return nil
 	}

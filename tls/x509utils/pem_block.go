@@ -10,7 +10,10 @@ import (
 )
 
 var (
-	// ErrIgnored is used when we ask the user to try a different function instead
+	// ErrEmpty indicates the file, string or bytes slice is empty.
+	ErrEmpty = errors.New("empty")
+
+	// ErrIgnored is used when we ask the user to try a different function instead.
 	ErrIgnored = errors.New("type of value out of scope")
 
 	// ErrNotSupported indicates the type of [PrivateKey] or [PublicKey] isn't
