@@ -25,7 +25,7 @@ type Bundler struct {
 // specified roots, intermediates and quality function.
 func (s *Bundler) Bundle(cert *x509.Certificate, key x509utils.PrivateKey) (*tls.Certificate, error) {
 	if s == nil {
-		return nil, certpool.ErrNilReceiver
+		return nil, core.ErrNilReceiver
 	} else if err := s.init(); err != nil {
 		return nil, err
 	}
