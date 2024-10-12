@@ -54,7 +54,9 @@ func (s *CertPool) ForEach(ctx context.Context, fn func(context.Context, *x509.C
 func (s *CertPool) unsafeExportCerts() []*x509.Certificate {
 	out := make([]*x509.Certificate, 0, len(s.hashed))
 	for _, ce := range s.hashed {
-		out = append(out, ce.cert)
+		if ce.Valid() {
+			out = append(out, ce.cert)
+		}
 	}
 	return out
 }
