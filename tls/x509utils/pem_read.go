@@ -13,42 +13,30 @@ import (
 // to terminate the loop
 type DecodePEMBlockFunc func(fSys fs.FS, filename string, block *pem.Block) bool
 
-// ReadPEM invoques a callback for each PEM block found
-// it can receive raw PEM data
+// ReadPEM invokes a callback for each PEM block found in the input data.
+// It returns ErrEmpty if the input is empty, core.ErrInvalid if it
+// fails to decode.
 func ReadPEM(b []byte, cb DecodePEMBlockFunc) error {
-	switch {
-	case len(b) == 0:
+	var block *pem.Block
+
+	if len(b) == 0 {
 		return ErrEmpty
-	case cb == nil:
-		// nothing do
-		return nil
 	}
 
-	if block, rest := pem.Decode(b); block != nil {
-		// PEM chain
-		_ = readBlock(nil, "", block, rest, cb)
-		return nil
-	}
-
-	// Not PEM
-	return core.ErrInvalid
-}
-
-func readBlock(fSys fs.FS, filename string, block *pem.Block, rest []byte, cb DecodePEMBlockFunc) bool {
-	for block != nil {
-		if !cb(fSys, filename, block) {
-			// cascade termination request
-			return false
-		} else if len(rest) == 0 {
+	for {
+		block, b = pem.Decode(b)
+		switch {
+		case block == nil:
+			// failed to decode
+			return core.ErrInvalid
+		case cb != nil && !cb(nil, "", block):
+			// aborted
+			return nil
+		case len(b) == 0:
 			// EOF
-			break
+			return nil
 		}
-
-		// next
-		block, rest = pem.Decode(rest)
 	}
-
-	return true
 }
 
 // ReadFilePEM reads a PEM file calling cb for each block
