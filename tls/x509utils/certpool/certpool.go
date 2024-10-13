@@ -67,11 +67,21 @@ func (s *CertPool) IsCA() bool {
 
 func (s *CertPool) init() {
 	if s != nil && s.hashed == nil {
-		s.reset()
+		s.unsafeReset()
 	}
 }
 
-func (s *CertPool) reset() {
+// Reset removes all certificates from the store.
+func (s *CertPool) Reset() {
+	if s != nil {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		s.unsafeReset()
+	}
+}
+
+func (s *CertPool) unsafeReset() {
 	s.cache = nil
 	s.hashed = make(map[Hash]*certPoolEntry)
 	s.names = make(map[string]*List[*certPoolEntry])
