@@ -25,7 +25,7 @@ type Bundler struct {
 // specified roots, intermediates and quality function.
 func (s *Bundler) Bundle(cert *x509.Certificate, key x509utils.PrivateKey) (*tls.Certificate, error) {
 	if s == nil {
-		return nil, certpool.ErrNilReceiver
+		return nil, core.ErrNilReceiver
 	} else if err := s.init(); err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func BundleFn(opt x509.VerifyOptions, less func(a, b []*x509.Certificate) bool, 
 	switch {
 	case cert == nil:
 		return nil, core.QuietWrap(core.ErrInvalid, "certificate not provided")
-	case key != nil && !validCertKeyPair(cert, key):
+	case key != nil && !x509utils.ValidCertKeyPair(cert, key):
 		return nil, core.QuietWrap(core.ErrInvalid, "key doesn't match certificate")
 	case opt.Roots == nil:
 		pool, err := certpool.SystemCertPool()
@@ -90,18 +90,6 @@ func BundleFn(opt x509.VerifyOptions, less func(a, b []*x509.Certificate) bool, 
 	}
 
 	return unsafeBundleFn(opt, less, cert, key)
-}
-
-func validCertKeyPair(cert *x509.Certificate, key x509utils.PrivateKey) bool {
-	if cert == nil || key == nil {
-		return false
-	}
-
-	if pub, ok := key.Public().(x509utils.PublicKey); ok {
-		return pub.Equal(cert.PublicKey)
-	}
-
-	return false
 }
 
 func unsafeBundleFn(opt x509.VerifyOptions, //
