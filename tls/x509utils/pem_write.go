@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"io"
 
 	"darvaza.org/core"
@@ -34,8 +33,12 @@ func WriteKey(w io.Writer, key PrivateKey) (int64, error) {
 func WriteCert(w io.Writer, cert *x509.Certificate) (int64, error) {
 	var buf bytes.Buffer
 
-	if len(cert.Raw) == 0 {
-		err := errors.New("missing Raw DER certificate")
+	switch {
+	case cert == nil:
+		err := &ErrInvalidCert{Reason: "not provided"}
+		return 0, err
+	case len(cert.Raw) == 0:
+		err := &ErrInvalidCert{Reason: "missing Raw DER certificate", Cert: cert}
 		return 0, err
 	}
 
@@ -44,7 +47,11 @@ func WriteCert(w io.Writer, cert *x509.Certificate) (int64, error) {
 		Bytes: cert.Raw,
 	})
 	if err != nil {
-		err = core.Wrap(err, "failed to encode certificate")
+		err = &ErrInvalidCert{
+			Cert:   cert,
+			Err:    err,
+			Reason: "failed to encode certificate",
+		}
 		return 0, err
 	}
 
