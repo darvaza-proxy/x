@@ -84,12 +84,14 @@ func BundleFn(opt x509.VerifyOptions, less func(a, b []*x509.Certificate) bool, 
 	}
 
 	if less == nil {
-		less = func(a, b []*x509.Certificate) bool {
-			return len(a) < len(b)
-		}
+		less = defaultCertChainLess
 	}
 
 	return unsafeBundleFn(opt, less, cert, key)
+}
+
+func defaultCertChainLess(a, b []*x509.Certificate) bool {
+	return len(a) < len(b)
 }
 
 func unsafeBundleFn(opt x509.VerifyOptions, //
