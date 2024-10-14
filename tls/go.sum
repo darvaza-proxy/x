@@ -1,3 +1,9 @@
+darvaza.org/cache v0.3.1 h1:KQMkZniGvt4/Ee5VDw2kE5L+eqZ5wbWPWkbVzeFrDA0=
+darvaza.org/cache v0.3.1/go.mod h1:iyed+lwn1YQj/4FmETVfXWpndly8fgkblIbCP4+gUy4=
+darvaza.org/cache/x/memcache v0.2.0 h1:nd5/xOBToMo7FCUeZITgTcL9FfK5wlEUMzbY7x5eSDg=
+darvaza.org/cache/x/memcache v0.2.0/go.mod h1:wIabuT/uZuu5nlNGcHXoQzGTKQkrPn1Ia6+sA4AI0+k=
+darvaza.org/cache/x/simplelru v0.1.10 h1:SRCVFeT9WH2pDiOHC4YLMtK7CLrtehCwUzBUqxZwogY=
+darvaza.org/cache/x/simplelru v0.1.10/go.mod h1:s0md8qz4JK1M23zCP/qr9Zog2tM6QmseVQCCIpza0ZY=
 darvaza.org/core v0.15.2 h1:reSkWMHTkqCjhDJox89+gObadAikKDjddRbzS+5/wIQ=
 darvaza.org/core v0.15.2/go.mod h1:zvFshV8ncuQcvZxjPsHfBgBvVtwa+bHAWDpMQ3N/Ajc=
 darvaza.org/slog v0.5.14 h1:F8+OU0u3GbfNzHaJRT8XWgr07LK2ExFLA1BRks1qtgk=
