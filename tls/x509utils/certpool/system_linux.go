@@ -3,7 +3,6 @@
 package certpool
 
 import (
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -58,27 +57,18 @@ func loadCertsFirstFile(pool *CertPool, errs *core.CompoundError, files ...strin
 
 func loadCertsFile(addFn x509utils.DecodePEMBlockFunc, fileName string) error {
 	b, err := os.ReadFile(fileName)
-	switch {
-	case err != nil:
+	if err != nil {
 		return err
-	case len(b) == 0:
-		// empty file:
-		return &fs.PathError{
-			Op:   "read",
-			Path: fileName,
-			Err:  errors.New("empty certificates file"),
-		}
-	default:
-		if err := x509utils.ReadPEM(b, addFn); err != nil {
-			// bad content
-			return &fs.PathError{
-				Op:   "pem.Decode",
-				Path: fileName,
-				Err:  err,
-			}
-		}
-		return nil
 	}
+	if err := x509utils.ReadPEM(b, addFn); err != nil {
+		// bad content
+		return &fs.PathError{
+			Op:   "pem.Decode",
+			Path: fileName,
+			Err:  err,
+		}
+	}
+	return nil
 }
 
 func loadCertsDir(pool *CertPool, dir string) error {
