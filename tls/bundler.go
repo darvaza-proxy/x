@@ -3,6 +3,7 @@ package tls
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"sync"
 
 	"darvaza.org/core"
 	"darvaza.org/x/tls/x509utils"
@@ -18,15 +19,14 @@ type Bundler struct {
 	// Quality comparison function. Defaults to shorter-chain.
 	Less func(a, b []*x509.Certificate) bool
 
+	mu   sync.Mutex
 	opts x509.VerifyOptions
 }
 
 // Bundle bundles a key and a certificate into a [tls.Certificate] using the
 // specified roots, intermediates and quality function.
 func (s *Bundler) Bundle(cert *x509.Certificate, key x509utils.PrivateKey) (*tls.Certificate, error) {
-	if s == nil {
-		return nil, core.ErrNilReceiver
-	} else if err := s.init(); err != nil {
+	if err := s.init(); err != nil {
 		return nil, err
 	}
 
@@ -34,6 +34,17 @@ func (s *Bundler) Bundle(cert *x509.Certificate, key x509utils.PrivateKey) (*tls
 }
 
 func (s *Bundler) init() error {
+	if s == nil {
+		return core.ErrNilReceiver
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.unsafeInit()
+}
+
+func (s *Bundler) unsafeInit() error {
 	if s.opts.Roots == nil {
 		if s.Roots == nil {
 			pool, err := certpool.SystemCertPool()
@@ -57,8 +68,13 @@ func (s *Bundler) init() error {
 
 // Reset drops any cached information.
 func (s *Bundler) Reset() {
-	s.opts.Roots = nil
-	s.opts.Intermediates = nil
+	if s != nil {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		s.opts.Roots = nil
+		s.opts.Intermediates = nil
+	}
 }
 
 // Bundle assembles a verified [tls.Certificate], choosing the shortest trust chain.
