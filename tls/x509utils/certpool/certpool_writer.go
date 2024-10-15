@@ -119,7 +119,7 @@ func (s *CertPool) unsafeDeleteCertEntry(ce *certPoolEntry) {
 // Import certificates from another CertPool.
 func (s *CertPool) Import(ctx context.Context, src x509utils.CertPool) (int, error) {
 	if s == nil {
-		return 0, ErrNilReceiver
+		return 0, core.ErrNilReceiver
 	} else if err := ctx.Err(); err != nil {
 		return 0, err
 	} else if src == nil || src == s {
@@ -153,7 +153,7 @@ func (s *CertPool) doImport(ctx context.Context, src x509utils.CertPool) (int, e
 // ImportPEM adds x509 certificates contained in the PEM encoded data.
 func (s *CertPool) ImportPEM(ctx context.Context, b []byte) (int, error) {
 	if s == nil {
-		return 0, ErrNilReceiver
+		return 0, core.ErrNilReceiver
 	} else if err := ctx.Err(); err != nil {
 		return 0, err
 	} else if len(b) == 0 {
