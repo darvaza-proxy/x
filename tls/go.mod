@@ -3,7 +3,7 @@ module darvaza.org/x/tls
 go 1.21
 
 require (
-	darvaza.org/core v0.15.1
+	darvaza.org/core v0.15.2
 	darvaza.org/slog v0.5.12
 )
 
