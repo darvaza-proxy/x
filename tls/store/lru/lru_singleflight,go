@@ -1,0 +1,13 @@
+package lru
+
+import (
+	"context"
+
+	"darvaza.org/core"
+	"darvaza.org/x/tls"
+)
+
+// this is not thread-safe.
+func (*LRU) spawnSingleFlightGet(_ context.Context, _ string, _ *tls.ClientHelloInfo, _ chan<- doGetResult) error {
+	return core.ErrTODO
+}

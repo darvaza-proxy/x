@@ -5,6 +5,7 @@ go 1.22
 require (
 	darvaza.org/core v0.16.1
 	darvaza.org/slog v0.6.1
+	darvaza.org/slog/handlers/discard v0.5.1
 	darvaza.org/x/container v0.2.1
 )
 
