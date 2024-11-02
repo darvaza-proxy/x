@@ -1,13 +1,13 @@
-darvaza.org/core v0.15.1 h1:OxAeTM1HnbpkGzalk2HmZiEsRKeOZrgoeQyHokEKVMA=
-darvaza.org/core v0.15.1/go.mod h1:zvFshV8ncuQcvZxjPsHfBgBvVtwa+bHAWDpMQ3N/Ajc=
+darvaza.org/core v0.15.2 h1:reSkWMHTkqCjhDJox89+gObadAikKDjddRbzS+5/wIQ=
+darvaza.org/core v0.15.2/go.mod h1:zvFshV8ncuQcvZxjPsHfBgBvVtwa+bHAWDpMQ3N/Ajc=
 github.com/amery/defaults v0.1.0 h1:4AhTgLUnj8BPjVRBzg4+/cSCwPWPT6+yWCM4rD6Feyc=
 github.com/amery/defaults v0.1.0/go.mod h1:duOYkvd60q8XOL1+vdSHx5ABTGDMU2iFKr5xJnMEpBk=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
-github.com/gabriel-vasile/mimetype v1.4.5 h1:J7wGKdGu33ocBOhGy0z653k/lFKLFDPJMG8Gql0kxn4=
-github.com/gabriel-vasile/mimetype v1.4.5/go.mod h1:ibHel+/kbxn9x2407k1izTA1S81ku1z/DlgOW2QE0M4=
+github.com/gabriel-vasile/mimetype v1.4.6 h1:3+PzJTKLkvgjeTbts6msPJt4DixhT4YtFNf1gtGe3zc=
+github.com/gabriel-vasile/mimetype v1.4.6/go.mod h1:JX1qVKqZd40hUPpAfiNTe0Sne7hdfKSbOqqmkq8GCXc=
 github.com/go-playground/assert/v2 v2.2.0 h1:JvknZsQTYeFEAhQwI4qEt9cyV5ONwRHC+lYKSsYSR8s=
 github.com/go-playground/assert/v2 v2.2.0/go.mod h1:VDjEfimB/XKnb+ZQfWdccd7VUvScMdVu0Titje2rxJ4=
 github.com/go-playground/locales v0.14.1 h1:EWaQ/wswjilfKLTECiXz7Rh+3BjFhfDFKv/oXslEjJA=
