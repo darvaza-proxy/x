@@ -90,3 +90,21 @@ func NewConfig(store Store) (*tls.Config, error) {
 	}
 	return cfg, nil
 }
+
+// SplitClientHelloInfo takes the context and server name out of a [tls.ClientHelloInfo].
+// If no ServerName is provided, the server's IP address will be used.
+func SplitClientHelloInfo(chi *tls.ClientHelloInfo) (ctx context.Context, serverName string, err error) {
+	if chi == nil {
+		return ctx, "", core.ErrInvalid
+	}
+	ctx = chi.Context()
+	serverName = chi.ServerName
+	if serverName == "" {
+		host, _, _ := core.SplitHostPort(chi.Conn.LocalAddr().String())
+		if host != "" {
+			serverName = fmt.Sprintf("[%s]", host)
+		}
+	}
+
+	return ctx, serverName, nil
+}
