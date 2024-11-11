@@ -29,15 +29,18 @@ type StoreReader interface {
 	ForEachMatch(ctx context.Context, name string, fn func(context.Context, *tls.Certificate) bool)
 }
 
-// StoreWriter adds write methods to the [Store].
+// StoreWriter adds [tls.Certificate] write methods to the [Store].
 type StoreWriter interface {
 	Store
 
-	// TLS
 	Put(ctx context.Context, cert *tls.Certificate) error
 	Delete(ctx context.Context, cert *tls.Certificate) error
+}
 
-	// X509
+// StoreX509Writer adds [x509.Certificate] write methods to the [Store].
+type StoreX509Writer interface {
+	Store
+
 	AddCACerts(ctx context.Context, roots ...*x509.Certificate) error
 
 	AddPrivateKey(ctx context.Context, key crypto.Signer) error
