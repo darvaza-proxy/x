@@ -104,6 +104,28 @@ func (l *List[T]) DeleteMatchFn(fn func(T) bool) {
 	}
 }
 
+// FirstMatchFn returns the first element that satisfies the given function from
+// the front to the back.
+func (l *List[T]) FirstMatchFn(fn func(T) bool) (T, bool) {
+	var out T
+	var found bool
+
+	if l != nil && fn != nil {
+		cb := func(_ *list.Element, v T) bool {
+			if fn(v) {
+				out = v
+				found = true
+				return false
+			}
+			return true
+		}
+
+		l.unsafeForEachElement(cb)
+	}
+
+	return out, found
+}
+
 func (l *List[T]) unsafeForEachElement(fn func(*list.Element, T) bool) {
 	var next *list.Element
 	for elem := l.Sys().Front(); elem != nil; elem = next {
