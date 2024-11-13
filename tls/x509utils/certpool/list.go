@@ -104,6 +104,29 @@ func (l *List[T]) DeleteMatchFn(fn func(T) bool) {
 	}
 }
 
+// PopFirstMatchFn removes and returns the first match, iterating from
+// front to back.
+func (l *List[T]) PopFirstMatchFn(fn func(T) bool) (T, bool) {
+	var out T
+	var found bool
+
+	if l != nil && fn != nil {
+		cb := func(elem *list.Element, v T) bool {
+			if fn(v) {
+				out = v
+				found = true
+				l.Sys().Remove(elem)
+				return false
+			}
+			return true
+		}
+
+		l.unsafeForEachElement(cb)
+	}
+
+	return out, found
+}
+
 // FirstMatchFn returns the first element that satisfies the given function from
 // the front to the back.
 func (l *List[T]) FirstMatchFn(fn func(T) bool) (T, bool) {
