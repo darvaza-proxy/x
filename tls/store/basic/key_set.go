@@ -1,0 +1,88 @@
+package basic
+
+import (
+	"darvaza.org/core"
+	"darvaza.org/x/container/set"
+
+	"darvaza.org/x/tls/x509utils"
+	"darvaza.org/x/tls/x509utils/certpool"
+)
+
+// KeySet keeps a thread-safe set of unique [x509utils.PrivateKey]s.
+type KeySet struct {
+	set.Set[x509utils.PublicKey, certpool.Hash, x509utils.PrivateKey]
+}
+
+// NewKeySet creates a KeySet optionally taking its initial content as argument.
+func NewKeySet(keys ...x509utils.PrivateKey) (*KeySet, error) {
+	out := new(KeySet)
+	if err := keySetConfig.Init(&out.Set, keys...); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// InitKeySet initializes a preallocated [KeySet].
+func InitKeySet(out *KeySet, keys ...x509utils.PrivateKey) error {
+	if out == nil {
+		return core.Wrap(core.ErrInvalid, "missing KeySet")
+	}
+
+	return keySetConfig.Init(&out.Set, keys...)
+}
+
+// MustKeySet is like [NewKeySet] but panics on errors.
+func MustKeySet(keys ...x509utils.PrivateKey) *KeySet {
+	out, err := NewKeySet(keys...)
+	if err != nil {
+		core.Panic(err)
+	}
+	return out
+}
+
+// MustInitKeySet is like [InitKeySet] but panics on errors.
+func MustInitKeySet(out *KeySet, keys ...x509utils.PrivateKey) {
+	err := InitKeySet(out, keys...)
+	if err != nil {
+		core.Panic(err)
+	}
+}
+
+func keySetHash(pub x509utils.PublicKey) (certpool.Hash, error) {
+	if pub == nil {
+		// bad
+		return certpool.Hash{}, core.ErrInvalid
+	}
+
+	b, err := x509utils.SubjectPublicKeyBytes(pub)
+	if err != nil {
+		return certpool.Hash{}, err
+	}
+
+	return certpool.Sum(b), nil
+}
+
+func keySetItemKey(key x509utils.PrivateKey) (x509utils.PublicKey, error) {
+	if key != nil {
+		if pub, ok := key.Public().(x509utils.PublicKey); ok {
+			return pub, nil
+		}
+	}
+	return nil, core.ErrInvalid
+}
+
+func keySetItemMatch(pub x509utils.PublicKey, key x509utils.PrivateKey) bool {
+	if pub == nil || key == nil {
+		return false
+	}
+
+	return pub.Equal(key.Public())
+}
+
+// keySetConfig defines the behavior of KeySet's underlying Set implementation,
+// including how keys are hashed, validated, and compared for equality.
+var keySetConfig = set.Config[x509utils.PublicKey, certpool.Hash, x509utils.PrivateKey]{
+	Hash:      keySetHash,
+	ItemKey:   keySetItemKey,
+	ItemMatch: keySetItemMatch,
+}
