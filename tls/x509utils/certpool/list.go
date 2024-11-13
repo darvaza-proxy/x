@@ -30,6 +30,13 @@ func (*List[T]) Zero() T {
 	return zero
 }
 
+// PushFront adds a value at the beginning of the list.
+func (l *List[T]) PushFront(v T) {
+	if l != nil {
+		l.Sys().PushFront(v)
+	}
+}
+
 // PushBack adds a value at the end of the list.
 func (l *List[T]) PushBack(v T) {
 	if l != nil {
