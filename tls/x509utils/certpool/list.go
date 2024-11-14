@@ -30,6 +30,13 @@ func (*List[T]) Zero() T {
 	return zero
 }
 
+// PushFront adds a value at the beginning of the list.
+func (l *List[T]) PushFront(v T) {
+	if l != nil {
+		l.Sys().PushFront(v)
+	}
+}
+
 // PushBack adds a value at the end of the list.
 func (l *List[T]) PushBack(v T) {
 	if l != nil {
@@ -95,6 +102,51 @@ func (l *List[T]) DeleteMatchFn(fn func(T) bool) {
 
 		l.unsafeForEachElement(cb)
 	}
+}
+
+// PopFirstMatchFn removes and returns the first match, iterating from
+// front to back.
+func (l *List[T]) PopFirstMatchFn(fn func(T) bool) (T, bool) {
+	var out T
+	var found bool
+
+	if l != nil && fn != nil {
+		cb := func(elem *list.Element, v T) bool {
+			if fn(v) {
+				out = v
+				found = true
+				l.Sys().Remove(elem)
+				return false
+			}
+			return true
+		}
+
+		l.unsafeForEachElement(cb)
+	}
+
+	return out, found
+}
+
+// FirstMatchFn returns the first element that satisfies the given function from
+// the front to the back.
+func (l *List[T]) FirstMatchFn(fn func(T) bool) (T, bool) {
+	var out T
+	var found bool
+
+	if l != nil && fn != nil {
+		cb := func(_ *list.Element, v T) bool {
+			if fn(v) {
+				out = v
+				found = true
+				return false
+			}
+			return true
+		}
+
+		l.unsafeForEachElement(cb)
+	}
+
+	return out, found
 }
 
 func (l *List[T]) unsafeForEachElement(fn func(*list.Element, T) bool) {
