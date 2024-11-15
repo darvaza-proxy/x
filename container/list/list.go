@@ -44,29 +44,39 @@ func (l *List[T]) PushBack(v T) {
 }
 
 // Front returns the first value in the list.
-func (l *List[T]) Front() T {
+func (l *List[T]) Front() (T, bool) {
 	if l != nil {
-		if p := l.Sys().Front(); p != nil {
-			if v, ok := p.Value.(T); ok {
-				return v
+		var elem, next *list.Element
+
+		for elem = l.Sys().Front(); elem != nil; elem = next {
+			next = elem.Next()
+
+			v, ok := elem.Value.(T)
+			if ok {
+				return v, true
 			}
 		}
 	}
 
-	return l.Zero()
+	return l.Zero(), false
 }
 
 // Back returns the last value in the list.
-func (l *List[T]) Back() T {
+func (l *List[T]) Back() (T, bool) {
 	if l != nil {
-		if p := l.Sys().Back(); p != nil {
-			if v, ok := p.Value.(T); ok {
-				return v
+		var elem, prev *list.Element
+
+		for elem = l.Sys().Back(); elem != nil; elem = prev {
+			prev = elem.Prev()
+
+			v, ok := elem.Value.(T)
+			if ok {
+				return v, true
 			}
 		}
 	}
 
-	return l.Zero()
+	return l.Zero(), false
 }
 
 // Values returns all values in the list.
@@ -149,8 +159,9 @@ func (l *List[T]) FirstMatchFn(fn func(T) bool) (T, bool) {
 }
 
 func (l *List[T]) unsafeForEachElement(fn func(*list.Element, T) bool) {
-	var next *list.Element
-	for elem := l.Sys().Front(); elem != nil; elem = next {
+	var elem, next *list.Element
+
+	for elem = l.Sys().Front(); elem != nil; elem = next {
 		next = elem.Next()
 		if value, ok := elem.Value.(T); ok {
 			if !fn(elem, value) {

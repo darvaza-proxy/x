@@ -36,12 +36,16 @@ func (s *CertPool) getListForSuffix(name string) *list.List[*certPoolEntry] {
 func (s *CertPool) getFirst(name string) *certPoolEntry {
 	// exact
 	if l := s.getListForName(name); l != nil {
-		return l.Front()
+		if e, ok := l.Front(); ok {
+			return e
+		}
 	}
 
 	// wildcard
 	if l := s.getListForSuffix(name); l != nil {
-		return l.Front()
+		if e, ok := l.Front(); ok {
+			return e
+		}
 	}
 
 	return nil
