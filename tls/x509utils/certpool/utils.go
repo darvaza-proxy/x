@@ -2,12 +2,24 @@ package certpool
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/pem"
 	"io/fs"
 
 	"darvaza.org/core"
 	"darvaza.org/x/tls/x509utils"
 )
+
+func validCert(cert *x509.Certificate) bool {
+	switch {
+	case cert == nil, cert.PublicKey == nil:
+		return false
+	case len(cert.Raw) == 0, len(cert.RawSubject) == 0:
+		return false
+	default:
+		return true
+	}
+}
 
 func copyMap[K comparable, V any](m map[K]V, fn func(V) (V, bool)) map[K]V {
 	if fn == nil {

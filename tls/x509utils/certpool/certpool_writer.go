@@ -198,7 +198,7 @@ func (*CertPool) checkImportError(ctx context.Context, err error) error {
 // AddCert adds a certificate to the store if it wasn't known
 // already.
 func (s *CertPool) AddCert(cert *x509.Certificate) bool {
-	if s != nil && cert != nil {
+	if s != nil {
 		hash, ok := HashCert(cert)
 		if ok {
 			s.mu.Lock()
