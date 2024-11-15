@@ -20,7 +20,8 @@ type CertPool struct {
 	mu sync.RWMutex
 
 	cache    *x509.CertPool
-	hashed   map[Hash]*certPoolEntry
+	certs    *CertSet
+	entries  map[*x509.Certificate]*certPoolEntry
 	names    map[string]*list.List[*certPoolEntry]
 	patterns map[string]*list.List[*certPoolEntry]
 }
@@ -34,7 +35,7 @@ func (s *CertPool) IsZero() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return len(s.hashed) == 0
+	return len(s.entries) == 0
 }
 
 // Count returns the number of certificates in the store.
@@ -46,7 +47,7 @@ func (s *CertPool) Count() int {
 		s.mu.RLock()
 		defer s.mu.RUnlock()
 
-		count = len(s.hashed)
+		count = len(s.entries)
 	}
 
 	return count
@@ -62,7 +63,7 @@ func (s *CertPool) IsCA() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	for _, ce := range s.hashed {
+	for _, ce := range s.entries {
 		if !ce.cert.IsCA {
 			return false
 		}
@@ -72,7 +73,8 @@ func (s *CertPool) IsCA() bool {
 }
 
 func (s *CertPool) unsafeInit() {
-	if s.hashed == nil {
+	if s.entries == nil {
+		s.certs = MustCertSet()
 		s.unsafeReset()
 	}
 }
@@ -92,7 +94,8 @@ func (s *CertPool) Reset() error {
 
 func (s *CertPool) unsafeReset() {
 	s.cache = nil
-	s.hashed = make(map[Hash]*certPoolEntry)
+	_ = s.certs.Reset()
+	s.entries = make(map[*x509.Certificate]*certPoolEntry)
 	s.names = make(map[string]*list.List[*certPoolEntry])
 	s.patterns = make(map[string]*list.List[*certPoolEntry])
 }
@@ -100,7 +103,8 @@ func (s *CertPool) unsafeReset() {
 // New creates a blank [CertPool] store.
 func New() *CertPool {
 	return &CertPool{
-		hashed:   make(map[Hash]*certPoolEntry),
+		certs:    MustCertSet(),
+		entries:  make(map[*x509.Certificate]*certPoolEntry),
 		names:    make(map[string]*list.List[*certPoolEntry]),
 		patterns: make(map[string]*list.List[*certPoolEntry]),
 	}

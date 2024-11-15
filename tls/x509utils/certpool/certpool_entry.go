@@ -9,7 +9,6 @@ import (
 type certPoolEntry struct {
 	cert *x509.Certificate
 
-	hash     Hash
 	names    []string
 	patterns []string
 }
@@ -21,7 +20,6 @@ func (ce *certPoolEntry) Clone() *certPoolEntry {
 
 	return &certPoolEntry{
 		cert:     ce.cert,
-		hash:     ce.hash,
 		names:    core.SliceCopy(ce.names),
 		patterns: core.SliceCopy(ce.patterns),
 	}
@@ -40,14 +38,6 @@ func (ce *certPoolEntry) Equal(other *certPoolEntry) bool {
 
 func (ce *certPoolEntry) Valid() bool {
 	return ce != nil && ce.cert != nil
-}
-
-func (ce *certPoolEntry) Hash() (Hash, bool) {
-	if ce.Valid() {
-		return ce.hash, true
-	}
-
-	return Hash{}, false
 }
 
 func (ce *certPoolEntry) IsCA() bool {
