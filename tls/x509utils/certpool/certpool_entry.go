@@ -34,7 +34,7 @@ func (ce *certPoolEntry) Equal(other *certPoolEntry) bool {
 	case ce == nil, other == nil:
 		return false
 	default:
-		return ce.hash.Equal(other.hash)
+		return ce.cert.Equal(other.cert)
 	}
 }
 

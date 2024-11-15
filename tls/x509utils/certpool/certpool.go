@@ -39,6 +39,7 @@ func (s *CertPool) Count() int {
 	var count int
 
 	if s != nil {
+		// RO
 		s.mu.RLock()
 		defer s.mu.RUnlock()
 
@@ -54,6 +55,7 @@ func (s *CertPool) IsCA() bool {
 		return false
 	}
 
+	// RO
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -62,23 +64,27 @@ func (s *CertPool) IsCA() bool {
 			return false
 		}
 	}
+
 	return true
 }
 
-func (s *CertPool) init() {
-	if s != nil && s.hashed == nil {
+func (s *CertPool) unsafeInit() {
+	if s.hashed == nil {
 		s.unsafeReset()
 	}
 }
 
 // Reset removes all certificates from the store.
-func (s *CertPool) Reset() {
-	if s != nil {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-
-		s.unsafeReset()
+func (s *CertPool) Reset() error {
+	if s == nil {
+		return core.ErrNilReceiver
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.unsafeReset()
+	return nil
 }
 
 func (s *CertPool) unsafeReset() {
