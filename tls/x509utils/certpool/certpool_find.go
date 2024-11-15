@@ -18,11 +18,17 @@ func (s *CertPool) getListForName(name string) *List[*certPoolEntry] {
 }
 
 func (s *CertPool) getListForSuffix(name string) *List[*certPoolEntry] {
+	if name[0] == '[' {
+		// skip IP Addresses
+		return nil
+	}
+
 	if suffix, ok := x509utils.NameAsSuffix(name); ok {
 		if l, ok := s.patterns[suffix]; ok {
 			return l
 		}
 	}
+
 	return nil
 }
 
