@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"sync"
 
+	"darvaza.org/core"
 	"darvaza.org/x/tls/x509utils"
 )
 

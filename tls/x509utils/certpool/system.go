@@ -1,6 +1,9 @@
 package certpool
 
-import "sync"
+import (
+	"crypto/x509"
+	"sync"
+)
 
 var (
 	systemMutex    sync.Mutex
@@ -18,14 +21,22 @@ var (
 // SystemCertPool returns a Pool populated with the
 // system's valid certificates.
 func SystemCertPool() (*CertPool, error) {
+	var cond func(*x509.Certificate) bool
+
 	systemMutex.Lock()
 	defer systemMutex.Unlock()
+
+	if SystemCAOnly {
+		cond = func(c *x509.Certificate) bool {
+			return c.IsCA
+		}
+	}
 
 	switch {
 	case systemCertsErr != nil:
 		return nil, systemCertsErr
 	case systemCerts != nil:
-		return systemCerts.Copy(nil, false), nil
+		return systemCerts.Copy(nil, cond), nil
 	}
 
 	// first call
@@ -33,7 +44,7 @@ func SystemCertPool() (*CertPool, error) {
 	if roots.Count() > 0 {
 		// remember roots
 		systemCerts = roots
-		return roots.Copy(nil, false), nil
+		return roots.Copy(nil, cond), nil
 	}
 
 	if err == nil {
