@@ -173,7 +173,7 @@ func (l *List[T]) Copy(fn func(T) (T, bool)) *List[T] {
 		}
 	}
 
-	out := list.New()
+	out := new(List[T])
 	if l != nil {
 		l.ForEach(func(v T) bool {
 			if v, ok := fn(v); ok {
@@ -184,5 +184,5 @@ func (l *List[T]) Copy(fn func(T) (T, bool)) *List[T] {
 		})
 	}
 
-	return (*List[T])(out)
+	return out
 }
