@@ -171,6 +171,27 @@ func (l *List[T]) unsafeForEachElement(fn func(*list.Element, T) bool) {
 	}
 }
 
+// Purge removes any element not complying with the type restriction.
+// It returns the number of elements removed.
+func (l *List[T]) Purge() int {
+	var count int
+
+	if ll := l.Sys(); ll != nil {
+		var elem, next *list.Element
+
+		for elem = ll.Front(); elem != nil; elem = next {
+			next = elem.Next()
+
+			if _, ok := elem.Value.(T); !ok {
+				ll.Remove(elem)
+				count++
+			}
+		}
+	}
+
+	return count
+}
+
 // Clone returns a shallow copy of the list.
 func (l *List[T]) Clone() *List[T] {
 	return l.Copy(nil)
