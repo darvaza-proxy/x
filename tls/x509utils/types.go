@@ -22,7 +22,8 @@ var (
 
 // PrivateKey implements what crypto.PrivateKey should have
 type PrivateKey interface {
-	Public() crypto.PublicKey
+	crypto.Signer
+
 	Equal(crypto.PrivateKey) bool
 }
 
