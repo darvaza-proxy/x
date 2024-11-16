@@ -1,10 +1,9 @@
-package certpool
+// Package list provides a type-safe wrapper to the standard container/list
+package list
 
 import "container/list"
 
 // List is a typed wrapper on top of [list.List].
-//
-// TODO: move to core
 type List[T any] list.List
 
 // Sys returns the native [list.List]

@@ -1,10 +1,11 @@
 package certpool
 
 import (
+	"darvaza.org/x/container/list"
 	"darvaza.org/x/tls/x509utils"
 )
 
-func (s *CertPool) getListForName(name string) *List[*certPoolEntry] {
+func (s *CertPool) getListForName(name string) *list.List[*certPoolEntry] {
 	if l, ok := s.names[name]; ok {
 		return l
 	}
@@ -17,7 +18,7 @@ func (s *CertPool) getListForName(name string) *List[*certPoolEntry] {
 	return nil
 }
 
-func (s *CertPool) getListForSuffix(name string) *List[*certPoolEntry] {
+func (s *CertPool) getListForSuffix(name string) *list.List[*certPoolEntry] {
 	if name[0] == '[' {
 		// skip IP Addresses
 		return nil
