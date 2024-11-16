@@ -25,6 +25,28 @@ func (*KeySet) Public(key x509utils.PrivateKey) x509utils.PublicKey {
 	return nil
 }
 
+// Copy ...
+func (ks *KeySet) Copy(dst *KeySet, cond func(x509utils.PrivateKey) bool) *KeySet {
+	if dst == nil {
+		dst = new(KeySet)
+	}
+
+	if ks != nil {
+		ks.Set.Copy(&dst.Set, cond)
+	}
+
+	return dst
+}
+
+// Clone ...
+func (ks *KeySet) Clone() *KeySet {
+	if ks == nil {
+		return nil
+	}
+
+	return ks.Copy(nil, nil)
+}
+
 // NewKeySet creates a KeySet optionally taking its initial content as argument.
 func NewKeySet(keys ...x509utils.PrivateKey) (*KeySet, error) {
 	out := new(KeySet)
