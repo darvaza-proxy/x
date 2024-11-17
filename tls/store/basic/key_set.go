@@ -13,6 +13,18 @@ type KeySet struct {
 	set.Set[x509utils.PublicKey, certpool.Hash, x509utils.PrivateKey]
 }
 
+// Public handles type-casting of public keys.
+func (*KeySet) Public(key x509utils.PrivateKey) x509utils.PublicKey {
+	if key != nil {
+		pub, ok := key.Public().(x509utils.PublicKey)
+		if ok {
+			return pub
+		}
+	}
+
+	return nil
+}
+
 // NewKeySet creates a KeySet optionally taking its initial content as argument.
 func NewKeySet(keys ...x509utils.PrivateKey) (*KeySet, error) {
 	out := new(KeySet)
