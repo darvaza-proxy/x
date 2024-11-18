@@ -1,14 +1,13 @@
-package certpool
+// Package list provides a type-safe wrapper to the standard container/list
+package list
 
 import "container/list"
 
 // List is a typed wrapper on top of [list.List].
-//
-// TODO: move to core
 type List[T any] list.List
 
 // Sys returns the native [list.List]
-func (l *List[_]) Sys() *list.List {
+func (l *List[T]) Sys() *list.List {
 	if l == nil {
 		return nil
 	}
@@ -16,7 +15,7 @@ func (l *List[_]) Sys() *list.List {
 }
 
 // Len returns the number of elements in the list
-func (l *List[_]) Len() int {
+func (l *List[T]) Len() int {
 	if l == nil {
 		return 0
 	}
@@ -45,34 +44,44 @@ func (l *List[T]) PushBack(v T) {
 }
 
 // Front returns the first value in the list.
-func (l *List[T]) Front() T {
+func (l *List[T]) Front() (T, bool) {
 	if l != nil {
-		if p := l.Sys().Front(); p != nil {
-			if v, ok := p.Value.(T); ok {
-				return v
+		var elem, next *list.Element
+
+		for elem = l.Sys().Front(); elem != nil; elem = next {
+			next = elem.Next()
+
+			v, ok := elem.Value.(T)
+			if ok {
+				return v, true
 			}
 		}
 	}
 
-	return l.Zero()
+	return l.Zero(), false
 }
 
 // Back returns the last value in the list.
-func (l *List[T]) Back() T {
+func (l *List[T]) Back() (T, bool) {
 	if l != nil {
-		if p := l.Sys().Back(); p != nil {
-			if v, ok := p.Value.(T); ok {
-				return v
+		var elem, prev *list.Element
+
+		for elem = l.Sys().Back(); elem != nil; elem = prev {
+			prev = elem.Prev()
+
+			v, ok := elem.Value.(T)
+			if ok {
+				return v, true
 			}
 		}
 	}
 
-	return l.Zero()
+	return l.Zero(), false
 }
 
 // Values returns all values in the list.
 func (l *List[T]) Values() []T {
-	var out []T
+	out := make([]T, 0, l.Len())
 	l.ForEach(func(v T) bool {
 		out = append(out, v)
 		return true
@@ -150,8 +159,9 @@ func (l *List[T]) FirstMatchFn(fn func(T) bool) (T, bool) {
 }
 
 func (l *List[T]) unsafeForEachElement(fn func(*list.Element, T) bool) {
-	var next *list.Element
-	for elem := l.Sys().Front(); elem != nil; elem = next {
+	var elem, next *list.Element
+
+	for elem = l.Sys().Front(); elem != nil; elem = next {
 		next = elem.Next()
 		if value, ok := elem.Value.(T); ok {
 			if !fn(elem, value) {
@@ -159,6 +169,27 @@ func (l *List[T]) unsafeForEachElement(fn func(*list.Element, T) bool) {
 			}
 		}
 	}
+}
+
+// Purge removes any element not complying with the type restriction.
+// It returns the number of elements removed.
+func (l *List[T]) Purge() int {
+	var count int
+
+	if ll := l.Sys(); ll != nil {
+		var elem, next *list.Element
+
+		for elem = ll.Front(); elem != nil; elem = next {
+			next = elem.Next()
+
+			if _, ok := elem.Value.(T); !ok {
+				ll.Remove(elem)
+				count++
+			}
+		}
+	}
+
+	return count
 }
 
 // Clone returns a shallow copy of the list.
@@ -174,7 +205,7 @@ func (l *List[T]) Copy(fn func(T) (T, bool)) *List[T] {
 		}
 	}
 
-	out := list.New()
+	out := new(List[T])
 	if l != nil {
 		l.ForEach(func(v T) bool {
 			if v, ok := fn(v); ok {
@@ -185,5 +216,5 @@ func (l *List[T]) Copy(fn func(T) (T, bool)) *List[T] {
 		})
 	}
 
-	return (*List[T])(out)
+	return out
 }

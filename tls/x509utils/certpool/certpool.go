@@ -6,6 +6,8 @@ import (
 	"sync"
 
 	"darvaza.org/core"
+	"darvaza.org/x/container/list"
+
 	"darvaza.org/x/tls/x509utils"
 )
 
@@ -19,8 +21,8 @@ type CertPool struct {
 
 	cache    *x509.CertPool
 	hashed   map[Hash]*certPoolEntry
-	names    map[string]*List[*certPoolEntry]
-	patterns map[string]*List[*certPoolEntry]
+	names    map[string]*list.List[*certPoolEntry]
+	patterns map[string]*list.List[*certPoolEntry]
 }
 
 // IsZero tells if the non-nil store is empty.
@@ -91,15 +93,15 @@ func (s *CertPool) Reset() error {
 func (s *CertPool) unsafeReset() {
 	s.cache = nil
 	s.hashed = make(map[Hash]*certPoolEntry)
-	s.names = make(map[string]*List[*certPoolEntry])
-	s.patterns = make(map[string]*List[*certPoolEntry])
+	s.names = make(map[string]*list.List[*certPoolEntry])
+	s.patterns = make(map[string]*list.List[*certPoolEntry])
 }
 
 // New creates a blank [CertPool] store.
 func New() *CertPool {
 	return &CertPool{
 		hashed:   make(map[Hash]*certPoolEntry),
-		names:    make(map[string]*List[*certPoolEntry]),
-		patterns: make(map[string]*List[*certPoolEntry]),
+		names:    make(map[string]*list.List[*certPoolEntry]),
+		patterns: make(map[string]*list.List[*certPoolEntry]),
 	}
 }
