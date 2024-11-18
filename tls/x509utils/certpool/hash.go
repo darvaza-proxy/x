@@ -38,23 +38,23 @@ func (hash Hash) IsZero() bool {
 
 // HashCert produces a blake3 digest of the DER representation of a Certificate
 func HashCert(cert *x509.Certificate) (Hash, bool) {
-	if cert == nil || len(cert.Raw) == 0 {
-		return Hash{}, false
+	if validCert(cert) {
+		return Sum(cert.Raw), true
 	}
-	return Sum(cert.Raw), true
+	return Hash{}, false
 }
 
 // HashSubject produces a blake3 digest of the raw subject of the Certificate
 func HashSubject(cert *x509.Certificate) (Hash, bool) {
-	if cert == nil || len(cert.RawSubject) == 0 {
-		return Hash{}, false
+	if validCert(cert) {
+		return Sum(cert.RawSubject), true
 	}
-	return Sum(cert.RawSubject), true
+	return Hash{}, false
 }
 
 // HashSubjectPublicKey produces a blake3 digest of the PublicKey of the Certificate
 func HashSubjectPublicKey(cert *x509.Certificate) (Hash, bool) {
-	if cert != nil && cert.PublicKey != nil {
+	if validCert(cert) {
 		if b, err := x509utils.SubjectPublicKeyBytes(cert.PublicKey); err == nil {
 			return Sum(b), true
 		}

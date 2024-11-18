@@ -17,39 +17,38 @@ var (
 // Put inserts a certificate into the store, optionally including a reference name.
 // The name will be appended to those included in the certificate.
 func (s *CertPool) Put(ctx context.Context, name string, cert *x509.Certificate) error {
-	sn, ok := x509utils.SanitizeName(name)
-	if !ok {
-		// invalid name
-		return core.Wrapf(core.ErrInvalid, "invalid argument: %s: %q", "name", name)
-	}
-
-	hash, ok := HashCert(cert)
-	if !ok {
-		// invalid cert
-		return core.Wrapf(core.ErrInvalid, "invalid argument: %s", "cert")
-	}
-
-	if err := ctx.Err(); err != nil {
-		// cancelled
+	name, hash, err := s.checkPut(ctx, name, cert)
+	if err != nil {
 		return err
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.unsafeAddCert(hash, sn, cert) {
-		return nil
+	return s.unsafeAddCert(hash, name, cert)
+}
+
+func (s *CertPool) checkPut(ctx context.Context, name string, cert *x509.Certificate) (string, Hash, error) {
+	sn, ok := x509utils.SanitizeName(name)
+	if !ok {
+		return "", Hash{}, core.Wrapf(core.ErrInvalid, "%s: %q", "name", name)
 	}
-	return core.ErrExists
+
+	hash, ok := HashCert(cert)
+	switch {
+	case !ok:
+		return "", Hash{}, core.Wrap(core.ErrInvalid, "cert")
+	case s == nil:
+		return "", hash, core.ErrNilReceiver
+	default:
+		return sn, hash, ctx.Err()
+	}
 }
 
 // Delete remove from the store all certificates associated to the given name
 func (s *CertPool) Delete(ctx context.Context, name string) error {
-	sn, ok := x509utils.SanitizeName(name)
-	if !ok || s == nil {
-		return core.ErrInvalid
-	}
-	if err := ctx.Err(); err != nil {
+	sn, err := s.checkDelete(ctx, name)
+	if err != nil {
 		return err
 	}
 
@@ -70,14 +69,26 @@ func (s *CertPool) Delete(ctx context.Context, name string) error {
 	return core.Wrap(core.ErrNotExists, name)
 }
 
+func (s *CertPool) checkDelete(ctx context.Context, name string) (string, error) {
+	sn, ok := x509utils.SanitizeName(name)
+	switch {
+	case !ok:
+		return "", core.Wrapf(core.ErrInvalid, "%s: %q", "name", name)
+	case s == nil:
+		return "", core.ErrNilReceiver
+	default:
+		return sn, ctx.Err()
+	}
+}
+
 // DeleteCert removes a certificate, by raw DER hash, from the store.
 func (s *CertPool) DeleteCert(ctx context.Context, cert *x509.Certificate) error {
 	hash, ok := HashCert(cert)
-	if !ok || s == nil {
-		return core.ErrInvalid
-	}
-
-	if err := ctx.Err(); err != nil {
+	if !ok {
+		return core.Wrap(core.ErrInvalid, "cert")
+	} else if s == nil {
+		return core.ErrNilReceiver
+	} else if err := ctx.Err(); err != nil {
 		return err
 	}
 
@@ -198,21 +209,20 @@ func (*CertPool) checkImportError(ctx context.Context, err error) error {
 // AddCert adds a certificate to the store if it wasn't known
 // already.
 func (s *CertPool) AddCert(cert *x509.Certificate) bool {
-	if s != nil && cert != nil {
-		hash, ok := HashCert(cert)
-		if ok {
-			s.mu.Lock()
-			defer s.mu.Unlock()
+	hash, ok := HashCert(cert)
+	if ok && s != nil {
+		s.mu.Lock()
+		defer s.mu.Unlock()
 
-			return s.unsafeAddCert(hash, "", cert)
-		}
+		err := s.unsafeAddCert(hash, "", cert)
+		return err == nil
 	}
 
 	return false
 }
 
-func (s *CertPool) unsafeAddCert(hash Hash, name string, cert *x509.Certificate) bool {
-	s.init()
+func (s *CertPool) unsafeAddCert(hash Hash, name string, cert *x509.Certificate) error {
+	s.unsafeInit()
 
 	if ce, found := s.hashed[hash]; found && name != "" {
 		return s.unsafeAddCertName(ce, name)
@@ -231,19 +241,19 @@ func (s *CertPool) unsafeAddCert(hash Hash, name string, cert *x509.Certificate)
 	}
 
 	s.unsafeAddCertEntry(ce)
-	return true
+	return nil
 }
 
-func (s *CertPool) unsafeAddCertName(ce *certPoolEntry, name string) bool {
+func (s *CertPool) unsafeAddCertName(ce *certPoolEntry, name string) error {
 	if name == "" || core.SliceContains(ce.names, name) {
 		// nothing to add
-		return false
+		return core.ErrExists
 	}
 
 	ce.names = append(ce.names, name)
 	s.unsafeInvalidateCache()
 	appendMapList(s.names, name, ce)
-	return true
+	return nil
 }
 
 func (s *CertPool) unsafeAddCertEntry(ce *certPoolEntry) {

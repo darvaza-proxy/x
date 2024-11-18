@@ -49,8 +49,8 @@ func (s *CertPool) unsafeInvalidateCache() {
 }
 
 // Copy creates a copy of the [CertPool] store, optionally
-// receiving the destination.
-func (s *CertPool) Copy(out *CertPool, caOnly bool) *CertPool {
+// receiving the destination and a condition checker.
+func (s *CertPool) Copy(out *CertPool, cond func(*x509.Certificate) bool) *CertPool {
 	switch {
 	case s == nil:
 		if out == nil {
@@ -61,7 +61,7 @@ func (s *CertPool) Copy(out *CertPool, caOnly bool) *CertPool {
 		// avoid copying to itself
 		return s
 	default:
-		cond := newCertPoolEntryCondFn(caOnly)
+		cond := newCertPoolEntryCondFn(cond)
 
 		if out == nil {
 			return s.doClone(cond)
@@ -107,7 +107,7 @@ func (s *CertPool) Clone() x509utils.CertPool {
 		return nil
 	}
 
-	return s.doClone(certPoolEntryValid)
+	return s.doClone(nil)
 }
 
 func (s *CertPool) doClone(cond func(*certPoolEntry) bool) *CertPool {

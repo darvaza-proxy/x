@@ -34,7 +34,7 @@ func (ce *certPoolEntry) Equal(other *certPoolEntry) bool {
 	case ce == nil, other == nil:
 		return false
 	default:
-		return ce.hash.Equal(other.hash)
+		return ce.cert.Equal(other.cert)
 	}
 }
 
@@ -57,20 +57,21 @@ func (ce *certPoolEntry) IsCA() bool {
 	return false
 }
 
-//revive:disable:flag-parameter
-func newCertPoolEntryCondFn(caOnly bool) func(*certPoolEntry) bool {
-	//revive:enable:flag-parameter
+func newCertPoolEntryCondFn(fn func(*x509.Certificate) bool) func(*certPoolEntry) bool {
+	return func(ce *certPoolEntry) bool {
+		if !ce.Valid() {
+			return false
+		}
 
-	if caOnly {
-		return certPoolEntryIsCA
+		return fn == nil || fn(ce.cert)
 	}
-
-	return certPoolEntryValid
 }
 
 func newCertPoolEntryCopyFn(cond func(*certPoolEntry) bool) func(*certPoolEntry) (*certPoolEntry, bool) {
 	if cond == nil {
-		cond = certPoolEntryValid
+		cond = func(ce *certPoolEntry) bool {
+			return ce.Valid()
+		}
 	}
 
 	return func(ce *certPoolEntry) (ce2 *certPoolEntry, ok bool) {
@@ -79,11 +80,4 @@ func newCertPoolEntryCopyFn(cond func(*certPoolEntry) bool) func(*certPoolEntry)
 		}
 		return ce2, ce2 != nil
 	}
-}
-func certPoolEntryIsCA(ce *certPoolEntry) bool {
-	return ce.IsCA()
-}
-
-func certPoolEntryValid(ce *certPoolEntry) bool {
-	return ce.Valid()
 }
