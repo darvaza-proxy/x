@@ -1,7 +1,11 @@
 // Package list provides a type-safe wrapper to the standard container/list
 package list
 
-import "container/list"
+import (
+	"container/list"
+
+	"darvaza.org/core"
+)
 
 // List is a typed wrapper on top of [list.List].
 type List[T any] list.List
@@ -45,38 +49,26 @@ func (l *List[T]) PushBack(v T) {
 
 // Front returns the first value in the list.
 func (l *List[T]) Front() (T, bool) {
+	var out T
+	var found bool
+
 	if l != nil {
-		var elem, next *list.Element
-
-		for elem = l.Sys().Front(); elem != nil; elem = next {
-			next = elem.Next()
-
-			v, ok := elem.Value.(T)
-			if ok {
-				return v, true
-			}
-		}
+		_, out, found = l.unsafeFirstMatchElement(nil)
 	}
 
-	return l.Zero(), false
+	return out, found
 }
 
 // Back returns the last value in the list.
 func (l *List[T]) Back() (T, bool) {
+	var out T
+	var found bool
+
 	if l != nil {
-		var elem, prev *list.Element
-
-		for elem = l.Sys().Back(); elem != nil; elem = prev {
-			prev = elem.Prev()
-
-			v, ok := elem.Value.(T)
-			if ok {
-				return v, true
-			}
-		}
+		_, out, found = l.unsafeFirstMatchBackwardElement(nil)
 	}
 
-	return l.Zero(), false
+	return out, found
 }
 
 // Values returns all values in the list.
@@ -93,23 +85,23 @@ func (l *List[T]) Values() []T {
 // list during iteration.
 func (l *List[T]) ForEach(fn func(T) bool) {
 	if l != nil && fn != nil {
-		l.unsafeForEachElement(func(_ *list.Element, v T) bool {
+		cb := func(_ *list.Element, v T) bool {
 			return fn(v)
-		})
+		}
+
+		l.unsafeForEachElement(cb)
 	}
 }
 
 // DeleteMatchFn deletes elements on the list satisfying the given function.
 func (l *List[T]) DeleteMatchFn(fn func(T) bool) {
-	if l != nil && fn != nil {
-		cb := func(elem *list.Element, v T) bool {
-			if fn(v) {
-				l.Sys().Remove(elem)
+	if ll := l.Sys(); ll != nil && fn != nil {
+		remove := l.unsafeGetAllMatchElement(fn)
+		if len(remove) > 0 {
+			for _, el := range remove {
+				ll.Remove(el)
 			}
-			return true
 		}
-
-		l.unsafeForEachElement(cb)
 	}
 }
 
@@ -120,17 +112,12 @@ func (l *List[T]) PopFirstMatchFn(fn func(T) bool) (T, bool) {
 	var found bool
 
 	if l != nil && fn != nil {
-		cb := func(elem *list.Element, v T) bool {
-			if fn(v) {
-				out = v
-				found = true
-				l.Sys().Remove(elem)
-				return false
-			}
-			return true
-		}
+		var el *list.Element
 
-		l.unsafeForEachElement(cb)
+		el, out, found = l.unsafeFirstMatchElement(fn)
+		if el != nil {
+			l.Sys().Remove(el)
+		}
 	}
 
 	return out, found
@@ -143,32 +130,10 @@ func (l *List[T]) FirstMatchFn(fn func(T) bool) (T, bool) {
 	var found bool
 
 	if l != nil && fn != nil {
-		cb := func(_ *list.Element, v T) bool {
-			if fn(v) {
-				out = v
-				found = true
-				return false
-			}
-			return true
-		}
-
-		l.unsafeForEachElement(cb)
+		_, out, found = l.unsafeFirstMatchElement(fn)
 	}
 
 	return out, found
-}
-
-func (l *List[T]) unsafeForEachElement(fn func(*list.Element, T) bool) {
-	var elem, next *list.Element
-
-	for elem = l.Sys().Front(); elem != nil; elem = next {
-		next = elem.Next()
-		if value, ok := elem.Value.(T); ok {
-			if !fn(elem, value) {
-				return
-			}
-		}
-	}
 }
 
 // Purge removes any element not complying with the type restriction.
@@ -177,15 +142,20 @@ func (l *List[T]) Purge() int {
 	var count int
 
 	if ll := l.Sys(); ll != nil {
-		var elem, next *list.Element
+		var remove []*list.Element
 
-		for elem = ll.Front(); elem != nil; elem = next {
-			next = elem.Next()
-
-			if _, ok := elem.Value.(T); !ok {
-				ll.Remove(elem)
-				count++
+		cb := func(el *list.Element) bool {
+			if _, ok := el.Value.(T); !ok {
+				remove = append(remove, el)
 			}
+			return true
+		}
+
+		core.ListForEachElement(ll, cb)
+
+		for _, el := range remove {
+			ll.Remove(el)
+			count++
 		}
 	}
 
@@ -218,3 +188,94 @@ func (l *List[T]) Copy(fn func(T) (T, bool)) *List[T] {
 
 	return out
 }
+
+func (l *List[T]) unsafeGetAllMatchElement(fn matchFunc[T]) []*list.Element {
+	var elems []*list.Element
+	_, cb := newGetAllMatchElement(fn, &elems)
+	l.unsafeForEachElement(cb)
+	return elems
+}
+
+func (l *List[T]) unsafeFirstMatchElement(fn matchFunc[T]) (*list.Element, T, bool) {
+	var match *list.Element
+	var out T
+
+	_, _, cb := newGetMatchElement(fn, &match, &out)
+	l.unsafeForEachElement(cb)
+	return match, out, match != nil
+}
+
+func (l *List[T]) unsafeFirstMatchBackwardElement(fn matchFunc[T]) (*list.Element, T, bool) {
+	var match *list.Element
+	var value T
+
+	_, _, cb := newGetMatchElement(fn, &match, &value)
+	l.unsafeForEachBackwardElement(cb)
+	return match, value, match != nil
+}
+
+func (l *List[T]) unsafeForEachElement(fn matchElemTypeFunc[T]) {
+	cb := newMatchElement(fn)
+	core.ListForEachElement(l.Sys(), cb)
+}
+
+func (l *List[T]) unsafeForEachBackwardElement(fn matchElemTypeFunc[T]) {
+	cb := newMatchElement(fn)
+	core.ListForEachBackwardElement(l.Sys(), cb)
+}
+
+// newGetAllMatchElement returns an iterator callback that will collect all matching elements.
+func newGetAllMatchElement[T any](cond matchFunc[T],
+	out *[]*list.Element) (*[]*list.Element, matchElemTypeFunc[T]) {
+	//
+	if out == nil {
+		out = new([]*list.Element)
+	}
+
+	cb := func(el *list.Element, v T) bool {
+		if cond == nil || cond(v) {
+			*out = append(*out, el)
+		}
+		return true
+	}
+
+	return out, cb
+}
+
+// newGetMatchElement returns an iterator callback that will return the *list.Element and T value of the first matching
+// entry.
+func newGetMatchElement[T any](cond matchFunc[T],
+	match **list.Element, out *T) (**list.Element, *T, matchElemTypeFunc[T]) {
+	//
+	if match == nil {
+		match = new(*list.Element)
+	}
+	if out == nil {
+		out = new(T)
+	}
+
+	cb := func(el *list.Element, v T) bool {
+		if cond == nil || cond(v) {
+			*match = el
+			*out = v
+		}
+
+		return *match == nil
+	}
+	return match, out, cb
+}
+
+// newMatchElement returns an iterator callback that calls a helper for each (*list.Element, T) pair.
+func newMatchElement[T any](fn matchElemTypeFunc[T]) matchElemFunc {
+	cont := true
+	return func(el *list.Element) bool {
+		if value, ok := el.Value.(T); ok {
+			cont = fn == nil || fn(el, value)
+		}
+		return cont
+	}
+}
+
+type matchFunc[T any] func(T) bool
+type matchElemTypeFunc[T any] func(*list.Element, T) bool
+type matchElemFunc func(*list.Element) bool
