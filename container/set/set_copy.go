@@ -73,6 +73,11 @@ func (set *Set[K, H, T]) Copy(dst *Set[K, H, T], cond func(T) bool) *Set[K, H, T
 			defer dst.mu.Unlock()
 
 			return set.unsafeClone(dst, cond)
+		case set.cfg.Equal(dst.cfg):
+			// compatible destination, append mode.
+			defer dst.mu.Unlock()
+
+			return set.unsafeAppend(dst, cond)
 		default:
 			// no optimizations. release lock and Push.
 			dst.mu.Unlock()
@@ -92,4 +97,41 @@ func (set *Set[K, H, T]) unsafeCopy(dst *Set[K, H, T], cond func(T) bool) *Set[K
 		})
 	}
 	return dst
+}
+
+func (set *Set[K, H, T]) unsafeAppend(dst *Set[K, H, T], cond func(T) bool) *Set[K, H, T] {
+	// preallocate buckets if dst doesn't have any yet.
+	if len(dst.buckets) == 0 {
+		dst.buckets = make(map[H]*list.List[T], len(set.buckets))
+	}
+
+	for hash, l1 := range set.buckets {
+		l2, ok := dst.buckets[hash]
+		if !ok {
+			l2 = dst.newList()
+			dst.buckets[hash] = l2
+		}
+
+		set.unsafeAppendList(l1, l2, dst, cond)
+	}
+	return dst
+}
+
+func (set *Set[K, H, T]) unsafeAppendList(l1, l2 *list.List[T], dst *Set[K, H, T], cond func(T) bool) {
+	l1.ForEach(func(v T) bool {
+		if cond == nil || cond(v) {
+			set.unsafeAppendValue(v, l2, dst)
+		}
+		return true
+	})
+}
+
+func (*Set[K, H, T]) unsafeAppendValue(v T, l2 *list.List[T], dst *Set[K, H, T]) {
+	key, _ := dst.cfg.ItemKey(v)
+
+	match := dst.newMatchKey(key)
+	_, found := l2.FirstMatchFn(match)
+	if !found {
+		l2.PushBack(v)
+	}
 }
