@@ -25,7 +25,7 @@ func NewCertSet(certs ...*x509.Certificate) (*CertSet, error) {
 func MustCertSet(certs ...*x509.Certificate) *CertSet {
 	out, err := NewCertSet(certs...)
 	if err != nil {
-		core.Panic(err)
+		core.Panic(core.Wrap(err, "failed to create CertSet"))
 	}
 	return out
 }

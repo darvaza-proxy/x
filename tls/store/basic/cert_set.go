@@ -37,7 +37,7 @@ func InitCertSet(out *CertSet, certs ...*tls.Certificate) error {
 func MustCertSet(certs ...*tls.Certificate) *CertSet {
 	out, err := NewCertSet(certs...)
 	if err != nil {
-		core.Panic(err)
+		core.Panic(core.Wrap(err, "failed to create CertSet"))
 	}
 	return out
 }
@@ -46,7 +46,7 @@ func MustCertSet(certs ...*tls.Certificate) *CertSet {
 func MustInitCertSet(out *CertSet, certs ...*tls.Certificate) {
 	err := InitCertSet(out, certs...)
 	if err != nil {
-		panic(err)
+		core.Panic(core.Wrap(err, "failed to initialize CertSet"))
 	}
 }
 
