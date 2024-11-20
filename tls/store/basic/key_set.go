@@ -47,7 +47,7 @@ func InitKeySet(out *KeySet, keys ...x509utils.PrivateKey) error {
 func MustKeySet(keys ...x509utils.PrivateKey) *KeySet {
 	out, err := NewKeySet(keys...)
 	if err != nil {
-		core.Panic(err)
+		core.Panic(core.Wrap(err, "failed to create KeySet"))
 	}
 	return out
 }
@@ -56,7 +56,7 @@ func MustKeySet(keys ...x509utils.PrivateKey) *KeySet {
 func MustInitKeySet(out *KeySet, keys ...x509utils.PrivateKey) {
 	err := InitKeySet(out, keys...)
 	if err != nil {
-		core.Panic(err)
+		core.Panic(core.Wrap(err, "failed to initialize KeySet"))
 	}
 }
 
