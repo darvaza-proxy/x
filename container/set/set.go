@@ -113,21 +113,20 @@ func (set *Set[K, H, T]) Push(value T) (T, error) {
 	set.mu.Lock()
 	defer set.mu.Unlock()
 
-	l, ok := set.buckets[hash]
-	if !ok {
-		// new
+	v, l, found := set.unsafeGet(key, hash)
+	switch {
+	case found:
+		// found
+		return v, ErrExist
+	case l != nil:
+		// existing bucket, new entry
+		l.PushBack(value)
+		return value, nil
+	default:
+		// new bucket
 		set.buckets[hash] = set.newList(value)
 		return value, nil
 	}
-
-	if v, err := set.unsafeGet(key, l); err == nil {
-		// found
-		return v, ErrExist
-	}
-
-	// new
-	l.PushBack(value)
-	return value, nil
 }
 
 // Get returns the item matching the key
@@ -143,24 +142,42 @@ func (set *Set[K, H, T]) Get(key K) (T, error) {
 	set.mu.RLock()
 	defer set.mu.RUnlock()
 
-	l, ok := set.buckets[hash]
-	if !ok {
-		return zero, ErrNotExist
-	}
-
-	return set.unsafeGet(key, l)
-}
-
-func (set *Set[K, H, T]) unsafeGet(key K, l *list.List[T]) (T, error) {
-	var zero T
-
-	match := set.newMatchKey(key)
-	value, found := l.FirstMatchFn(match)
+	v, _, found := set.unsafeGet(key, hash)
 	if !found {
 		return zero, ErrNotExist
 	}
+	return v, nil
+}
 
-	return value, nil
+func (set *Set[K, H, T]) unsafeGet(key K, hash H) (T, *list.List[T], bool) {
+	var zero T
+	l, ok := set.buckets[hash]
+	if !ok {
+		return zero, nil, false
+	}
+
+	match := set.newMatchKey(key)
+	value, found := l.FirstMatchFn(match)
+	return value, l, found
+}
+
+// Contains tells if there is a matching item in the [Set].
+// It returns false if:
+// - the Set is nil or uninitialized
+// - the key is invalid according to the Set's configuration
+// - no matching item exists.
+func (set *Set[K, H, T]) Contains(key K) bool {
+	hash, err := set.checkWithKey(key)
+	if err != nil {
+		return false
+	}
+
+	// RO
+	set.mu.RLock()
+	defer set.mu.RUnlock()
+
+	_, _, found := set.unsafeGet(key, hash)
+	return found
 }
 
 // Pop removes and return the item matching the given key from the
