@@ -3,9 +3,9 @@ module darvaza.org/x/tls
 go 1.21
 
 require (
-	darvaza.org/core v0.15.2
+	darvaza.org/core v0.15.3
 	darvaza.org/slog v0.5.14
-	darvaza.org/x/container v0.1.1
+	darvaza.org/x/container v0.1.3
 )
 
 require (
