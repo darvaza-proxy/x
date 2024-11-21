@@ -31,14 +31,17 @@ func (*KeySet) Public(key x509utils.PrivateKey) x509utils.PublicKey {
 // If a condition function isn't provided, all keys not present in the destination
 // will be added.
 func (ks *KeySet) Copy(dst *KeySet, cond func(x509utils.PrivateKey) bool) *KeySet {
+	if ks == nil {
+		if dst == nil {
+			dst = MustKeySet()
+		}
+		return dst
+	}
+
 	if dst == nil {
 		dst = new(KeySet)
 	}
-
-	if ks != nil {
-		ks.Set.Copy(&dst.Set, cond)
-	}
-
+	ks.Set.Copy(&dst.Set, cond)
 	return dst
 }
 
