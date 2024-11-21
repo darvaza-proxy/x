@@ -2,10 +2,9 @@ module darvaza.org/x/fs
 
 go 1.21
 
-require (
-	darvaza.org/core v0.15.2
-	github.com/gobwas/glob v0.2.3
-)
+require darvaza.org/core v0.15.3
+
+require github.com/gobwas/glob v0.2.3
 
 require (
 	golang.org/x/net v0.31.0 // indirect
