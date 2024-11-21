@@ -12,6 +12,35 @@ type CertSet struct {
 	set.Set[*x509.Certificate, Hash, *x509.Certificate]
 }
 
+// Copy copies all certificates satisfying the optional condition to the destination
+// unless they are already there.
+// If a destination isn't provided one will be created.
+func (cs *CertSet) Copy(dst *CertSet, cond func(*x509.Certificate) bool) *CertSet {
+	if cs == nil {
+		if dst == nil {
+			dst = MustCertSet()
+		}
+		return dst
+	}
+
+	if dst == nil {
+		dst = new(CertSet)
+	}
+	cs.Set.Copy(&dst.Set, cond)
+	return dst
+}
+
+// Clone makes a copy of the [CertSet].
+func (cs *CertSet) Clone() *CertSet {
+	if cs == nil {
+		return nil
+	}
+
+	dst := new(CertSet)
+	cs.Set.Copy(&dst.Set, nil)
+	return dst
+}
+
 // NewCertSet creates a [CertSet] optionally taking its initial content as argument.
 func NewCertSet(certs ...*x509.Certificate) (*CertSet, error) {
 	out := new(CertSet)
