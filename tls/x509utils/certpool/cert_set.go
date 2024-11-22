@@ -38,6 +38,25 @@ func (cs *CertSet) doGetByKey(pub x509utils.PublicKey) []*x509.Certificate {
 	return out
 }
 
+// GetByPrivateKey returns all certificates in the CertSet matching the given private key.
+func (cs *CertSet) GetByPrivateKey(key crypto.PrivateKey) []*x509.Certificate {
+	if cs == nil || key == nil {
+		return nil
+	}
+
+	key1, ok := key.(x509utils.PrivateKey)
+	if !ok {
+		return nil
+	}
+
+	pub1, ok := key1.Public().(x509utils.PublicKey)
+	if !ok {
+		return nil
+	}
+
+	return cs.doGetByKey(pub1)
+}
+
 // Copy copies all certificates satisfying the optional condition to the destination
 // unless they are already there.
 // If a destination isn't provided one will be created.
