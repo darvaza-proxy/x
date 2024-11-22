@@ -7,6 +7,8 @@ import (
 	"io/fs"
 
 	"darvaza.org/core"
+	"darvaza.org/x/container/set"
+
 	"darvaza.org/x/tls/x509utils"
 )
 
@@ -17,7 +19,7 @@ var (
 // Put inserts a certificate into the store, optionally including a reference name.
 // The name will be appended to those included in the certificate.
 func (s *CertPool) Put(ctx context.Context, name string, cert *x509.Certificate) error {
-	name, hash, err := s.checkPut(ctx, name, cert)
+	name, err := s.checkPut(ctx, name, cert)
 	if err != nil {
 		return err
 	}
@@ -25,23 +27,20 @@ func (s *CertPool) Put(ctx context.Context, name string, cert *x509.Certificate)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.unsafeAddCert(hash, name, cert)
+	return s.unsafeAddCert(name, cert)
 }
 
-func (s *CertPool) checkPut(ctx context.Context, name string, cert *x509.Certificate) (string, Hash, error) {
+func (s *CertPool) checkPut(ctx context.Context, name string, cert *x509.Certificate) (string, error) {
 	sn, ok := x509utils.SanitizeName(name)
-	if !ok {
-		return "", Hash{}, core.Wrapf(core.ErrInvalid, "%s: %q", "name", name)
-	}
-
-	hash, ok := HashCert(cert)
 	switch {
 	case !ok:
-		return "", Hash{}, core.Wrap(core.ErrInvalid, "cert")
+		return "", core.Wrapf(core.ErrInvalid, "%s: %q", "name", name)
+	case !validCert(cert):
+		return "", core.Wrap(core.ErrInvalid, "cert")
 	case s == nil:
-		return "", hash, core.ErrNilReceiver
+		return "", core.ErrNilReceiver
 	default:
-		return sn, hash, ctx.Err()
+		return sn, ctx.Err()
 	}
 }
 
@@ -55,14 +54,12 @@ func (s *CertPool) Delete(ctx context.Context, name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// convert name to unique hashes
-	hashes := core.SliceAsFn(func(ce *certPoolEntry) (Hash, bool) {
-		return ce.Hash()
+	// convert name to unique certificates
+	certs := core.SliceAsFn(func(ce *certPoolEntry) (*x509.Certificate, bool) {
+		return ce.cert, ce.cert != nil
 	}, s.getListForName(sn).Values())
 
-	core.SliceUniquify(&hashes)
-
-	if s.unsafeDeleteCerts(hashes...) > 0 {
+	if s.unsafeDeleteCerts(certs...) > 0 {
 		return nil
 	}
 
@@ -83,8 +80,7 @@ func (s *CertPool) checkDelete(ctx context.Context, name string) (string, error)
 
 // DeleteCert removes a certificate, by raw DER hash, from the store.
 func (s *CertPool) DeleteCert(ctx context.Context, cert *x509.Certificate) error {
-	hash, ok := HashCert(cert)
-	if !ok {
+	if !validCert(cert) {
 		return core.Wrap(core.ErrInvalid, "cert")
 	} else if s == nil {
 		return core.ErrNilReceiver
@@ -95,18 +91,18 @@ func (s *CertPool) DeleteCert(ctx context.Context, cert *x509.Certificate) error
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.unsafeDeleteCerts(hash) > 0 {
+	if s.unsafeDeleteCerts(cert) > 0 {
 		return nil
 	}
 
 	return core.ErrNotExists
 }
 
-func (s *CertPool) unsafeDeleteCerts(hashes ...Hash) int {
+func (s *CertPool) unsafeDeleteCerts(certs ...*x509.Certificate) int {
 	var count int
 
-	for _, hash := range hashes {
-		if ce, ok := s.hashed[hash]; ok {
+	for _, cert := range certs {
+		if ce, ok := s.entries[cert]; ok {
 			s.unsafeDeleteCertEntry(ce)
 			count++
 		}
@@ -117,7 +113,12 @@ func (s *CertPool) unsafeDeleteCerts(hashes ...Hash) int {
 
 func (s *CertPool) unsafeDeleteCertEntry(ce *certPoolEntry) {
 	s.unsafeInvalidateCache()
-	delete(s.hashed, ce.hash)
+	cert := ce.cert
+	if c, _ := s.certs.Pop(cert); c != nil {
+		cert = c
+	}
+
+	delete(s.entries, cert)
 
 	eq := func(p *certPoolEntry) bool {
 		return ce == p
@@ -209,23 +210,28 @@ func (*CertPool) checkImportError(ctx context.Context, err error) error {
 // AddCert adds a certificate to the store if it wasn't known
 // already.
 func (s *CertPool) AddCert(cert *x509.Certificate) bool {
-	hash, ok := HashCert(cert)
-	if ok && s != nil {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-
-		err := s.unsafeAddCert(hash, "", cert)
-		return err == nil
+	if s == nil || !validCert(cert) {
+		return false
 	}
 
-	return false
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	err := s.unsafeAddCert("", cert)
+	return err == nil
 }
 
-func (s *CertPool) unsafeAddCert(hash Hash, name string, cert *x509.Certificate) error {
-	s.unsafeInit()
+func (s *CertPool) unsafeAddCert(name string, cert *x509.Certificate) error {
+	if err := s.unsafeInit(); err != nil {
+		return err
+	}
 
-	if ce, found := s.hashed[hash]; found && name != "" {
-		return s.unsafeAddCertName(ce, name)
+	cert, err := s.certs.Push(cert)
+	switch {
+	case err == set.ErrExist:
+		return s.unsafeAddCertName(cert, name)
+	case err != nil:
+		return err
 	}
 
 	names, patterns := x509utils.Names(cert)
@@ -234,7 +240,6 @@ func (s *CertPool) unsafeAddCert(hash Hash, name string, cert *x509.Certificate)
 	}
 
 	ce := &certPoolEntry{
-		hash:     hash,
 		cert:     cert,
 		names:    names,
 		patterns: patterns,
@@ -244,7 +249,9 @@ func (s *CertPool) unsafeAddCert(hash Hash, name string, cert *x509.Certificate)
 	return nil
 }
 
-func (s *CertPool) unsafeAddCertName(ce *certPoolEntry, name string) error {
+func (s *CertPool) unsafeAddCertName(cert *x509.Certificate, name string) error {
+	ce := s.entries[cert]
+
 	if name == "" || core.SliceContains(ce.names, name) {
 		// nothing to add
 		return core.ErrExists
@@ -258,7 +265,7 @@ func (s *CertPool) unsafeAddCertName(ce *certPoolEntry, name string) error {
 
 func (s *CertPool) unsafeAddCertEntry(ce *certPoolEntry) {
 	s.unsafeInvalidateCache()
-	s.hashed[ce.hash] = ce
+	s.entries[ce.cert] = ce
 	for _, name := range ce.names {
 		appendMapList(s.names, name, ce)
 	}

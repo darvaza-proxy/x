@@ -20,7 +20,8 @@ type CertPool struct {
 	mu sync.RWMutex
 
 	cache    *x509.CertPool
-	hashed   map[Hash]*certPoolEntry
+	certs    *CertSet
+	entries  map[*x509.Certificate]*certPoolEntry
 	names    map[string]*list.List[*certPoolEntry]
 	patterns map[string]*list.List[*certPoolEntry]
 }
@@ -34,7 +35,7 @@ func (s *CertPool) IsZero() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return len(s.hashed) == 0
+	return len(s.entries) == 0
 }
 
 // Count returns the number of certificates in the store.
@@ -46,7 +47,7 @@ func (s *CertPool) Count() int {
 		s.mu.RLock()
 		defer s.mu.RUnlock()
 
-		count = len(s.hashed)
+		count = len(s.entries)
 	}
 
 	return count
@@ -62,7 +63,7 @@ func (s *CertPool) IsCA() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	for _, ce := range s.hashed {
+	for _, ce := range s.entries {
 		if !ce.cert.IsCA {
 			return false
 		}
@@ -71,10 +72,11 @@ func (s *CertPool) IsCA() bool {
 	return true
 }
 
-func (s *CertPool) unsafeInit() {
-	if s.hashed == nil {
-		s.unsafeReset()
+func (s *CertPool) unsafeInit() error {
+	if s.entries == nil {
+		return s.unsafeReset()
 	}
+	return nil
 }
 
 // Reset removes all certificates from the store.
@@ -86,21 +88,34 @@ func (s *CertPool) Reset() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.unsafeReset()
-	return nil
+	return s.unsafeReset()
 }
 
-func (s *CertPool) unsafeReset() {
+func (s *CertPool) unsafeReset() error {
+	var err error
+
+	if s.certs == nil {
+		s.certs, err = NewCertSet()
+	} else {
+		err = s.certs.Reset()
+	}
+
+	if err != nil {
+		return err
+	}
+
 	s.cache = nil
-	s.hashed = make(map[Hash]*certPoolEntry)
+	s.entries = make(map[*x509.Certificate]*certPoolEntry)
 	s.names = make(map[string]*list.List[*certPoolEntry])
 	s.patterns = make(map[string]*list.List[*certPoolEntry])
+	return nil
 }
 
 // New creates a blank [CertPool] store.
 func New() *CertPool {
 	return &CertPool{
-		hashed:   make(map[Hash]*certPoolEntry),
+		certs:    MustCertSet(),
+		entries:  make(map[*x509.Certificate]*certPoolEntry),
 		names:    make(map[string]*list.List[*certPoolEntry]),
 		patterns: make(map[string]*list.List[*certPoolEntry]),
 	}

@@ -38,7 +38,7 @@ func (s *CertPool) Export() *x509.CertPool {
 
 func (s *CertPool) unsafeExport() *x509.CertPool {
 	out := x509.NewCertPool()
-	for _, ce := range s.hashed {
+	for _, ce := range s.entries {
 		out.AddCert(ce.cert)
 	}
 	return out
@@ -75,12 +75,13 @@ func (s *CertPool) doCopy(out *CertPool, cond func(*certPoolEntry) bool) *CertPo
 	// extend condition to exclude those
 	// already present
 	cond2 := func(ce *certPoolEntry) bool {
-		if !cond(ce) {
-			// not wanted
+		cert, _ := out.certs.Get(ce.cert)
+		if cert != nil {
+			// already there
 			return false
 		}
-		_, found := out.hashed[ce.hash]
-		return !found
+
+		return cond == nil || cond(ce)
 	}
 
 	// clone creates a copy of acceptable entries
@@ -92,7 +93,7 @@ func (s *CertPool) doCopy(out *CertPool, cond func(*certPoolEntry) bool) *CertPo
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	for _, ce := range s.hashed {
+	for _, ce := range s.entries {
 		if ce2, ok := clone(ce); ok {
 			out.unsafeAddCertEntry(ce2)
 		}
@@ -116,9 +117,16 @@ func (s *CertPool) doClone(cond func(*certPoolEntry) bool) *CertPool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return &CertPool{
-		hashed:   copyMap(s.hashed, fn),
+	out := &CertPool{
+		certs:    MustCertSet(),
+		entries:  copyMap(s.entries, fn),
 		names:    copyMapList(s.names, fn),
 		patterns: copyMapList(s.patterns, fn),
 	}
+
+	for k := range out.entries {
+		_, _ = out.certs.Push(k)
+	}
+
+	return out
 }
