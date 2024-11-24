@@ -5,6 +5,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"syscall"
 	"time"
 
 	"darvaza.org/core"
@@ -36,6 +37,10 @@ type Config struct {
 	PortAttempts int
 	// DefaultPort indicates the port to try on the first attempt if Port is zero
 	DefaultPort uint16
+
+	// ReusePort tells if we should set [SO_REUSEADDR] when using the default
+	// listeners.
+	ReusePort bool
 
 	// Context specifies the context to be used by the default listeners.
 	Context context.Context
@@ -94,6 +99,7 @@ func (cfg *Config) setDefaultListener() {
 	lc := ListenConfig{
 		ListenConfig: net.ListenConfig{
 			KeepAlive: cfg.KeepAlive,
+			Control:   cfg.newDefaultControl(),
 		},
 		Context: cfg.Context,
 	}
@@ -105,6 +111,15 @@ func (cfg *Config) setDefaultListener() {
 	if cfg.ListenUDP == nil {
 		cfg.ListenUDP = lc.ListenUDP
 	}
+}
+
+func (cfg *Config) newDefaultControl() func(string, string, syscall.RawConn) error {
+	if !cfg.ReusePort {
+		// no-op
+		return nil
+	}
+
+	return reuseAddrControl
 }
 
 func (cfg *Config) getStringIPAddresses() ([]string, error) {
