@@ -96,13 +96,7 @@ func (cfg *Config) setDefaultListener() {
 		cfg.Context = context.Background()
 	}
 
-	lc := ListenConfig{
-		ListenConfig: net.ListenConfig{
-			KeepAlive: cfg.KeepAlive,
-			Control:   cfg.newDefaultControl(),
-		},
-		Context: cfg.Context,
-	}
+	lc := cfg.ExportListenConfig()
 
 	if cfg.ListenTCP == nil {
 		cfg.ListenTCP = lc.ListenTCP
@@ -110,6 +104,24 @@ func (cfg *Config) setDefaultListener() {
 
 	if cfg.ListenUDP == nil {
 		cfg.ListenUDP = lc.ListenUDP
+	}
+}
+
+// ExportListenConfig generates a [ListenConfig] based on the [Config] settings.
+// Only Context, KeepAlive and ReusePort are involved. if Context isn't defined,
+// [context.Background] will be used.
+func (cfg *Config) ExportListenConfig() *ListenConfig {
+	ctx := cfg.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return &ListenConfig{
+		ListenConfig: net.ListenConfig{
+			KeepAlive: cfg.KeepAlive,
+			Control:   cfg.newDefaultControl(),
+		},
+		Context: ctx,
 	}
 }
 
