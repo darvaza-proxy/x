@@ -1,15 +1,60 @@
 package certpool
 
 import (
+	"crypto"
 	"crypto/x509"
 
 	"darvaza.org/core"
 	"darvaza.org/x/container/set"
+	"darvaza.org/x/tls/x509utils"
 )
 
 // CertSet keeps a thread-safe set of unique [x509.Certificate]s.
 type CertSet struct {
 	set.Set[*x509.Certificate, Hash, *x509.Certificate]
+}
+
+// GetByKey returns all certificates in the CertSet matching the given public key.
+func (cs *CertSet) GetByKey(pub crypto.PublicKey) []*x509.Certificate {
+	if cs == nil || pub == nil {
+		return nil
+	} else if pub1, ok := pub.(x509utils.PublicKey); ok {
+		return cs.doGetByKey(pub1)
+	}
+	return nil
+}
+
+func (cs *CertSet) doGetByKey(pub x509utils.PublicKey) []*x509.Certificate {
+	var out []*x509.Certificate
+
+	cs.ForEach(func(cert *x509.Certificate) bool {
+		if pub.Equal(cert.PublicKey) {
+			out = append(out, cert)
+		}
+
+		return true
+	})
+
+	return out
+}
+
+// GetByPrivateKey returns all certificates in the CertSet matching the given private key.
+func (cs *CertSet) GetByPrivateKey(key crypto.PrivateKey) []*x509.Certificate {
+	if cs == nil || key == nil {
+		return nil
+	}
+
+	key1, ok := key.(x509utils.PrivateKey)
+	if !ok {
+		return nil
+	}
+
+	pub1, ok := key1.Public().(x509utils.PublicKey)
+	if !ok {
+		return nil
+	}
+
+	return cs.doGetByKey(pub1)
 }
 
 // Copy copies all certificates satisfying the optional condition to the destination
