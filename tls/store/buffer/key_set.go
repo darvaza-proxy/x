@@ -1,6 +1,8 @@
-package basic
+package buffer
 
 import (
+	"crypto/x509"
+
 	"darvaza.org/core"
 	"darvaza.org/x/container/set"
 
@@ -25,6 +27,20 @@ func (*KeySet) Public(key x509utils.PrivateKey) x509utils.PublicKey {
 	return nil
 }
 
+// GetFromCertificate is like Get but uses the public key associated with the
+// given certificate.
+func (ks *KeySet) GetFromCertificate(cert *x509.Certificate) (x509utils.PrivateKey, error) {
+	if ks == nil {
+		return nil, core.ErrNilReceiver
+	}
+
+	if pub := x509utils.PublicKeyFromCertificate(cert); pub != nil {
+		return ks.Get(pub)
+	}
+
+	return nil, core.Wrap(core.ErrInvalid, "invalid certificate provided")
+}
+
 // Copy copies all keys that satisfy the condition to the destination [KeySet]
 // unless they are already there.
 // If a destination isn't provided one will be created.
@@ -41,6 +57,7 @@ func (ks *KeySet) Copy(dst *KeySet, cond func(x509utils.PrivateKey) bool) *KeySe
 	if dst == nil {
 		dst = new(KeySet)
 	}
+
 	ks.Set.Copy(&dst.Set, cond)
 	return dst
 }
