@@ -3,7 +3,9 @@ package web
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"path"
 
 	"darvaza.org/core"
 	"darvaza.org/x/web/consts"
@@ -96,9 +98,38 @@ func (err *HTTPError) Render(rw http.ResponseWriter, req *http.Request) {
 	_, _ = fmt.Fprintln(rw, ErrorText(code))
 
 	if err.Err != nil {
-		if msg := err.Err.Error(); msg != "" {
-			_, _ = fmt.Fprint(rw, "\n", msg)
+		err.renderPayload(rw)
+	}
+}
+
+func (err *HTTPError) renderPayload(rw io.Writer) {
+	msg := err.Err.Error()
+
+	if msg != "" {
+		_, _ = fmt.Fprint(rw, "\n", msg)
+	}
+
+	if e, ok := err.Err.(core.CallStacker); ok {
+		stack := e.CallStack()
+		if n := len(stack); n > 0 {
+			if msg != "" {
+				_, _ = fmt.Fprint(rw, "\n\n----\n")
+			}
+
+			err.renderStack(rw, stack)
 		}
+	}
+}
+
+func (*HTTPError) renderStack(rw io.Writer, stack core.Stack) {
+	for i, f := range stack {
+		pkgName, funcName := f.SplitName()
+		fileName := path.Base(f.File())
+		line := f.Line()
+
+		_, _ = fmt.Fprintf(rw, "[%v/%v]: %s.%s\n\t%s/%s:%v\n", i, len(stack),
+			pkgName, funcName,
+			pkgName, fileName, line)
 	}
 }
 
