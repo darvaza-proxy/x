@@ -3,7 +3,7 @@ module darvaza.org/x/tls
 go 1.21
 
 require (
-	darvaza.org/core v0.15.3
+	darvaza.org/core v0.15.4
 	darvaza.org/slog v0.5.14
 	darvaza.org/x/container v0.1.4
 )
@@ -15,7 +15,7 @@ require (
 
 require (
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
-	golang.org/x/net v0.31.0 // indirect
+	golang.org/x/net v0.32.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 )

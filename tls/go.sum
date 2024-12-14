@@ -1,5 +1,7 @@
 darvaza.org/core v0.15.3 h1:gfzWN8CyRrQVikFpEj89W4WZ00OIN8VYxRWHEwG2WyQ=
 darvaza.org/core v0.15.3/go.mod h1:S8QWBUX2FOYcT7Cl3K6oG6PSJDm6/2cI79MPEyRh844=
+darvaza.org/core v0.15.4 h1:R0kHauyfjT4gEP0YxITxgCoONQ7JVsM/Fc9qblkzaaU=
+darvaza.org/core v0.15.4/go.mod h1:TZvRGmS6O6bIaN2/VFGf/GhCEBbOlTd51G7tQx6qdwM=
 darvaza.org/slog v0.5.14 h1:F8+OU0u3GbfNzHaJRT8XWgr07LK2ExFLA1BRks1qtgk=
 darvaza.org/slog v0.5.14/go.mod h1:PQfXbRaX8pGYhD5Xi+vAJBCUlHcmajNjMZGAfrcu7/E=
 darvaza.org/x/container v0.1.4 h1:3OBDL5Xy+sKosxHDosBa1x5z0kETvqvp7EOhTwu26E8=
@@ -20,6 +22,8 @@ golang.org/x/crypto v0.31.0 h1:ihbySMvVjLAeSH1IbfcRTkD/iNscyz8rGzjF/E5hV6U=
 golang.org/x/crypto v0.31.0/go.mod h1:kDsLvtWBEx7MV9tJOj9bnXsPbxwJQ6csT/x4KIN4Ssk=
 golang.org/x/net v0.31.0 h1:68CPQngjLL0r2AlUKiSxtQFKvzRVbnzLwMUn5SzcLHo=
 golang.org/x/net v0.31.0/go.mod h1:P4fl1q7dY2hnZFxEk4pPSkDHF+QqjitcnDjUQyMM+pM=
+golang.org/x/net v0.32.0 h1:ZqPmj8Kzc+Y6e0+skZsuACbx+wzMgo5MQsJh9Qd6aYI=
+golang.org/x/net v0.32.0/go.mod h1:CwU0IoeOlnQQWJ6ioyFrfRuomB8GKF6KbYXZVyeXNfs=
 golang.org/x/sys v0.27.0 h1:wBqf8DvsY9Y/2P8gAfPDEYNuS30J4lPHJxXSb/nJZ+s=
 golang.org/x/sys v0.27.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
 golang.org/x/sys v0.28.0 h1:Fksou7UEQUWlKvIdsqzJmUmCX3cZuD2+P3XyyzwMhlA=
