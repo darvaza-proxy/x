@@ -39,7 +39,7 @@ func (buf *Buffer) onAdd(fSys fs.FS, fileName string, block *pem.Block) bool {
 		buf.pushErr(fSys, fileName, err)
 	}
 
-	return buf.ctx.Err() != nil
+	return buf.ctx.Err() == nil
 }
 
 // NewAddCertsCallback returns a callback that adds all certificates to the [Buffer].
@@ -59,7 +59,7 @@ func (buf *Buffer) onAddCert(fSys fs.FS, fileName string, block *pem.Block) bool
 		buf.pushErr(fSys, fileName, err)
 	}
 
-	return buf.ctx.Err() != nil
+	return buf.ctx.Err() == nil
 }
 
 // NewAddPrivateKeysCallback returns a callback that adds private keys to the [Buffer].
@@ -79,7 +79,7 @@ func (buf *Buffer) onAddPrivateKeys(fSys fs.FS, fileName string, block *pem.Bloc
 		buf.pushErr(fSys, fileName, err)
 	}
 
-	return buf.ctx.Err() != nil
+	return buf.ctx.Err() == nil
 }
 
 func (buf *Buffer) pushErr(fSys fs.FS, fileName string, err error) {
