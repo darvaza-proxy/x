@@ -238,3 +238,16 @@ func ReadWithoutDirs() ReadOption {
 		return nil
 	}
 }
+
+// ReadWithDirs allows [ReadStringPEM] to scan directories.
+// This is the default.
+func ReadWithDirs() ReadOption {
+	return func(r *readOptions) error {
+		if r == nil {
+			return core.ErrNilReceiver
+		}
+
+		r.dirs = true
+		return nil
+	}
+}
