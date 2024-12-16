@@ -178,7 +178,7 @@ func (r *readOptions) readDirPEM(s string) error {
 		return &fs.PathError{
 			Op:   "Read",
 			Path: s,
-			Err:  fs.ErrNotExist,
+			Err:  core.Wrap(core.ErrInvalid, "directories support disabled"),
 		}
 	case r.fs == nil:
 		return ReadDirPEM(os.DirFS(s), ".", r.cb)
