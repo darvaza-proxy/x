@@ -1,7 +1,11 @@
 name: renovate-config-validator
 on:
   push:
+    paths:
+      - 'renovate.json'
   pull_request:
+    paths:
+      - 'renovate.json'
 
 jobs:
   renovate-config-validator:
