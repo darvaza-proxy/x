@@ -4,47 +4,10 @@ package config
 import (
 	"context"
 	"crypto/x509"
-	"io/fs"
-	"os"
 
 	"darvaza.org/x/tls"
 	"darvaza.org/x/tls/x509utils"
 )
-
-// ReadStringPEM works over raw PEM data or a filename reading PEM blocks
-// and invoking a callback for each.
-//
-// As opposed to x509utils.ReadStringPEM, this function doesn't support
-// directories.
-func ReadStringPEM(value string, fn x509utils.DecodePEMBlockFunc) error {
-	if x509utils.ReadPEM([]byte(value), fn) == nil {
-		// raw. done.
-		return nil
-	}
-
-	b, err := os.ReadFile(value)
-	if pe, ok := err.(*os.PathError); ok {
-		// bad path
-		if pe.Err == os.ErrInvalid {
-			err = pe.Err
-		}
-	}
-
-	if err != nil {
-		return err
-	}
-
-	err = x509utils.ReadPEM(b, fn)
-	if err != nil {
-		return &fs.PathError{
-			Op:   "pem.Decode",
-			Path: value,
-			Err:  err,
-		}
-	}
-
-	return nil
-}
 
 // AddCACerts adds all given certificates as trusted roots to the given [tls.Store].
 // PEM content, a PEM fileName, or a directory containing PEM files.
