@@ -122,7 +122,8 @@ func splitReadDir(fSys fs.FS, dir string) ([]fs.DirEntry, []fs.DirEntry, error) 
 // PEM blocks and invoking a callback for each.
 func ReadStringPEM(s string, cb DecodePEMBlockFunc, options ...ReadOption) error {
 	r := &readOptions{
-		cb: cb,
+		cb:   cb,
+		dirs: true,
 	}
 
 	for _, fn := range options {
@@ -137,6 +138,8 @@ func ReadStringPEM(s string, cb DecodePEMBlockFunc, options ...ReadOption) error
 type readOptions struct {
 	cb DecodePEMBlockFunc
 	fs fs.FS
+
+	dirs bool
 }
 
 func (r *readOptions) run(s string) error {
@@ -170,11 +173,18 @@ func (r *readOptions) stat(s string) (fs.FileInfo, error) {
 }
 
 func (r *readOptions) readDirPEM(s string) error {
-	if r.fs == nil {
+	switch {
+	case !r.dirs:
+		return &fs.PathError{
+			Op:   "Read",
+			Path: s,
+			Err:  fs.ErrNotExist,
+		}
+	case r.fs == nil:
 		return ReadDirPEM(os.DirFS(s), ".", r.cb)
+	default:
+		return ReadDirPEM(r.fs, s, r.cb)
 	}
-
-	return ReadDirPEM(r.fs, s, r.cb)
 }
 
 func (r *readOptions) readFile(s string) ([]byte, error) {
@@ -214,5 +224,17 @@ func ReadWithFS(fSys fs.FS) ReadOption {
 			r.fs = fSys
 			return nil
 		}
+	}
+}
+
+// ReadWithoutDirs prevents [ReadStringPEM] from scanning directories.
+func ReadWithoutDirs() ReadOption {
+	return func(r *readOptions) error {
+		if r == nil {
+			return core.ErrNilReceiver
+		}
+
+		r.dirs = false
+		return nil
 	}
 }
