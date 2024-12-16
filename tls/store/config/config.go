@@ -17,6 +17,8 @@ type Config struct {
 	Roots []string
 	Keys  []string
 	Certs []string
+
+	Options []x509utils.ReadOption
 }
 
 func (cfg *Config) getLogger() slog.Logger {
@@ -27,14 +29,26 @@ func (cfg *Config) getLogger() slog.Logger {
 	return cfg.Logger
 }
 
+func (cfg *Config) readDeep(s string, cb x509utils.DecodePEMBlockFunc, options ...x509utils.ReadOption) error {
+	opts := merge(cfg.Options, options)
+	return x509utils.ReadStringPEM(s, cb, opts...)
+}
+
+func (cfg *Config) readShallow(s string, cb x509utils.DecodePEMBlockFunc, options ...x509utils.ReadOption) error {
+	opts := insert(cfg.Options, options, x509utils.ReadWithoutDirs())
+	return x509utils.ReadStringPEM(s, cb, opts...)
+}
+
 // AddCACerts adds all given certificates as trusted roots to the given [tls.Store].
 // PEM content, a PEM fileName, or a directory containing PEM files.
-func (cfg *Config) AddCACerts(ctx context.Context, out tls.StoreX509Writer, value string) (int, error) {
+func (cfg *Config) AddCACerts(ctx context.Context, out tls.StoreX509Writer, value string,
+	options ...x509utils.ReadOption) (int, error) {
+	//
 	var errs core.CompoundError
 
 	buf := buffer.New(ctx, cfg.getLogger())
 	fn := buf.NewAddCertsCallback()
-	if err := x509utils.ReadStringPEM(value, fn); err != nil {
+	if err := cfg.readDeep(value, fn, options...); err != nil {
 		errs.AppendError(err)
 	}
 
@@ -54,7 +68,7 @@ func (cfg *Config) applyRoots(ctx context.Context, out tls.StoreX509Writer) erro
 
 	for _, v := range cfg.Roots {
 		if v != "" {
-			if err := x509utils.ReadStringPEM(v, fn); err != nil {
+			if err := cfg.readDeep(v, fn); err != nil {
 				errs.Append(err, "Roots")
 			}
 		}
@@ -68,12 +82,14 @@ func (cfg *Config) applyRoots(ctx context.Context, out tls.StoreX509Writer) erro
 }
 
 // AddCert adds all given certificates to the specified [tls.Store].
-func (cfg *Config) AddCert(ctx context.Context, out tls.StoreX509Writer, value string) error {
+func (cfg *Config) AddCert(ctx context.Context, out tls.StoreX509Writer, value string,
+	options ...x509utils.ReadOption) error {
+	//
 	var errs core.CompoundError
 
 	buf := buffer.New(ctx, cfg.getLogger())
 	fn := buf.NewAddCertsCallback()
-	if err := ReadStringPEM(value, fn); err != nil {
+	if err := cfg.readShallow(value, fn, options...); err != nil {
 		errs.AppendError(err)
 	}
 
@@ -91,7 +107,7 @@ func (cfg *Config) applyCerts(ctx context.Context, out tls.StoreX509Writer) erro
 	fn := buf.NewAddCertsCallback()
 	for _, v := range cfg.Certs {
 		if v != "" {
-			if err := x509utils.ReadStringPEM(v, fn); err != nil {
+			if err := cfg.readDeep(v, fn); err != nil {
 				errs.Append(err, "Certs")
 			}
 		}
@@ -105,17 +121,19 @@ func (cfg *Config) applyCerts(ctx context.Context, out tls.StoreX509Writer) erro
 }
 
 // AddCertPair adds a cert-key pair to the specified [tls.Store].
-func (cfg *Config) AddCertPair(ctx context.Context, out tls.StoreX509Writer, key, cert string) error {
+func (cfg *Config) AddCertPair(ctx context.Context, out tls.StoreX509Writer, key, cert string,
+	options ...x509utils.ReadOption) error {
+	//
 	var errs core.CompoundError
 
 	buf := buffer.New(ctx, cfg.getLogger())
 	fn1 := buf.NewAddPrivateKeysCallback()
-	if err := ReadStringPEM(key, fn1); err != nil {
+	if err := cfg.readShallow(key, fn1, options...); err != nil {
 		errs.AppendError(err)
 	}
 
 	fn2 := buf.NewAddCertsCallback()
-	if err := ReadStringPEM(cert, fn2); err != nil {
+	if err := cfg.readShallow(cert, fn2, options...); err != nil {
 		errs.AppendError(err)
 	}
 
@@ -127,13 +145,15 @@ func (cfg *Config) AddCertPair(ctx context.Context, out tls.StoreX509Writer, key
 }
 
 // AddPrivateKey adds a private key to the specified [tls.Store].
-func (cfg *Config) AddPrivateKey(ctx context.Context, out tls.StoreX509Writer, key string) error {
+func (cfg *Config) AddPrivateKey(ctx context.Context, out tls.StoreX509Writer, key string,
+	options ...x509utils.ReadOption) error {
+	//
 	var errs core.CompoundError
 
 	buf := buffer.New(ctx, cfg.getLogger())
 	fn := buf.NewAddPrivateKeysCallback()
 
-	if err := ReadStringPEM(key, fn); err != nil {
+	if err := cfg.readShallow(key, fn, options...); err != nil {
 		errs.AppendError(err)
 	}
 
@@ -152,7 +172,7 @@ func (cfg *Config) applyKeys(ctx context.Context, out tls.StoreX509Writer) error
 
 	for _, v := range cfg.Keys {
 		if v != "" {
-			if err := ReadStringPEM(v, fn); err != nil {
+			if err := cfg.readShallow(v, fn); err != nil {
 				errs.Append(err, "Keys")
 			}
 		}
