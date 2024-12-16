@@ -120,8 +120,26 @@ func splitReadDir(fSys fs.FS, dir string) ([]fs.DirEntry, []fs.DirEntry, error) 
 
 // ReadStringPEM works over raw PEM data, a filename or directory reading
 // PEM blocks and invoking a callback for each.
-func ReadStringPEM(s string, cb DecodePEMBlockFunc) error {
-	if ReadPEM([]byte(s), cb) == nil {
+func ReadStringPEM(s string, cb DecodePEMBlockFunc, options ...ReadOption) error {
+	r := &readOptions{
+		cb: cb,
+	}
+
+	for _, fn := range options {
+		if err := fn(r); err != nil {
+			return err
+		}
+	}
+
+	return r.run(s)
+}
+
+type readOptions struct {
+	cb DecodePEMBlockFunc
+}
+
+func (r *readOptions) run(s string) error {
+	if ReadPEM([]byte(s), r.cb) == nil {
 		// raw. done.
 		return nil
 	}
@@ -129,7 +147,7 @@ func ReadStringPEM(s string, cb DecodePEMBlockFunc) error {
 	st, err := os.Stat(s)
 	if err == nil {
 		// string is a file path
-		return readOSPathPEM(s, st, cb)
+		return r.readOSPathPEM(s, st)
 	}
 
 	if pe, ok := err.(*os.PathError); ok {
@@ -142,9 +160,9 @@ func ReadStringPEM(s string, cb DecodePEMBlockFunc) error {
 	return err
 }
 
-func readOSPathPEM(s string, st fs.FileInfo, cb DecodePEMBlockFunc) error {
+func (r *readOptions) readOSPathPEM(s string, st fs.FileInfo) error {
 	if st.IsDir() {
-		return ReadDirPEM(os.DirFS(s), ".", cb)
+		return ReadDirPEM(os.DirFS(s), ".", r.cb)
 	}
 
 	// file
@@ -153,5 +171,8 @@ func readOSPathPEM(s string, st fs.FileInfo, cb DecodePEMBlockFunc) error {
 		return err
 	}
 
-	return ReadPEM(b, cb)
+	return ReadPEM(b, r.cb)
 }
+
+// ReadOption tunes how [ReadStringPEM] operates.
+type ReadOption func(*readOptions) error
