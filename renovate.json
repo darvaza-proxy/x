@@ -15,5 +15,8 @@
         "darvaza.org/**"
       ]
     }
+  ],
+  "postUpdateOptions": [
+    "gomodTidy"
   ]
 }
