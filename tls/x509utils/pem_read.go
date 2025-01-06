@@ -120,16 +120,38 @@ func splitReadDir(fSys fs.FS, dir string) ([]fs.DirEntry, []fs.DirEntry, error) 
 
 // ReadStringPEM works over raw PEM data, a filename or directory reading
 // PEM blocks and invoking a callback for each.
-func ReadStringPEM(s string, cb DecodePEMBlockFunc) error {
-	if ReadPEM([]byte(s), cb) == nil {
+func ReadStringPEM(s string, cb DecodePEMBlockFunc, options ...ReadOption) error {
+	r := &readOptions{
+		cb:   cb,
+		dirs: true,
+	}
+
+	for _, fn := range options {
+		if err := fn(r); err != nil {
+			return err
+		}
+	}
+
+	return r.run(s)
+}
+
+type readOptions struct {
+	cb DecodePEMBlockFunc
+	fs fs.FS
+
+	dirs bool
+}
+
+func (r *readOptions) run(s string) error {
+	if ReadPEM([]byte(s), r.cb) == nil {
 		// raw. done.
 		return nil
 	}
 
-	st, err := os.Stat(s)
+	st, err := r.stat(s)
 	if err == nil {
 		// string is a file path
-		return readOSPathPEM(s, st, cb)
+		return r.readPathPEM(s, st)
 	}
 
 	if pe, ok := err.(*os.PathError); ok {
@@ -142,16 +164,90 @@ func ReadStringPEM(s string, cb DecodePEMBlockFunc) error {
 	return err
 }
 
-func readOSPathPEM(s string, st fs.FileInfo, cb DecodePEMBlockFunc) error {
+func (r *readOptions) stat(s string) (fs.FileInfo, error) {
+	if r.fs == nil {
+		return os.Stat(s)
+	}
+
+	return fs.Stat(r.fs, s)
+}
+
+func (r *readOptions) readDirPEM(s string) error {
+	switch {
+	case !r.dirs:
+		return &fs.PathError{
+			Op:   "Read",
+			Path: s,
+			Err:  core.Wrap(core.ErrInvalid, "directories support disabled"),
+		}
+	case r.fs == nil:
+		return ReadDirPEM(os.DirFS(s), ".", r.cb)
+	default:
+		return ReadDirPEM(r.fs, s, r.cb)
+	}
+}
+
+func (r *readOptions) readFile(s string) ([]byte, error) {
+	if r.fs == nil {
+		return os.ReadFile(s)
+	}
+
+	return fs.ReadFile(r.fs, s)
+}
+
+func (r *readOptions) readPathPEM(s string, st fs.FileInfo) error {
 	if st.IsDir() {
-		return ReadDirPEM(os.DirFS(s), ".", cb)
+		return r.readDirPEM(s)
 	}
 
 	// file
-	b, err := os.ReadFile(s)
+	b, err := r.readFile(s)
 	if err != nil {
 		return err
 	}
 
-	return ReadPEM(b, cb)
+	return ReadPEM(b, r.cb)
+}
+
+// ReadOption tunes how [ReadStringPEM] operates.
+type ReadOption func(*readOptions) error
+
+// ReadWithFS specifies a [fs.FS] to use when resolving paths.
+func ReadWithFS(fSys fs.FS) ReadOption {
+	return func(r *readOptions) error {
+		switch {
+		case r == nil:
+			return core.ErrNilReceiver
+		case fSys == nil:
+			return core.Wrap(core.ErrInvalid, "fs not specified")
+		default:
+			r.fs = fSys
+			return nil
+		}
+	}
+}
+
+// ReadWithoutDirs prevents [ReadStringPEM] from scanning directories.
+func ReadWithoutDirs() ReadOption {
+	return func(r *readOptions) error {
+		if r == nil {
+			return core.ErrNilReceiver
+		}
+
+		r.dirs = false
+		return nil
+	}
+}
+
+// ReadWithDirs allows [ReadStringPEM] to scan directories.
+// This is the default.
+func ReadWithDirs() ReadOption {
+	return func(r *readOptions) error {
+		if r == nil {
+			return core.ErrNilReceiver
+		}
+
+		r.dirs = true
+		return nil
+	}
 }
