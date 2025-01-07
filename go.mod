@@ -1,3 +1,9 @@
 module darvaza.org/x
 
 go 1.21
+
+require (
+	darvaza.org/core v0.15.6 // indirect
+	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
+)
