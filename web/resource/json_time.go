@@ -25,8 +25,11 @@ func (ts *JSONTime) MarshalJSON() ([]byte, error) {
 		return nil, core.ErrNilReceiver
 	}
 
+	// truncate to milliseconds
+	t2 := ts.Time.Truncate(time.Millisecond)
+
 	// encode quoted
-	return []byte(ts.Format(jsonRFC9557)), nil
+	return []byte(t2.Format(jsonRFC9557)), nil
 }
 
 // UnmarshalJSON decodes the timestamp from JSON.
@@ -51,4 +54,20 @@ func (ts *JSONTime) UnmarshalJSON(b []byte) error {
 	}
 
 	return err
+}
+
+// NewJSONTime returns a new [JSONTime] set
+// to a copy of the given time, or the current
+// UTC timestamp if none is provided.
+func NewJSONTime(tp *time.Time) JSONTime {
+	var t time.Time
+	if tp != nil {
+		t = *tp
+	}
+
+	if t.IsZero() {
+		t = time.Now().UTC()
+	}
+
+	return JSONTime{Time: t}
 }
