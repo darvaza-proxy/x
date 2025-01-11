@@ -52,3 +52,19 @@ func (ts *JSONTime) UnmarshalJSON(b []byte) error {
 
 	return err
 }
+
+// NewJSONTime returns a new [JSONTime] set
+// to a copy of the given time, or the current
+// UTC timestamp if none is provided.
+func NewJSONTime(tp *time.Time) JSONTime {
+	var t time.Time
+	if tp != nil {
+		t = *tp
+	}
+
+	if t.IsZero() {
+		t = time.Now().UTC()
+	}
+
+	return JSONTime{Time: t}
+}
