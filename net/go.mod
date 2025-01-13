@@ -3,9 +3,9 @@ module darvaza.org/x/net
 go 1.22
 
 require (
-	darvaza.org/core v0.15.6
-	darvaza.org/slog v0.5.15
-	darvaza.org/slog/handlers/discard v0.4.17
+	darvaza.org/core v0.16.0
+	darvaza.org/slog v0.6.0
+	darvaza.org/slog/handlers/discard v0.5.0
 	darvaza.org/x/fs v0.3.8
 	github.com/amery/defaults v0.1.0
 )
