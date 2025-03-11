@@ -7,7 +7,7 @@ require (
 	darvaza.org/x/fs v0.4.0
 )
 
-require lukechampine.com/blake3 v1.3.0
+require lukechampine.com/blake3 v1.4.0
 
 require (
 	github.com/gobwas/glob v0.2.3 // indirect
