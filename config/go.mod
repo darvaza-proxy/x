@@ -6,7 +6,7 @@ require darvaza.org/core v0.16.1
 
 require (
 	github.com/amery/defaults v0.1.0
-	github.com/go-playground/validator/v10 v10.24.0
+	github.com/go-playground/validator/v10 v10.25.0
 	mvdan.cc/sh/v3 v3.10.0
 )
 
