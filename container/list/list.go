@@ -123,6 +123,32 @@ func (l *List[T]) PopFirstMatchFn(fn func(T) bool) (T, bool) {
 	return out, found
 }
 
+// MoveToBackFirstMatchFn moves the first element that satisfies the given function
+// to the back of the list, searching from front to back.
+func (l *List[T]) MoveToBackFirstMatchFn(fn func(T) bool) {
+	if l != nil && fn != nil {
+		var el *list.Element
+
+		el, _, _ = l.unsafeFirstMatchElement(fn)
+		if el != nil {
+			l.Sys().MoveToBack(el)
+		}
+	}
+}
+
+// MoveToFrontFirstMatchFn moves the first element that satisfies the given function
+// to the front of the list, searching from front to back.
+func (l *List[T]) MoveToFrontFirstMatchFn(fn func(T) bool) {
+	if l != nil && fn != nil {
+		var el *list.Element
+
+		el, _, _ = l.unsafeFirstMatchElement(fn)
+		if el != nil {
+			l.Sys().MoveToFront(el)
+		}
+	}
+}
+
 // FirstMatchFn returns the first element that satisfies the given function from
 // the front to the back.
 func (l *List[T]) FirstMatchFn(fn func(T) bool) (T, bool) {
