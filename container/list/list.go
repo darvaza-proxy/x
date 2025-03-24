@@ -10,6 +10,17 @@ import (
 // List is a typed wrapper on top of [list.List].
 type List[T any] list.List
 
+// New creates a new List with optional initial entries.
+// It returns a pointer to the newly created List.
+func New[T any](entries ...T) *List[T] {
+	l := (*List[T])(list.New())
+	for _, e := range entries {
+		l.PushBack(e)
+	}
+
+	return l
+}
+
 // Sys returns the native [list.List]
 func (l *List[T]) Sys() *list.List {
 	if l == nil {
