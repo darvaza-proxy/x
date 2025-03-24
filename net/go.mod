@@ -3,7 +3,7 @@ module darvaza.org/x/net
 go 1.22
 
 require (
-	darvaza.org/core v0.16.1
+	darvaza.org/core v0.16.2
 	darvaza.org/slog v0.6.1
 	darvaza.org/slog/handlers/discard v0.5.1
 	darvaza.org/x/fs v0.4.1
