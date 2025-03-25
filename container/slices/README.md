@@ -7,6 +7,11 @@ based on the standard Go slices.
 
 `Set[T]` is a generic interface that represents a set of values implemented over a slice.
 
+`CustomSet[T]` is a generic type that implements the `Set[T]` interface using a sorted slice
+underneath. A comparison function is required to be provided at initialization time via
+`NewCustomSet[T]()` or `MustCustomSet[T]()` and the initial values can optionally be included
+as extra arguments.
+
 ## See also
 
 * [`darvaza.org/x/container/set`](https://darvaza.org/x/container/set): A set implementation that uses a map internally.
