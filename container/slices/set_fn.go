@@ -378,3 +378,26 @@ func (set *CustomSet[T]) TrimN(minCapacity int) bool {
 
 	return set.doTrim(minCapacity)
 }
+
+// GetByIndex returns the element at the specified index in the set.
+// If the index is out of bounds, it returns the zero value and false.
+// This is concurrency-safe but it's only intended to be used when testing,
+// always prefer ForEach() or Export() instead.
+func (set *CustomSet[T]) GetByIndex(i int) (T, bool) {
+	var zero T
+
+	if set == nil || i < 0 {
+		// invalid
+		return zero, false
+	}
+
+	set.mu.Lock()
+	defer set.mu.Unlock()
+
+	if i >= len(set.s) {
+		// out of range
+		return zero, false
+	}
+
+	return set.s[i], true
+}
