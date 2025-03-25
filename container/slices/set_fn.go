@@ -242,8 +242,8 @@ func (set *CustomSet[T]) doRemove(values []T) int {
 
 func (set *CustomSet[T]) doRemoveOne(start int, v T) (int, bool) {
 	switch {
-	case len(set.s) == 0 && start == 0:
-		// first ever
+	case len(set.s) == 0:
+		// empty, nothing to remove.
 		return 0, false
 	default:
 		var zero T
@@ -256,6 +256,7 @@ func (set *CustomSet[T]) doRemoveOne(start int, v T) (int, bool) {
 			set.s[last] = zero
 			set.s = set.s[:last]
 		}
+
 		return i, exists
 	}
 }
