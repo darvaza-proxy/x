@@ -414,8 +414,8 @@ func (set *CustomSet[T]) GetByIndex(i int) (T, bool) {
 		return zero, false
 	}
 
-	set.mu.Lock()
-	defer set.mu.Unlock()
+	set.mu.RLock()
+	defer set.mu.RUnlock()
 
 	if i >= len(set.s) {
 		// out of range
