@@ -1,7 +1,6 @@
 package slices
 
 import (
-	"errors"
 	"sort"
 	"sync"
 
@@ -23,7 +22,7 @@ type CustomSet[T any] struct {
 // If the comparison function is nil, it returns an error.
 func NewCustomSet[T any](cmp func(T, T) int, initial ...T) (*CustomSet[T], error) {
 	if cmp == nil {
-		return nil, errors.New("comparison function cannot be nil")
+		return nil, core.Wrap(core.ErrInvalid, "comparison function is required")
 	}
 
 	return &CustomSet[T]{
@@ -41,6 +40,29 @@ func MustCustomSet[T any](cmd func(T, T) int, initial ...T) *CustomSet[T] {
 		core.Panic(err)
 	}
 	return set
+}
+
+// InitCustomSet initializes a pre-allocated CustomSet with a comparison function and optional initial elements.
+// It performs thread-safe initialization, ensuring the set can only be initialized once.
+// Returns an error if the set is nil, the comparison function is nil, or the set has already been initialized.
+func InitCustomSet[T any](set *CustomSet[T], cmp func(T, T) int, initial ...T) error {
+	switch {
+	case set == nil:
+		return core.ErrNilReceiver
+	case cmp == nil:
+		return core.Wrap(core.ErrInvalid, "comparison function is required")
+	default:
+		set.mu.Lock()
+		defer set.mu.Unlock()
+
+		if set.cmp != nil || set.s != nil {
+			return core.Wrap(core.ErrInvalid, "set already initialized")
+		}
+
+		set.s = dedupeFn(cmp, initial)
+		set.cmp = cmp
+		return nil
+	}
 }
 
 // dedupeFn removes duplicate elements from a slice using the provided comparison function.
@@ -220,8 +242,8 @@ func (set *CustomSet[T]) doRemove(values []T) int {
 
 func (set *CustomSet[T]) doRemoveOne(start int, v T) (int, bool) {
 	switch {
-	case len(set.s) == 0 && start == 0:
-		// first ever
+	case len(set.s) == 0:
+		// empty, nothing to remove.
 		return 0, false
 	default:
 		var zero T
@@ -234,6 +256,7 @@ func (set *CustomSet[T]) doRemoveOne(start int, v T) (int, bool) {
 			set.s[last] = zero
 			set.s = set.s[:last]
 		}
+
 		return i, exists
 	}
 }
@@ -391,8 +414,8 @@ func (set *CustomSet[T]) GetByIndex(i int) (T, bool) {
 		return zero, false
 	}
 
-	set.mu.Lock()
-	defer set.mu.Unlock()
+	set.mu.RLock()
+	defer set.mu.RUnlock()
 
 	if i >= len(set.s) {
 		// out of range

@@ -15,6 +15,9 @@ as extra arguments.
 `NewOrderedSet[T]()` is a convenience factory using a default comparison function for
 ordered generic types.
 
+For use with embedded `CustomSet[T]` variables, `InitCustomSet[T]` and `InitOrderedSet[T]`
+are available.
+
 ## See also
 
 * [`darvaza.org/x/container/set`](https://darvaza.org/x/container/set): A set implementation that uses a map internally.
