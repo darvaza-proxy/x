@@ -279,6 +279,22 @@ func (set *CustomSet[T]) Clear() {
 	set.s = set.s[:0]
 }
 
+// Purge removes and returns all elements from the set, resetting it to an empty state.
+// If the set is nil, it returns nil. The method is thread-safe and efficiently
+// transfers ownership of the underlying slice to the caller.
+func (set *CustomSet[T]) Purge() []T {
+	if set == nil {
+		return nil
+	}
+
+	set.mu.Lock()
+	defer set.mu.Unlock()
+
+	out := set.s
+	set.s = []T{}
+	return out
+}
+
 // Export returns a copy of the set's underlying slice, ensuring thread-safe access.
 // If the set is nil, it returns nil. The returned slice is a new slice with the same
 // elements as the set, preventing direct modification of the set's internal state.

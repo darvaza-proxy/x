@@ -18,8 +18,13 @@ type Set[T any] interface {
 	// Elements that do not exist in the set are ignored and do not contribute to the return value.
 	Remove(...T) int
 
-	// Clear removes all elements from the set, leaving it empty.
+	// Clear removes all elements from the set, leaving it empty. Total capacity remains.
 	Clear()
+
+	// Purge removes all elements from the set, leaving it with zero capacity. It returns the elements
+	// the Set contained.
+	Purge() []T
+
 	// Export returns a copy of the elements currently in the set as a new slice.
 	// The order of elements in the returned slice is not necessarily the same as the order in which
 	// they were added.
