@@ -128,6 +128,31 @@ func (set *CustomSet[T]) search(start int, v T) (int, bool) {
 	return start, false
 }
 
+// Clone creates a copy of the CustomSet.
+// If the set is nil or has no comparison function, it returns nil.
+// The method is concurrency-safe, using a read lock to protect access to the underlying slice.
+// The returned set has a new slice with the same elements and comparison function as the original set.
+func (set *CustomSet[T]) Clone() Set[T] {
+	if set == nil {
+		return nil
+	}
+
+	set.mu.RLock()
+	defer set.mu.RUnlock()
+
+	if set.cmp == nil {
+		return nil
+	}
+
+	s := make([]T, len(set.s))
+	copy(s, set.s)
+
+	return &CustomSet[T]{
+		s:   s,
+		cmp: set.cmp,
+	}
+}
+
 // Len returns the number of elements in the CustomSet.
 // If the set is nil, it returns 0.
 // The method is concurrency-safe, using a read lock to protect access to the underlying slice.
