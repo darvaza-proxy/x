@@ -3,7 +3,7 @@
 The `slices` package provides a higher level abstractions and functionality
 based on the standard Go slices.
 
-## Set[T]
+## `Set[T]`
 
 `Set[T]` is a generic interface that represents a set of values implemented over a slice.
 
@@ -17,6 +17,13 @@ ordered generic types.
 
 For use with embedded `CustomSet[T]` variables, `InitCustomSet[T]` and `InitOrderedSet[T]`
 are available.
+
+### `CustomSet[T]` additions
+
+For performance, `CustomSet[T]` implements two methods not covered by the `Set[T]` interface.
+
+* `Clone() Set[T]` to create a copy with the same elements and comparison function.
+* and `New()` to create a new empty set with the same comparison function.
 
 ## See also
 
