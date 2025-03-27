@@ -18,6 +18,25 @@ type CustomSet[T any] struct {
 	cmp func(T, T) int
 }
 
+// New creates a new CustomSet with the same comparison function as the current set.
+// Returns nil if the current set is nil or has no comparison function.
+func (set *CustomSet[T]) New() Set[T] {
+	if set == nil {
+		return nil
+	}
+
+	set.mu.RLock()
+	defer set.mu.RUnlock()
+
+	if set.cmp == nil {
+		return nil
+	}
+
+	return &CustomSet[T]{
+		cmp: set.cmp,
+	}
+}
+
 // NewCustomSet creates a new CustomSet with the provided comparison function and initial elements.
 // If the comparison function is nil, it returns an error.
 func NewCustomSet[T any](cmp func(T, T) int, initial ...T) (*CustomSet[T], error) {
