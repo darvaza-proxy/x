@@ -19,7 +19,7 @@ type CustomSet[T any] struct {
 }
 
 // New creates a new CustomSet with the same comparison function as the current set.
-// Returns nil if the current set is nil or has no comparison function.
+// Returns nil if the current set is nil. and panics if not initialized.
 func (set *CustomSet[T]) New() Set[T] {
 	if set == nil {
 		return nil
@@ -29,7 +29,7 @@ func (set *CustomSet[T]) New() Set[T] {
 	defer set.mu.RUnlock()
 
 	if set.cmp == nil {
-		return nil
+		core.Panic(set.newNotInitialized(1))
 	}
 
 	return &CustomSet[T]{
@@ -148,8 +148,8 @@ func (set *CustomSet[T]) search(start int, v T) (int, bool) {
 }
 
 // Clone creates a copy of the CustomSet.
-// If the set is nil or has no comparison function, it returns nil.
 // The method is concurrency-safe, using a read lock to protect access to the underlying slice.
+// Returns nil if the current set is nil. and panics if not initialized.
 // The returned set has a new slice with the same elements and comparison function as the original set.
 func (set *CustomSet[T]) Clone() Set[T] {
 	if set == nil {
@@ -160,7 +160,7 @@ func (set *CustomSet[T]) Clone() Set[T] {
 	defer set.mu.RUnlock()
 
 	if set.cmp == nil {
-		return nil
+		core.Panic(set.newNotInitialized(1))
 	}
 
 	s := make([]T, len(set.s))
@@ -203,15 +203,20 @@ func (set *CustomSet[T]) Cap() (available, total int) {
 }
 
 // Add adds the given values to the CustomSet, returning the number of unique values added.
-// If the set is nil, has no comparison function, or no values are provided, it returns 0.
+// If the set is nil or no values are provided, it returns 0.
+// Panics if the set is not properly initialized (cmp is nil).
 // The method is concurrency-safe, using a lock to protect modifications to the underlying slice.
 func (set *CustomSet[T]) Add(values ...T) int {
-	if set == nil || set.cmp == nil || len(values) == 0 {
+	if set == nil || len(values) == 0 {
 		return 0
 	}
 
 	set.mu.Lock()
 	defer set.mu.Unlock()
+
+	if set.cmp == nil {
+		core.Panic(set.newNotInitialized(1))
+	}
 
 	return set.doAdd(values)
 }
@@ -252,17 +257,20 @@ func (set *CustomSet[T]) doAddOne(start int, v T) (int, bool) {
 }
 
 // Remove removes the given values from the CustomSet, returning the number of unique values removed.
-// If the set is nil, has no comparison function, no values are provided, or the set is empty, it returns 0.
+// If the set is nil or no values are provided, it returns 0.
+// Panics if the set is not properly initialized (cmp is nil).
 // The method is concurrency-safe, using a lock to protect modifications to the underlying slice.
 func (set *CustomSet[T]) Remove(values ...T) int {
-	if set == nil || set.cmp == nil || len(values) == 0 {
+	if set == nil || len(values) == 0 {
 		return 0
 	}
 
 	set.mu.Lock()
 	defer set.mu.Unlock()
 
-	if len(set.s) == 0 {
+	if set.cmp == nil {
+		core.Panic(set.newNotInitialized(1))
+	} else if len(set.s) == 0 {
 		return 0
 	}
 
@@ -483,4 +491,8 @@ func (set *CustomSet[T]) GetByIndex(i int) (T, bool) {
 	}
 
 	return set.s[i], true
+}
+
+func (*CustomSet[T]) newNotInitialized(skip int) error {
+	return core.NewPanicError(skip+1, "CustomSet not initialized")
 }
