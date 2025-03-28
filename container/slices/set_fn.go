@@ -159,15 +159,20 @@ func (set *CustomSet[T]) Cap() (available, total int) {
 }
 
 // Add adds the given values to the CustomSet, returning the number of unique values added.
-// If the set is nil, has no comparison function, or no values are provided, it returns 0.
+// If the set is nil or no values are provided, it returns 0.
+// Panics if the set is not properly initialized (cmp is nil).
 // The method is concurrency-safe, using a lock to protect modifications to the underlying slice.
 func (set *CustomSet[T]) Add(values ...T) int {
-	if set == nil || set.cmp == nil || len(values) == 0 {
+	if set == nil || len(values) == 0 {
 		return 0
 	}
 
 	set.mu.Lock()
 	defer set.mu.Unlock()
+
+	if set.cmp == nil {
+		core.Panic(core.NewPanicError(1, "CustomSet not initialized"))
+	}
 
 	return set.doAdd(values)
 }
@@ -208,16 +213,20 @@ func (set *CustomSet[T]) doAddOne(start int, v T) (int, bool) {
 }
 
 // Remove removes the given values from the CustomSet, returning the number of unique values removed.
-// If the set is nil, has no comparison function, no values are provided, or the set is empty, it returns 0.
+// If the set is nil or no values are provided, it returns 0.
+// Panics if the set is not properly initialized (cmp is nil).
 // The method is concurrency-safe, using a lock to protect modifications to the underlying slice.
 func (set *CustomSet[T]) Remove(values ...T) int {
-	if set == nil || set.cmp == nil || len(values) == 0 {
+	if set == nil || len(values) == 0 {
 		return 0
 	}
 
 	set.mu.Lock()
 	defer set.mu.Unlock()
 
+	if set.cmp == nil {
+		core.Panic(core.NewPanicError(1, "CustomSet not initialized"))
+	}
 	if len(set.s) == 0 {
 		return 0
 	}
