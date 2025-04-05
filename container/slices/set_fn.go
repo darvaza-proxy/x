@@ -1,5 +1,7 @@
 package slices
 
+// This file implements a thread-safe generic set data structure with custom comparison support.
+
 import (
 	"sort"
 	"sync"
@@ -10,16 +12,16 @@ import (
 // Compile-time check to ensure CustomSet implements the Set interface
 var _ Set[struct{}] = (*CustomSet[struct{}])(nil)
 
-// CustomSet is a generic set implementation with custom comparison and concurrency-safe operations.
-// The set maintains a sorted slice of unique elements using a provided comparison function.
+// CustomSet is a generic thread-safe set implementation with custom element comparison.
+// It maintains a sorted slice of unique elements using a provided comparison function.
 type CustomSet[T any] struct {
 	mu  sync.RWMutex
 	s   []T
-	cmp func(T, T) int
+	cmp func(T, T) int // comparison function: negative if a<b, zero if a==b, positive if a>b
 }
 
-// New creates a new CustomSet with the same comparison function as the current set.
-// Returns nil if the current set is nil or has no comparison function.
+// New creates a new empty CustomSet with the same comparison function as the current set.
+// Returns nil if the current set is nil, and panics if the set is not initialized.
 func (set *CustomSet[T]) New() Set[T] {
 	if set == nil {
 		return nil
@@ -29,7 +31,7 @@ func (set *CustomSet[T]) New() Set[T] {
 	defer set.mu.RUnlock()
 
 	if set.cmp == nil {
-		return nil
+		core.Panic(set.newNotInitialized(1))
 	}
 
 	return &CustomSet[T]{
@@ -38,7 +40,8 @@ func (set *CustomSet[T]) New() Set[T] {
 }
 
 // NewCustomSet creates a new CustomSet with the provided comparison function and initial elements.
-// If the comparison function is nil, it returns an error.
+// The comparison function should return negative if a<b, zero if a==b, and positive if a>b.
+// Returns an error if the comparison function is nil.
 func NewCustomSet[T any](cmp func(T, T) int, initial ...T) (*CustomSet[T], error) {
 	if cmp == nil {
 		return nil, core.Wrap(core.ErrInvalid, "comparison function is required")
@@ -50,9 +53,8 @@ func NewCustomSet[T any](cmp func(T, T) int, initial ...T) (*CustomSet[T], error
 	}, nil
 }
 
-// MustCustomSet creates a new CustomSet with the provided comparison function and initial elements.
-// It panics if the comparison function is nil or if an error occurs during set creation.
-// This is a convenience function that simplifies set initialization when panicking on error is acceptable.
+// MustCustomSet creates a new CustomSet, panicking if initialization fails.
+// This is a convenience function for when error handling is not needed.
 func MustCustomSet[T any](cmd func(T, T) int, initial ...T) *CustomSet[T] {
 	set, err := NewCustomSet(cmd, initial...)
 	if err != nil {
@@ -61,9 +63,8 @@ func MustCustomSet[T any](cmd func(T, T) int, initial ...T) *CustomSet[T] {
 	return set
 }
 
-// InitCustomSet initializes a pre-allocated CustomSet with a comparison function and optional initial elements.
-// It performs thread-safe initialization, ensuring the set can only be initialized once.
-// Returns an error if the set is nil, the comparison function is nil, or the set has already been initialized.
+// InitCustomSet initializes a pre-allocated CustomSet with thread-safe semantics.
+// Returns an error if the set is nil, the comparison function is nil, or the set is already initialized.
 func InitCustomSet[T any](set *CustomSet[T], cmp func(T, T) int, initial ...T) error {
 	switch {
 	case set == nil:
@@ -85,8 +86,8 @@ func InitCustomSet[T any](set *CustomSet[T], cmp func(T, T) int, initial ...T) e
 }
 
 // dedupeFn removes duplicate elements from a slice using the provided comparison function.
-// It first sorts the slice and then eliminates consecutive duplicate elements in-place.
-// The function modifies the input slice and returns a slice with unique elements.
+// It sorts the slice and then eliminates consecutive duplicate elements in-place.
+// Returns the deduplicated slice.
 func dedupeFn[T any](cmp func(T, T) int, s []T) []T {
 	var zero T
 
@@ -119,9 +120,7 @@ func dedupeFn[T any](cmp func(T, T) int, s []T) []T {
 }
 
 // Contains checks if the given value is present in the CustomSet.
-// It returns true if the value is found, false otherwise.
-// If the set is nil or its comparison function is not set, it returns false.
-// The method is concurrency-safe, using a read lock to protect access to the underlying slice.
+// Returns false if the set is nil or not initialized.
 func (set *CustomSet[T]) Contains(v T) bool {
 	if set == nil || set.cmp == nil {
 		return false
@@ -134,6 +133,8 @@ func (set *CustomSet[T]) Contains(v T) bool {
 	return ok
 }
 
+// search is an internal helper that finds a value in the set starting from the given index.
+// Returns the found index and true if found, or insertion point and false if not found.
 func (set *CustomSet[T]) search(start int, v T) (int, bool) {
 	view := set.s[start:]
 
@@ -148,9 +149,7 @@ func (set *CustomSet[T]) search(start int, v T) (int, bool) {
 }
 
 // Clone creates a copy of the CustomSet.
-// If the set is nil or has no comparison function, it returns nil.
-// The method is concurrency-safe, using a read lock to protect access to the underlying slice.
-// The returned set has a new slice with the same elements and comparison function as the original set.
+// Returns nil if the current set is nil, and panics if not initialized.
 func (set *CustomSet[T]) Clone() Set[T] {
 	if set == nil {
 		return nil
@@ -160,7 +159,7 @@ func (set *CustomSet[T]) Clone() Set[T] {
 	defer set.mu.RUnlock()
 
 	if set.cmp == nil {
-		return nil
+		core.Panic(set.newNotInitialized(1))
 	}
 
 	s := make([]T, len(set.s))
@@ -173,8 +172,7 @@ func (set *CustomSet[T]) Clone() Set[T] {
 }
 
 // Len returns the number of elements in the CustomSet.
-// If the set is nil, it returns 0.
-// The method is concurrency-safe, using a read lock to protect access to the underlying slice.
+// Returns 0 if the set is nil.
 func (set *CustomSet[T]) Len() int {
 	if set == nil {
 		return 0
@@ -187,10 +185,8 @@ func (set *CustomSet[T]) Len() int {
 }
 
 // Cap returns the available and total capacity of the CustomSet.
-// If the set is nil, it returns (0, 0).
-// The method is concurrency-safe, using a read lock to protect access to the underlying slice.
-// The first return value is the number of additional elements that can be added without reallocation.
-// The second return value is the total capacity of the underlying slice.
+// The first return value is available capacity, and the second is total capacity.
+// Returns (0, 0) if the set is nil.
 func (set *CustomSet[T]) Cap() (available, total int) {
 	if set == nil {
 		return 0, 0
@@ -202,20 +198,26 @@ func (set *CustomSet[T]) Cap() (available, total int) {
 	return cap(set.s) - len(set.s), cap(set.s)
 }
 
-// Add adds the given values to the CustomSet, returning the number of unique values added.
-// If the set is nil, has no comparison function, or no values are provided, it returns 0.
-// The method is concurrency-safe, using a lock to protect modifications to the underlying slice.
+// Add adds the given values to the CustomSet.
+// Returns the number of unique values that were added.
+// Panics if the set is not properly initialized.
 func (set *CustomSet[T]) Add(values ...T) int {
-	if set == nil || set.cmp == nil || len(values) == 0 {
+	if set == nil || len(values) == 0 {
 		return 0
 	}
 
 	set.mu.Lock()
 	defer set.mu.Unlock()
 
+	if set.cmp == nil {
+		core.Panic(set.newNotInitialized(1))
+	}
+
 	return set.doAdd(values)
 }
 
+// doAdd implements the non-locking portion of Add.
+// Returns the count of added elements.
 func (set *CustomSet[T]) doAdd(values []T) int {
 	var count int
 
@@ -231,6 +233,8 @@ func (set *CustomSet[T]) doAdd(values []T) int {
 	return count
 }
 
+// doAddOne adds a single value to the set starting search from the given index.
+// Returns the insertion position and true if added, or position and false if already exists.
 func (set *CustomSet[T]) doAddOne(start int, v T) (int, bool) {
 	switch {
 	case len(set.s) == 0 && start == 0:
@@ -251,24 +255,28 @@ func (set *CustomSet[T]) doAddOne(start int, v T) (int, bool) {
 	}
 }
 
-// Remove removes the given values from the CustomSet, returning the number of unique values removed.
-// If the set is nil, has no comparison function, no values are provided, or the set is empty, it returns 0.
-// The method is concurrency-safe, using a lock to protect modifications to the underlying slice.
+// Remove removes the given values from the CustomSet.
+// Returns the number of values that were actually removed.
+// Panics if the set is not properly initialized.
 func (set *CustomSet[T]) Remove(values ...T) int {
-	if set == nil || set.cmp == nil || len(values) == 0 {
+	if set == nil || len(values) == 0 {
 		return 0
 	}
 
 	set.mu.Lock()
 	defer set.mu.Unlock()
 
-	if len(set.s) == 0 {
+	if set.cmp == nil {
+		core.Panic(set.newNotInitialized(1))
+	} else if len(set.s) == 0 {
 		return 0
 	}
 
 	return set.doRemove(values)
 }
 
+// doRemove implements the non-locking portion of Remove.
+// Returns the count of removed elements.
 func (set *CustomSet[T]) doRemove(values []T) int {
 	var count int
 
@@ -284,6 +292,8 @@ func (set *CustomSet[T]) doRemove(values []T) int {
 	return count
 }
 
+// doRemoveOne removes a single value from the set starting search from the given index.
+// Returns the position and true if removed, or position and false if not found.
 func (set *CustomSet[T]) doRemoveOne(start int, v T) (int, bool) {
 	switch {
 	case len(set.s) == 0:
@@ -306,8 +316,7 @@ func (set *CustomSet[T]) doRemoveOne(start int, v T) (int, bool) {
 }
 
 // Clear removes all elements from the set, resetting it to an empty state.
-// It zeroes out the underlying slice and truncates it to zero length.
-// If the set is nil, the method does nothing.
+// Does nothing if the set is nil.
 func (set *CustomSet[T]) Clear() {
 	if set == nil {
 		return
@@ -323,9 +332,9 @@ func (set *CustomSet[T]) Clear() {
 	set.s = set.s[:0]
 }
 
-// Purge removes and returns all elements from the set, resetting it to an empty state.
-// If the set is nil, it returns nil. The method is thread-safe and efficiently
-// transfers ownership of the underlying slice to the caller.
+// Purge removes and returns all elements from the set.
+// Unlike Clear(), this transfers ownership of the underlying slice to the caller.
+// Returns nil if the set is nil.
 func (set *CustomSet[T]) Purge() []T {
 	if set == nil {
 		return nil
@@ -339,9 +348,8 @@ func (set *CustomSet[T]) Purge() []T {
 	return out
 }
 
-// Export returns a copy of the set's underlying slice, ensuring thread-safe access.
-// If the set is nil, it returns nil. The returned slice is a new slice with the same
-// elements as the set, preventing direct modification of the set's internal state.
+// Export returns a copy of the set's elements as a new slice.
+// Returns nil if the set is nil.
 func (set *CustomSet[T]) Export() []T {
 	if set == nil {
 		return nil
@@ -356,8 +364,8 @@ func (set *CustomSet[T]) Export() []T {
 }
 
 // ForEach iterates over each element in the set, applying the provided function.
-// It stops iteration if the function returns false. The method is thread-safe
-// and handles nil sets or nil functions by returning immediately.
+// Stops iteration if the function returns false.
+// Does nothing if either the set or function is nil.
 func (set *CustomSet[T]) ForEach(fn func(T) bool) {
 	if set == nil || fn == nil {
 		return
@@ -374,9 +382,7 @@ func (set *CustomSet[T]) ForEach(fn func(T) bool) {
 }
 
 // Reserve increases the capacity of the set to at least the specified capacity.
-// If the set is nil, it returns false. The method is thread-safe and ensures
-// that the underlying slice can accommodate the requested capacity without
-// reallocation.
+// Returns true if the capacity was increased, false if the set is nil or already has sufficient capacity.
 func (set *CustomSet[T]) Reserve(capacity int) bool {
 	if set == nil {
 		return false
@@ -388,6 +394,8 @@ func (set *CustomSet[T]) Reserve(capacity int) bool {
 	return set.doReserve(capacity)
 }
 
+// doReserve implements the non-locking portion of Reserve.
+// Returns true if capacity was changed, false otherwise.
 func (set *CustomSet[T]) doReserve(capacity int) bool {
 	if capacity > cap(set.s) {
 		s2 := make([]T, len(set.s), capacity)
@@ -399,9 +407,7 @@ func (set *CustomSet[T]) doReserve(capacity int) bool {
 }
 
 // Grow increases the capacity of the set by the specified additional amount.
-// If the set is nil, it returns false. The method is concurrency-safe and ensures
-// that the underlying slice can accommodate the increased capacity without
-// reallocation.
+// Returns true if the capacity was increased, false otherwise.
 func (set *CustomSet[T]) Grow(additional int) bool {
 	if set == nil {
 		return false
@@ -414,8 +420,7 @@ func (set *CustomSet[T]) Grow(additional int) bool {
 }
 
 // Trim reduces the capacity of the set to match its length.
-// If the set is nil, it returns false. The method is thread-safe and ensures
-// that the underlying slice's capacity is minimized without changing its contents.
+// Returns true if the capacity was reduced, false otherwise.
 func (set *CustomSet[T]) Trim() bool {
 	if set == nil {
 		return false
@@ -427,6 +432,8 @@ func (set *CustomSet[T]) Trim() bool {
 	return set.doTrim(0)
 }
 
+// doTrim implements the non-locking portion of Trim and TrimN.
+// Returns true if capacity was changed, false otherwise.
 func (set *CustomSet[T]) doTrim(minCapacity int) bool {
 	l := len(set.s)
 	capacity := max(minCapacity, l)
@@ -447,10 +454,8 @@ func (set *CustomSet[T]) doTrim(minCapacity int) bool {
 	}
 }
 
-// TrimN reduces the capacity of the set to at least the specified minimum capacity.
-// If the set is nil, it returns false. The method is concurrency-safe and ensures
-// that the underlying slice's capacity is minimized while maintaining at least
-// the specified minimum capacity.
+// TrimN reduces the capacity of the set while maintaining at least the specified minimum capacity.
+// Returns true if the capacity was reduced, false otherwise.
 func (set *CustomSet[T]) TrimN(minCapacity int) bool {
 	if set == nil {
 		return false
@@ -483,4 +488,8 @@ func (set *CustomSet[T]) GetByIndex(i int) (T, bool) {
 	}
 
 	return set.s[i], true
+}
+
+func (*CustomSet[T]) newNotInitialized(skip int) error {
+	return core.NewPanicError(skip+1, "CustomSet not initialized")
 }
