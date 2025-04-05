@@ -12,9 +12,12 @@ import (
 )
 
 const (
-	MinimumQuality = 0.    // MinimumQuality is 0
-	MaximumQuality = 1.    // MaximumQuality is 1
-	Epsilon        = 0.001 // Epsilon is the accuracy of the quality, 1/100
+	// MinimumQuality is 0
+	MinimumQuality = 0.
+	// MaximumQuality is 1
+	MaximumQuality = 1.
+	// Epsilon is the accuracy of the quality, 1/1000
+	Epsilon = 0.001
 )
 
 // QualityValue is a parsed item of a [QualityList]

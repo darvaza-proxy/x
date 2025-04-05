@@ -26,6 +26,7 @@ func UnmarshalFormJSON(b []byte) (url.Values, error) {
 	return values, nil
 }
 
+//revive:disable-next-line:cognitive-complexity
 func jsonValue(out url.Values, key string, v any) {
 	switch s := v.(type) {
 	case nil:
