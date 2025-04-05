@@ -99,14 +99,14 @@ func doReadDirPEM(fSys fs.FS, dir string, cb DecodePEMBlockFunc,
 	return errs.AsError()
 }
 
-func splitReadDir(fSys fs.FS, dir string) ([]fs.DirEntry, []fs.DirEntry, error) {
+func splitReadDir(fSys fs.FS, dir string) (files, dirs []fs.DirEntry, err error) {
 	dd, err := fs.ReadDir(fSys, dir)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	files := make([]fs.DirEntry, 0, len(dd))
-	dirs := make([]fs.DirEntry, 0, len(dd))
+	files = make([]fs.DirEntry, 0, len(dd))
+	dirs = make([]fs.DirEntry, 0, len(dd))
 	for _, de := range dd {
 		if de.IsDir() {
 			dirs = append(dirs, de)

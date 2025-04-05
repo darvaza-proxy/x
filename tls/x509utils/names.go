@@ -13,8 +13,8 @@ import (
 
 // Names returns a list of exact names and patterns the certificate
 // supports
-func Names(cert *x509.Certificate) ([]string, []string) {
-	names, patterns := splitDNSNames(cert.DNSNames)
+func Names(cert *x509.Certificate) (names, patterns []string) {
+	names, patterns = splitDNSNames(cert.DNSNames)
 	names = appendIPAddresses(names, cert.IPAddresses)
 
 	// deduplicate
@@ -24,7 +24,7 @@ func Names(cert *x509.Certificate) ([]string, []string) {
 	return names, patterns
 }
 
-func splitDNSNames(dnsNames []string) (names []string, patterns []string) {
+func splitDNSNames(dnsNames []string) (names, patterns []string) {
 	for _, s := range dnsNames {
 		s = strings.ToLower(s)
 
