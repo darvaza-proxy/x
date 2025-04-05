@@ -18,6 +18,25 @@ type CustomSet[T any] struct {
 	cmp func(T, T) int
 }
 
+// New creates a new CustomSet with the same comparison function as the current set.
+// Returns nil if the current set is nil or has no comparison function.
+func (set *CustomSet[T]) New() Set[T] {
+	if set == nil {
+		return nil
+	}
+
+	set.mu.RLock()
+	defer set.mu.RUnlock()
+
+	if set.cmp == nil {
+		return nil
+	}
+
+	return &CustomSet[T]{
+		cmp: set.cmp,
+	}
+}
+
 // NewCustomSet creates a new CustomSet with the provided comparison function and initial elements.
 // If the comparison function is nil, it returns an error.
 func NewCustomSet[T any](cmp func(T, T) int, initial ...T) (*CustomSet[T], error) {
@@ -126,6 +145,31 @@ func (set *CustomSet[T]) search(start int, v T) (int, bool) {
 	}
 
 	return start, false
+}
+
+// Clone creates a copy of the CustomSet.
+// If the set is nil or has no comparison function, it returns nil.
+// The method is concurrency-safe, using a read lock to protect access to the underlying slice.
+// The returned set has a new slice with the same elements and comparison function as the original set.
+func (set *CustomSet[T]) Clone() Set[T] {
+	if set == nil {
+		return nil
+	}
+
+	set.mu.RLock()
+	defer set.mu.RUnlock()
+
+	if set.cmp == nil {
+		return nil
+	}
+
+	s := make([]T, len(set.s))
+	copy(s, set.s)
+
+	return &CustomSet[T]{
+		s:   s,
+		cmp: set.cmp,
+	}
 }
 
 // Len returns the number of elements in the CustomSet.
