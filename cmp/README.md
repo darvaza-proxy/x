@@ -42,6 +42,41 @@ Conversion functions:
 - `AsLess[T any](cmp CompFunc[T]) CondFunc[T]`: Converts a comparison function to a "less than" condition function.
 - `AsEqual[T any](cmp CompFunc[T]) CondFunc[T]`: Converts a comparison function to an equality condition function.
 
+## Comparison functions
+
+The package provides several comparison functions that can be used directly or as building blocks for more complex comparisons:
+
+### Equality
+- `Eq[T comparable](a, b T) bool`: Returns true if `a` equals `b` using Go's equality operator.
+- `EqFn[T any](a, b T, cmp CompFunc[T]) bool`: Returns true if `a` equals `b` using a custom comparison function.
+- `EqFn2[T any](a, b T, eq CondFunc[T]) bool`: Returns true if `a` equals `b` using a custom equality condition function.
+
+### Inequality
+- `NotEq[T comparable](a, b T) bool`: Returns true if `a` is not equal to `b` using Go's inequality operator.
+- `NotEqFn[T any](a, b T, cmp CompFunc[T]) bool`: Returns true if `a` is not equal to `b` using a custom comparison function.
+- `NotEqFn2[T any](a, b T, eq CondFunc[T]) bool`: Returns true if `a` is not equal to `b` using a custom equality condition function.
+
+### Less Than
+- `Lt[T core.Ordered](a, b T) bool`: Returns true if `a` is less than `b` using Go's < operator.
+- `LtFn[T any](a, b T, cmp CompFunc[T]) bool`: Returns true if `a` is less than `b` using a custom comparison function.
+- `LtFn2[T any](a, b T, less CondFunc[T]) bool`: Returns true if `a` is less than `b` using a custom less-than condition function.
+
+### Less Than or Equal
+- `LtEq[T core.Ordered](a, b T) bool`: Returns true if `a` is less than or equal to `b` using Go's <= operator.
+- `LtEqFn[T any](a, b T, cmp CompFunc[T]) bool`: Returns true if `a` is less than or equal to `b` using a custom comparison function.
+- `LtEqFn2[T any](a, b T, less CondFunc[T]) bool`: Returns true if `a` is less than or equal to `b` using a custom less-than condition function.
+
+### Greater Than
+- `Gt[T core.Ordered](a, b T) bool`: Returns true if `a` is greater than `b` using Go's > operator.
+- `GtFn[T any](a, b T, cmp CompFunc[T]) bool`: Returns true if `a` is greater than `b` using a custom comparison function.
+
+### Greater Than or Equal
+- `GtEq[T core.Ordered](a, b T) bool`: Returns true if `a` is greater than or equal to `b` using Go's >= operator.
+- `GtEqFn[T any](a, b T, cmp CompFunc[T]) bool`: Returns true if `a` is greater than or equal to `b` using a custom comparison function.
+- `GtEqFn2[T any](a, b T, less CondFunc[T]) bool`: Returns true if `a` is greater than or equal to `b` using a custom less-than condition function.
+
+All functions that accept custom comparison or condition functions will panic if a nil function is provided.
+
 ## License
 
 This project is licensed under the MIT License.

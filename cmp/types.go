@@ -55,3 +55,7 @@ func AsEqual[T any](cmp CompFunc[T]) CondFunc[T] {
 func newNilCompFuncErr() error {
 	return core.NewPanicError(2, "nil comparison function")
 }
+
+func newNilCondFuncErr() error {
+	return core.NewPanicError(2, "nil condition function")
+}
