@@ -65,6 +65,56 @@ type MatchFunc[T any] func(T) bool
 
 The `MatchFunc` type makes it easy to create matchers from simple functions. If a `MatchFunc` is nil, its `Match` method returns true (matches everything), making it act as a logical identity element.
 
+### Matcher Creation Functions
+
+The package provides a comprehensive set of functions to create matchers for common comparison operations:
+
+#### Equality Matchers
+- `MatchEq[T comparable](v T) Matcher[T]`: Creates a matcher that checks for equality with the given value.
+- `MatchEqFn[T any](v T, cmp CompFunc[T]) Matcher[T]`: Creates a matcher that checks for equality using a custom comparison function.
+- `MatchEqFn2[T any](v T, eq CondFunc[T]) Matcher[T]`: Creates a matcher that checks for equality using a custom equality function.
+
+#### Inequality Matchers
+- `MatchNotEq[T comparable](v T) Matcher[T]`: Creates a matcher that checks for inequality with the given value.
+- `MatchNotEqFn[T any](v T, cmp CompFunc[T]) Matcher[T]`: Creates a matcher that checks for inequality using a custom comparison function.
+- `MatchNotEqFn2[T any](v T, eq CondFunc[T]) Matcher[T]`: Creates a matcher that checks for inequality using a custom equality function.
+
+#### Greater Than Matchers
+- `MatchGt[T core.Ordered](v T) Matcher[T]`: Creates a matcher that checks if a value is strictly greater than the given value.
+- `MatchGtFn[T any](v T, cmp CompFunc[T]) Matcher[T]`: Creates a matcher that checks if a value is strictly greater than the given value using a custom comparison function.
+
+#### Greater Than or Equal Matchers
+- `MatchGtEq[T core.Ordered](v T) Matcher[T]`: Creates a matcher that checks if a value is greater than or equal to the given value.
+- `MatchGtEqFn[T any](v T, cmp CompFunc[T]) Matcher[T]`: Creates a matcher that checks if a value is greater than or equal to the given value using a custom comparison function.
+- `MatchGtEqFn2[T any](v T, less CondFunc[T]) Matcher[T]`: Creates a matcher that checks if a value is greater than or equal to the given value using a custom condition function.
+
+#### Less Than Matchers
+- `MatchLt[T core.Ordered](v T) Matcher[T]`: Creates a matcher that checks if a value is strictly less than the given value.
+- `MatchLtFn[T any](v T, cmp CompFunc[T]) Matcher[T]`: Creates a matcher that checks if a value is strictly less than the given value using a custom comparison function.
+- `MatchLtFn2[T any](v T, less CondFunc[T]) Matcher[T]`: Creates a matcher that checks if a value is strictly less than the given value using a custom condition function.
+
+#### Less Than or Equal Matchers
+- `MatchLtEq[T core.Ordered](v T) Matcher[T]`: Creates a matcher that checks if a value is less than or equal to the given value.
+- `MatchLtEqFn[T any](v T, cmp CompFunc[T]) Matcher[T]`: Creates a matcher that checks if a value is less than or equal to the given value using a custom comparison function.
+- `MatchLtEqFn2[T any](v T, less CondFunc[T]) Matcher[T]`: Creates a matcher that checks if a value is less than or equal to the given value using a custom condition function.
+
+#### Example
+
+```go
+// Create matchers for specific conditions
+isGreaterThan5 := cmp.MatchGt(5)
+isEqualToZero := cmp.MatchEq(0)
+
+// Combine them with logical operations
+isPositiveAndNotFive := cmp.MatchGt(0).And(cmp.MatchNotEq(5))
+
+// Test values
+fmt.Println(isGreaterThan5.Match(10))           // true
+fmt.Println(isEqualToZero.Match(0))             // true
+fmt.Println(isPositiveAndNotFive.Match(3))      // true
+fmt.Println(isPositiveAndNotFive.Match(5))      // false
+```
+
 ### Utility Functions
 
 - `AsMatcher[T any](fn MatchFunc[T]) Matcher[T]`: Converts a function to a `Matcher`, allowing simple functions to be used with the matcher API.
