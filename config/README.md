@@ -55,7 +55,7 @@ Wrappers for [`github.com/go-playground/validator/v10`][go-playground-validator]
 
 ## See also
 
-* [JPI Technologies' Open Source Software](https://oss.jpi.io/)
+* [Apptly Software's Open Source Projects](https://oss.apptly.co/)
 * _darvaza libraries_
   * [darvaza.org/core][darvaza-core]
   * [darvaza.org/x][darvaza-x]
