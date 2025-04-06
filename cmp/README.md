@@ -42,6 +42,68 @@ Conversion functions:
 - `AsLess[T any](cmp CompFunc[T]) CondFunc[T]`: Converts a comparison function to a "less than" condition function.
 - `AsEqual[T any](cmp CompFunc[T]) CondFunc[T]`: Converts a comparison function to an equality condition function.
 
+## `Matcher`
+
+The `Matcher` interface provides a powerful abstraction for building composable filtering and matching logic with a fluent API. It allows for combining predicates using logical operators (AND, OR, NOT) and testing values against these conditions.
+
+```go
+type Matcher[T any] interface {
+    And(...Matcher[T]) Matcher[T]
+    Or(...Matcher[T]) Matcher[T]
+    Not() Matcher[T]
+    Match(T) bool
+}
+```
+
+### `MatchFunc`
+
+`MatchFunc` is a function type that implements the `Matcher` interface, allowing simple predicate functions to be used as matchers:
+
+```go
+type MatchFunc[T any] func(T) bool
+```
+
+The `MatchFunc` type makes it easy to create matchers from simple functions. If a `MatchFunc` is nil, its `Match` method returns true (matches everything), making it act as a logical identity element.
+
+### Utility Functions
+
+- `AsMatcher[T any](fn MatchFunc[T]) Matcher[T]`: Converts a function to a `Matcher`, allowing simple functions to be used with the matcher API.
+- `MatchAny[T any](queries ...Matcher[T]) Matcher[T]`: Creates a matcher that returns true if any of the provided matchers match (logical OR).
+- `MatchAll[T any](queries ...Matcher[T]) Matcher[T]`: Creates a matcher that returns true if all of the provided matchers match (logical AND).
+
+### Examples
+
+```go
+// Create matchers from predicate functions
+isEven := cmp.AsMatcher(func(n int) bool { return n%2 == 0 })
+isPositive := cmp.AsMatcher(func(n int) bool { return n > 0 })
+
+// Combine matchers using logical operators
+isEvenAndPositive := isEven.And(isPositive)
+isEvenOrPositive := isEven.Or(isPositive)
+isOdd := isEven.Not()
+
+// Test values against matchers
+fmt.Println(isEvenAndPositive.Match(4))  // true
+fmt.Println(isEvenAndPositive.Match(-2)) // false
+fmt.Println(isEvenOrPositive.Match(3))   // true
+fmt.Println(isOdd.Match(5))              // true
+```
+
+### Implementation Details
+
+The package provides two concrete implementations of the `Matcher` interface:
+
+1. `ands[T]`: A slice-backed matcher that implements logical AND semantics
+   - Returns true if all contained matchers match the value
+   - An empty ands matcher matches everything (true)
+
+2. `ors[T]`: A slice-backed matcher that implements logical OR semantics
+   - Returns true if any contained matcher matches the value
+   - An empty ors matcher matches nothing (false)
+
+Both implementations handle nil matchers gracefully by ignoring them during matching.
+
 ## Comparison functions
 
 The package provides several comparison functions that can be used directly or as building blocks for more complex comparisons:
