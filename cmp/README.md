@@ -121,6 +121,47 @@ fmt.Println(isPositiveAndNotFive.Match(5))      // false
 - `MatchAny[T any](queries ...Matcher[T]) Matcher[T]`: Creates a matcher that returns true if any of the provided matchers match (logical OR).
 - `MatchAll[T any](queries ...Matcher[T]) Matcher[T]`: Creates a matcher that returns true if all of the provided matchers match (logical AND).
 
+### Matcher Composition
+
+The package provides a powerful composition mechanism to create matchers that operate across different types:
+
+- `Compose[T any, V any](fn func(T) (V, bool), match Matcher[V]) Matcher[T]`: Creates a new Matcher by applying an accessor function to transform input values before matching against an existing matcher.
+
+The `Compose` function enables building complex matching logic by combining simpler matchers with accessor functions. The accessor function extracts or transforms a value of type T into a value of type V and indicates whether the extraction was successful. The resulting matcher returns false if the accessor function returns `ok=false`.
+
+#### Example
+
+```go
+type Person struct {
+    Name string
+    Age  int
+}
+
+// Create a matcher that checks if a person is an adult
+isAdult := cmp.Compose(
+    func(p Person) (int, bool) { return p.Age, true },
+    cmp.MatchGtEq(18),
+)
+
+alice := Person{Name: "Alice", Age: 25}
+bob := Person{Name: "Bob", Age: 16}
+
+fmt.Println(isAdult.Match(alice))  // true
+fmt.Println(isAdult.Match(bob))    // false
+
+// Composition with conditional extraction
+hasValidEmail := cmp.Compose(
+    func(p Person) (string, bool) {
+        // Only extract email if it contains "@"
+        if strings.Contains(p.Name, "@") {
+            return p.Name, true
+        }
+        return "", false
+    },
+    cmp.MatchNotEq(""),
+)
+```
+
 ### Examples
 
 ```go
