@@ -40,3 +40,15 @@ func AsMatcher[T any](fn MatchFunc[T]) Matcher[T] {
 	}
 	return fn
 }
+
+// M converts a Matcher to a simple function that can be used for matching.
+// If the Matcher is nil, it returns a function that always returns true.
+// This allows easy conversion and usage of Matcher types as simple boolean functions.
+func M[T any](m Matcher[T]) func(T) bool {
+	return func(value T) bool {
+		if m == nil {
+			return true
+		}
+		return m.Match(value)
+	}
+}

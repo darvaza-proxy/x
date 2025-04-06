@@ -118,6 +118,7 @@ fmt.Println(isPositiveAndNotFive.Match(5))      // false
 ### Utility Functions
 
 - `AsMatcher[T any](fn MatchFunc[T]) Matcher[T]`: Converts a function to a `Matcher`, allowing simple functions to be used with the matcher API.
+- `M[T any](m Matcher[T]) func(T) bool`: Converts a Matcher to a simple boolean function that can be used for matching. If the Matcher is nil, it returns a function that always returns true. This allows easy conversion and usage of Matcher types as simple predicate functions.
 - `MatchAny[T any](queries ...Matcher[T]) Matcher[T]`: Creates a matcher that returns true if any of the provided matchers match (logical OR).
 - `MatchAll[T any](queries ...Matcher[T]) Matcher[T]`: Creates a matcher that returns true if all of the provided matchers match (logical AND).
 
