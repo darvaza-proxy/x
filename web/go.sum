@@ -1,7 +1,7 @@
 darvaza.org/core v0.16.3 h1:Q6pLcbvcBg42cgldEFcln7q6rIbbShDwJVqjSuRDY+U=
 darvaza.org/core v0.16.3/go.mod h1:2waZw8lmo4E9B/R9XltA2bcUmZQURwEoct1iPLesDEQ=
-darvaza.org/x/fs v0.4.2 h1:mgDg7av9B3sqhpGq3C2veHZReY8psVUWTAf+s56B1f4=
-darvaza.org/x/fs v0.4.2/go.mod h1:cF39sYd9jZ3+wb8XkdlzM/GokhVS2FhPncOq9ENz8jY=
+darvaza.org/x/fs v0.4.3 h1:e3oYsWDdZ9fLFCoG582UJLRES2MmYb6NaT/DoppkeLw=
+darvaza.org/x/fs v0.4.3/go.mod h1:cF39sYd9jZ3+wb8XkdlzM/GokhVS2FhPncOq9ENz8jY=
 github.com/gobwas/glob v0.2.3 h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y=
 github.com/gobwas/glob v0.2.3/go.mod h1:d3Ez4x06l9bZtSvzIay5+Yzi0fmZzPgnTbPcKjJAkT8=
 github.com/klauspost/cpuid/v2 v2.2.9 h1:66ze0taIn2H33fBvCkXuv9BmCwDfafmiIVpKV9kKGuY=
