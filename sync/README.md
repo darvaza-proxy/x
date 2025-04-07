@@ -31,6 +31,7 @@ leaked, even during panic scenarios.
 * Safe lock/unlock operations with proper error handling
 * Lightweight spinlock implementation for low-contention scenarios
 * Semaphore implementation supporting both exclusive and shared access patterns
+* Collections of mutexes that can be operated on as a group
 
 ## Package Structure
 
@@ -350,6 +351,58 @@ defer lock.Unlock()
 Benchmark testing shows SpinLock is efficient for operations that complete
 quickly, as it avoids the overhead of parking and unparking goroutines or
 using channels.
+
+## Collections
+
+### Mutexes
+
+`darvaza.org/x/sync/mutex.Mutexes` is a slice-based collection of
+`mutex.Mutex` objects that can be locked and unlocked together:
+
+```go
+type Mutexes []Mutex
+```
+
+It implements both `Mutex` and `RWMutex` interfaces, providing:
+
+* `Lock()`: Acquires exclusive locks on all mutexes in the collection.
+* `RLock()`: Acquires shared (read) locks where supported, otherwise
+  exclusive locks.
+* `TryLock() bool`: Attempts to acquire exclusive locks without blocking.
+* `TryRLock() bool`: Attempts to acquire shared locks without blocking where
+  supported.
+* `Unlock()`: Releases exclusive locks on all mutexes, aggregating any
+  errors.
+* `RUnlock()`: Releases shared locks where supported, aggregating any
+  errors.
+
+Shared (read) lock operations check if the underlying `Mutex` also implements
+`RWMutex`. Otherwise, an exclusive lock is used.
+
+### Example Usage of Mutexes Collection
+
+```go
+// Create a collection of mutexes
+locks := mutex.Mutexes{
+    &sync.Mutex{},
+    &sync.RWMutex{},
+    customMutex,
+}
+
+// Lock all mutexes in the collection
+locks.Lock()
+
+// Perform operations requiring all locks
+// ...
+
+// Release all locks
+locks.Unlock()
+
+// Using read locks where available
+locks.RLock()
+// Read operations
+locks.RUnlock()
+```
 
 ## Utility Functions
 
