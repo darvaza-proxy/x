@@ -29,6 +29,7 @@ than leaking.
 - Standardized `Mutex` and `RWMutex` interfaces
 - Functions for operating on multiple locks simultaneously
 - Safe lock/unlock operations with proper error handling
+- Collections of mutexes that can be operated on as a group
 
 ## Interfaces
 
@@ -151,6 +152,61 @@ about what went wrong.
 
 `core.Catch()` and `core.PanicError` are used to catch and convert panics into
 regular errors including stack traces.
+
+## Collections
+
+### Mutexes
+
+`darvaza.org/x/sync/mutex.Mutexes` is a slice-based collection of `mutex.Mutex`
+objects that can be locked and unlocked together:
+
+```go
+type Mutexes []Mutex
+```
+
+It implements the `Mutex` and `RWMutex` interfaces, providing both exclusive and
+shared locking operations on the collection:
+
+- `Lock()`: Acquires exclusive locks on all mutexes in the collection.
+- `RLock()`: Acquires shared (read) locks on all mutexes in the collection if
+    they support it.
+- `TryLock() bool`: Attempts to acquire exclusive locks without blocking.
+- `TryRLock() bool`: Attempts to acquire shared locks without blocking if they
+    support it.
+- `Unlock()`: Releases exclusive locks on all mutexes in the collection. Will
+    attempt to unlock all mutexes even if some fail, aggregating any errors that
+    occur.
+- `RUnlock()`: Releases shared (read) locks on all mutexes in the collection if
+    they support it. Will attempt to unlock all mutexes even if some fail,
+    aggregating any errors that occur.
+
+Shared (read) lock operations test if the underlying `Mutex` does also implement
+`RWMutex`. Otherwise, an exclusive lock is used instead.
+
+### Example Usage of Mutexes Collection
+
+```go
+// Create a collection of mutexes
+locks := mutex.Mutexes{
+    &sync.Mutex{},
+    &sync.RWMutex{},
+    customMutex,
+}
+
+// Lock all mutexes in the collection
+locks.Lock()
+
+// Perform operations requiring all locks
+// ...
+
+// Release all locks
+locks.Unlock()
+
+// Using read locks where available
+locks.RLock()
+// Read operations
+locks.RUnlock()
+```
 
 ## Dependencies
 
