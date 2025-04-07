@@ -17,9 +17,17 @@ This package defines standardised interfaces for synchronisation
 primitives that complement the standard library while providing
 additional functionality.
 
+The primitives handle panic situations that may arise from underlying mutexes.
+When panics occur (typically indicating development mistakes rather than
+runtime errors), they are aggregated while enabling proper clean-up of other
+locks. This approach ensures resources are properly released rather than
+leaked, even during panic scenarios.
+
 ### Features
 
 * Standardised `Mutex` and `RWMutex` interfaces
+* Functions for operating on multiple locks simultaneously
+* Safe lock/unlock operations with proper error handling
 
 ## Package Structure
 
@@ -80,6 +88,49 @@ type RWMutex interface {
 
 The standard library's `sync.RWMutex{}` implements this interface.
 
+## Utility Functions
+
+The package provides functions that make mutex operations safer by handling
+edge cases and panic conditions:
+
+### Single Mutex Operations
+
+* `mutex.SafeLock[T sync.Locker](mu T) (bool, error)`: Safely acquires an
+  exclusive lock, handling nil mutexes and panics
+* `mutex.SafeRLock[T sync.Locker](mu T) (bool, error)`: Safely acquires a
+  read lock (or normal lock if not RWMutex)
+* `mutex.SafeTryLock[T mutex.Mutex](mu T) (bool, error)`: Non-blocking
+  attempt to acquire a lock with nil and panic handling
+* `mutex.SafeTryRLock[T mutex.Mutex](mu T) (bool, error)`: Non-blocking
+  attempt to acquire a read lock safely
+* `mutex.SafeUnlock[T sync.Locker](mu T) error`: Safely releases a lock,
+  handling nil mutexes and panics
+* `mutex.SafeRUnlock[T sync.Locker](mu T) error`: Safely releases a read
+  lock (or normal lock if not RWMutex)
+
+### Multiple Mutex Operations
+
+* `mutex.Lock[T mutex.Mutex](locks ...T)`: Acquires multiple locks in order
+* `mutex.TryLock[T mutex.Mutex](locks ...T) bool`: Non-blocking attempt to
+  acquire multiple locks
+* `mutex.RLock[T mutex.Mutex](locks ...T)`: Acquires multiple read locks
+  when possible
+* `mutex.TryRLock[T mutex.Mutex](locks ...T) bool`: Non-blocking attempt to
+  acquire multiple read locks
+* `mutex.Unlock(locks ...mutex.Mutex)`: Releases multiple locks
+* `mutex.RUnlock(locks ...mutex.Mutex)`: Releases multiple read locks
+* `mutex.ReverseUnlock[T Mutex](unlock func(T) error, locks ...T) error`:
+  Releases locks in reverse order, collecting any panics
+
+These utility functions provide:
+
+1. **Error handling**: Returns explicit success/failure indicators
+2. **Type safety**: Uses generics to work with any compatible type
+3. **Panic protection**: Catches and converts panics into regular errors
+4. **Nil handling**: Checks for nil mutexes, returning appropriate errors
+5. **Interface detection**: Automatically uses RWMutex implementations when
+   available
+
 ## Error Handling
 
 The [`errors`][sync-errors-link] sub-package defines error types for common
@@ -87,6 +138,14 @@ synchronisation issues:
 
 * `ErrNilMutex`: Returned when a Mutex was expected but none provided.
 * `ErrNilReceiver`: Returned when methods are called on a nil receiver.
+
+The package uses `core.CompoundError` to collect and combine multiple errors
+that may occur during operations on multiple mutexes. This allows for
+unlocking all mutexes even when some operations fail, while still providing
+comprehensive error reporting.
+
+`core.Catch()` and `core.PanicError` convert panics into regular errors with
+stack traces.
 
 ## Dependencies
 
