@@ -7,6 +7,9 @@ import (
 	"darvaza.org/core"
 )
 
+// ErrNilContext indicates operations cannot proceed with a nil context.
+var ErrNilContext = errors.New("nil context not allowed")
+
 // ErrNilMutex indicates operations cannot proceed with a nil mutex reference.
 var ErrNilMutex = errors.New("nil mutex not allowed")
 

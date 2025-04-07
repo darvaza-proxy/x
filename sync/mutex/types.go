@@ -2,7 +2,10 @@
 // synchronisation primitives.
 package mutex
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
 // Mutex defines a standard interface for mutual exclusion locking mechanisms
 // that support basic locking, unlocking, and non-blocking attempts.
@@ -42,6 +45,36 @@ type RWMutex interface {
 	// RUnlock releases a read lock.
 	// Calling RUnlock without holding a read lock will panic.
 	RUnlock()
+}
+
+// MutexContext extends Mutex with context-aware locking capabilities,
+// allowing lock acquisition to respect context cancellation and timeouts.
+// Useful for systems requiring bounded waiting times or cancellable operations.
+//
+//revive:disable:exported
+type MutexContext interface {
+	//revive:enable:exported
+	Mutex
+
+	// LockContext acquires the mutex with context awareness.
+	// Blocks until lock acquisition or context completion.
+	// Returns an error if the context is cancelled or times out.
+	LockContext(context.Context) error
+}
+
+// RWMutexContext combines RWMutex and MutexContext interfaces, providing
+// context-aware operations for both read and write locks. This enables
+// timeout-bounded or cancellable lock acquisition for both reader and writer
+// operations, valuable in systems where deadlock prevention and cancellation
+// responsiveness are important.
+type RWMutexContext interface {
+	RWMutex
+	MutexContext
+
+	// RLockContext acquires a read lock with context awareness.
+	// Blocks until read lock acquisition or context completion.
+	// Returns an error if the context is cancelled or times out.
+	RLockContext(context.Context) error
 }
 
 // interface assertions

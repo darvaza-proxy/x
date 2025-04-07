@@ -1,6 +1,7 @@
 package mutex
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -59,6 +60,117 @@ type panicOnTryLockMutex struct{}
 func (*panicOnTryLockMutex) Lock()         {}
 func (*panicOnTryLockMutex) Unlock()       {}
 func (*panicOnTryLockMutex) TryLock() bool { panic("intentional panic on trylock") }
+
+// Context-aware mutex implementations for testing
+type testMutexContext struct {
+	locked bool
+}
+
+func (m *testMutexContext) Lock() {
+	m.locked = true
+}
+
+func (m *testMutexContext) Unlock() {
+	m.locked = false
+}
+
+func (m *testMutexContext) TryLock() bool {
+	if m.locked {
+		return false
+	}
+	m.locked = true
+	return true
+}
+
+func (m *testMutexContext) LockContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		m.Lock()
+		return nil
+	}
+}
+
+type testRWMutexContext struct {
+	writeLocked bool
+	readCount   int
+}
+
+func (m *testRWMutexContext) Lock() {
+	m.writeLocked = true
+}
+
+func (m *testRWMutexContext) Unlock() {
+	m.writeLocked = false
+}
+
+func (m *testRWMutexContext) TryLock() bool {
+	if m.writeLocked || m.readCount > 0 {
+		return false
+	}
+	m.writeLocked = true
+	return true
+}
+
+func (m *testRWMutexContext) RLock() {
+	m.readCount++
+}
+
+func (m *testRWMutexContext) RUnlock() {
+	m.readCount--
+}
+
+func (m *testRWMutexContext) TryRLock() bool {
+	if m.writeLocked {
+		return false
+	}
+	m.readCount++
+	return true
+}
+
+func (m *testRWMutexContext) LockContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		m.Lock()
+		return nil
+	}
+}
+
+func (m *testRWMutexContext) RLockContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		m.RLock()
+		return nil
+	}
+}
+
+// Panic mutexes for context-aware testing
+type panicOnLockContextMutex struct{}
+
+func (*panicOnLockContextMutex) Lock()         {}
+func (*panicOnLockContextMutex) Unlock()       {}
+func (*panicOnLockContextMutex) TryLock() bool { return true }
+func (*panicOnLockContextMutex) LockContext(_ context.Context) error {
+	panic("intentional panic on LockContext")
+}
+
+type panicOnRLockContextMutex struct{}
+
+func (*panicOnRLockContextMutex) Lock()                               {}
+func (*panicOnRLockContextMutex) Unlock()                             {}
+func (*panicOnRLockContextMutex) TryLock() bool                       { return true }
+func (*panicOnRLockContextMutex) LockContext(_ context.Context) error { return nil }
+func (*panicOnRLockContextMutex) RLock()                              {}
+func (*panicOnRLockContextMutex) RUnlock()                            {}
+func (*panicOnRLockContextMutex) TryRLock() bool                      { return true }
+func (*panicOnRLockContextMutex) RLockContext(_ context.Context) error {
+	panic("intentional panic on RLockContext")
+}
 
 // testMutex implements the Mutex interface for testing unlock order
 type testMutex struct {
