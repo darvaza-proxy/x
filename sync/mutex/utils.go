@@ -2,6 +2,7 @@
 package mutex
 
 import (
+	"context"
 	"errors"
 	"sync"
 
@@ -164,6 +165,91 @@ func SafeRUnlock[T sync.Locker](mu T) error {
 	}
 
 	return core.Catch(unlock)
+}
+
+// NewSafeLockContext creates a function that safely acquires a lock with context awareness.
+// The returned function will attempt to acquire a lock respecting context cancellation or timeouts.
+//
+// Parameters:
+//   - ctx: The context for cancellation or timeout control
+//
+// Returns:
+//   - A function that takes a mutex and returns acquisition status and any error
+func NewSafeLockContext[T MutexContext](ctx context.Context) func(mu T) (bool, error) {
+	return func(mu T) (bool, error) {
+		return SafeLockContext[T](ctx, mu)
+	}
+}
+
+// NewSafeRLockContext creates a function that safely acquires a read lock with context awareness.
+// The returned function will attempt to acquire a read lock respecting context cancellation or timeouts.
+//
+// Parameters:
+//   - ctx: The context for cancellation or timeout control
+//
+// Returns:
+//   - A function that takes a mutex and returns acquisition status and any error
+func NewSafeRLockContext[T MutexContext](ctx context.Context) func(mu T) (bool, error) {
+	return func(mu T) (bool, error) {
+		return SafeRLockContext[T](ctx, mu)
+	}
+}
+
+// SafeLockContext implements context-aware locking with error handling.
+// It handles nil mutexes, nil contexts, and catches panics from underlying lock operations.
+//
+// Returns:
+//   - (true, nil) if the lock was successfully acquired
+//   - (false, ErrNilContext) if the context is nil
+//   - (false, ErrNilMutex) if the mutex is nil
+//   - (false, err) if a panic occurred or the context expired during locking
+func SafeLockContext[T MutexContext](ctx context.Context, mu T) (bool, error) {
+	if ctx == nil {
+		return false, ErrNilContext
+	}
+
+	switch any(mu).(type) {
+	case nil:
+		return false, ErrNilMutex
+	default:
+		err := core.Catch(func() error {
+			return mu.LockContext(ctx)
+		})
+		return err == nil, err
+	}
+}
+
+// SafeRLockContext implements context-aware read locking with error handling.
+// If the mutex is an RWMutexContext, it acquires a read lock; otherwise, it acquires an exclusive lock.
+// It handles nil mutexes, nil contexts, and catches panics from underlying lock operations.
+//
+// Returns:
+//   - (true, nil) if the lock was successfully acquired
+//   - (false, ErrNilContext) if the context is nil
+//   - (false, ErrNilMutex) if the mutex is nil
+//   - (false, err) if a panic occurred or the context expired during locking
+func SafeRLockContext[T MutexContext](ctx context.Context, mu T) (bool, error) {
+	var lock func() error
+
+	if ctx == nil {
+		return false, ErrNilContext
+	}
+
+	switch r := any(mu).(type) {
+	case nil:
+		return false, ErrNilMutex
+	case RWMutexContext:
+		lock = func() error {
+			return r.RLockContext(ctx)
+		}
+	default:
+		lock = func() error {
+			return mu.LockContext(ctx)
+		}
+	}
+
+	err := core.Catch(lock)
+	return err == nil, err
 }
 
 // ReverseUnlock releases previously acquired locks in reverse order,

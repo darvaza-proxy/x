@@ -27,6 +27,7 @@ than leaking.
 ## Features
 
 - Standardized `Mutex` and `RWMutex` interfaces
+- Context-aware mutex interfaces for cancellation and timeout support
 - Functions for operating on multiple locks simultaneously
 - Safe lock/unlock operations with proper error handling
 - Collections of mutexes that can be operated on as a group
@@ -79,6 +80,48 @@ type RWMutex interface {
 
 `darvaza.org/x/sync/mutex.RWMutex` is implemented by `sync.RWMutex{}` from the standard library.
 
+### MutexContext
+
+Extends the Mutex interface with context-aware locking capabilities:
+
+```go
+type MutexContext interface {
+    Mutex
+
+    // LockContext acquires the mutex with context awareness.
+    // It blocks until the lock is acquired or the context is done.
+    // Returns an error if the context is canceled or times out.
+    LockContext(context.Context) error
+}
+```
+
+### RWMutexContext
+
+Combines the RWMutex and MutexContext interfaces for context-aware read/write locking:
+
+```go
+type RWMutexContext interface {
+    RWMutex
+    MutexContext
+
+    // RLockContext acquires a read lock with context awareness.
+    // It blocks until the read lock is acquired or the context is done.
+    // Returns an error if the context is canceled or times out.
+    RLockContext(context.Context) error
+}
+```
+
+### Context-Aware Interfaces
+
+The `MutexContext` and `RWMutexContext` interfaces are provided primarily as extension points
+for implementers. The package provides helper functions to work with these interfaces, but
+standard library mutex types do not implement them directly.
+Custom mutex implementations can adopt these interfaces to provide context-aware locking capabilities.
+
+These context-aware interfaces allow lock acquisition operations to respect context
+cancellation and timeouts, which is particularly useful in concurrent applications
+where lock acquisition needs to be bounded by timeouts or be cancellable.
+
 ## Functions
 
 The package provides several utility functions that make mutex operations safer
@@ -130,6 +173,17 @@ by handling edge cases and panic conditions:
     acquisition fails to prevent deadlocks by ensuring locks are released in the
     correct order.
 
+### Context-Aware Operations
+
+- `NewSafeLockContext[T MutexContext](ctx context.Context) func(mu T) (bool,
+    error)`: Creates a function for context-aware locking
+- `NewSafeRLockContext[T MutexContext](ctx context.Context) func(mu T) (bool,
+    error)`: Creates a function for context-aware read locking
+- `SafeLockContext[T MutexContext](ctx context.Context, mu T) (bool, error)`:
+    Acquires a lock with context cancellation/timeout support
+- `SafeRLockContext[T MutexContext](ctx context.Context, mu T) (bool, error)`:
+    Acquires a read lock with context cancellation/timeout support
+
 These utility functions provide several benefits:
 
 1. **Error handling**: They return explicit success/failure indicators and error
@@ -142,6 +196,17 @@ These utility functions provide several benefits:
      appropriate errors
 5. **Interface detection**: Read operations automatically detect and use RWMutex
      implementations when available
+
+## Error Handling
+
+This package defines error types for common synchronization issues:
+
+- `ErrNilContext`: Returned when a nil context is encountered in context-aware
+    operations
+- `ErrNilMutex`: Returned when a nil mutex is encountered and cannot be used
+
+These errors help distinguish between different types of nil-related failures
+that might occur during synchronization operations.
 
 ## Error Aggregation
 
