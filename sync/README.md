@@ -30,6 +30,7 @@ leaked, even during panic scenarios.
 * Functions for operating on multiple locks simultaneously
 * Safe lock/unlock operations with proper error handling
 * Lightweight spinlock implementation for low-contention scenarios
+* Semaphore implementation supporting both exclusive and shared access patterns
 
 ## Package Structure
 
@@ -38,12 +39,15 @@ leaked, even during panic scenarios.
     implementing common synchronisation primitives.
   * [`mutex`][sync-mutex-link]: Contains interfaces and utilities for mutex
     operations.
+  * [`semaphore`][sync-semaphore-link]: Provides a cancellable read-write mutex
+    implementation with counting semaphore algorithms.
   * [`spinlock`][sync-spinlock-link]: Contains a lightweight spinlock
     implementation of `mutex.Mutex`.
 
 [sync-link]: https://pkg.go.dev/darvaza.org/x/sync
 [sync-errors-link]: https://pkg.go.dev/darvaza.org/x/sync/errors
 [sync-mutex-link]: https://pkg.go.dev/darvaza.org/x/sync/mutex
+[sync-semaphore-link]: https://pkg.go.dev/darvaza.org/x/sync/semaphore
 [sync-spinlock-link]: https://pkg.go.dev/darvaza.org/x/sync/spinlock
 
 ## Interfaces
@@ -95,7 +99,7 @@ The standard library's `sync.RWMutex{}` implements this interface.
 
 ### Context-Aware Interfaces
 
-The package provides two context-aware interfaces that extend the basic mutex
+The package provides context-aware interfaces extending the basic mutex
 interfaces:
 
 ```go
@@ -120,10 +124,54 @@ type RWMutexContext interface {
 ```
 
 These interfaces serve primarily as extension points for implementers.
-While standard library mutex types don't implement them directly, the package
-provides helper functions to work with these interfaces. Custom mutex
+Although standard library mutex types don't implement them directly, the
+package provides helper functions to work with these interfaces. Custom mutex
 implementations can adopt these interfaces to provide context-aware locking
 capabilities that respect cancellation and timeouts.
+
+## Semaphore
+
+The `semaphore` package provides a `Semaphore` type that implements both
+exclusive and shared access patterns using a counting semaphore algorithm.
+
+```go
+type Semaphore struct{}
+```
+
+The `Semaphore` fully implements the context-aware mutex interfaces:
+
+* `sync.Locker`
+* `mutex.Mutex`
+* `mutex.MutexContext` - supporting context cancellation and timeouts
+* `mutex.RWMutex`
+* `mutex.RWMutexContext` - supporting context cancellation and timeouts
+
+This makes it compatible with all lock operations provided by the package,
+with comprehensive capabilities for both exclusive and shared access patterns.
+
+### Exclusive Locking Methods
+
+* `Lock()`: Acquires exclusive lock, panics on error.
+* `LockContext(ctx context.Context) error`: Acquires exclusive lock with
+  context cancellation support.
+* `TryLock() bool`: Attempts non-blocking acquisition of exclusive lock.
+* `TryLockContext(ctx context.Context) (bool, error)`: Non-blocking attempt
+  with context support.
+* `Unlock()`: Releases exclusive lock, panics on error.
+
+### Shared Locking Methods
+
+* `RLock()`: Acquires a read lock, panics on error.
+* `RLockContext(ctx context.Context) error`: Acquires read lock with context
+  cancellation support.
+* `TryRLock() bool`: Attempts non-blocking acquisition of read lock.
+* `TryRLockContext(ctx context.Context) (bool, error)`: Non-blocking attempt
+  with context support.
+* `RUnlock()`: Releases a read lock, panics on error.
+
+The semaphore provides advanced synchronisation combining features of both
+mutexes and traditional semaphores, with integrated context-awareness for
+cancellation and timeout handling.
 
 ## SpinLock
 
