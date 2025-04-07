@@ -273,6 +273,43 @@ locks.RLock()
 locks.RUnlock()
 ```
 
+## Error Handling and Panic Behaviour
+
+This package follows specific patterns for handling error conditions:
+
+### Panic Propagation
+
+- Operations will panic when encountering nil mutexes or when underlying mutex
+    operations panic.
+- When unlocking an unlocked mutex, the operation will panic as per standard Go
+    mutex behaviour.
+- When operating on multiple locks simultaneously (e.g., using `mutex.Lock()` or
+    `Mutexes.Lock()`), panics from individual mutex operations are aggregated.
+- During failure scenarios, the package ensures proper clean-up by attempting to
+    release any successfully acquired locks before propagating the panic.
+- Unlock operations will attempt to unlock all provided mutexes even if some
+    fail, collecting and aggregating any errors that occur during the process.
+
+### Design Philosophy
+
+Panic conditions in this package indicate programming mistakes rather than
+runtime conditions that should be handled differently. This approach was chosen
+because:
+
+- Mutex misuse (e.g., unlocking an unlocked mutex) represents a development
+    error.
+- Aggregating panics allows for proper clean-up while still communicating the
+    underlying issue.
+- The interfaces are intentionally designed without error returns for lock/unlock
+    operations, as these operations should not fail under normal circumstances.
+- Unlock operations always attempt to release all locks, even if some fail, to
+    prevent resource leaks.
+
+For context-aware operations (using the `MutexContext` and `RWMutexContext`
+interfaces), explicit error handling is provided to manage cancellation and
+timeout scenarios, which are considered valid runtime conditions rather than
+programming errors.
+
 ## Dependencies
 
 This package only depends on the standard library and [`darvaza.org/core`][core-link].
