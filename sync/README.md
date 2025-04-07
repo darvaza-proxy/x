@@ -20,11 +20,14 @@ than leaking.
 * [`darvaza.org/x/sync`][sync-link]: The main package namespace.
   * [`mutex`][sync-mutex-link]: Contains interfaces and utilities for mutex
     operations.
+  * [`spinlock`][sync-spinlock-link]: Contains a lightweight spinlock
+    implementation of `mutex.Mutex`.
   * [`utils`][sync-utils-link]: Contains error types and helpers for implementing
     common synchronization primitives.
 
 [sync-link]: https://pkg.go.dev/darvaza.org/x/sync
 [sync-mutex-link]: https://pkg.go.dev/darvaza.org/x/sync/mutex
+[sync-spinlock-link]: https://pkg.go.dev/darvaza.org/x/sync/spinlock
 [sync-utils-link]: https://pkg.go.dev/darvaza.org/x/sync/utils
 
 ## Features
@@ -34,6 +37,7 @@ than leaking.
 - Functions for operating on multiple locks simultaneously
 - Safe lock/unlock operations with proper error handling
 - Collections of mutexes that can be operated on as a group
+- Lightweight spinlock implementation for low-contention scenarios
 
 ## Interfaces
 
@@ -124,6 +128,62 @@ Custom mutex implementations can adopt these interfaces to provide context-aware
 These context-aware interfaces allow lock acquisition operations to respect context
 cancellation and timeouts, which is particularly useful in concurrent applications
 where lock acquisition needs to be bounded by timeouts or be cancellable.
+
+## SpinLock
+
+The `darvaza.org/x/sync/spinlock` package provides a lightweight spinlock implementation for
+scenarios where locks are held for very brief periods.
+
+### SpinLock Type
+
+`SpinLock` is a mutual exclusion primitive that uses active spinning (busy-waiting) instead of parking
+goroutines. It implements both the `sync.Locker` and `mutex.Mutex` interfaces:
+
+```go
+type SpinLock uint32
+```
+
+#### Key characteristics:
+
+- **Zero value**: An unlocked spinlock ready for use
+- **Memory footprint**: Minimal (just a uint32)
+- **CPU usage**: Consumes CPU cycles while waiting (unlike traditional mutexes)
+- **Target use cases**: Low-contention scenarios where locks are held very briefly
+
+#### Methods:
+
+- `Lock()`: Acquires the lock, spinning until successful
+- `TryLock() bool`: Attempts to acquire the lock without blocking
+- `Unlock()`: Releases the lock
+
+#### Usage considerations:
+
+- **Use when**: Lock contention is rare and lock-holding duration is minimal
+- **Avoid when**: Locks might be held for extended periods
+- **Best for**: Performance-critical code paths where context switching would be costly
+
+#### Example usage:
+
+```go
+var lock spinlock.SpinLock
+
+// In concurrent code:
+lock.Lock()
+defer lock.Unlock()
+// Critical section here (keep it very brief)
+```
+
+#### Implementation details:
+
+- Uses atomic operations for lock state management
+- Calls `runtime.Gosched()` while spinning to yield the processor
+- Panics with appropriate errors for nil receivers or unlock of unlocked spinlocks
+- Provides internal methods that return errors instead of panicking for composability
+
+#### Performance characteristics:
+
+Benchmark testing shows SpinLock is particularly efficient for operations that complete quickly, as
+it avoids the overhead of parking and unparking goroutines or using channels.
 
 ## Functions
 
