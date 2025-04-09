@@ -47,7 +47,7 @@ func (s *Semaphore) lazyInit() error {
 	return nil
 }
 
-func (s *Semaphore) checkContext(ctx context.Context) error {
+func (s *Semaphore) checkContext(ctx context.Context, skip int) error {
 	err := s.lazyInit()
 	switch {
 	case err != nil:
@@ -144,7 +144,7 @@ func (s *Semaphore) RUnlock() {
 }
 
 func (s *Semaphore) doLockContext(ctx context.Context) error {
-	if err := s.checkContext(ctx); err != nil {
+	if err := s.checkContext(ctx, 2); err != nil {
 		return err
 	}
 
@@ -213,7 +213,7 @@ func (s *Semaphore) doUnlock() error {
 }
 
 func (s *Semaphore) doRLockContext(ctx context.Context) error {
-	err := s.checkContext(ctx)
+	err := s.checkContext(ctx, 2)
 	switch {
 	case err != nil:
 		// invalid
