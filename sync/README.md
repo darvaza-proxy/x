@@ -20,9 +20,12 @@ than leaking.
 * [`darvaza.org/x/sync`][sync-link]: The main package namespace.
   * [`mutex`][sync-mutex-link]: Contains interfaces and utilities for mutex
     operations.
+  * [`utils`][sync-utils-link]: Contains error types and helpers for implementing
+    common synchronization primitives.
 
 [sync-link]: https://pkg.go.dev/darvaza.org/x/sync
 [sync-mutex-link]: https://pkg.go.dev/darvaza.org/x/sync/mutex
+[sync-utils-link]: https://pkg.go.dev/darvaza.org/x/sync/utils
 
 ## Features
 
@@ -199,11 +202,13 @@ These utility functions provide several benefits:
 
 ## Error Handling
 
-This package defines error types for common synchronization issues:
+The [`utils`][sync-utils-link] sub-package defines error types for common
+synchronization issues:
 
 - `ErrNilContext`: Returned when a nil context is encountered in context-aware
     operations
 - `ErrNilMutex`: Returned when a nil mutex is encountered and cannot be used
+- `ErrNilReceiver`: Returned when methods are called on a nil receiver
 
 These errors help distinguish between different types of nil-related failures
 that might occur during synchronization operations.

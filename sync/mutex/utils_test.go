@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/utils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,7 @@ func TestSafeLock(t *testing.T) {
 	// Test with nil mutex
 	ok, err = SafeLock[Mutex](nil)
 	assert.False(t, ok, "SafeLock should fail on nil mutex")
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeLock should return ErrNilMutex for nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeLock should return ErrNilMutex for nil mutex")
 
 	// Test with custom mutex that panics
 	panicMu := &panicOnLockMutex{}
@@ -56,7 +57,7 @@ func TestSafeTryLock(t *testing.T) {
 	var nilMu Mutex
 	ok, err = SafeTryLock(nilMu)
 	assert.False(t, ok, "SafeTryLock should fail on nil mutex")
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeTryLock should return ErrNilMutex for nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeTryLock should return ErrNilMutex for nil mutex")
 
 	// Test with custom mutex that panics
 	panicMu := &panicOnTryLockMutex{}
@@ -77,7 +78,7 @@ func TestSafeUnlock(t *testing.T) {
 	// Test with nil mutex
 	var nilMu Mutex
 	err = SafeUnlock(nilMu)
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeUnlock should return ErrNilMutex for nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeUnlock should return ErrNilMutex for nil mutex")
 
 	// Test with custom mutex that panics
 	panicMu := &panicOnUnlockMutex{}
@@ -131,14 +132,14 @@ func TestSafeRLock(t *testing.T) {
 	var nilMu RWMutex
 	ok, err = SafeRLock(nilMu)
 	assert.False(t, ok, "SafeRLock should fail on nil mutex")
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeRLock should return ErrNilMutex for nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeRLock should return ErrNilMutex for nil mutex")
 
 	// Test with typed nil pointer (should cause a panic that gets converted to error)
 	typedNilMu := (*sync.RWMutex)(nil)
 	ok, err = SafeRLock(typedNilMu)
 	assert.False(t, ok, "SafeRLock should fail on typed nil pointer")
 	assert.IsType(t, &core.PanicError{}, err, "SafeRLock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeRLock should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeRLock should not return ErrNilMutex for typed nil pointer")
 }
 
 // TestSafeTryRLock tests the SafeTryRLock function
@@ -170,7 +171,7 @@ func TestSafeTryRLock(t *testing.T) {
 	ok, err = SafeTryRLock(typedNilMu)
 	assert.False(t, ok, "SafeTryRLock should fail on typed nil pointer")
 	assert.IsType(t, &core.PanicError{}, err, "SafeTryRLock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeTryRLock should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeTryRLock should not return ErrNilMutex for typed nil pointer")
 }
 
 // TestSafeRUnlock tests the SafeRUnlock function
@@ -193,7 +194,7 @@ func TestSafeRUnlock(t *testing.T) {
 	nilMu := (*sync.RWMutex)(nil)
 	err = SafeRUnlock(nilMu)
 	assert.IsType(t, &core.PanicError{}, err, "SafeRUnlock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeRUnlock should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeRUnlock should not return ErrNilMutex for typed nil pointer")
 }
 
 // TestSafeLockContext tests the SafeLockContext function
@@ -219,14 +220,14 @@ func TestSafeLockContext(t *testing.T) {
 	nilCtx := context.Context(nil)
 	ok, err = SafeLockContext(nilCtx, mu)
 	assert.False(t, ok, "SafeLockContext should fail with nil context")
-	assert.ErrorIs(t, err, ErrNilContext, "SafeLockContext should return ErrNilContext for nil context")
+	assert.ErrorIs(t, err, utils.ErrNilContext, "SafeLockContext should return ErrNilContext for nil context")
 
 	// Test with typed nil mutex (will cause panic)
 	nilMu := (*testMutexContext)(nil)
 	ok, err = SafeLockContext(ctx, nilMu)
 	assert.False(t, ok, "SafeLockContext should fail with typed nil mutex")
 	assert.IsType(t, &core.PanicError{}, err, "SafeLockContext should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeLockContext should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeLockContext should not return ErrNilMutex for typed nil pointer")
 
 	// Test with mutex that panics
 	panicMu := &panicOnLockContextMutex{}
@@ -260,14 +261,14 @@ func TestSafeRLockContext(t *testing.T) {
 	nilCtx := context.Context(nil)
 	ok, err = SafeRLockContext(nilCtx, rwMu)
 	assert.False(t, ok, "SafeRLockContext should fail with nil context")
-	assert.ErrorIs(t, err, ErrNilContext, "SafeRLockContext should return ErrNilContext for nil context")
+	assert.ErrorIs(t, err, utils.ErrNilContext, "SafeRLockContext should return ErrNilContext for nil context")
 
 	// Test with typed nil mutex (will cause panic)
 	nilMu := (*testRWMutexContext)(nil)
 	ok, err = SafeRLockContext(ctx, nilMu)
 	assert.False(t, ok, "SafeRLockContext should fail with typed nil mutex")
 	assert.IsType(t, &core.PanicError{}, err, "SafeRLockContext should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeRLockContext should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeRLockContext should not return ErrNilMutex for typed nil pointer")
 
 	// Test with mutex that panics
 	panicMu := &panicOnRLockContextMutex{}
@@ -340,7 +341,7 @@ func TestReverseUnlock(t *testing.T) {
 
 	// Test with unlock function that returns errors
 	errorFn := func(_ Mutex) error {
-		return ErrNilMutex // Just using this as a convenient error
+		return utils.ErrNilMutex // Just using this as a convenient error
 	}
 
 	err = ReverseUnlock[Mutex](errorFn, m1, m2, m3)
@@ -352,30 +353,30 @@ func TestErrorHandling(t *testing.T) {
 	// Test SafeLock with nil mutex
 	ok, err := SafeLock[Mutex](nil)
 	assert.False(t, ok, "SafeLock should return false with nil mutex")
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeLock should return ErrNilMutex with nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeLock should return ErrNilMutex with nil mutex")
 
 	// Test SafeUnlock with nil mutex
 	err = SafeUnlock[Mutex](nil)
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeUnlock should return ErrNilMutex with nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeUnlock should return ErrNilMutex with nil mutex")
 
 	// Test SafeTryLock with nil mutex
 	ok, err = SafeTryLock[Mutex](nil)
 	assert.False(t, ok, "SafeTryLock should return false with nil mutex")
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeTryLock should return ErrNilMutex with nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeTryLock should return ErrNilMutex with nil mutex")
 
 	// Test SafeRLock with nil mutex
 	ok, err = SafeRLock[Mutex](nil)
 	assert.False(t, ok, "SafeRLock should return false with nil mutex")
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeRLock should return ErrNilMutex with nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeRLock should return ErrNilMutex with nil mutex")
 
 	// Test SafeTryRLock with nil mutex
 	ok, err = SafeTryRLock[RWMutex](nil)
 	assert.False(t, ok, "SafeTryRLock should return false with nil mutex")
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeTryRLock should return ErrNilMutex with nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeTryRLock should return ErrNilMutex with nil mutex")
 
 	// Test SafeRUnlock with nil mutex
 	err = SafeRUnlock[RWMutex](nil)
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeRUnlock should return ErrNilMutex with nil mutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeRUnlock should return ErrNilMutex with nil mutex")
 
 	// Test context functions with nil context and mutex
 	ctx := context.Background()
@@ -384,19 +385,19 @@ func TestErrorHandling(t *testing.T) {
 
 	ok, err = SafeLockContext(nilCtx, &testMutexContext{})
 	assert.False(t, ok, "SafeLockContext should return false with nil context")
-	assert.ErrorIs(t, err, ErrNilContext, "SafeLockContext should return ErrNilContext")
+	assert.ErrorIs(t, err, utils.ErrNilContext, "SafeLockContext should return ErrNilContext")
 
 	ok, err = SafeLockContext(ctx, nilMu)
 	assert.False(t, ok, "SafeLockContext should return false with nil mutex")
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeLockContext should return ErrNilMutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeLockContext should return ErrNilMutex")
 
 	ok, err = SafeRLockContext(nilCtx, &testRWMutexContext{})
 	assert.False(t, ok, "SafeRLockContext should return false with nil context")
-	assert.ErrorIs(t, err, ErrNilContext, "SafeRLockContext should return ErrNilContext")
+	assert.ErrorIs(t, err, utils.ErrNilContext, "SafeRLockContext should return ErrNilContext")
 
 	ok, err = SafeRLockContext(ctx, nilMu)
 	assert.False(t, ok, "SafeRLockContext should return false with nil mutex")
-	assert.ErrorIs(t, err, ErrNilMutex, "SafeRLockContext should return ErrNilMutex")
+	assert.ErrorIs(t, err, utils.ErrNilMutex, "SafeRLockContext should return ErrNilMutex")
 }
 
 // TestOriginalReverseUnlock tests that locks are released in reverse order on failure
@@ -458,7 +459,7 @@ func TestSafeReverseUnlock(t *testing.T) {
 
 	// Test with a function that always returns errors
 	errFn := func(_ Mutex) error {
-		return ErrNilMutex // Just reusing a convenient error
+		return utils.ErrNilMutex // Just reusing a convenient error
 	}
 
 	err = ReverseUnlock[Mutex](errFn, m1, m2)

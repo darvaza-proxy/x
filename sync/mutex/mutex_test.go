@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/utils"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -210,32 +211,32 @@ func TestNilImplementations(t *testing.T) {
 	ok, err := SafeLock(nilMu)
 	assert.False(t, ok, "SafeLock should return false with nil mutex")
 	assert.IsType(t, &core.PanicError{}, err, "SafeLock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeLock should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeLock should not return ErrNilMutex for typed nil pointer")
 
 	ok, err = SafeTryLock(nilMu)
 	assert.False(t, ok, "SafeTryLock should return false with nil mutex")
 	assert.IsType(t, &core.PanicError{}, err, "SafeTryLock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeTryLock should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeTryLock should not return ErrNilMutex for typed nil pointer")
 
 	err = SafeUnlock(nilMu)
 	assert.IsType(t, &core.PanicError{}, err, "SafeUnlock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeUnlock should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeUnlock should not return ErrNilMutex for typed nil pointer")
 
 	nilRWMu := (*sync.RWMutex)(nil)
 
 	ok, err = SafeRLock(nilRWMu)
 	assert.False(t, ok, "SafeRLock should return false with nil mutex")
 	assert.IsType(t, &core.PanicError{}, err, "SafeRLock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeRLock should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeRLock should not return ErrNilMutex for typed nil pointer")
 
 	ok, err = SafeTryRLock(nilRWMu)
 	assert.False(t, ok, "SafeTryRLock should return false with nil mutex")
 	assert.IsType(t, &core.PanicError{}, err, "SafeTryRLock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeTryRLock should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeTryRLock should not return ErrNilMutex for typed nil pointer")
 
 	err = SafeRUnlock(nilRWMu)
 	assert.IsType(t, &core.PanicError{}, err, "SafeRUnlock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, ErrNilMutex, "SafeRUnlock should not return ErrNilMutex for typed nil pointer")
+	assert.NotErrorIs(t, err, utils.ErrNilMutex, "SafeRUnlock should not return ErrNilMutex for typed nil pointer")
 
 	// Verify that the original functions still panic with nil mutexes
 	assert.Panics(t, func() {
