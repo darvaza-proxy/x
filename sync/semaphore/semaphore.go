@@ -29,6 +29,8 @@ type Semaphore struct {
 	global chan bool
 	// readers holds the count of readers unless it's the first
 	readers chan int
+	// writersWaiting tracks if there are writers waiting
+	writersWaiting Cond
 }
 
 func (s *Semaphore) lazyInit() error {
@@ -146,6 +148,10 @@ func (s *Semaphore) doLockContext(ctx context.Context) error {
 		return err
 	}
 
+	// Signal that a writer is waiting
+	s.writersWaiting.Inc()
+	defer s.writersWaiting.Dec()
+
 	select {
 	case s.global <- exclusiveLock:
 		return nil
@@ -158,6 +164,10 @@ func (s *Semaphore) doLock() error {
 	if err := s.lazyInit(); err != nil {
 		return err
 	}
+
+	// Signal that a writer is waiting
+	s.writersWaiting.Inc()
+	defer s.writersWaiting.Dec()
 
 	s.global <- exclusiveLock
 	return nil
@@ -229,6 +239,12 @@ func (s *Semaphore) doRLock() error {
 func (s *Semaphore) unsafeRLock(abort <-chan struct{}) bool {
 	var readers int
 
+	// Check if there are writers waiting before attempting to acquire a read lock
+	if err := s.waitNoWritersWaiting(abort); err != nil {
+		// cancelled
+		return true
+	}
+
 	select {
 	case s.global <- readerLock:
 		// first reader!
@@ -264,6 +280,11 @@ func (s *Semaphore) doTryRLock() (bool, error) {
 		return false, err
 	}
 
+	// Don't try to acquire read lock if writers are waiting
+	if s.hasWritersWaiting() {
+		return false, nil
+	}
+
 	select {
 	case s.global <- readerLock:
 		// first reader!
@@ -280,6 +301,16 @@ func (s *Semaphore) doTryRLock() (bool, error) {
 
 	// success
 	return true, nil
+}
+
+func (s *Semaphore) hasWritersWaiting() bool {
+	return s.writersWaiting.Match(func(n int32) bool { return n > 0 })
+}
+
+func (s *Semaphore) waitNoWritersWaiting(abort <-chan struct{}) error {
+	return s.writersWaiting.WaitFnAbort(abort, func(n int32) bool {
+		return n == 0
+	})
 }
 
 func cancelled(abort <-chan struct{}) bool {
