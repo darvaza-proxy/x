@@ -273,6 +273,14 @@ synchronization issues:
 These errors help distinguish between different types of nil-related failures
 that might occur during synchronization operations.
 
+The package also provides helper functions for error creation:
+
+- `NewNilReceiverPanic(skip int, note string) error`: Creates a new error wrapping
+  a nil receiver panic with an optional note. The `skip` parameter controls the
+  stack trace depth. This function is particularly useful for implementers of
+  synchronization primitives to properly handle and report nil receiver conditions
+  with detailed stack information.
+
 ## Error Aggregation
 
 The package uses `core.CompoundError` to collect and combine multiple errors that may occur
