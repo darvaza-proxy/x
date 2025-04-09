@@ -176,6 +176,108 @@ The semaphore provides advanced synchronisation combining features of both
 mutexes and traditional semaphores, with added context-awareness for
 cancellation and timeout handling.
 
+### Cond Type
+
+The semaphore package also provides a `Cond` type, which combines features of a condition variable and an atomic counter:
+
+```go
+type Cond struct{}
+```
+
+`Cond` allows goroutines to coordinate and wait for specific conditions to be met on a shared atomic counter.
+
+#### Key features
+
+* **Atomic Counter**: Maintains an internal int32 value that can be manipulated atomically
+* **Condition-based Waiting**: Allows goroutines to wait until a specific condition is satisfied
+* **Context Support**: Provides context-aware waiting operations with cancellation and timeout handling
+* **Signaling**: Supports both single-waiter signaling and broadcasting to all waiters
+
+#### Core Methods
+
+**Counter Operations:**
+
+* `Add(n int) int`: Atomically adds n to the counter and returns the new value
+* `Inc() int`: Increments the counter by 1 and returns the new value
+* `Dec() int`: Decrements the counter by 1 and returns the new value
+* `Value() int`: Returns the current counter value
+* `IsZero() bool`: Checks if the counter value is zero
+
+**Waiting Operations:**
+
+* `WaitZero()`: Blocks until the counter value becomes zero
+* `WaitFn(until CondFunc)`: Blocks until the provided condition function returns true
+* `WaitFnAbort(abort <-chan struct{}, until CondFunc) error`: Waits with the ability to abort via a channel
+* `WaitFnContext(ctx context.Context, until CondFunc) error`: Waits with context cancellation support
+
+**Signaling Operations:**
+
+* `Signal() bool`: Wakes up a single waiting goroutine
+* `Broadcast() bool`: Wakes up all waiting goroutines
+
+#### CondFunc
+
+The `Cond` type works with condition functions of type:
+
+```go
+type CondFunc func(int32) bool
+```
+
+These functions define the conditions under which waiting goroutines should be woken up.
+
+#### Example Usage
+
+```go
+// Create a condition variable with initial value 5
+cond := semaphore.NewCond(5)
+
+// In one goroutine, wait for the value to become zero
+go func() {
+    cond.WaitZero()
+    // Do something when counter reaches zero
+}()
+
+// In another goroutine, wait for a custom condition
+go func() {
+    // Wait until the value is greater than 10
+    cond.WaitFn(func(v int32) bool {
+        return v > 10
+    })
+    // Do something when condition is met
+}()
+
+// With context cancellation
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+// Wait with a timeout
+err := cond.WaitFnContext(ctx, func(v int32) bool {
+    return v == 3
+})
+if err == context.DeadlineExceeded {
+    // Handle timeout
+}
+
+// Manipulate the counter
+cond.Add(-2) // Decrements by 2
+cond.Inc()   // Increments by 1
+cond.Dec()   // Decrements by 1
+
+// Signal waiters
+cond.Signal()     // Wake up one waiter
+cond.Broadcast()  // Wake up all waiters
+```
+
+#### Implementation Details
+
+* Uses atomic operations for counter manipulation
+* Efficiently manages waiters using channels and a map
+* Handles nil receivers and other edge cases with proper error reporting
+* Provides both blocking and non-blocking operations
+* Implements clean cancellation handling for context-aware operations
+
+`Cond` is particularly useful for scenarios where threads need to coordinate based on a numeric value reaching a certain state, with the added benefit of context cancellation support.
+
 ## SpinLock
 
 The `spinlock` package provides a lightweight spinlock implementation for
