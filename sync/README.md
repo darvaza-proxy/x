@@ -233,7 +233,7 @@ This package only depends on the standard library and
 
 [core-link]: https://pkg.go.dev/darvaza.org/core
 
-## Licence
+## Licence/License
 
 MIT. See `LICENCE.txt` in the `x/sync` directory of the repository for
 details.
