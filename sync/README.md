@@ -24,10 +24,13 @@ additional functionality.
 ## Package Structure
 
 * [`darvaza.org/x/sync`][sync-link]: The main package namespace.
+  * [`errors`][sync-errors-link]: Contains error types and helpers for
+    implementing common synchronisation primitives.
   * [`mutex`][sync-mutex-link]: Contains interfaces and utilities for mutex
     operations.
 
 [sync-link]: https://pkg.go.dev/darvaza.org/x/sync
+[sync-errors-link]: https://pkg.go.dev/darvaza.org/x/sync/errors
 [sync-mutex-link]: https://pkg.go.dev/darvaza.org/x/sync/mutex
 
 ## Interfaces
@@ -76,6 +79,14 @@ type RWMutex interface {
 ```
 
 The standard library's `sync.RWMutex{}` implements this interface.
+
+## Error Handling
+
+The [`errors`][sync-errors-link] sub-package defines error types for common
+synchronisation issues:
+
+* `ErrNilMutex`: Returned when a Mutex was expected but none provided.
+* `ErrNilReceiver`: Returned when methods are called on a nil receiver.
 
 ## Dependencies
 
