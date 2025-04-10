@@ -2,13 +2,15 @@ package cmp
 
 import "darvaza.org/core"
 
-// Compose creates a new Matcher by applying an accessor function to transform input values
-// before matching against an existing matcher. It enables composition of matchers across different
-// types, allowing you to build complex matching logic by combining simple matchers.
+// Compose creates a new Matcher by applying an accessor function to transform
+// input values before matching against an existing matcher. It enables
+// composition of matchers across different types, allowing you to build
+// complex matching logic by combining simple matchers.
 //
-// The accessor function (fn) extracts or transforms a value of type T into a value of type V and
-// indicates whether the extraction was successful. The returned matcher evaluates to false if the
-// accessor function returns ok=false.
+// The accessor function (fn) extracts or transforms a value of type T into a
+// value of type V and indicates whether the extraction was successful. The
+// returned matcher evaluates to false if the accessor function returns
+// ok=false.
 //
 // Common uses include:
 // - Extracting and matching on struct fields

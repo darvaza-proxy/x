@@ -52,7 +52,7 @@ func TestMatchFuncAnd(t *testing.T) {
 		return n > 0
 	})
 
-	// Even AND positive
+	// Combined matcher for even AND positive numbers
 	evenAndPositive := isEven.And(isPositive)
 
 	tests := []struct {
@@ -70,7 +70,7 @@ func TestMatchFuncAnd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, evenAndPositive.Match(tt.value),
-				"isEven.And(isPositive).Match(%d) should return %v",
+				"Combined AND matcher for %d should return %v",
 				tt.value, tt.expected)
 		})
 	}
@@ -99,7 +99,7 @@ func TestMatchFuncOr(t *testing.T) {
 		return n%3 == 0
 	})
 
-	// Even OR divisible by 3
+	// Combined matcher for numbers either even OR divisible by 3
 	evenOrDivisibleBy3 := isEven.Or(isDivisibleBy3)
 
 	tests := []struct {
@@ -118,7 +118,7 @@ func TestMatchFuncOr(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, evenOrDivisibleBy3.Match(tt.value),
-				"isEven.Or(isDivisibleBy3).Match(%d) should return %v",
+				"Combined OR matcher for %d should return %v",
 				tt.value, tt.expected)
 		})
 	}
@@ -162,7 +162,7 @@ func TestMatchFuncNot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, isOdd.Match(tt.value),
-				"isEven.Not().Match(%d) should return %v",
+				"Negated matcher for %d should return %v",
 				tt.value, tt.expected)
 		})
 	}

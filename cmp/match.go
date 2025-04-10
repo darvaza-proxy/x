@@ -1,11 +1,12 @@
 package cmp
 
 // Matcher is a generic interface for filtering and combining predicates of type T.
-// It allows logical AND and OR operations between conditions, and matching against a value.
+// It enables logical AND and OR operations between conditions, and matching against
+// a value.
 //
 // Matchers are composable, allowing complex matching logic to be built from simpler
-// components. The zero value of any Matcher should either be safe to use or well-documented
-// if it has special behavior.
+// components. The zero value of any Matcher should either be safe to use or
+// well-documented if it has special behaviour.
 type Matcher[T any] interface {
 	// And combines this query with others using logical AND.
 	// All conditions must match for the combined query to match.
@@ -17,7 +18,7 @@ type Matcher[T any] interface {
 	// Nil matchers in the provided list are ignored during matching.
 	Or(...Matcher[T]) Matcher[T]
 
-	// Not negates this matcher's result
+	// Not negates this matcher's result.
 	Not() Matcher[T]
 
 	// Match tests if the given value satisfies this query's conditions.
@@ -43,7 +44,8 @@ type ands[T any] []Matcher[T]
 
 // Match returns true if all non-nil queries in the slice match the provided value.
 // An empty slice matches everything (returns true), following the logical convention
-// that an empty AND condition is always satisfied (similar to logical product of an empty set).
+// that an empty AND condition is always satisfied (similar to logical product of an
+// empty set).
 func (c ands[T]) Match(value T) bool {
 	for _, q := range c {
 		if q != nil && !q.Match(value) {
@@ -81,7 +83,8 @@ type ors[T any] []Matcher[T]
 
 // Match returns true if any non-nil query in the slice matches the provided value.
 // An empty slice matches nothing (returns false), following the logical convention
-// that an empty OR condition is never satisfied (similar to logical sum of an empty set).
+// that an empty OR condition is never satisfied (similar to logical sum of an
+// empty set).
 func (c ors[T]) Match(value T) bool {
 	for _, q := range c {
 		if q != nil && q.Match(value) {
@@ -114,9 +117,6 @@ func (c ors[T]) Not() Matcher[T] {
 	})
 }
 
-// qJoin combines a query with a slice of other queries into a single slice.
-// If the first query is nil, it simply returns the others slice.
-// This internal function is used by And/Or operations to combine matchers efficiently.
 // qJoin combines a Matcher with a slice of Matchers into a single slice.
 // It first cleans the 'others' slice by removing nil elements.
 //
@@ -149,8 +149,8 @@ func qJoin[T any](fn Matcher[T], others []Matcher[T]) []Matcher[T] {
 }
 
 // qClean removes nil queries from the provided slice, operating in-place.
-// The input slice is modified, and a slice containing only non-nil elements is returned.
-// This helps to avoid nil checks during matching operations.
+// The input slice is modified, and a slice containing only non-nil elements
+// is returned. This helps to avoid nil checks during matching operations.
 func qClean[T any](queries []Matcher[T]) []Matcher[T] {
 	result := queries[:0]
 	for _, q := range queries {
