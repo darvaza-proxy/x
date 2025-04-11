@@ -634,7 +634,7 @@ func TestWorkgroup_Integration(t *testing.T) {
 
 // TestGroup_LazyInit tests the lazyInit behaviour indirectly
 func TestGroup_LazyInit(t *testing.T) {
-	t.Run("InitializesEmptyGroup", func(t *testing.T) {
+	t.Run("InitialisesEmptyGroup", func(t *testing.T) {
 		// Create a group but don't initialise it with New
 		wg := &Group{}
 
@@ -648,7 +648,7 @@ func TestGroup_LazyInit(t *testing.T) {
 		assert.Equal(t, context.Background(), wg.Parent)
 	})
 
-	t.Run("InitializesWithCustomParent", func(t *testing.T) {
+	t.Run("InitialisesWithCustomParent", func(t *testing.T) {
 		ctxKey := core.NewContextKey[string]("key")
 		parentCtx := ctxKey.WithValue(context.Background(), "value")
 
