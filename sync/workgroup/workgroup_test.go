@@ -931,6 +931,201 @@ func TestGroup_DeadlineExceeded(t *testing.T) {
 	assert.True(t, taskInterrupted.Load(), "Task should be interrupted by deadline")
 }
 
+// TestGroup_GoCatch tests the GoCatch method
+func TestGroup_GoCatch(t *testing.T) {
+	t.Run("ReturnsErrorOnNilReceiver", func(t *testing.T) {
+		var wg *Group
+		err := wg.GoCatch(
+			func(_ context.Context) error { return nil },
+			func(_ context.Context, err error) error { return err },
+		)
+		assert.Error(t, err)
+		assert.Equal(t, errors.ErrNilReceiver, err)
+	})
+
+	t.Run("DoesNothingWithNilFunc", func(t *testing.T) {
+		wg := New(context.Background())
+		err := wg.GoCatch(nil, nil)
+		assert.Nil(t, err, "GoCatch with nil func should return nil error")
+
+		// Wait should return immediately as no task was added
+		done := make(chan struct{})
+		go func() {
+			_ = wg.Wait()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+			// Expected - should return quickly
+		case <-time.After(100 * time.Millisecond):
+			assert.Fail(t, "Wait should return immediately with no tasks")
+		}
+	})
+
+	t.Run("ExecutesSuccessfulTask", func(t *testing.T) {
+		wg := New(context.Background())
+
+		executed := atomic.Bool{}
+		err := wg.GoCatch(
+			func(_ context.Context) error {
+				executed.Store(true)
+				return nil
+			},
+			nil,
+		)
+		assert.Nil(t, err)
+
+		err = wg.Wait()
+		assert.Nil(t, err)
+		assert.True(t, executed.Load())
+	})
+
+	t.Run("TasksReceiveGroupContext", func(t *testing.T) {
+		wg := New(context.Background())
+
+		var receivedCtx context.Context
+
+		err := wg.GoCatch(
+			func(ctx context.Context) error {
+				receivedCtx = ctx
+				return nil
+			},
+			nil,
+		)
+		assert.Nil(t, err)
+
+		err = wg.Wait()
+		assert.Nil(t, err)
+		assert.Equal(t, wg.Context(), receivedCtx)
+	})
+
+	t.Run("CancelsGroupOnError", func(t *testing.T) {
+		wg := New(context.Background())
+
+		testErr := errors.New("test error")
+		err := wg.GoCatch(
+			func(_ context.Context) error {
+				return testErr
+			},
+			nil,
+		)
+		assert.Nil(t, err)
+
+		err = wg.Wait()
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, testErr))
+	})
+
+	t.Run("CatchHandlerProcessesError", func(t *testing.T) {
+		wg := New(context.Background())
+
+		testErr := errors.New("original error")
+		processedErr := errors.New("processed error")
+
+		err := wg.GoCatch(
+			func(_ context.Context) error {
+				return testErr
+			},
+			func(_ context.Context, err error) error {
+				assert.Equal(t, testErr, err)
+				return processedErr
+			},
+		)
+		assert.Nil(t, err)
+
+		err = wg.Wait()
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, processedErr))
+		assert.False(t, errors.Is(err, testErr))
+	})
+
+	t.Run("CatchHandlerCanPreventCancellation", func(t *testing.T) {
+		wg := New(context.Background())
+
+		testErr := errors.New("non-critical error")
+
+		err := wg.GoCatch(
+			func(_ context.Context) error {
+				return testErr
+			},
+			func(_ context.Context, err error) error {
+				assert.Equal(t, testErr, err)
+				// Return nil to prevent group cancellation
+				return nil
+			},
+		)
+		assert.Nil(t, err)
+
+		err = wg.Wait()
+		assert.Nil(t, err)
+		assert.False(t, wg.IsCancelled())
+	})
+
+	t.Run("RecoversPanics", func(t *testing.T) {
+		wg := New(context.Background())
+
+		panicMsg := "deliberate panic"
+
+		err := wg.GoCatch(
+			func(_ context.Context) error {
+				panic(panicMsg)
+			},
+			func(_ context.Context, err error) error {
+				return err
+			},
+		)
+		assert.Nil(t, err)
+
+		err = wg.Wait()
+		assert.Error(t, err)
+
+		// Should be a PanicError
+		var panicErr *core.PanicError
+		assert.True(t, errors.As(err, &panicErr))
+		assert.Contains(t, err.Error(), panicMsg)
+	})
+
+	t.Run("ReturnsErrorWhenGroupCancelled", func(t *testing.T) {
+		wg := New(context.Background())
+		wg.Cancel(nil)
+
+		err := wg.GoCatch(
+			func(_ context.Context) error {
+				return nil
+			},
+			nil,
+		)
+
+		assert.Error(t, err)
+		assert.Equal(t, errors.ErrClosed, err)
+	})
+
+	t.Run("CatchHandlerReceivesContext", func(t *testing.T) {
+		wg := New(context.Background())
+
+		var taskCtx, catchCtx context.Context
+		testErr := errors.New("test error")
+
+		err := wg.GoCatch(
+			func(ctx context.Context) error {
+				taskCtx = ctx
+				return testErr
+			},
+			func(ctx context.Context, err error) error {
+				catchCtx = ctx
+				return err
+			},
+		)
+		assert.Nil(t, err)
+
+		err = wg.Wait()
+		assert.Error(t, err)
+		assert.Equal(t, taskCtx, wg.Context())
+		assert.Equal(t, catchCtx, wg.Context())
+	})
+}
+
 // BenchmarkWorkgroup measures the performance of workgroup operations
 func BenchmarkWorkgroup(b *testing.B) {
 	b.Run("TaskCreation", func(b *testing.B) {

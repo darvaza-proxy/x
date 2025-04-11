@@ -338,6 +338,71 @@ func (wg *Group) doGo(fn func(context.Context)) error {
 	}
 }
 
+// GoCatch spawns a new goroutine with error handling and supervision.
+// If called on a nil Group, it will panic.
+//
+// The function receives the Group's context and can return an error. Panics
+// occurring in fn are captured and converted to core.PanicError{} values.
+//
+// The catch handler, if provided, can process, transform, or filter the error.
+// If the final error (after catch) is non-nil, the entire Group will be
+// cancelled with that error. To prevent Group cancellation, the catch handler
+// can return nil.
+//
+// If fn is nil, no goroutine is started.
+//
+// The Group tracks the lifetime of the spawned goroutine and waits for its
+// completion in Wait(), Close(), or through the Done() channel.
+//
+// Example usage with error handling:
+//
+//	wg.GoCatch(
+//	    func(ctx context.Context) error {
+//	        // Task implementation that may return errors
+//	        return doSomething(ctx)
+//	    },
+//	    func(ctx context.Context, err error) error {
+//	        // Process the error
+//	        if isRecoverable(err) {
+//	            logError(err)
+//	            return nil // Prevent Group cancellation for recoverable errors
+//	        }
+//	        return fmt.Errorf("critical task failure: %w", err)
+//	    },
+//	)
+func (wg *Group) GoCatch(fn func(context.Context) error, catch func(context.Context, error) error) error {
+	err := wg.lazyInit()
+	switch {
+	case err != nil:
+		return err
+	case fn == nil:
+		return nil
+	default:
+		return wg.doGo(func(_ context.Context) {
+			wg.run(fn, catch)
+		})
+	}
+}
+
+func (wg *Group) run(fn func(context.Context) error, catch func(context.Context, error) error) {
+	err := core.Catch(func() error {
+		// execute the function
+		return fn(wg.ctx)
+	})
+
+	if catch != nil {
+		// process the exit condition
+		err = core.Catch(func() error {
+			return catch(wg.ctx, err)
+		})
+	}
+
+	// cancel the group if the resulting error is non-nil
+	if err != nil {
+		wg.Cancel(err)
+	}
+}
+
 // init initialises the Group with a context and cancel function.
 // If Parent is nil, it uses context.Background() as the default parent.
 func (wg *Group) init() {
