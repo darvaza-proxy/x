@@ -555,3 +555,298 @@ func TestCond_ComplexConcurrency(t *testing.T) {
 	expectedValue := (numInc * incOps) - (numDec * decOps)
 	assert.Equal(t, expectedValue, cond.Value())
 }
+
+// Benchmarks for Cond operations
+
+// BenchmarkCond_AtomicOperations benchmarks the atomic operations
+func BenchmarkCond_AtomicOperations(b *testing.B) {
+	b.Run("Add", func(b *testing.B) {
+		cond := NewCond(0)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cond.Add(1)
+		}
+	})
+
+	b.Run("Inc", func(b *testing.B) {
+		cond := NewCond(0)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cond.Inc()
+		}
+	})
+
+	b.Run("Dec", func(b *testing.B) {
+		cond := NewCond(b.N)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cond.Dec()
+		}
+	})
+
+	b.Run("Value", func(b *testing.B) {
+		cond := NewCond(42)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = cond.Value()
+		}
+	})
+}
+
+// BenchmarkCond_ConditionChecking benchmarks the condition checking methods
+func BenchmarkCond_ConditionChecking(b *testing.B) {
+	b.Run("IsZero", func(b *testing.B) {
+		cond := NewCond(0)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cond.IsZero()
+		}
+	})
+
+	b.Run("Match_Zero", func(b *testing.B) {
+		cond := NewCond(0)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cond.Match(nil)
+		}
+	})
+
+	b.Run("Match_Custom", func(b *testing.B) {
+		cond := NewCond(42)
+		isEven := func(v int32) bool { return v%2 == 0 }
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cond.Match(isEven)
+		}
+	})
+}
+
+// BenchmarkCond_Signaling benchmarks the signaling methods
+func BenchmarkCond_Signaling(b *testing.B) {
+	b.Run("Signal_NoWaiters", func(b *testing.B) {
+		cond := NewCond(0)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cond.Signal()
+		}
+	})
+
+	b.Run("Broadcast_NoWaiters", func(b *testing.B) {
+		cond := NewCond(0)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cond.Broadcast()
+		}
+	})
+
+	b.Run("Signal_WithWaiters", func(b *testing.B) {
+		cond := NewCond(1)
+		const waiters = 10
+
+		b.ResetTimer()
+		b.StopTimer()
+
+		for i := 0; i < b.N; i++ {
+			// Setup waiters
+			var wg sync.WaitGroup
+			wg.Add(waiters)
+
+			for j := 0; j < waiters; j++ {
+				go func() {
+					defer wg.Done()
+					cond.WaitFn(func(v int32) bool { return v == 0 })
+				}()
+			}
+
+			// Give time for waiters to register
+			time.Sleep(1 * time.Millisecond)
+
+			b.StartTimer()
+			cond.Dec() // makes value 0
+			cond.Signal()
+			b.StopTimer()
+
+			// Wait for all waiters to finish
+			wg.Wait()
+
+			// Reset for next iteration
+			cond.Add(1)
+		}
+	})
+
+	b.Run("Broadcast_WithWaiters", func(b *testing.B) {
+		cond := NewCond(1)
+		const waiters = 10
+
+		b.ResetTimer()
+		b.StopTimer()
+
+		for i := 0; i < b.N; i++ {
+			// Setup waiters
+			var wg sync.WaitGroup
+			wg.Add(waiters)
+
+			for j := 0; j < waiters; j++ {
+				go func() {
+					defer wg.Done()
+					cond.WaitFn(func(v int32) bool { return v == 0 })
+				}()
+			}
+
+			// Give time for waiters to register
+			time.Sleep(1 * time.Millisecond)
+
+			b.StartTimer()
+			cond.Dec() // makes value 0
+			cond.Broadcast()
+			b.StopTimer()
+
+			// Wait for all waiters to finish
+			wg.Wait()
+
+			// Reset for next iteration
+			cond.Add(1)
+		}
+	})
+}
+
+// BenchmarkCond_WaitOperations benchmarks the waiting operations
+func BenchmarkCond_WaitOperations(b *testing.B) {
+	b.Run("WaitFn_ConditionAlreadyTrue", func(b *testing.B) {
+		cond := NewCond(0)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cond.WaitFn(func(v int32) bool { return v == 0 })
+		}
+	})
+
+	b.Run("WaitFnContext_ConditionAlreadyTrue", func(b *testing.B) {
+		cond := NewCond(0)
+		ctx := context.Background()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = cond.WaitFnContext(ctx, func(v int32) bool { return v == 0 })
+		}
+	})
+
+	b.Run("WaitFnAbort_ConditionAlreadyTrue", func(b *testing.B) {
+		cond := NewCond(0)
+		abort := make(chan struct{})
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = cond.WaitFnAbort(abort, func(v int32) bool { return v == 0 })
+		}
+	})
+}
+
+// BenchmarkCond_ConcurrentOperations benchmarks concurrent operations on Cond
+func BenchmarkCond_ConcurrentOperations(b *testing.B) {
+	b.Run("ConcurrentIncDec", func(b *testing.B) {
+		cond := NewCond(0)
+		b.ResetTimer()
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				cond.Inc()
+				cond.Dec()
+			}
+		})
+	})
+
+	b.Run("ConcurrentRead", func(b *testing.B) {
+		cond := NewCond(42)
+		b.ResetTimer()
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				_ = cond.Value()
+			}
+		})
+	})
+
+	b.Run("ConcurrentAddWithSignal", func(b *testing.B) {
+		cond := NewCond(0)
+		b.ResetTimer()
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				cond.Add(1)
+				cond.Signal()
+			}
+		})
+	})
+}
+
+// BenchmarkCond_WaitAndSignal benchmarks wait-and-signal patterns
+func BenchmarkCond_WaitAndSignal(b *testing.B) {
+	b.Run("ProducerConsumer", func(b *testing.B) {
+		cond := NewCond(0)
+		const maxVal = 10
+		done := make(chan struct{})
+
+		// Start consumer goroutine
+		go func() {
+			for {
+				cond.WaitFn(func(v int32) bool { return v > 0 })
+				cond.Dec()
+
+				select {
+				case <-done:
+					return
+				default:
+				}
+			}
+		}()
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// producer
+			for cond.Value() >= maxVal {
+				// Wait for consumer to catch up
+				time.Sleep(10 * time.Microsecond)
+			}
+			cond.Inc()
+		}
+
+		close(done)
+	})
+
+	b.Run("MultipleProducersConsumers", func(b *testing.B) {
+		if b.N < 1000 {
+			b.Skip("Skipping small benchmark run")
+		}
+
+		cond := NewCond(0)
+		itemsPerGoroutine := b.N / 10
+		if itemsPerGoroutine < 1 {
+			itemsPerGoroutine = 1
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(10) // 5 producers, 5 consumers
+
+		// Start producer goroutines
+		for i := 0; i < 5; i++ {
+			go func() {
+				defer wg.Done()
+				for j := 0; j < itemsPerGoroutine; j++ {
+					cond.Inc()
+					cond.Signal()
+				}
+			}()
+		}
+
+		// Start consumer goroutines
+		for i := 0; i < 5; i++ {
+			go func() {
+				defer wg.Done()
+				for j := 0; j < itemsPerGoroutine; j++ {
+					cond.WaitFn(func(v int32) bool { return v > 0 })
+					cond.Dec()
+				}
+			}()
+		}
+
+		wg.Wait()
+	})
+}

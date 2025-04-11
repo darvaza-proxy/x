@@ -64,8 +64,9 @@ func (c *Cond) lazyInit() error {
 }
 
 // Add atomically adds the given integer to the Cond value and returns the new
-// value. It notifies all waiters about the state change through a broadcast.
-// If n is 0, it simply returns the current value without broadcasting.
+// value. It notifies all waiters through a broadcast only when the counter
+// becomes exactly zero after the addition. If n is 0, it simply returns the
+// current value without broadcasting.
 // Panics if the receiver is nil.
 func (c *Cond) Add(n int) int {
 	err := c.lazyInit()
@@ -80,14 +81,14 @@ func (c *Cond) Add(n int) int {
 	}
 }
 
-// doAdd atomically adds n to the value and broadcasts to all waiters.
-// Returns the new value after the addition operation.
 func (c *Cond) doAdd(n int) int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	v := c.add(n)
-	c.unsafeBroadcast()
+	if v == 0 {
+		c.unsafeBroadcast()
+	}
 	return v
 }
 
@@ -101,7 +102,7 @@ func (c *Cond) add(n int) int {
 }
 
 // Inc atomically increments the Cond value by 1 and returns the new value.
-// It notifies all waiters about the state change.
+// It notifies all waiters only if the resulting value becomes zero.
 // Panics if the receiver is nil.
 func (c *Cond) Inc() int {
 	if err := c.lazyInit(); err != nil {
@@ -112,7 +113,7 @@ func (c *Cond) Inc() int {
 }
 
 // Dec atomically decrements the Cond value by 1 and returns the new value.
-// It notifies all waiters about the state change.
+// It notifies all waiters only if the resulting value becomes zero.
 // Panics if the receiver is nil.
 func (c *Cond) Dec() int {
 	if err := c.lazyInit(); err != nil {

@@ -206,14 +206,15 @@ type Cond struct{}
 * **Condition-based Waiting**: Allows goroutines to wait until a specific condition is satisfied
 * **Context Support**: Provides context-aware waiting operations with cancellation and timeout handling
 * **Signaling**: Supports both single-waiter signaling and broadcasting to all waiters
+* **Zero-State Broadcasting**: Automatically broadcasts to waiters when counter reaches zero
 
 #### Core Methods
 
 **Counter Operations:**
 
-* `Add(n int) int`: Atomically adds n to the counter and returns the new value
-* `Inc() int`: Increments the counter by 1 and returns the new value
-* `Dec() int`: Decrements the counter by 1 and returns the new value
+* `Add(n int) int`: Atomically adds n to the counter and returns the new value. Automatically broadcasts only when the counter becomes zero.
+* `Inc() int`: Increments the counter by 1 and returns the new value. No automatic broadcast occurs.
+* `Dec() int`: Decrements the counter by 1 and returns the new value. Automatically broadcasts only when the counter becomes zero.
 * `Value() int`: Returns the current counter value
 * `IsZero() bool`: Checks if the counter value is zero
 
@@ -273,9 +274,14 @@ if err == context.DeadlineExceeded {
 }
 
 // Manipulate the counter
-cond.Add(-2) // Decrements by 2
-cond.Inc()   // Increments by 1
-cond.Dec()   // Decrements by 1
+newValue := cond.Add(-2) // Decrements by 2, broadcasts only if newValue == 0
+cond.Inc()   // Increments by 1, no automatic broadcast
+
+// If the counter reaches a specific value other than zero
+// that should wake up waiters, manually broadcast
+if cond.Dec() == 3 { // Decrements by 1, broadcasts only if result == 0
+    cond.Broadcast() // Manual broadcast for non-zero conditions
+}
 
 // Signal waiters
 cond.Signal()     // Wake up one waiter
@@ -289,6 +295,8 @@ cond.Broadcast()  // Wake up all waiters
 * Handles nil receivers and other edge cases with proper error reporting
 * Provides both blocking and non-blocking operations
 * Implements clean cancellation handling for context-aware operations
+* Automatically broadcasts to all waiters only when counter reaches zero
+* For non-zero conditions, the caller must manually check and broadcast as needed
 
 `Cond` is particularly useful for scenarios where threads need to coordinate based on a numeric value reaching a certain state, with the added benefit of context cancellation support.
 
