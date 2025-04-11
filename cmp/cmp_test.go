@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestEq verifies the Eq function correctly determines equality
+// TestEq verifies that the Eq function correctly determines equality
 // for various comparable types including integers and strings.
 func TestEq(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
@@ -55,8 +55,8 @@ func TestEq(t *testing.T) {
 	})
 }
 
-// TestEqFn verifies that EqFn correctly determines equality
-// using a custom comparison function for different data types.
+// TestEqFn verifies that EqFn correctly determines equality using
+// a custom comparison function for different data types.
 func TestEqFn(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		cmp := func(a, b int) int {
@@ -115,15 +115,16 @@ func TestEqFn(t *testing.T) {
 	})
 }
 
-// TestEqFnPanic verifies that EqFn panics when given a nil comparison function.
+// TestEqFnPanic verifies that EqFn panics when given a nil comparison
+// function.
 func TestEqFnPanic(t *testing.T) {
 	assert.Panics(t, func() {
 		EqFn(1, 2, nil)
 	}, "EqFn with nil comparison function should panic")
 }
 
-// TestEqFn2 verifies that EqFn2 correctly determines equality
-// using a custom equality condition function.
+// TestEqFn2 verifies that EqFn2 correctly determines equality using
+// a custom equality condition function.
 func TestEqFn2(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		// Equality function that considers numbers equal if they have the same parity
@@ -167,12 +168,15 @@ func TestEqFn2(t *testing.T) {
 		p2 := person{"Bob", 30}
 		p3 := person{"Charlie", 25}
 
-		assert.True(t, EqFn2(p1, p2, sameAge), "People with same age should be equal")
-		assert.False(t, EqFn2(p1, p3, sameAge), "People with different age should not be equal")
+		assert.True(t, EqFn2(p1, p2, sameAge),
+			"People with same age should be equal")
+		assert.False(t, EqFn2(p1, p3, sameAge),
+			"People with different age should not be equal")
 	})
 }
 
-// TestEqFn2Panic verifies that EqFn2 panics when given a nil condition function.
+// TestEqFn2Panic verifies that EqFn2 panics when given a nil condition
+// function.
 func TestEqFn2Panic(t *testing.T) {
 	assert.Panics(t, func() {
 		EqFn2(1, 2, nil)
@@ -259,7 +263,8 @@ func TestNotEqFn(t *testing.T) {
 	})
 }
 
-// TestNotEqFnPanic verifies that NotEqFn panics when given a nil comparison function.
+// TestNotEqFnPanic verifies that NotEqFn panics when given a nil
+// comparison function.
 func TestNotEqFnPanic(t *testing.T) {
 	assert.Panics(t, func() {
 		NotEqFn(1, 2, nil)
@@ -295,15 +300,16 @@ func TestNotEqFn2(t *testing.T) {
 	})
 }
 
-// TestNotEqFn2Panic verifies that NotEqFn2 panics when given a nil condition function.
+// TestNotEqFn2Panic verifies that NotEqFn2 panics when given a nil
+// condition function.
 func TestNotEqFn2Panic(t *testing.T) {
 	assert.Panics(t, func() {
 		NotEqFn2(1, 2, nil)
 	}, "NotEqFn2 with nil condition function should panic")
 }
 
-// TestLt verifies the Lt function correctly determines
-// "less than" relationship for ordered types.
+// TestLt verifies the Lt function correctly determines "less than"
+// relationships for ordered types.
 func TestLt(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		tests := []struct {
@@ -349,8 +355,8 @@ func TestLt(t *testing.T) {
 	})
 }
 
-// TestLtFn verifies that LtFn correctly determines "less than" relationship
-// using a custom comparison function.
+// TestLtFn verifies that LtFn correctly determines "less than"
+// relationships using a custom comparison function.
 func TestLtFn(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		cmp := func(a, b int) int {
@@ -385,13 +391,16 @@ func TestLtFn(t *testing.T) {
 	})
 }
 
-// TestLtFnPanic verifies that LtFn panics when given a nil comparison function.
+// TestLtFnPanic verifies that LtFn panics when given a nil comparison
+// function.
 func TestLtFnPanic(t *testing.T) {
 	assert.Panics(t, func() {
 		LtFn(1, 2, nil)
 	})
 }
 
+// TestGt verifies the Gt function correctly determines "greater than"
+// relationships for ordered types.
 func TestGt(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -412,6 +421,8 @@ func TestGt(t *testing.T) {
 	}
 }
 
+// TestGtFn verifies that GtFn correctly determines "greater than"
+// relationships using a custom comparison function.
 func TestGtFn(t *testing.T) {
 	cmp := func(a, b int) int {
 		if a < b {
@@ -440,12 +451,16 @@ func TestGtFn(t *testing.T) {
 	}
 }
 
+// TestGtFnPanic verifies that GtFn panics when given a nil comparison
+// function.
 func TestGtFnPanic(t *testing.T) {
 	assert.Panics(t, func() {
 		GtFn(1, 2, nil)
 	})
 }
 
+// TestGtEq verifies the GtEq function correctly determines "greater than
+// or equal to" relationships for ordered types.
 func TestGtEq(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -465,6 +480,8 @@ func TestGtEq(t *testing.T) {
 	}
 }
 
+// TestGtEqFn verifies that GtEqFn correctly determines "greater than or
+// equal to" relationships using a custom comparison function.
 func TestGtEqFn(t *testing.T) {
 	cmp := func(a, b int) int {
 		if a < b {
@@ -493,12 +510,16 @@ func TestGtEqFn(t *testing.T) {
 	}
 }
 
+// TestGtEqFnPanic verifies that GtEqFn panics when given a nil comparison
+// function.
 func TestGtEqFnPanic(t *testing.T) {
 	assert.Panics(t, func() {
 		GtEqFn(1, 2, nil)
 	})
 }
 
+// TestLtEq verifies the LtEq function correctly determines "less than or
+// equal to" relationships for ordered types.
 func TestLtEq(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -518,6 +539,8 @@ func TestLtEq(t *testing.T) {
 	}
 }
 
+// TestLtEqFn verifies that LtEqFn correctly determines "less than or
+// equal to" relationships using a custom comparison function.
 func TestLtEqFn(t *testing.T) {
 	cmp := func(a, b int) int {
 		if a < b {
@@ -546,13 +569,16 @@ func TestLtEqFn(t *testing.T) {
 	}
 }
 
+// TestLtEqFnPanic verifies that LtEqFn panics when given a nil comparison
+// function.
 func TestLtEqFnPanic(t *testing.T) {
 	assert.Panics(t, func() {
 		LtEqFn(1, 2, nil)
 	})
 }
 
-// Custom type tests
+// TestCustomTypeComparison verifies that comparison operations work correctly
+// with custom types using appropriate comparison functions.
 type customType struct {
 	value int
 }
@@ -577,6 +603,8 @@ func TestCustomTypeComparison(t *testing.T) {
 	assert.True(t, GtEqFn(a, c, cmp))
 }
 
+// TestLtEqFn2 verifies that LtEqFn2 correctly determines "less than or
+// equal to" relationships using direct less-than comparison functions.
 func TestLtEqFn2(t *testing.T) {
 	less := func(a, b int) bool {
 		return a < b
@@ -631,6 +659,8 @@ func TestLtEqFn2(t *testing.T) {
 	}
 }
 
+// TestLtEqFn2Panic verifies that LtEqFn2 panics when given a nil
+// condition function.
 func TestLtEqFn2Panic(t *testing.T) {
 	assert.Panics(t, func() {
 		LtEqFn2(1, 2, nil)

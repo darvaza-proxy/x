@@ -1,19 +1,19 @@
 // Package cmp provides generic helpers to compare and match values.
-// It includes functions for equality, ordering, and custom comparisons,
+// It includes functions for equality, ordering and custom comparisons,
 // along with utilities to convert between different comparison function types.
 package cmp
 
 import "darvaza.org/core"
 
-// Eq returns true if a is equal to b for comparable types.
-// It uses the standard Go equality operator.
+// Eq returns true if a equals b for comparable types.
+// Uses the standard Go equality operator.
 func Eq[T comparable](a, b T) bool {
 	return a == b
 }
 
-// EqFn returns true if a is equal to b using a custom comparison function.
-// It returns true when the comparison function returns zero.
-// It panics if the provided comparison function is nil.
+// EqFn returns true if a equals b using a custom comparison function.
+// Returns true when the comparison function returns zero.
+// Panics if the provided comparison function is nil.
 func EqFn[T any](a, b T, cmp CompFunc[T]) bool {
 	if cmp == nil {
 		core.Panic(newNilCompFuncErr())
@@ -21,9 +21,9 @@ func EqFn[T any](a, b T, cmp CompFunc[T]) bool {
 	return cmp(a, b) == 0
 }
 
-// EqFn2 returns true if a is equal to b using a custom equality condition function.
-// It returns the direct result of the equality condition function.
-// It panics if the provided equality function is nil.
+// EqFn2 returns true if a equals b using a custom equality condition.
+// Returns the direct result of the equality condition function.
+// Panics if the provided equality function is nil.
 func EqFn2[T any](a, b T, eq CondFunc[T]) bool {
 	if eq == nil {
 		core.Panic(newNilCondFuncErr())
@@ -31,15 +31,15 @@ func EqFn2[T any](a, b T, eq CondFunc[T]) bool {
 	return eq(a, b)
 }
 
-// NotEq returns true if a is not equal to b for comparable types.
-// It uses the standard Go inequality operator.
+// NotEq returns true if a does not equal b for comparable types.
+// Uses the standard Go inequality operator.
 func NotEq[T comparable](a, b T) bool {
 	return a != b
 }
 
-// NotEqFn returns true if a is not equal to b using a custom comparison function.
-// It returns true when the comparison function does not return zero.
-// It panics if the provided comparison function is nil.
+// NotEqFn returns true if a does not equal b using a custom comparison function.
+// Returns true when the comparison function does not return zero.
+// Panics if the provided comparison function is nil.
 func NotEqFn[T any](a, b T, cmp CompFunc[T]) bool {
 	if cmp == nil {
 		core.Panic(newNilCompFuncErr())
@@ -47,9 +47,9 @@ func NotEqFn[T any](a, b T, cmp CompFunc[T]) bool {
 	return cmp(a, b) != 0
 }
 
-// NotEqFn2 returns true if a is not equal to b using a custom equality condition function.
-// It returns the negation of the equality condition function result.
-// It panics if the provided equality function is nil.
+// NotEqFn2 returns true if a does not equal b using an equality condition.
+// Returns the negation of the equality condition function result.
+// Panics if the provided equality function is nil.
 func NotEqFn2[T any](a, b T, eq CondFunc[T]) bool {
 	if eq == nil {
 		core.Panic(newNilCondFuncErr())
@@ -58,14 +58,14 @@ func NotEqFn2[T any](a, b T, eq CondFunc[T]) bool {
 }
 
 // Lt returns true if a is less than b for ordered types.
-// It uses the standard Go less-than operator.
+// Uses the standard Go less-than operator.
 func Lt[T core.Ordered](a, b T) bool {
 	return a < b
 }
 
 // LtFn returns true if a is less than b using a custom comparison function.
-// It returns true when the comparison function returns a negative value.
-// It panics if the provided comparison function is nil.
+// Returns true when the comparison function returns a negative value.
+// Panics if the provided comparison function is nil.
 func LtFn[T any](a, b T, cmp CompFunc[T]) bool {
 	if cmp == nil {
 		core.Panic(newNilCompFuncErr())
@@ -73,9 +73,9 @@ func LtFn[T any](a, b T, cmp CompFunc[T]) bool {
 	return cmp(a, b) < 0
 }
 
-// LtFn2 returns true if a is less than b using a custom less-than condition function.
-// It returns the direct result of the less-than condition function.
-// It panics if the provided less-than condition function is nil.
+// LtFn2 returns true if a is less than b using a less-than condition.
+// Returns the direct result of the less-than condition function.
+// Panics if the provided less-than condition function is nil.
 func LtFn2[T any](a, b T, less CondFunc[T]) bool {
 	if less == nil {
 		core.Panic(newNilCondFuncErr())
@@ -84,14 +84,14 @@ func LtFn2[T any](a, b T, less CondFunc[T]) bool {
 }
 
 // LtEq returns true if a is less than or equal to b for ordered types.
-// It uses the standard Go less-than-or-equal operator.
+// Uses the standard Go less-than-or-equal operator.
 func LtEq[T core.Ordered](a, b T) bool {
 	return a <= b
 }
 
-// LtEqFn returns true if a is less than or equal to b using a custom comparison function.
-// It returns true when the comparison function returns a value less than or equal to zero.
-// It panics if the provided comparison function is nil.
+// LtEqFn returns true if a is less than or equal to b using a comparison function.
+// Returns true when comparison result is less than or equal to zero.
+// Panics if the provided comparison function is nil.
 func LtEqFn[T any](a, b T, cmp CompFunc[T]) bool {
 	if cmp == nil {
 		core.Panic(newNilCompFuncErr())
@@ -99,9 +99,9 @@ func LtEqFn[T any](a, b T, cmp CompFunc[T]) bool {
 	return cmp(a, b) <= 0
 }
 
-// LtEqFn2 returns true if a is less than or equal to b using a custom less-than condition function.
-// It returns true when b is not less than a (using the provided less-than function).
-// It panics if the provided less-than condition function is nil.
+// LtEqFn2 returns true if a is less than or equal to b using a condition.
+// Returns true when b is not less than a using the provided function.
+// Panics if the provided less-than condition function is nil.
 func LtEqFn2[T any](a, b T, less CondFunc[T]) bool {
 	if less == nil {
 		core.Panic(newNilCondFuncErr())
@@ -110,14 +110,14 @@ func LtEqFn2[T any](a, b T, less CondFunc[T]) bool {
 }
 
 // Gt returns true if a is greater than b for ordered types.
-// It uses the standard Go greater-than operator.
+// Uses the standard Go greater-than operator.
 func Gt[T core.Ordered](a, b T) bool {
 	return a > b
 }
 
 // GtFn returns true if a is greater than b using a custom comparison function.
-// It returns true when the comparison function returns a positive value.
-// It panics if the provided comparison function is nil.
+// Returns true when the comparison function returns a positive value.
+// Panics if the provided comparison function is nil.
 func GtFn[T any](a, b T, cmp CompFunc[T]) bool {
 	if cmp == nil {
 		core.Panic(newNilCompFuncErr())
@@ -126,14 +126,14 @@ func GtFn[T any](a, b T, cmp CompFunc[T]) bool {
 }
 
 // GtEq returns true if a is greater than or equal to b for ordered types.
-// It uses the standard Go greater-than-or-equal operator.
+// Uses the standard Go greater-than-or-equal operator.
 func GtEq[T core.Ordered](a, b T) bool {
 	return a >= b
 }
 
-// GtEqFn returns true if a is greater than or equal to b using a custom comparison function.
-// It returns true when the comparison function returns a value greater than or equal to zero.
-// It panics if the provided comparison function is nil.
+// GtEqFn returns true if a is greater than or equal to b using a comparison.
+// Returns true when comparison result is greater than or equal to zero.
+// Panics if the provided comparison function is nil.
 func GtEqFn[T any](a, b T, cmp CompFunc[T]) bool {
 	if cmp == nil {
 		core.Panic(newNilCompFuncErr())
@@ -141,9 +141,9 @@ func GtEqFn[T any](a, b T, cmp CompFunc[T]) bool {
 	return cmp(a, b) >= 0
 }
 
-// GtEqFn2 returns true if a is greater than or equal to b using a custom less-than condition function.
-// It returns true when a is not less than b (using the provided less-than function).
-// It panics if the provided less-than condition function is nil.
+// GtEqFn2 returns true if a is greater than or equal to b using a condition.
+// Returns true when a is not less than b using the provided function.
+// Panics if the provided less-than condition function is nil.
 func GtEqFn2[T any](a, b T, less CondFunc[T]) bool {
 	if less == nil {
 		core.Panic(newNilCondFuncErr())
