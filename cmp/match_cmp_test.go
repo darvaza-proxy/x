@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestMatchEq verifies the MatchEq function correctly creates matchers
+// TestMatchEq verifies that the MatchEq function correctly creates matchers
 // that check for equality with a given value.
 func TestMatchEq(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
@@ -64,8 +64,8 @@ func TestMatchEq(t *testing.T) {
 	})
 }
 
-// TestMatchEqFn verifies that MatchEqFn correctly creates matchers that check
-// for equality using a custom comparison function.
+// TestMatchEqFn verifies that MatchEqFn correctly creates matchers that
+// check for equality using a custom comparison function.
 func TestMatchEqFn(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		cmp := func(a, b int) int {
@@ -202,8 +202,8 @@ func TestMatchEqFn2Panic(t *testing.T) {
 	}, "MatchEqFn2 with nil condition function should panic")
 }
 
-// TestMatchNotEq verifies the MatchNotEq function correctly creates matchers
-// that check for inequality with a given value.
+// TestMatchNotEq verifies that the MatchNotEq function correctly creates
+// matchers that check for inequality with a given value.
 func TestMatchNotEq(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		// Create matchers
@@ -232,7 +232,7 @@ func TestMatchNotEq(t *testing.T) {
 	})
 }
 
-// TestMatchGt verifies the MatchGt function correctly creates matchers
+// TestMatchGt verifies that the MatchGt function correctly creates matchers
 // that check if a value is greater than a given value.
 func TestMatchGt(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
@@ -307,7 +307,7 @@ func TestMatchGtFnPanic(t *testing.T) {
 	}, "MatchGtFn with nil comparison function should panic")
 }
 
-// TestMatchLt verifies the MatchLt function correctly creates matchers
+// TestMatchLt verifies that the MatchLt function correctly creates matchers
 // that check if a value is less than a given value.
 func TestMatchLt(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
@@ -420,8 +420,8 @@ func TestMatchLtFn2Panic(t *testing.T) {
 	}, "MatchLtFn2 with nil condition function should panic")
 }
 
-// TestMatchGtEq verifies the MatchGtEq function correctly creates matchers
-// that check if a value is greater than or equal to a given value.
+// TestMatchGtEq verifies that the MatchGtEq function correctly creates
+// matchers that check if a value is greater than or equal to a given value.
 func TestMatchGtEq(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		// Create matchers
@@ -451,8 +451,9 @@ func TestMatchGtEq(t *testing.T) {
 	})
 }
 
-// TestMatchGtEqFn verifies that MatchGtEqFn correctly creates matchers that check
-// if a value is greater than or equal to a given value using a custom comparison function.
+// TestMatchGtEqFn verifies that MatchGtEqFn correctly creates matchers that
+// check if a value is greater than or equal to a given value using a custom
+// comparison function.
 func TestMatchGtEqFn(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		cmp := func(a, b int) int {
@@ -482,21 +483,24 @@ func TestMatchGtEqFn(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				assert.Equal(t, tt.expected, gtEqFive.Match(tt.value),
-					"MatchGtEqFn(5, cmp)(%d) should return %v", tt.value, tt.expected)
+					"MatchGtEqFn(5, cmp)(%d) should return %v",
+					tt.value, tt.expected)
 			})
 		}
 	})
 }
 
-// TestMatchGtEqFnPanic verifies that MatchGtEqFn panics when given a nil comparison function.
+// TestMatchGtEqFnPanic verifies that MatchGtEqFn panics when given a nil
+// comparison function.
 func TestMatchGtEqFnPanic(t *testing.T) {
 	assert.Panics(t, func() {
 		MatchGtEqFn(1, nil)
 	}, "MatchGtEqFn with nil comparison function should panic")
 }
 
-// TestMatchGtEqFn2 verifies that MatchGtEqFn2 correctly creates matchers that check
-// if a value is greater than or equal to a given value using a custom condition function.
+// TestMatchGtEqFn2 verifies that MatchGtEqFn2 correctly creates matchers
+// that check if a value is greater than or equal to a given value using a
+// custom condition function.
 func TestMatchGtEqFn2(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		// Less than condition function
@@ -520,21 +524,23 @@ func TestMatchGtEqFn2(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				assert.Equal(t, tt.expected, gtEqFive.Match(tt.value),
-					"MatchGtEqFn2(5, isLess)(%d) should return %v", tt.value, tt.expected)
+					"MatchGtEqFn2(5, isLess)(%d) should return %v",
+					tt.value, tt.expected)
 			})
 		}
 	})
 }
 
-// TestMatchGtEqFn2Panic verifies that MatchGtEqFn2 panics when given a nil condition function.
+// TestMatchGtEqFn2Panic verifies that MatchGtEqFn2 panics when given a nil
+// condition function.
 func TestMatchGtEqFn2Panic(t *testing.T) {
 	assert.Panics(t, func() {
 		MatchGtEqFn2(1, nil)
 	}, "MatchGtEqFn2 with nil condition function should panic")
 }
 
-// TestMatchLtEq verifies the MatchLtEq function correctly creates matchers
-// that check if a value is less than or equal to a given value.
+// TestMatchLtEq verifies that the MatchLtEq function correctly creates
+// matchers that check if a value is less than or equal to a given value.
 func TestMatchLtEq(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		// Create matchers
@@ -564,8 +570,9 @@ func TestMatchLtEq(t *testing.T) {
 	})
 }
 
-// TestMatchLtEqFn verifies that MatchLtEqFn correctly creates matchers that check
-// if a value is less than or equal to a given value using a custom comparison function.
+// TestMatchLtEqFn verifies that MatchLtEqFn correctly creates matchers that
+// check if a value is less than or equal to a given value using a custom
+// comparison function.
 func TestMatchLtEqFn(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		cmp := func(a, b int) int {
@@ -595,21 +602,24 @@ func TestMatchLtEqFn(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				assert.Equal(t, tt.expected, ltEqFive.Match(tt.value),
-					"MatchLtEqFn(5, cmp)(%d) should return %v", tt.value, tt.expected)
+					"MatchLtEqFn(5, cmp)(%d) should return %v",
+					tt.value, tt.expected)
 			})
 		}
 	})
 }
 
-// TestMatchLtEqFnPanic verifies that MatchLtEqFn panics when given a nil comparison function.
+// TestMatchLtEqFnPanic verifies that MatchLtEqFn panics when given a nil
+// comparison function.
 func TestMatchLtEqFnPanic(t *testing.T) {
 	assert.Panics(t, func() {
 		MatchLtEqFn(1, nil)
 	}, "MatchLtEqFn with nil comparison function should panic")
 }
 
-// TestMatchLtEqFn2 verifies that MatchLtEqFn2 correctly creates matchers that check
-// if a value is less than or equal to a given value using a custom condition function.
+// TestMatchLtEqFn2 verifies that MatchLtEqFn2 correctly creates matchers
+// that check if a value is less than or equal to a given value using a
+// custom condition function.
 func TestMatchLtEqFn2(t *testing.T) {
 	t.Run("with integers", func(t *testing.T) {
 		// Less than condition function
@@ -633,13 +643,15 @@ func TestMatchLtEqFn2(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				assert.Equal(t, tt.expected, ltEqFive.Match(tt.value),
-					"MatchLtEqFn2(5, isLess)(%d) should return %v", tt.value, tt.expected)
+					"MatchLtEqFn2(5, isLess)(%d) should return %v",
+					tt.value, tt.expected)
 			})
 		}
 	})
 }
 
-// TestMatchLtEqFn2Panic verifies that MatchLtEqFn2 panics when given a nil condition function.
+// TestMatchLtEqFn2Panic verifies that MatchLtEqFn2 panics when given a nil
+// condition function.
 func TestMatchLtEqFn2Panic(t *testing.T) {
 	assert.Panics(t, func() {
 		MatchLtEqFn2(1, nil)
@@ -685,8 +697,10 @@ func TestCustomTypeWithMatchers(t *testing.T) {
 		equalToADirect := MatchEqFn2(a, isEqual)
 
 		assert.True(t, equalToA.Match(c), "equalToA should match c (same value)")
-		assert.False(t, equalToA.Match(b), "equalToA should not match b (different value)")
-		assert.True(t, equalToADirect.Match(c), "equalToADirect should match c (same value)")
+		assert.False(t, equalToA.Match(b),
+			"equalToA should not match b (different value)")
+		assert.True(t, equalToADirect.Match(c),
+			"equalToADirect should match c (same value)")
 	})
 
 	t.Run("comparison matchers", func(t *testing.T) {
@@ -697,7 +711,9 @@ func TestCustomTypeWithMatchers(t *testing.T) {
 		assert.True(t, greaterThanA.Match(b), "b should be greater than a")
 		assert.False(t, greaterThanA.Match(d), "d should not be greater than a")
 		assert.True(t, lessThanB.Match(a), "a should be less than b")
-		assert.True(t, lessThanOrEqualToB.Match(a), "a should be less than or equal to b")
-		assert.True(t, lessThanOrEqualToB.Match(b), "b should be less than or equal to b (equal)")
+		assert.True(t, lessThanOrEqualToB.Match(a),
+			"a should be less than or equal to b")
+		assert.True(t, lessThanOrEqualToB.Match(b),
+			"b should be less than or equal to b (equal)")
 	})
 }

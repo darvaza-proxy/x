@@ -2,16 +2,16 @@ package cmp
 
 import "darvaza.org/core"
 
-// CompFunc is a generic comparison function that takes two values of type T and returns an integer.
+// CompFunc is a generic comparison function for type T that returns an integer.
 // The return value follows the standard comparison convention:
 // - Negative value if a < b
 // - Zero if a == b
 // - Positive value if a > b
 type CompFunc[T any] func(a, b T) int
 
-// Reverse returns a new CompFunc that inverts the comparison result of the given CompFunc.
-// It returns a function that negates the original comparison, effectively reversing the order.
-// It panics if the provided comparison function is nil.
+// Reverse returns a new CompFunc that inverts the result of the given CompFunc.
+// It negates the original comparison, effectively reversing the order.
+// Panics if the provided comparison function is nil.
 func Reverse[T any](cmp CompFunc[T]) CompFunc[T] {
 	if cmp == nil {
 		core.Panic(newNilCompFuncErr())
@@ -22,13 +22,14 @@ func Reverse[T any](cmp CompFunc[T]) CompFunc[T] {
 	}
 }
 
-// CondFunc is a generic condition function that takes two values of type T and returns a boolean.
-// The return value indicates whether the condition is true or false for the given pair of values.
+// CondFunc is a generic condition function for type T that returns a boolean.
+// The return value indicates whether the condition is true or false for the
+// given pair of values.
 type CondFunc[T any] func(a, b T) bool
 
 // AsLess converts a CompFunc into a less-than condition function.
-// It returns a function that returns true if the first argument is less than the second argument.
-// It panics if the provided comparison function is nil.
+// Returns a function that evaluates to true if the first argument is less
+// than the second. Panics if the provided comparison function is nil.
 func AsLess[T any](cmp CompFunc[T]) CondFunc[T] {
 	if cmp == nil {
 		core.Panic(newNilCompFuncErr())
@@ -40,8 +41,8 @@ func AsLess[T any](cmp CompFunc[T]) CondFunc[T] {
 }
 
 // AsEqual converts a CompFunc into an equality condition function.
-// It returns a function that returns true if the first argument is equal to the second argument.
-// It panics if the provided comparison function is nil.
+// Returns a function that evaluates to true if the first argument equals
+// the second. Panics if the provided comparison function is nil.
 func AsEqual[T any](cmp CompFunc[T]) CondFunc[T] {
 	if cmp == nil {
 		core.Panic(newNilCompFuncErr())

@@ -83,7 +83,8 @@ func TestMatchAny(t *testing.T) {
 		matcher := MatchAny(isEven, isDivisibleBy3).And(isPositive)
 
 		assert.True(t, matcher.Match(4), "Should match positive even number")
-		assert.True(t, matcher.Match(9), "Should match positive number divisible by 3")
+		assert.True(t, matcher.Match(9),
+			"Should match positive number divisible by 3")
 		assert.False(t, matcher.Match(-6), "Should not match negative number")
 	})
 
@@ -91,9 +92,11 @@ func TestMatchAny(t *testing.T) {
 		// NOT(even OR divisible by 3) = odd AND not divisible by 3
 		matcher := MatchAny(isEven, isDivisibleBy3).Not()
 
-		assert.True(t, matcher.Match(5), "Should match odd number not divisible by 3")
+		assert.True(t, matcher.Match(5),
+			"Should match odd number not divisible by 3")
 		assert.False(t, matcher.Match(4), "Should not match even number")
-		assert.False(t, matcher.Match(9), "Should not match number divisible by 3")
+		assert.False(t, matcher.Match(9),
+			"Should not match number divisible by 3")
 	})
 }
 
@@ -226,7 +229,8 @@ func TestAndsImplementation(t *testing.T) {
 
 	t.Run("empty", func(t *testing.T) {
 		andMatcher := ands[int]([]Matcher[int]{})
-		assert.True(t, andMatcher.Match(42), "Empty AND should match everything")
+		assert.True(t, andMatcher.Match(42),
+			"Empty AND should match everything")
 	})
 
 	t.Run("And operation", func(t *testing.T) {
@@ -239,8 +243,10 @@ func TestAndsImplementation(t *testing.T) {
 		combinedMatcher := andMatcher.And(isDivisibleBy4)
 
 		assert.True(t, combinedMatcher.Match(8), "Should match 8")
-		assert.False(t, combinedMatcher.Match(6), "Should not match 6 (not divisible by 4)")
-		assert.False(t, combinedMatcher.Match(-8), "Should not match -8 (not positive)")
+		assert.False(t, combinedMatcher.Match(6),
+			"Should not match 6 (not divisible by 4)")
+		assert.False(t, combinedMatcher.Match(-8),
+			"Should not match -8 (not positive)")
 	})
 
 	t.Run("Or operation", func(t *testing.T) {
@@ -254,7 +260,8 @@ func TestAndsImplementation(t *testing.T) {
 
 		assert.True(t, combinedMatcher.Match(6), "Should match even and positive")
 		assert.True(t, combinedMatcher.Match(9), "Should match divisible by 3")
-		assert.True(t, combinedMatcher.Match(-3), "Should match negative divisible by 3")
+		assert.True(t, combinedMatcher.Match(-3),
+			"Should match negative divisible by 3")
 	})
 
 	t.Run("Not operation", func(t *testing.T) {
@@ -301,7 +308,8 @@ func TestOrsImplementation(t *testing.T) {
 	t.Run("with nil", func(t *testing.T) {
 		orMatcher := ors[int]([]Matcher[int]{isEven, nil})
 		assert.True(t, orMatcher.Match(4), "Should match even")
-		assert.False(t, orMatcher.Match(5), "Should not match odd despite nil")
+		assert.False(t, orMatcher.Match(5),
+			"Should not match odd despite nil")
 	})
 
 	t.Run("empty", func(t *testing.T) {
@@ -335,7 +343,8 @@ func TestOrsImplementation(t *testing.T) {
 		assert.True(t, combinedMatcher.Match(4), "Should match even")
 		assert.True(t, combinedMatcher.Match(9), "Should match divisible by 3")
 		assert.True(t, combinedMatcher.Match(-7), "Should match negative")
-		assert.False(t, combinedMatcher.Match(5), "Should not match odd positive not divisible by 3")
+		assert.False(t, combinedMatcher.Match(5),
+			"Should not match odd positive not divisible by 3")
 	})
 
 	t.Run("Not operation", func(t *testing.T) {
@@ -344,7 +353,8 @@ func TestOrsImplementation(t *testing.T) {
 
 		assert.False(t, notMatcher.Match(4), "Should not match even")
 		assert.False(t, notMatcher.Match(9), "Should not match divisible by 3")
-		assert.True(t, notMatcher.Match(5), "Should match numbers that don't satisfy either condition")
+		assert.True(t, notMatcher.Match(5),
+			"Should match numbers that don't satisfy either condition")
 	})
 }
 
@@ -363,8 +373,10 @@ func TestQJoin(t *testing.T) {
 		assert.Len(t, result, 2, "Should have two matchers")
 
 		// Check that the matchers are in correct order
-		assert.True(t, result[0].Match(2) && !result[0].Match(3), "First should behave like isEven")
-		assert.True(t, result[1].Match(9) && !result[1].Match(4), "Second should behave like isDivisibleBy3")
+		assert.True(t, result[0].Match(2) && !result[0].Match(3),
+			"First should behave like isEven")
+		assert.True(t, result[1].Match(9) && !result[1].Match(4),
+			"Second should behave like isDivisibleBy3")
 	})
 
 	t.Run("with nil first matcher", func(t *testing.T) {
@@ -372,8 +384,10 @@ func TestQJoin(t *testing.T) {
 		assert.Len(t, result, 2, "Should have two matchers")
 
 		// Join with nil first should return others directly
-		assert.True(t, result[0].Match(2) && !result[0].Match(3), "First should behave like isEven")
-		assert.True(t, result[1].Match(3) && !result[1].Match(2), "Second should behave like isDivisibleBy3")
+		assert.True(t, result[0].Match(2) && !result[0].Match(3),
+			"First should behave like isEven")
+		assert.True(t, result[1].Match(3) && !result[1].Match(2),
+			"Second should behave like isDivisibleBy3")
 	})
 
 	t.Run("with nils in others", func(t *testing.T) {
@@ -381,8 +395,10 @@ func TestQJoin(t *testing.T) {
 		assert.Len(t, result, 2, "Should have two matchers (nil removed)")
 
 		// Join should clean nils from others
-		assert.True(t, result[0].Match(2) && !result[0].Match(3), "First should behave like isEven")
-		assert.True(t, result[1].Match(3) && !result[1].Match(2), "Second should behave like isDivisibleBy3")
+		assert.True(t, result[0].Match(2) && !result[0].Match(3),
+			"First should behave like isEven")
+		assert.True(t, result[1].Match(3) && !result[1].Match(2),
+			"Second should behave like isDivisibleBy3")
 	})
 }
 
@@ -406,8 +422,10 @@ func TestQClean(t *testing.T) {
 		queries := []Matcher[int]{nil, isEven, nil, isDivisibleBy3, nil}
 		result := qClean(queries)
 		assert.Len(t, result, 2, "Should remove nils")
-		assert.True(t, result[0].Match(2) && !result[0].Match(3), "First should behave like isEven")
-		assert.True(t, result[1].Match(3) && !result[1].Match(2), "Second should behave like isDivisibleBy3")
+		assert.True(t, result[0].Match(2) && !result[0].Match(3),
+			"First should behave like isEven")
+		assert.True(t, result[1].Match(3) && !result[1].Match(2),
+			"Second should behave like isDivisibleBy3")
 	})
 
 	t.Run("with all nils", func(t *testing.T) {

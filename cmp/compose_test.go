@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestCompose verifies that the Compose function correctly creates
+// TestCompose verifies that the Compose function properly creates
 // matchers that apply transformations before matching.
 func TestCompose(t *testing.T) {
 	t.Run("with struct fields", func(t *testing.T) {
@@ -42,7 +42,7 @@ func TestCompose(t *testing.T) {
 			})
 		}
 
-		// Create a matcher for checking if a person's name starts with 'A'
+		// Create a matcher to check if a person's name starts with 'A'
 		nameStartsWithA := Compose(
 			func(p Person) (string, bool) { return p.Name, true },
 			MatchFunc[string](func(s string) bool {
@@ -69,7 +69,7 @@ func TestCompose(t *testing.T) {
 	})
 
 	t.Run("with type transformations", func(t *testing.T) {
-		// Convert int to string and check if it has a certain length
+		// Convert int to string and check if it has a specific length
 		hasThreeDigits := Compose(
 			func(i int) (string, bool) { return strconv.Itoa(i), true },
 			MatchFunc[string](func(s string) bool {
@@ -85,7 +85,7 @@ func TestCompose(t *testing.T) {
 			{"three digits", 123, true},
 			{"two digits", 45, false},
 			{"four digits", 1000, false},
-			{"negative three digits", -123, false}, // has 4 chars because of minus sign
+			{"negative three digits", -123, false}, // has 4 chars due to minus sign
 		}
 
 		for _, tt := range tests {
@@ -136,7 +136,7 @@ func TestCompose(t *testing.T) {
 			Address Address
 		}
 
-		// Create a composed matcher that checks if a person's city starts with 'New'
+		// Create a matcher that checks if a person's city starts with 'New'
 		isFromNewCity := Compose(
 			func(p Person) (Address, bool) { return p.Address, true },
 			Compose(
