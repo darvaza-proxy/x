@@ -182,8 +182,8 @@ synchronisation issues:
 
 * `ErrNilContext`: Returned when a nil context is encountered in
   context-aware operations
-* `ErrNilMutex`: Returned when a Mutex was expected but none provided.
-* `ErrNilReceiver`: Returned when methods are called on a nil receiver.
+* `ErrNilMutex`: Returned when a Mutex was expected but none provided
+* `ErrNilReceiver`: Returned when methods are called on a nil receiver
 
 The package uses `core.CompoundError` to collect and combine multiple errors
 that may occur during operations on multiple mutexes. This allows for
