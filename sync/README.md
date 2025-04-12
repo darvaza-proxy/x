@@ -291,10 +291,14 @@ These utility functions provide:
 The [`errors`][sync-errors-link] sub-package defines error types for common
 synchronisation issues:
 
+* `ErrAlreadyInitialised`: Returned when a primitive that was already
+  initialised is being initialised again.
+* `ErrNotInitialised`: Returned when a primitive was expected to be
+  initialised but was not.
 * `ErrNilContext`: Returned when a nil context is encountered in
-  context-aware operations
-* `ErrNilMutex`: Returned when a Mutex was expected but none provided
-* `ErrNilReceiver`: Returned when methods are called on a nil receiver
+  context-aware operations.
+* `ErrNilMutex`: Returned when a Mutex was expected but none was provided.
+* `ErrNilReceiver`: Returned when methods are called on a nil receiver.
 
 The package uses `core.CompoundError` to collect and combine multiple errors
 that may occur during operations on multiple mutexes. This allows for
