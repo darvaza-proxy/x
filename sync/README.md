@@ -212,6 +212,58 @@ or closed to wake up all waiters simultaneously.
 * Provides graceful handling of nil receivers and improper initialisation
 * Returns appropriate errors from the `errors` package for common failure modes
 
+## Count
+
+The `cond` package also provides a `Count` type that combines features of a
+condition variable and an atomic counter.
+
+```go
+type Count struct{}
+```
+
+A `Count` allows atomic operations and waiting on an int32 value until specific
+conditions are met. This enables goroutines to coordinate based on a numeric
+value and user-defined conditions.
+
+Each `Count` instance needs to be initialised and closed properly to avoid
+resource leaks.
+
+### Count Characteristics
+
+* **Atomic counter operations**: Provides thread-safe increment, decrement,
+  and add operations
+* **Conditional waiting**: Supports waiting until the counter reaches specific
+  values or meets custom conditions
+* **Context-aware waiting**: Includes methods that respect context cancellation
+  and timeouts
+* **Broadcast capability**: Can notify all waiting goroutines when conditions
+  are met
+
+### Count core methods
+
+* `Add(n int) int`: Atomically adds n to the counter and returns the new value
+* `Inc() int`: Atomically increments the counter by 1
+* `Dec() int`: Atomically decrements the counter by 1
+* `Value() int`: Returns the current counter value
+* `Wait()`: Blocks until the counter becomes zero
+* `WaitFn(func(int32) bool)`: Blocks until the provided condition function
+  returns true
+* `WaitFnContext(context.Context, func(int32) bool)`: Context-aware waiting
+  with cancellation support
+* `Reset(n int)`: Resets the counter to the specified value and wakes all
+  waiting goroutines
+* `Signal() bool`: Wakes a single waiting goroutine
+* `Broadcast()`: Wakes all waiting goroutines
+
+### Count Implementation
+
+* Uses atomic operations for counter management to ensure thread safety
+* Leverages the `Barrier` type internally for goroutine coordination
+* Supports custom conditions for signalling waiters when specific values
+  are reached
+* Provides robust error handling for nil receivers and uninitialised instances
+* Integrates with Go's context package for cancellation and timeout support
+
 ## Semaphore
 
 The `semaphore` package provides a `Semaphore` type that implements both
