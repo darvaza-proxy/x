@@ -295,6 +295,8 @@ synchronisation issues:
   initialised is being initialised again.
 * `ErrNotInitialised`: Returned when a primitive was expected to be
   initialised but was not.
+* `ErrClosed`: Returned when operations cannot proceed because the target is
+  closed.
 * `ErrNilContext`: Returned when a nil context is encountered in
   context-aware operations.
 * `ErrNilMutex`: Returned when a Mutex was expected but none was provided.
