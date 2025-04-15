@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/cond"
 	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/mutex"
 )
@@ -31,6 +32,8 @@ type Semaphore struct {
 	global chan bool
 	// readers holds the count of readers unless it's the first
 	readers chan int
+	// writers tracks if there are writers waiting
+	writers cond.CountZero
 }
 
 func (s *Semaphore) lazyInit() error {
@@ -48,15 +51,20 @@ func (s *Semaphore) lazyInit() error {
 
 	// RW
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.global != nil {
-		s.mu.Unlock()
 		return nil
+	}
+
+	// wake readers when reaching zero
+	if err := s.writers.Init(0); err != nil {
+		return err
 	}
 
 	s.global = make(chan bool, 1)
 	s.readers = make(chan int, 1)
 
-	s.mu.Unlock()
 	return nil
 }
 
@@ -112,8 +120,13 @@ func (s *Semaphore) doClose() (err error) {
 	}()
 
 	// acquire exclusive lock
+	s.writers.Inc()
+	defer s.writers.Dec()
+
 	s.global <- exclusiveLock
 
+	// close channels
+	_ = s.writers.Close()
 	close(s.readers)
 	close(s.global)
 	return nil
@@ -204,6 +217,10 @@ func (s *Semaphore) doLockContext(ctx context.Context) (err error) {
 		return err
 	}
 
+	// track when writers are waiting
+	s.writers.Inc()
+	defer s.writers.Dec()
+
 	defer func() {
 		if rcv := recover(); rcv != nil {
 			// closed s.global caused a panic
@@ -223,6 +240,10 @@ func (s *Semaphore) doLock() (err error) {
 	if err = s.check(); err != nil {
 		return err
 	}
+
+	// track when writers are waiting
+	s.writers.Inc()
+	defer s.writers.Dec()
 
 	defer func() {
 		if rcv := recover(); rcv != nil {
@@ -258,7 +279,7 @@ func (s *Semaphore) doTryLock() (locked bool, err error) {
 func (s *Semaphore) doUnlock() error {
 	var errMsg string
 
-	if err := s.lazyInit(); err != nil {
+	if err := s.check(); err != nil {
 		// light error
 		return err
 	}
@@ -311,8 +332,15 @@ func (s *Semaphore) doRLock() error {
 	return err
 }
 
+//revive:disable-next-line:cognitive-complexity
 func (s *Semaphore) unsafeRLock(abort <-chan struct{}) (cancelled bool, err error) {
 	var readers int
+
+	// Check if there are writers waiting before attempting to acquire a read lock
+	if err := s.writers.WaitAbort(abort); err != nil {
+		// cancelled
+		return true, nil
+	}
 
 	defer func() {
 		if rcv := recover(); rcv != nil {
@@ -352,6 +380,11 @@ func (s *Semaphore) doTryRLock() (locked bool, err error) {
 
 	if err := s.check(); err != nil {
 		return false, err
+	}
+
+	// Don't try to acquire read lock if writers are waiting
+	if s.writers.Value() > 0 {
+		return false, nil
 	}
 
 	defer func() {

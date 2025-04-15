@@ -922,6 +922,115 @@ func runBenchmarkContextRLock(b *testing.B, mu mutex.RWMutexContext) {
 	})
 }
 
+// TestSemaphore_WriterStarvationPrevention verifies that writers aren't starved
+// when there's a continuous stream of reader lock requests.
+func TestSemaphore_WriterStarvationPrevention(t *testing.T) {
+	s := &Semaphore{}
+	defer s.Close()
+
+	const numReaders = 10
+
+	// Channel to coordinate test steps
+	writerAcquired := make(chan struct{})
+
+	// Start a writer that will try to acquire the lock
+	go func() {
+		// Signal we want to write
+		writerReady := make(chan struct{})
+		go func() {
+			close(writerReady)
+			s.Lock()
+			close(writerAcquired)
+
+			// Hold the lock for a moment
+			time.Sleep(10 * time.Millisecond)
+			s.Unlock()
+		}()
+
+		// Wait until writer is ready to attempt acquisition
+		<-writerReady
+
+		// Give time for writer to register its intent
+		time.Sleep(20 * time.Millisecond)
+	}()
+
+	// Start a continuous stream of readers
+	readersStarted := &sync.WaitGroup{}
+	readersStarted.Add(numReaders)
+
+	for range numReaders {
+		go func() {
+			readersStarted.Done() // Signal this reader is ready
+
+			// Start acquiring read locks in a loop
+			for {
+				select {
+				case <-writerAcquired:
+					// Writer got the lock, we can stop
+					return
+				default:
+					// Try to get a read lock
+					if s.TryRLock() {
+						// Hold briefly then release
+						time.Sleep(5 * time.Millisecond)
+						s.RUnlock()
+					}
+					// Small pause to prevent CPU spinning
+					time.Sleep(1 * time.Millisecond)
+				}
+			}
+		}()
+	}
+
+	// Wait for all readers to start
+	readersStarted.Wait()
+
+	// Writer should eventually acquire the lock despite continuous readers
+	select {
+	case <-writerAcquired:
+		// Success - writer wasn't starved
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Writer appears to be starved by readers")
+	}
+}
+
+// TestSemaphore_ReaderPreferenceWithoutWriters verifies that readers can
+// acquire the lock freely when no writers are waiting.
+func TestSemaphore_ReaderPreferenceWithoutWriters(t *testing.T) {
+	s := &Semaphore{}
+	defer s.Close()
+
+	const numReaders = 5
+
+	// First, acquire a read lock
+	s.RLock()
+
+	// Now try to acquire more read locks in parallel
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+
+	success := make([]bool, numReaders)
+
+	for i := 0; i < numReaders; i++ {
+		go func(id int) {
+			defer wg.Done()
+			// With no writers waiting, TryRLock should succeed immediately
+			success[id] = s.TryRLock()
+			if success[id] {
+				s.RUnlock()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	s.RUnlock() // Release the initial read lock
+
+	// All readers should have succeeded
+	for i := 0; i < numReaders; i++ {
+		assert.True(t, success[i], "Reader %d failed to acquire lock when no writers were waiting", i)
+	}
+}
+
 // TestSemaphore_Close tests the behaviour of the Close method in various scenarios
 func TestSemaphore_Close(t *testing.T) {
 	t.Run("close empty semaphore", runTestCloseEmpty)
