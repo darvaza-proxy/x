@@ -998,6 +998,77 @@ func TestWaitResult(t *testing.T) {
 	})
 }
 
+// TestCountClosed tests the IsClosed functionality.
+func TestCountClosed(t *testing.T) {
+	t.Run("BeforeClose", runTestBeforeClose)
+	t.Run("AfterClose", runTestAfterClose)
+	t.Run("NilCount", runTestNilCountIsClosed)
+	t.Run("UnitialisedCount", runTestUnitialisedCountIsClosed)
+}
+
+func runTestBeforeClose(t *testing.T) {
+	c := NewCount(42)
+	require.NotNil(t, c)
+
+	// A newly created Count should not be closed
+	assert.False(t, c.IsClosed())
+
+	// Performing operations should not affect closed state
+	c.Inc()
+	assert.False(t, c.IsClosed())
+
+	c.Dec()
+	assert.False(t, c.IsClosed())
+
+	c.Add(10)
+	assert.False(t, c.IsClosed())
+
+	// Clean up
+	require.NoError(t, c.Close())
+}
+
+func runTestAfterClose(t *testing.T) {
+	c := NewCount(42)
+	require.NotNil(t, c)
+
+	// Close the Count
+	require.NoError(t, c.Close())
+
+	// After closing, IsClosed should return true
+	assert.True(t, c.IsClosed())
+
+	// Operations on a closed Count should return errors
+	assert.Error(t, c.Reset(0))
+
+	// IsClosed should remain true
+	assert.True(t, c.IsClosed())
+}
+
+func runTestNilCountIsClosed(t *testing.T) {
+	var c *Count
+
+	// A nil Count should report as closed
+	assert.True(t, c.IsClosed())
+}
+
+func runTestUnitialisedCountIsClosed(t *testing.T) {
+	c := new(Count)
+
+	// An uninitialised Count should report as closed
+	assert.True(t, c.IsClosed())
+
+	// After initialisation, it should no longer be closed
+	err := c.Init(0)
+	require.NoError(t, err)
+	assert.False(t, c.IsClosed())
+
+	// Clean up
+	require.NoError(t, c.Close())
+
+	// After closing, it should report as closed again
+	assert.True(t, c.IsClosed())
+}
+
 // atomicMaskOr performs a bitwise OR operation on an atomic uint32 value
 // using a compare-and-swap loop.
 // It attempts to set the specified mask bits atomically and returns

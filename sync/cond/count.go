@@ -60,6 +60,16 @@ func (c *Count) IsNil() bool {
 	return c.b.IsNil()
 }
 
+// IsClosed reports whether the Count is closed and no longer usable for
+// synchronisation. It returns true if the Count is nil or its underlying
+// Barrier is closed.
+func (c *Count) IsClosed() bool {
+	if c == nil {
+		return true
+	}
+	return c.b.IsClosed()
+}
+
 // check validates the Count instance, ensuring it is not nil and has been
 // properly initialised. It returns an error if the Count is nil or its
 // underlying Barrier is not initialised.
