@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestReverse verifies the Reverse function correctly inverts the comparison results
-// for various data types including primitives and custom structs.
+// TestReverse ensures the Reverse function properly inverts comparison results
+// for various data types including primitives and custom structures.
 //
 //revive:disable-next-line:cognitive-complexity
 func TestReverse(t *testing.T) {
@@ -66,13 +66,16 @@ func TestReverse(t *testing.T) {
 		s1 := score{3.14}
 		s2 := score{2.71}
 
-		assert.Equal(t, -1, reversedScoreCmp(s1, s2), "Reversed comparison of higher to lower score")
-		assert.Equal(t, 1, reversedScoreCmp(s2, s1), "Reversed comparison of lower to higher score")
-		assert.Equal(t, 0, reversedScoreCmp(s1, s1), "Reversed comparison of equal scores")
+		assert.Equal(t, -1, reversedScoreCmp(s1, s2),
+			"Reversed comparison of higher to lower score")
+		assert.Equal(t, 1, reversedScoreCmp(s2, s1),
+			"Reversed comparison of lower to higher score")
+		assert.Equal(t, 0, reversedScoreCmp(s1, s1),
+			"Reversed comparison of equal scores")
 	})
 }
 
-// TestReverseChained verifies that applying Reverse twice returns
+// TestReverseChained confirms that applying Reverse twice returns
 // a function equivalent to the original comparator.
 func TestReverseChained(t *testing.T) {
 	cmp := func(a, b int) int {
@@ -103,21 +106,22 @@ func TestReverseChained(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Double reversed should equal original
 			assert.Equal(t, tt.expected, doubleReversed(tt.a, tt.b),
-				"Double reversed comparison should match original for %d and %d", tt.a, tt.b)
+				"Double reversed comparison should match original for %d and %d",
+				tt.a, tt.b)
 			assert.Equal(t, tt.expected, cmp(tt.a, tt.b),
 				"Original comparison for %d and %d", tt.a, tt.b)
 		})
 	}
 }
 
-// TestReverseNil verifies that Reverse panics when given a nil function.
+// TestReverseNil confirms that Reverse panics when given a nil function.
 func TestReverseNil(t *testing.T) {
 	assert.Panics(t, func() {
 		Reverse[int](nil)
 	}, "Reverse(nil) should panic with appropriate error message")
 }
 
-// TestAsLess verifies that AsLess correctly converts comparison functions
+// TestAsLess ensures that AsLess correctly converts comparison functions
 // to "less than" predicate functions for various data types.
 //
 //revive:disable-next-line:cognitive-complexity
@@ -232,14 +236,14 @@ func TestAsLess(t *testing.T) {
 	})
 }
 
-// TestAsLessNil verifies that AsLess panics when given a nil function.
+// TestAsLessNil confirms that AsLess panics when given a nil function.
 func TestAsLessNil(t *testing.T) {
 	assert.Panics(t, func() {
 		AsLess[string](nil)
 	}, "AsLess(nil) should panic with appropriate error message")
 }
 
-// TestAsEqual verifies that AsEqual correctly converts comparison functions
+// TestAsEqual ensures that AsEqual correctly converts comparison functions
 // to equality predicate functions.
 //
 //revive:disable-next-line:cognitive-complexity
@@ -281,7 +285,7 @@ func TestAsEqual(t *testing.T) {
 	})
 }
 
-// TestAsEqualNil verifies that AsEqual panics when given a nil function.
+// TestAsEqualNil confirms that AsEqual panics when given a nil function.
 func TestAsEqualNil(t *testing.T) {
 	assert.Panics(t, func() {
 		AsEqual[float64](nil)
