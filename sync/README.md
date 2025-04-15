@@ -29,6 +29,8 @@ leaked, even during panic scenarios.
 * Context-aware mutex interfaces for cancellation and timeout support
 * Functions for operating on multiple locks simultaneously
 * Safe lock/unlock operations with proper error handling
+* Lightweight spinlock implementation for low-contention scenarios
+* Semaphore implementation supporting both exclusive and shared access patterns
 
 ## Package Structure
 
@@ -37,10 +39,16 @@ leaked, even during panic scenarios.
     implementing common synchronisation primitives.
   * [`mutex`][sync-mutex-link]: Contains interfaces and utilities for mutex
     operations.
+  * [`semaphore`][sync-semaphore-link]: Provides a cancellable read-write mutex
+    implementation with counting semaphore algorithms.
+  * [`spinlock`][sync-spinlock-link]: Contains a lightweight spinlock
+    implementation of `mutex.Mutex`.
 
 [sync-link]: https://pkg.go.dev/darvaza.org/x/sync
 [sync-errors-link]: https://pkg.go.dev/darvaza.org/x/sync/errors
 [sync-mutex-link]: https://pkg.go.dev/darvaza.org/x/sync/mutex
+[sync-semaphore-link]: https://pkg.go.dev/darvaza.org/x/sync/semaphore
+[sync-spinlock-link]: https://pkg.go.dev/darvaza.org/x/sync/spinlock
 
 ## Interfaces
 
@@ -91,7 +99,7 @@ The standard library's `sync.RWMutex{}` implements this interface.
 
 ### Context-Aware Interfaces
 
-The package provides two context-aware interfaces that extend the basic mutex
+The package provides context-aware interfaces extending the basic mutex
 interfaces:
 
 ```go
@@ -116,10 +124,113 @@ type RWMutexContext interface {
 ```
 
 These interfaces serve primarily as extension points for implementers.
-While standard library mutex types don't implement them directly, the package
-provides helper functions to work with these interfaces. Custom mutex
+Although standard library mutex types don't implement them directly, the
+package provides helper functions to work with these interfaces. Custom mutex
 implementations can adopt these interfaces to provide context-aware locking
 capabilities that respect cancellation and timeouts.
+
+## Semaphore
+
+The `semaphore` package provides a `Semaphore` type that implements both
+exclusive and shared access patterns using a counting semaphore algorithm.
+
+```go
+type Semaphore struct{}
+```
+
+The `Semaphore` fully implements the context-aware mutex interfaces:
+
+* `sync.Locker`
+* `mutex.Mutex`
+* `mutex.MutexContext` - supporting context cancellation and timeouts
+* `mutex.RWMutex`
+* `mutex.RWMutexContext` - supporting context cancellation and timeouts
+
+This makes it compatible with all lock operations provided by the package,
+with comprehensive capabilities for both exclusive and shared access patterns.
+
+### Exclusive Locking Methods
+
+* `Lock()`: Acquires exclusive lock, panics on error.
+* `LockContext(ctx context.Context) error`: Acquires exclusive lock with
+  context cancellation support.
+* `TryLock() bool`: Attempts non-blocking acquisition of exclusive lock.
+* `TryLockContext(ctx context.Context) (bool, error)`: Non-blocking attempt
+  with context support.
+* `Unlock()`: Releases exclusive lock, panics on error.
+
+### Shared Locking Methods
+
+* `RLock()`: Acquires a read lock, panics on error.
+* `RLockContext(ctx context.Context) error`: Acquires read lock with context
+  cancellation support.
+* `TryRLock() bool`: Attempts non-blocking acquisition of read lock.
+* `TryRLockContext(ctx context.Context) (bool, error)`: Non-blocking attempt
+  with context support.
+* `RUnlock()`: Releases a read lock, panics on error.
+
+The semaphore provides advanced synchronisation combining features of both
+mutexes and traditional semaphores, with integrated context-awareness for
+cancellation and timeout handling.
+
+## SpinLock
+
+The `spinlock` package provides a lightweight spinlock implementation for
+scenarios where locks are held for very brief periods.
+
+```go
+type SpinLock uint32
+```
+
+SpinLock is a mutual exclusion primitive that uses active spinning
+(busy-waiting) instead of parking goroutines. It implements both the
+`sync.Locker` and `mutex.Mutex` interfaces.
+
+### Key characteristics
+
+* **Zero value**: An unlocked spinlock ready for use
+* **Memory footprint**: Minimal (just a uint32)
+* **CPU usage**: Consumes CPU cycles while waiting (unlike traditional mutexes)
+* **Target use cases**: Low-contention scenarios with briefly held locks
+
+### Methods
+
+* `Lock()`: Acquires the lock, spinning until successful
+* `TryLock() bool`: Attempts to acquire the lock without blocking
+* `Unlock()`: Releases the lock
+
+### When to use
+
+* Use when lock contention is rare and locks are held for minimal duration
+* Avoid when locks might be held for extended periods
+* Best for performance-critical code paths where context switching would be
+  costly
+
+### Example usage
+
+```go
+var lock spinlock.SpinLock
+
+// In concurrent code:
+lock.Lock()
+defer lock.Unlock()
+// Critical section here (keep it very brief)
+```
+
+### Implementation details
+
+* Uses atomic operations for lock state management
+* Calls `runtime.Gosched()` while spinning to yield the processor
+* Panics with appropriate errors for nil receivers or unlocking unlocked
+  spinlocks
+* Provides internal methods that return errors rather than panicking for
+  composability
+
+### Performance characteristics
+
+Benchmark testing shows SpinLock is efficient for operations that complete
+quickly, as it avoids the overhead of parking and unparking goroutines or
+using channels.
 
 ## Utility Functions
 
@@ -182,8 +293,8 @@ synchronisation issues:
 
 * `ErrNilContext`: Returned when a nil context is encountered in
   context-aware operations
-* `ErrNilMutex`: Returned when a Mutex was expected but none provided.
-* `ErrNilReceiver`: Returned when methods are called on a nil receiver.
+* `ErrNilMutex`: Returned when a Mutex was expected but none provided
+* `ErrNilReceiver`: Returned when methods are called on a nil receiver
 
 The package uses `core.CompoundError` to collect and combine multiple errors
 that may occur during operations on multiple mutexes. This allows for
