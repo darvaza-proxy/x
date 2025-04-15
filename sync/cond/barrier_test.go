@@ -28,6 +28,44 @@ func TestBarrierIsNil(t *testing.T) {
 	})
 }
 
+// TestBarrierIsClosed verifies the behaviour of the IsClosed method
+// under various barrier states.
+func TestBarrierIsClosed(t *testing.T) {
+	t.Run("nil barrier", func(t *testing.T) {
+		var b *Barrier
+		assert.True(t, b.IsClosed(), "nil barrier should return true for IsClosed()")
+	})
+
+	t.Run("uninitialised barrier", func(t *testing.T) {
+		b := &Barrier{}
+		assert.True(t, b.IsClosed(),
+			"uninitialised barrier should return true for IsClosed()")
+	})
+
+	t.Run("initialised barrier", func(t *testing.T) {
+		b := &Barrier{}
+		err := b.Init()
+		assert.NoError(t, err, "Init() should not return an error")
+		assert.False(t, b.IsClosed(),
+			"initialised barrier should return false for IsClosed()")
+	})
+
+	t.Run("closed barrier", func(t *testing.T) {
+		b := NewBarrier()
+		err := b.Close()
+		assert.NoError(t, err, "Close() should not return an error")
+		assert.True(t, b.IsClosed(),
+			"closed barrier should return true for IsClosed()")
+	})
+
+	t.Run("after broadcast", func(t *testing.T) {
+		b := NewBarrier()
+		b.Broadcast()
+		assert.False(t, b.IsClosed(),
+			"barrier should not be closed after Broadcast()")
+	})
+}
+
 func TestBarrierInit(t *testing.T) {
 	b := &Barrier{}
 	err := b.Init()

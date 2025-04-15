@@ -30,10 +30,15 @@ func NewBarrier() *Barrier {
 	return c
 }
 
-// IsNil checks if the Barrier or its underlying channel is nil.
-// Used for lazy initialisation in higher-level primitives.
+// IsNil reports whether the Barrier or its underlying channel is nil.
+// This is used for lazy initialisation in higher-level primitives.
 func (bs *Barrier) IsNil() bool {
 	return bs == nil || bs.b == nil
+}
+
+// IsClosed reports whether the Barrier is no longer usable.
+func (bs *Barrier) IsClosed() bool {
+	return bs == nil || bs.b == nil || bs.closed
 }
 
 // Init initialises the barrier by creating a channel with a capacity
