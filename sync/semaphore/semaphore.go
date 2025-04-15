@@ -5,6 +5,7 @@ package semaphore
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"darvaza.org/core"
 	"darvaza.org/x/sync/errors"
@@ -21,6 +22,8 @@ const (
 // read locks with context-aware and blocking acquisition methods.
 type Semaphore struct {
 	mu sync.RWMutex
+
+	closed atomic.Bool
 
 	// global holds the state of the semaphore.
 	// true if an exclusive lock is held,
@@ -57,8 +60,20 @@ func (s *Semaphore) lazyInit() error {
 	return nil
 }
 
-func (s *Semaphore) checkContext(ctx context.Context) error {
+func (s *Semaphore) check() error {
 	err := s.lazyInit()
+	switch {
+	case err != nil:
+		return err
+	case s.closed.Load():
+		return errors.ErrClosed
+	default:
+		return nil
+	}
+}
+
+func (s *Semaphore) checkContext(ctx context.Context) error {
+	err := s.check()
 	switch {
 	case err != nil:
 		return err
@@ -67,6 +82,41 @@ func (s *Semaphore) checkContext(ctx context.Context) error {
 	default:
 		return nil
 	}
+}
+
+// Close acquires an exclusive lock and permanently closes the semaphore,
+// releasing any allocated resources and making it unusable for further
+// operations. Any subsequent method calls on a closed semaphore will return
+// an error. Returns an error if the semaphore is nil, not initialised,
+// or already closed. This operation cannot be cancelled and will block until
+// the exclusive lock is acquired.
+func (s *Semaphore) Close() error {
+	err := s.lazyInit()
+	switch {
+	case err != nil:
+		return err
+	case !s.closed.CompareAndSwap(false, true):
+		return errors.ErrClosed
+	default:
+		// once
+		return s.doClose()
+	}
+}
+
+func (s *Semaphore) doClose() (err error) {
+	defer func() {
+		if rcv := recover(); rcv != nil {
+			// closed s.global caused a panic
+			err = errors.ErrClosed
+		}
+	}()
+
+	// acquire exclusive lock
+	s.global <- exclusiveLock
+
+	close(s.readers)
+	close(s.global)
+	return nil
 }
 
 // LockContext attempts to acquire an exclusive lock with a context.
@@ -90,10 +140,15 @@ func (s *Semaphore) Lock() {
 // Returns true if the lock was successfully acquired, false otherwise.
 func (s *Semaphore) TryLock() bool {
 	ok, err := s.doTryLock()
-	if err != nil {
+	switch {
+	case err == nil:
+		return ok
+	case errors.Is(err, errors.ErrClosed):
+		return false
+	default:
 		core.Panic(err)
+		return false // unreachable
 	}
-	return ok
 }
 
 // RLockContext attempts to acquire a read lock with a context.
@@ -117,10 +172,15 @@ func (s *Semaphore) RLock() {
 // Returns true if the lock was successfully acquired, false otherwise.
 func (s *Semaphore) TryRLock() bool {
 	ok, err := s.doTryRLock()
-	if err != nil {
+	switch {
+	case err == nil:
+		return ok
+	case errors.Is(err, errors.ErrClosed):
+		return false
+	default:
 		core.Panic(err)
+		return false // unreachable
 	}
-	return ok
 }
 
 // Unlock releases an exclusive lock, allowing other writers or readers to
@@ -139,10 +199,17 @@ func (s *Semaphore) RUnlock() {
 	}
 }
 
-func (s *Semaphore) doLockContext(ctx context.Context) error {
-	if err := s.checkContext(ctx); err != nil {
+func (s *Semaphore) doLockContext(ctx context.Context) (err error) {
+	if err = s.checkContext(ctx); err != nil {
 		return err
 	}
+
+	defer func() {
+		if rcv := recover(); rcv != nil {
+			// closed s.global caused a panic
+			err = errors.ErrClosed
+		}
+	}()
 
 	select {
 	case s.global <- exclusiveLock:
@@ -152,19 +219,33 @@ func (s *Semaphore) doLockContext(ctx context.Context) error {
 	}
 }
 
-func (s *Semaphore) doLock() error {
-	if err := s.lazyInit(); err != nil {
+func (s *Semaphore) doLock() (err error) {
+	if err = s.check(); err != nil {
 		return err
 	}
+
+	defer func() {
+		if rcv := recover(); rcv != nil {
+			// closed s.global caused a panic
+			err = errors.ErrClosed
+		}
+	}()
 
 	s.global <- exclusiveLock
 	return nil
 }
 
-func (s *Semaphore) doTryLock() (bool, error) {
-	if err := s.lazyInit(); err != nil {
+func (s *Semaphore) doTryLock() (locked bool, err error) {
+	if err = s.check(); err != nil {
 		return false, err
 	}
+
+	defer func() {
+		if rcv := recover(); rcv != nil {
+			// closed s.global caused a panic
+			err = errors.ErrClosed
+		}
+	}()
 
 	select {
 	case s.global <- exclusiveLock:
@@ -183,8 +264,12 @@ func (s *Semaphore) doUnlock() error {
 	}
 
 	select {
-	case exclusive := <-s.global:
-		if exclusive {
+	case exclusive, ok := <-s.global:
+		switch {
+		case !ok:
+			// closed
+			return errors.ErrClosed
+		case exclusive:
 			// success
 			return nil
 		}
@@ -201,66 +286,80 @@ func (s *Semaphore) doUnlock() error {
 }
 
 func (s *Semaphore) doRLockContext(ctx context.Context) error {
-	err := s.checkContext(ctx)
-	switch {
-	case err != nil:
+	if err := s.checkContext(ctx); err != nil {
 		// invalid
 		return err
-	case s.unsafeRLock(ctx.Done()):
-		// cancelled
+	}
+
+	cancelled, err := s.unsafeRLock(ctx.Done())
+	switch {
+	case err != nil:
+		return err
+	case cancelled:
 		return ctx.Err()
 	default:
-		// success
 		return nil
 	}
 }
 
 func (s *Semaphore) doRLock() error {
-	if err := s.lazyInit(); err != nil {
+	if err := s.check(); err != nil {
 		return err
 	}
 
-	s.unsafeRLock(nil) // nil means not abort
-	return nil
+	_, err := s.unsafeRLock(nil) // nil means not abort
+	return err
 }
 
-func (s *Semaphore) unsafeRLock(abort <-chan struct{}) bool {
+func (s *Semaphore) unsafeRLock(abort <-chan struct{}) (cancelled bool, err error) {
 	var readers int
+
+	defer func() {
+		if rcv := recover(); rcv != nil {
+			// closed s.global caused a panic
+			err = errors.ErrClosed
+		}
+	}()
 
 	select {
 	case s.global <- readerLock:
 		// first reader!
-
 		if isCancelled(abort) {
 			// but cancelled. release lock and fail
 			<-s.global
-			return true
+			return true, nil
 		}
 	case readers = <-s.readers:
 		// another reader.
-
 		if isCancelled(abort) {
 			// cancelled. put back what we took from readers channel
 			s.readers <- readers
-			return true
+			return true, nil
 		}
 	case <-abort: // nil channels are ignored
 		// cancelled.
-		return true
+		return true, nil
 	}
 
 	// increase readers count and let the next reader in.
 	readers++
 	s.readers <- readers
-	return false
+	return false, nil
 }
 
-func (s *Semaphore) doTryRLock() (bool, error) {
+func (s *Semaphore) doTryRLock() (locked bool, err error) {
 	var readers int
 
-	if err := s.lazyInit(); err != nil {
+	if err := s.check(); err != nil {
 		return false, err
 	}
+
+	defer func() {
+		if rcv := recover(); rcv != nil {
+			// closed s.global caused a panic
+			err = errors.ErrClosed
+		}
+	}()
 
 	select {
 	case s.global <- readerLock:
@@ -289,12 +388,19 @@ func isCancelled(abort <-chan struct{}) bool {
 	}
 }
 
-func (s *Semaphore) doRUnlock() error {
+func (s *Semaphore) doRUnlock() (err error) {
 	var readers int
 
-	if err := s.lazyInit(); err != nil {
+	if err := s.check(); err != nil {
 		return err
 	}
+
+	defer func() {
+		if rcv := recover(); rcv != nil {
+			// closed s.global caused a panic
+			err = errors.ErrClosed
+		}
+	}()
 
 	select {
 	case s.global <- readerLock:
