@@ -467,6 +467,36 @@ cancellation propagation and lifecycle management of concurrent operations.
 * Graceful shutdown of operations
 * Error tracking and propagation
 * Concurrent safety for multi-goroutine use
+* **Concurrency limiting**: Optional control over maximum concurrent tasks
+
+### Group Construction
+
+* `New(ctx context.Context)`: Creates a Group with unlimited concurrency
+* `NewLimited(ctx context.Context, limit int)`: Creates a Group with a
+  maximum limit on concurrent tasks
+
+When a limit is specified, the Group internally uses a Limiter implementation
+to control concurrency. This prevents excessive resource consumption by
+ensuring only a fixed number of tasks execute simultaneously, with additional
+tasks queued until execution slots become available.
+
+```go
+// Create a workgroup with a timeout and concurrency limit of 10
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+wg := workgroup.NewLimited(ctx, 10)
+defer wg.Close()
+
+// Even if 100 tasks are added, only 10 will run concurrently
+for i := 0; i < 100; i++ {
+    wg.Go(func(ctx context.Context) {
+        // Task implementation
+    })
+}
+```
+
+The concurrency limit is fixed at creation time and cannot be changed later.
 
 ### Group Methods
 
