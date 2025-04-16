@@ -471,6 +471,7 @@ cancellation propagation and lifecycle management of concurrent operations.
 ### Group Methods
 
 * `Context() context.Context`: Returns the context associated with the Group
+* `Count() int`: Returns the number of active tasks in the Group
 * `Err() error`: Returns the cancellation cause, if any
 * `IsCancelled() bool`: Reports whether the Group has been cancelled
 * `Cancelled() <-chan struct{}`: Returns a channel closed on cancellation
