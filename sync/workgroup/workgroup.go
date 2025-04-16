@@ -14,6 +14,7 @@ package workgroup
 
 import (
 	"context"
+	"runtime"
 	"sync"
 	"sync/atomic"
 
@@ -57,7 +58,7 @@ type Group struct {
 	cancel    context.CancelCauseFunc
 	cancelled atomic.Bool
 	mu        sync.RWMutex
-	wg        sync.WaitGroup
+	wg        WaitGroup
 	doneCh    chan struct{}
 }
 
@@ -77,6 +78,18 @@ func (wg *Group) Context() context.Context {
 	}
 
 	return wg.ctx
+}
+
+// Count returns the number of active tasks in the Group.
+// If initialisation fails or the receiver is nil, it returns 0.
+// This method is safe to call on a Group and provides a snapshot
+// of current task count.
+func (wg *Group) Count() int {
+	if err := wg.lazyInit(); err != nil {
+		return 0
+	}
+
+	return wg.wg.Count()
 }
 
 // Err returns the cancellation cause, if any.
@@ -179,7 +192,7 @@ func (wg *Group) doDone() <-chan struct{} {
 			wg.mu.Unlock()
 		}()
 
-		wg.wg.Wait()
+		_ = wg.wg.Wait()
 	}()
 	return ch
 }
@@ -200,7 +213,7 @@ func (wg *Group) Wait() error {
 		return err
 	}
 
-	wg.wg.Wait()
+	_ = wg.wg.Wait()
 
 	err := context.Cause(wg.ctx)
 	if err == context.Canceled {
@@ -255,12 +268,10 @@ func (wg *Group) doCancel(cause error) bool {
 	// call the OnCancel function if defined
 	if fn := wg.OnCancel; fn != nil {
 		ready = make(chan struct{})
-		wg.wg.Add(1)
-		go func() {
-			defer wg.wg.Done()
+		_ = wg.wg.Go(func() {
 			close(ready)
 			fn(wg.ctx, cause)
-		}()
+		})
 	}
 
 	wg.cancelled.Store(true)
@@ -272,6 +283,7 @@ func (wg *Group) doCancel(cause error) bool {
 		<-ready
 	}
 
+	_ = wg.wg.Close()
 	return true
 }
 
@@ -295,7 +307,7 @@ func (wg *Group) Close() error {
 	}
 
 	wg.doCancel(context.Canceled)
-	wg.wg.Wait()
+	_ = wg.wg.Wait()
 	return nil
 }
 
@@ -338,13 +350,9 @@ func (wg *Group) doGo(fn func(context.Context)) error {
 	case wg.cancelled.Load():
 		return errors.ErrClosed
 	default:
-		wg.wg.Add(1)
-		go func() {
-			defer wg.wg.Done()
-
+		return wg.wg.Go(func() {
 			fn(wg.ctx)
-		}()
-		return nil
+		})
 	}
 }
 
@@ -415,12 +423,14 @@ func (wg *Group) run(fn func(context.Context) error, catch func(context.Context,
 
 // init initialises the Group with a context and cancel function.
 // If Parent is nil, it uses context.Background() as the default parent.
-func (wg *Group) init() {
+func (wg *Group) init() error {
 	if wg.Parent == nil {
 		wg.Parent = context.Background()
 	}
 
+	wg.wg = NewRunner()
 	wg.ctx, wg.cancel = context.WithCancelCause(wg.Parent)
+	return nil
 }
 
 // lazyInit ensures the Group is properly initialised before use.
@@ -445,7 +455,7 @@ func (wg *Group) lazyInit() error {
 	defer wg.mu.Unlock()
 
 	if wg.ctx == nil {
-		wg.init()
+		return wg.init()
 	}
 
 	return nil
@@ -473,6 +483,10 @@ func (wg *Group) lazyInit() error {
 //	wg.Go(func(ctx context.Context) { ... })
 func New(ctx context.Context) *Group {
 	wg := &Group{Parent: ctx}
-	wg.init()
+	_ = wg.init()
+
+	runtime.SetFinalizer(wg, func(wg *Group) {
+		_ = wg.Close()
+	})
 	return wg
 }
