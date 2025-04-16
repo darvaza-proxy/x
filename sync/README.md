@@ -264,6 +264,84 @@ resource leaks.
 * Provides robust error handling for nil receivers and uninitialised instances
 * Integrates with Go's context package for cancellation and timeout support
 
+## CountZero
+
+The `cond` package provides a specialised variant of `Count` called
+`CountZero` that broadcasts specifically when the counter reaches zero.
+
+```go
+type CountZero Count
+```
+
+This specialisation simplifies coordination in cases where completion is
+signified by a zero value, which is a common pattern in many concurrent
+applications.
+
+### CountZero Characteristics
+
+* **Zero-focused**: Automatically wakes all waiters when the counter
+  reaches zero
+* **Simplified API**: Built specifically for the zero-value condition
+* **Identical core operations**: Provides the same atomic counter
+  operations as `Count`
+* **Streamlined waiting**: Methods specifically wait for the zero condition
+
+### Relation to Count
+
+The `CountZero` type is implemented as a thin wrapper around `Count` with a
+predefined condition function that checks for zero. It provides equivalent
+functionality with these key differences:
+
+* No need to specify custom condition functions
+* All waiting methods specifically wait for the counter to reach zero
+* Method signatures are simplified to focus on the zero-value use case
+
+### Core Methods
+
+`CountZero` provides the same atomic counter operations as `Count` (`Add`,
+`Inc`, `Dec`, `Value`) and similar coordination methods with simpler
+signatures:
+
+* `Wait()`: Blocks until the counter becomes zero
+* `WaitAbort(<-chan struct{})`: Blocks until zero or abort channel closes
+* `WaitContext(context.Context)`: Blocks until zero or context cancellation
+
+### Common Use Cases
+
+The `CountZero` type excels in scenarios such as:
+
+* Tracking completion of a known number of concurrent operations
+* Managing graceful shutdown processes
+* Implementing simple worker pools with completion signalling
+* Coordinating resource clean-up when all references are released
+
+### Example Usage
+
+```go
+// Create a counter to track 5 operations
+counter := cond.NewCountZero(5)
+defer counter.Close()
+
+for i := 0; i < 5; i++ {
+    go func() {
+        // Perform work
+        
+        // Decrement counter when done
+        counter.Dec()
+    }()
+}
+
+// Wait for all operations to complete
+if err := counter.Wait(); err != nil {
+    // Handle error
+}
+// All operations complete when counter reaches zero
+```
+
+`CountZero` provides a concise way to express the common pattern of
+waiting for a counter to reach zero without the need for custom condition
+functions.
+
 ## Semaphore
 
 The `semaphore` package provides a `Semaphore` type that implements both
