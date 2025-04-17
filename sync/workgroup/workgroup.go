@@ -234,6 +234,8 @@ func (wg *Group) Cancel(cause error) bool {
 }
 
 func (wg *Group) doCancel(cause error) bool {
+	var ready chan struct{}
+
 	if cause == nil {
 		cause = context.Canceled
 	}
@@ -244,23 +246,31 @@ func (wg *Group) doCancel(cause error) bool {
 
 	// RW
 	wg.mu.Lock()
-	defer wg.mu.Unlock()
 
 	if wg.cancelled.Load() {
+		wg.mu.Unlock()
 		return false
 	}
 
 	// call the OnCancel function if defined
 	if fn := wg.OnCancel; fn != nil {
+		ready = make(chan struct{})
 		wg.wg.Add(1)
 		go func() {
 			defer wg.wg.Done()
+			close(ready)
 			fn(wg.ctx, cause)
 		}()
 	}
 
 	wg.cancelled.Store(true)
 	wg.cancel(cause)
+	wg.mu.Unlock()
+
+	if ready != nil {
+		// wait until onCancel has started
+		<-ready
+	}
 
 	return true
 }
