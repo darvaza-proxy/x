@@ -31,10 +31,13 @@ leaked, even during panic scenarios.
 * Safe lock/unlock operations with proper error handling
 * Lightweight spinlock implementation for low-contention scenarios
 * Semaphore implementation supporting both exclusive and shared access patterns
+* Condition-based synchronisation primitives for goroutine coordination
 
 ## Package Structure
 
 * [`darvaza.org/x/sync`][sync-link]: The main package namespace.
+  * [`cond`][sync-cond-link]: Contains condition-based synchronisation
+    primitives for coordinating goroutines.
   * [`errors`][sync-errors-link]: Contains error types and helpers for
     implementing common synchronisation primitives.
   * [`mutex`][sync-mutex-link]: Contains interfaces and utilities for mutex
@@ -47,11 +50,38 @@ leaked, even during panic scenarios.
     synchronisation within a shared lifecycle.
 
 [sync-link]: https://pkg.go.dev/darvaza.org/x/sync
+[sync-cond-link]: https://pkg.go.dev/darvaza.org/x/sync/cond
 [sync-errors-link]: https://pkg.go.dev/darvaza.org/x/sync/errors
 [sync-mutex-link]: https://pkg.go.dev/darvaza.org/x/sync/mutex
 [sync-semaphore-link]: https://pkg.go.dev/darvaza.org/x/sync/semaphore
 [sync-spinlock-link]: https://pkg.go.dev/darvaza.org/x/sync/spinlock
 [sync-workgroup-link]: https://pkg.go.dev/darvaza.org/x/sync/workgroup
+
+### Integration with the Package
+
+The `cond` package complements the other synchronisation primitives in the
+`darvaza.org/x/sync` package:
+
+* **Layered architecture**: `Barrier` provides building blocks that other
+synchronisation mechanisms like `semaphore` can use internally
+* **Consistent interfaces**: Follows similar patterns to other package
+components for error handling and method naming
+* **Complementary functionality**: Addresses coordination use cases that
+mutexes and spinlocks don't directly solve
+* **Composability**: Can be used alongside other primitives to create
+advanced synchronisation patterns
+
+The addition of the `cond` package makes the `darvaza.org/x/sync` package
+more complete by addressing a broader range of concurrency control
+scenarios beyond just mutual exclusion, enabling more sophisticated
+coordination between concurrent operations.
+
+This completes the synchronisation primitive ecosystem with:
+
+* Mutex interfaces and utilities for exclusion (`mutex`)
+* Lightweight spinlocks for low-contention cases (`spinlock`)
+* Counting semaphores for resource control (`semaphore`)
+* Coordination barriers for signalling and waiting (`cond`)
 
 ## Interfaces
 
@@ -132,6 +162,189 @@ package provides helper functions to work with these interfaces. Custom mutex
 implementations can adopt these interfaces to provide context-aware locking
 capabilities that respect cancellation and timeouts.
 
+## Barrier
+
+The `cond` package provides a `Barrier` type that implements a coordination
+mechanism for goroutines using a token-based approach.
+
+```go
+type Barrier struct{}
+```
+
+A `Barrier` manages a reusable token that can be used to signal state changes
+and coordinate access to shared resources. It's primarily designed to be used
+by other synchronisation primitives internally.
+
+Each `Barrier` instance needs to be initialised before use and closed when
+no longer needed to release resources.
+
+### Barrier Characteristics
+
+* **Thread safety**: Provides safe coordination between multiple goroutines
+* **Reusable signalling**: Supports broadcasting to all waiters or signalling
+  individual goroutines
+* **Non-blocking options**: Includes both blocking and non-blocking APIs
+* **Resource efficiency**: Uses a channel-based token mechanism with minimal
+  memory overhead
+
+### Core methods
+
+* `Broadcast()`: Notifies all waiting goroutines at once
+* `Signal() bool`: Attempts to wake up a single waiting goroutine
+* `Wait()`: Blocks until the barrier is signalled
+* `Signaled() <-chan struct{}`: Returns a channel for select-based waiting
+* `Acquire()/Release(Token)`: Manual token acquisition and release for
+  fine-grained control
+
+### Token concept
+
+The `Token` type is a channel-based synchronisation primitive that allows
+goroutines to wait for and signal state changes:
+
+```go
+type Token chan struct{}
+```
+
+Tokens can be acquired from a barrier, waited upon, signalled individually,
+or closed to wake up all waiters simultaneously.
+
+### Barrier Implementation
+
+* Uses a buffered channel with capacity 1 to store the token
+* Maintains an internal state to track if the barrier has been closed
+* Provides graceful handling of nil receivers and improper initialisation
+* Returns appropriate errors from the `errors` package for common failure modes
+
+## Count
+
+The `cond` package also provides a `Count` type that combines features of a
+condition variable and an atomic counter.
+
+```go
+type Count struct{}
+```
+
+A `Count` allows atomic operations and waiting on an int32 value until specific
+conditions are met. This enables goroutines to coordinate based on a numeric
+value and user-defined conditions.
+
+Each `Count` instance needs to be initialised and closed properly to avoid
+resource leaks.
+
+### Count Characteristics
+
+* **Atomic counter operations**: Provides thread-safe increment, decrement,
+  and add operations
+* **Conditional waiting**: Supports waiting until the counter reaches specific
+  values or meets custom conditions
+* **Context-aware waiting**: Includes methods that respect context cancellation
+  and timeouts
+* **Broadcast capability**: Can notify all waiting goroutines when conditions
+  are met
+
+### Count core methods
+
+* `Add(n int) int`: Atomically adds n to the counter and returns the new value
+* `Inc() int`: Atomically increments the counter by 1
+* `Dec() int`: Atomically decrements the counter by 1
+* `Value() int`: Returns the current counter value
+* `Wait()`: Blocks until the counter becomes zero
+* `WaitFn(func(int32) bool)`: Blocks until the provided condition function
+  returns true
+* `WaitFnContext(context.Context, func(int32) bool)`: Context-aware waiting
+  with cancellation support
+* `Reset(n int)`: Resets the counter to the specified value and wakes all
+  waiting goroutines
+* `Signal() bool`: Wakes a single waiting goroutine
+* `Broadcast()`: Wakes all waiting goroutines
+
+### Count Implementation
+
+* Uses atomic operations for counter management to ensure thread safety
+* Leverages the `Barrier` type internally for goroutine coordination
+* Supports custom conditions for signalling waiters when specific values
+  are reached
+* Provides robust error handling for nil receivers and uninitialised instances
+* Integrates with Go's context package for cancellation and timeout support
+
+## CountZero
+
+The `cond` package provides a specialised variant of `Count` called
+`CountZero` that broadcasts specifically when the counter reaches zero.
+
+```go
+type CountZero Count
+```
+
+This specialisation simplifies coordination in cases where completion is
+signified by a zero value, which is a common pattern in many concurrent
+applications.
+
+### CountZero Characteristics
+
+* **Zero-focused**: Automatically wakes all waiters when the counter
+  reaches zero
+* **Simplified API**: Built specifically for the zero-value condition
+* **Identical core operations**: Provides the same atomic counter
+  operations as `Count`
+* **Streamlined waiting**: Methods specifically wait for the zero condition
+
+### Relation to Count
+
+The `CountZero` type is implemented as a thin wrapper around `Count` with a
+predefined condition function that checks for zero. It provides equivalent
+functionality with these key differences:
+
+* No need to specify custom condition functions
+* All waiting methods specifically wait for the counter to reach zero
+* Method signatures are simplified to focus on the zero-value use case
+
+### Core Methods
+
+`CountZero` provides the same atomic counter operations as `Count` (`Add`,
+`Inc`, `Dec`, `Value`) and similar coordination methods with simpler
+signatures:
+
+* `Wait()`: Blocks until the counter becomes zero
+* `WaitAbort(<-chan struct{})`: Blocks until zero or abort channel closes
+* `WaitContext(context.Context)`: Blocks until zero or context cancellation
+
+### Common Use Cases
+
+The `CountZero` type excels in scenarios such as:
+
+* Tracking completion of a known number of concurrent operations
+* Managing graceful shutdown processes
+* Implementing simple worker pools with completion signalling
+* Coordinating resource clean-up when all references are released
+
+### Example Usage
+
+```go
+// Create a counter to track 5 operations
+counter := cond.NewCountZero(5)
+defer counter.Close()
+
+for i := 0; i < 5; i++ {
+    go func() {
+        // Perform work
+        
+        // Decrement counter when done
+        counter.Dec()
+    }()
+}
+
+// Wait for all operations to complete
+if err := counter.Wait(); err != nil {
+    // Handle error
+}
+// All operations complete when counter reaches zero
+```
+
+`CountZero` provides a concise way to express the common pattern of
+waiting for a counter to reach zero without the need for custom condition
+functions.
+
 ## Semaphore
 
 The `semaphore` package provides a `Semaphore` type that implements both
@@ -189,7 +402,7 @@ SpinLock is a mutual exclusion primitive that uses active spinning
 (busy-waiting) instead of parking goroutines. It implements both the
 `sync.Locker` and `mutex.Mutex` interfaces.
 
-### Key characteristics
+### SpinLock Characteristics
 
 * **Zero value**: An unlocked spinlock ready for use
 * **Memory footprint**: Minimal (just a uint32)
@@ -220,7 +433,7 @@ defer lock.Unlock()
 // Critical section here (keep it very brief)
 ```
 
-### Implementation details
+### SpinLock Implementation
 
 * Uses atomic operations for lock state management
 * Calls `runtime.Gosched()` while spinning to yield the processor
