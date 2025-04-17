@@ -78,7 +78,7 @@ func TestSpinLock_TryLockConcurrent(t *testing.T) {
 	var attempts int32
 
 	const numGoroutines = 100
-	const iterations = 100
+	const iterations = 200
 
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
