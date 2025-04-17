@@ -77,6 +77,10 @@ func TestSpinLock_TryLockConcurrent(t *testing.T) {
 	var counter int32
 	var attempts int32
 
+	// Track goroutines currently in critical section and maximum seen
+	var currentGoroutines int32
+	var maxGoroutines int32
+
 	const numGoroutines = 100
 	const iterations = 200
 
@@ -86,6 +90,11 @@ func TestSpinLock_TryLockConcurrent(t *testing.T) {
 	for range numGoroutines {
 		go func() {
 			defer wg.Done()
+
+			// Increment count of goroutines, and update maximum if needed
+			goroutinesNow := atomic.AddInt32(&currentGoroutines, 1)
+			atomicUpdateMax(&maxGoroutines, goroutinesNow)
+			defer atomic.AddInt32(&currentGoroutines, -1)
 
 			for range iterations {
 				atomic.AddInt32(&attempts, 1)
@@ -99,10 +108,28 @@ func TestSpinLock_TryLockConcurrent(t *testing.T) {
 
 	wg.Wait()
 
-	// Due to contention, successful locks should be fewer than attempts
-	assert.Less(t, counter, attempts)
-	// Some attempts should succeed
-	assert.Greater(t, counter, int32(0))
+	t.Logf("Max goroutines in critical section: %d", maxGoroutines)
+	t.Logf("Counter: %d, Attempts: %d", counter, attempts)
+
+	// If maxGoroutines never exceeded 1, then counter should equal attempts
+	if maxGoroutines <= 1 {
+		assert.Equal(t, attempts, counter, "Only one goroutine happened at the time, all attempts should succeed")
+	} else {
+		// Due to contention, successful locks should be fewer than attempts
+		assert.Less(t, counter, attempts, "With contention, successful locks should be fewer than attempts")
+		// Some attempts should succeed
+		assert.Greater(t, counter, int32(0), "Some lock attempts should succeed")
+	}
+}
+
+// atomicUpdateMax atomically updates *ptr with val if val is greater than the current value
+func atomicUpdateMax(ptr *int32, val int32) {
+	for {
+		currentMax := atomic.LoadInt32(ptr)
+		if val <= currentMax || atomic.CompareAndSwapInt32(ptr, currentMax, val) {
+			break
+		}
+	}
 }
 
 func TestSpinLock_NilReceiver(t *testing.T) {
