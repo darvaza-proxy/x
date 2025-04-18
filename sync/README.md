@@ -512,6 +512,64 @@ The `WaitGroup` interface provides a lightweight alternative when context
 propagation isn't needed, focusing on pure goroutine lifecycle management
 with explicit control over task creation and completion.
 
+### Runner Implementation
+
+The `Runner` struct implements the `WaitGroup` interface, providing a
+mechanism to spawn and coordinate multiple goroutines:
+
+```go
+type Runner struct{}
+```
+
+The Runner uses a `cond.CountZero` counter to track active goroutines and
+coordinates their execution lifecycle.
+
+#### Runner Characteristics
+
+* **Zero-dependency coordination**: No context integration, focused solely
+  on goroutine lifecycle management
+* **Safe concurrent access**: Thread-safe for all operations
+* **Automatic clean-up**: Resources are released when all goroutines complete
+  after closure
+* **Initialisation safety**: Methods check for proper initialisation before
+  executing
+* **Finalization support**: Uses runtime finalizers to ensure resource clean-up
+
+#### Runner Methods
+
+* `IsNil() bool`: Reports whether the Runner is nil or uninitialised
+* `IsClosed() bool`: Reports whether the Runner has been closed
+* `Count() int`: Returns the number of active goroutines
+* `Go(func()) error`: Spawns a new goroutine to execute the function
+* `Wait() error`: Blocks until all goroutines complete
+* `Close() error`: Prevents spawning new goroutines and waits for existing
+  ones to finish
+* `Init() error`: Initialises an uninitialised Runner
+
+#### Runner Example Usage
+
+```go
+// Create a new runner
+runner := workgroup.NewRunner()
+defer runner.Close()
+
+// Spawn goroutines
+for i := 0; i < 5; i++ {
+    i := i // Capture loop variable
+    _ = runner.Go(func() {
+        // Task implementation
+        fmt.Printf("Task %d running\n", i)
+        time.Sleep(100 * time.Millisecond)
+        fmt.Printf("Task %d complete\n", i)
+    })
+}
+
+// Wait for all goroutines to complete
+if err := runner.Wait(); err != nil {
+    // Handle error
+}
+```
+
 ### Group Example usage
 
 ```go
