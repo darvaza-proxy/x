@@ -482,6 +482,36 @@ cancellation propagation and lifecycle management of concurrent operations.
 * `GoCatch(func(context.Context) error, func(context.Context, error) error) error`:
   Spawns a goroutine with error handling and error-triggered cancellation
 
+### WaitGroup Interface
+
+The package also provides a `WaitGroup` interface for simpler goroutine
+management without context integration:
+
+```go
+type WaitGroup interface {
+    // IsClosed reports whether the WaitGroup has been closed.
+    IsClosed() bool
+
+    // Go spawns a new goroutine to execute the provided function.
+    // Returns an error if the WaitGroup is closed or otherwise invalid.
+    Go(func()) error
+
+    // Count returns the number of active goroutines.
+    Count() int
+
+    // Wait blocks until all goroutines complete.
+    Wait() error
+
+    // Close prevents adding new goroutines and optionally waits for
+    // existing ones to complete.
+    Close() error
+}
+```
+
+The `WaitGroup` interface provides a lightweight alternative when context
+propagation isn't needed, focusing on pure goroutine lifecycle management
+with explicit control over task creation and completion.
+
 ### Group Example usage
 
 ```go
