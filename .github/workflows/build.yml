@@ -22,3 +22,5 @@ jobs:
       run: make
     - name: Test
       run: make test
+    - name: Race Test
+      run: make race
