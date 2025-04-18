@@ -5,7 +5,7 @@ set -eu
 INDEX="$1"
 
 PROJECTS="$(cut -d':' -f1 "$INDEX")"
-COMMANDS="tidy get build test up"
+COMMANDS="tidy get build test race up"
 
 TAB=$(printf "\t")
 
@@ -134,13 +134,16 @@ gen_make_targets() {
 	test)
 		call="\$(GO) $cmd \$(GOTEST_FLAGS) ./..."
 		;;
+	race)
+		call="env CGO_ENABLED=1 \$(GO) test \$(GOTEST_FLAGS) -race ./..."
+		;;
 	*)
 		call="\$(GO) $cmd -v ./..."
 		;;
 	esac
 
 	case "$cmd" in
-	build|test)
+	build|test|race)
 		sequential=true ;;
 	*)
 		sequential=false ;;
