@@ -572,6 +572,71 @@ if err := runner.Wait(); err != nil {
 }
 ```
 
+### Limiter Implementation
+
+The `Limiter` struct implements the `WaitGroup` interface with an added
+constraint on the maximum number of concurrently executing goroutines:
+
+```go
+type Limiter struct{}
+```
+
+The Limiter maintains a queue of pending functions when the concurrent limit
+is reached. These functions will be executed as running goroutines complete.
+
+#### Limiter Characteristics
+
+* **Concurrency control**: Limits the number of simultaneously running
+  goroutines
+* **Function queueing**: Automatically queues functions when the limit is
+  reached
+* **Safe concurrent access**: Thread-safe for all operations
+* **Graceful shutdown**: Once closed, releases resources after all active
+  goroutines complete
+* **Resource management**: Uses tokens to control access to execution slots
+
+#### Limiter Methods
+
+* `IsNil() bool`: Reports whether the Limiter is nil or uninitialised
+* `IsClosed() bool`: Reports whether the Limiter has been closed
+* `Size() int`: Returns the maximum number of goroutines that can run
+  concurrently
+* `Count() int`: Returns the number of currently active goroutines
+* `Len() int`: Returns the total number of active and queued goroutines
+* `Go(func()) error`: Spawns a new goroutine or queues the function if at
+  capacity
+* `Wait() error`: Blocks until all goroutines complete
+* `Close() error`: Prevents spawning new goroutines and waits for existing
+  ones to finish
+* `Init(limit int) error`: Initialises with the specified worker limit.
+  It will fail if the Limiter was created using NewLimiter().
+
+#### Limiter Example Usage
+
+```go
+// Create a new limiter with maximum 3 concurrent goroutines
+limiter, err := workgroup.NewLimiter(3)
+if err != nil {
+    log.Fatalf("Failed to create limiter: %v", err)
+}
+defer limiter.Close()
+
+// Spawn 10 goroutines (only 3 will run concurrently)
+for i := 0; i < 10; i++ {
+    i := i // Capture loop variable
+    _ = limiter.Go(func() {
+        fmt.Printf("Task %d started\n", i)
+        time.Sleep(200 * time.Millisecond)
+        fmt.Printf("Task %d completed\n", i)
+    })
+}
+
+// Wait for all goroutines to complete
+if err := limiter.Wait(); err != nil {
+    log.Fatalf("Error waiting for completion: %v", err)
+}
+```
+
 ### Group Example usage
 
 ```go
