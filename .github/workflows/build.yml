@@ -21,6 +21,6 @@ jobs:
     - name: Build
       run: make
     - name: Test
-      run: make test
+      run: make GOTEST_FLAGS=-v test
     - name: Race Test
       run: make race
