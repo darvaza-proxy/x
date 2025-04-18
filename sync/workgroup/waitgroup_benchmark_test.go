@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Basic benchmarks comparing Runner and sync.WaitGroup
+// Basic benchmarks comparing implementations of WaitGroup interface and sync.WaitGroup
 
 func BenchmarkBasicUsage(b *testing.B) {
 	sizes := []int{1, 10, 100, 1000}
@@ -17,7 +17,16 @@ func BenchmarkBasicUsage(b *testing.B) {
 	for _, size := range sizes {
 		name := "Runner-" + strconv.Itoa(size)
 		b.Run(name, func(b *testing.B) {
-			benchRunnerBasic(b, size)
+			benchWaitGroupBasic(b, NewRunner(), size)
+		})
+
+		name = "Limiter-" + strconv.Itoa(size)
+		b.Run(name, func(b *testing.B) {
+			limiter, err := NewLimiter(size)
+			if err != nil {
+				b.Fatalf("Failed to create limiter: %v", err)
+			}
+			benchWaitGroupBasic(b, limiter, size)
 		})
 
 		name = "StdWaitGroup-" + strconv.Itoa(size)
@@ -27,19 +36,28 @@ func BenchmarkBasicUsage(b *testing.B) {
 	}
 }
 
-func benchRunnerBasic(b *testing.B, numGoroutines int) {
+func benchWaitGroupBasic(b *testing.B, wg WaitGroup, numGoroutines int) {
 	for i := 0; i < b.N; i++ {
-		runner := NewRunner()
-
 		for j := 0; j < numGoroutines; j++ {
-			err := runner.Go(func() {})
+			err := wg.Go(func() {})
 			if err != nil {
 				b.Fatalf("Failed to add goroutine: %v", err)
 			}
 		}
 
-		if err := runner.Wait(); err != nil {
+		if err := wg.Wait(); err != nil {
 			b.Fatalf("Wait failed: %v", err)
+		}
+
+		// Reset for reuse in benchmarks
+		if wg.IsClosed() {
+			// Create new instance if closed
+			switch wg.(type) {
+			case *Runner:
+				wg = NewRunner()
+			case *Limiter:
+				wg, _ = NewLimiter(numGoroutines)
+			}
 		}
 	}
 }
@@ -69,7 +87,16 @@ func BenchmarkWithWork(b *testing.B) {
 		for _, duration := range durations {
 			name := "Runner-" + strconv.Itoa(size) + "-" + duration.String()
 			b.Run(name, func(b *testing.B) {
-				benchRunnerWithWork(b, size, duration)
+				benchWaitGroupWithWork(b, NewRunner(), size, duration)
+			})
+
+			name = "Limiter-" + strconv.Itoa(size) + "-" + duration.String()
+			b.Run(name, func(b *testing.B) {
+				limiter, err := NewLimiter(size)
+				if err != nil {
+					b.Fatalf("Failed to create limiter: %v", err)
+				}
+				benchWaitGroupWithWork(b, limiter, size, duration)
 			})
 
 			name = "StdWaitGroup-" + strconv.Itoa(size) + "-" + duration.String()
@@ -80,12 +107,10 @@ func BenchmarkWithWork(b *testing.B) {
 	}
 }
 
-func benchRunnerWithWork(b *testing.B, numGoroutines int, workDuration time.Duration) {
+func benchWaitGroupWithWork(b *testing.B, wg WaitGroup, numGoroutines int, workDuration time.Duration) {
 	for i := 0; i < b.N; i++ {
-		runner := NewRunner()
-
 		for j := 0; j < numGoroutines; j++ {
-			err := runner.Go(func() {
+			err := wg.Go(func() {
 				time.Sleep(workDuration)
 			})
 			if err != nil {
@@ -93,8 +118,19 @@ func benchRunnerWithWork(b *testing.B, numGoroutines int, workDuration time.Dura
 			}
 		}
 
-		if err := runner.Wait(); err != nil {
+		if err := wg.Wait(); err != nil {
 			b.Fatalf("Wait failed: %v", err)
+		}
+
+		// Reset for reuse in benchmarks
+		if wg.IsClosed() {
+			// Create new instance if closed
+			switch wg.(type) {
+			case *Runner:
+				wg = NewRunner()
+			case *Limiter:
+				wg, _ = NewLimiter(numGoroutines)
+			}
 		}
 	}
 }
@@ -118,19 +154,28 @@ func benchStdWaitGroupWithWork(b *testing.B, numGoroutines int, workDuration tim
 // Nested goroutines benchmarks
 
 func BenchmarkNestedGoroutines(b *testing.B) {
-	b.Run("Runner", benchRunnerNested)
+	b.Run("Runner", func(b *testing.B) {
+		benchWaitGroupNested(b, NewRunner())
+	})
+
+	b.Run("Limiter", func(b *testing.B) {
+		limiter, err := NewLimiter(100) // Reasonable limit for nested goroutines
+		if err != nil {
+			b.Fatalf("Failed to create limiter: %v", err)
+		}
+		benchWaitGroupNested(b, limiter)
+	})
+
 	b.Run("StdWaitGroup", benchStdWaitGroupNested)
 }
 
-func benchRunnerNested(b *testing.B) {
+func benchWaitGroupNested(b *testing.B, wg WaitGroup) {
 	for i := 0; i < b.N; i++ {
-		runner := NewRunner()
-
 		// Spawn 10 parent goroutines, each spawning 10 children
 		for j := 0; j < 10; j++ {
-			err := runner.Go(func() {
+			err := wg.Go(func() {
 				for k := 0; k < 10; k++ {
-					_ = runner.Go(func() {
+					_ = wg.Go(func() {
 						time.Sleep(5 * time.Microsecond)
 					})
 				}
@@ -140,8 +185,19 @@ func benchRunnerNested(b *testing.B) {
 			}
 		}
 
-		if err := runner.Wait(); err != nil {
+		if err := wg.Wait(); err != nil {
 			b.Fatalf("Wait failed: %v", err)
+		}
+
+		// Reset for reuse in benchmarks
+		if wg.IsClosed() {
+			// Create new instance if closed
+			switch wg.(type) {
+			case *Runner:
+				wg = NewRunner()
+			case *Limiter:
+				wg, _ = NewLimiter(100)
+			}
 		}
 	}
 }
@@ -173,56 +229,34 @@ func benchStdWaitGroupNested(b *testing.B) {
 	}
 }
 
-// Close behaviour benchmark (Runner only)
-
-func BenchmarkClose(b *testing.B) {
-	b.Run("CloseWithPendingWork", benchRunnerClose)
-}
-
-func benchRunnerClose(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		runner := NewRunner()
-
-		// Add 100 goroutines
-		for j := 0; j < 100; j++ {
-			err := runner.Go(func() {
-				time.Sleep(5 * time.Microsecond)
-			})
-			if err != nil {
-				b.Fatalf("Failed to add goroutine: %v", err)
-			}
-		}
-
-		// Close and wait
-		if err := runner.Close(); err != nil {
-			b.Fatalf("Close failed: %v", err)
-		}
-
-		if err := runner.Wait(); err != nil {
-			b.Fatalf("Wait failed: %v", err)
-		}
-	}
-}
-
 // Fan-out pattern benchmarks
 
 func BenchmarkFanOut(b *testing.B) {
-	b.Run("Runner", benchRunnerFanOut)
+	b.Run("Runner", func(b *testing.B) {
+		benchWaitGroupFanOut(b, NewRunner())
+	})
+
+	b.Run("Limiter", func(b *testing.B) {
+		limiter, err := NewLimiter(5) // Same as workers count
+		if err != nil {
+			b.Fatalf("Failed to create limiter: %v", err)
+		}
+		benchWaitGroupFanOut(b, limiter)
+	})
+
 	b.Run("StdWaitGroup", benchStdWaitGroupFanOut)
 }
 
-func benchRunnerFanOut(b *testing.B) {
+func benchWaitGroupFanOut(b *testing.B, wg WaitGroup) {
 	const (
 		workers    = 5
 		tasksPerWG = 100
 	)
 
 	for i := 0; i < b.N; i++ {
-		runner := NewRunner()
-
 		// Fan out to workers
 		for w := 0; w < workers; w++ {
-			err := runner.Go(func() {
+			err := wg.Go(func() {
 				// Each worker handles multiple tasks
 				for t := 0; t < tasksPerWG/workers; t++ {
 					// Simulate work
@@ -234,7 +268,18 @@ func benchRunnerFanOut(b *testing.B) {
 			}
 		}
 
-		_ = runner.Wait()
+		_ = wg.Wait()
+
+		// Reset for reuse in benchmarks
+		if wg.IsClosed() {
+			// Create new instance if closed
+			switch wg.(type) {
+			case *Runner:
+				wg = NewRunner()
+			case *Limiter:
+				wg, _ = NewLimiter(5)
+			}
+		}
 	}
 }
 
@@ -267,24 +312,33 @@ func benchStdWaitGroupFanOut(b *testing.B) {
 // Dynamic workload benchmarks
 
 func BenchmarkDynamicWorkload(b *testing.B) {
-	b.Run("Runner", benchRunnerDynamic)
+	b.Run("Runner", func(b *testing.B) {
+		benchWaitGroupDynamic(b, NewRunner())
+	})
+
+	b.Run("Limiter", func(b *testing.B) {
+		limiter, err := NewLimiter(10) // Same as initial tasks
+		if err != nil {
+			b.Fatalf("Failed to create limiter: %v", err)
+		}
+		benchWaitGroupDynamic(b, limiter)
+	})
+
 	b.Run("StdWaitGroup", benchStdWaitGroupDynamic)
 }
 
-func benchRunnerDynamic(b *testing.B) {
+func benchWaitGroupDynamic(b *testing.B, wg WaitGroup) {
 	const initialTasks = 10
 
 	for i := 0; i < b.N; i++ {
-		runner := NewRunner()
-
 		// Add initial tasks
 		for t := 0; t < initialTasks; t++ {
 			taskID := t
-			err := runner.Go(func() {
+			err := wg.Go(func() {
 				// Each task may add more tasks depending on its ID
 				if taskID < 5 {
 					for j := 0; j < taskID; j++ {
-						_ = runner.Go(func() {
+						_ = wg.Go(func() {
 							time.Sleep(1 * time.Microsecond)
 						})
 					}
@@ -296,7 +350,18 @@ func benchRunnerDynamic(b *testing.B) {
 			}
 		}
 
-		_ = runner.Wait()
+		_ = wg.Wait()
+
+		// Reset for reuse in benchmarks
+		if wg.IsClosed() {
+			// Create new instance if closed
+			switch wg.(type) {
+			case *Runner:
+				wg = NewRunner()
+			case *Limiter:
+				wg, _ = NewLimiter(10)
+			}
+		}
 	}
 }
 
