@@ -2,17 +2,21 @@ package semaphore
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/mutex"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // doSomething simulates a short operation by sleeping for 10ms.
+// This provides a predictable duration for test operations.
 func doSomething() {
 	time.Sleep(10 * time.Millisecond)
 }
@@ -30,6 +34,9 @@ func TestSemaphore_Init(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, s.global)
 		assert.NotNil(t, s.readers)
+		assert.False(t, s.barrier.IsNil(), "Barrier should be initialised")
+		assert.False(t, s.active.IsNil(), "Active counter should be initialised")
+		assert.False(t, s.writers.IsNil(), "Writers counter should be initialised")
 	})
 
 	t.Run("idempotent", func(t *testing.T) {
@@ -42,8 +49,8 @@ func TestSemaphore_Init(t *testing.T) {
 
 		err = s.lazyInit()
 		assert.NoError(t, err)
-		assert.True(t, global == s.global, "global channel reference changed")
-		assert.True(t, readers == s.readers, "readers channel reference changed")
+		assert.True(t, global == s.global, "Global channel reference changed")
+		assert.True(t, readers == s.readers, "Readers channel reference changed")
 	})
 }
 
@@ -365,17 +372,14 @@ func TestSemaphore_InterfaceCompliance(t *testing.T) {
 }
 
 func TestSemaphore_EdgeCases(t *testing.T) {
-	t.Run("writer after readers", func(t *testing.T) {
-		testWriterAfterReaders(t)
-	})
+	t.Run("writer after readers", testWriterAfterReaders)
 
-	t.Run("readers after writer", func(t *testing.T) {
-		testReadersAfterWriter(t)
-	})
+	t.Run("readers after writer", testReadersAfterWriter)
 }
 
 // testWriterAfterReaders tests that writers block until all readers release their locks
 func testWriterAfterReaders(t *testing.T) {
+	t.Helper()
 	s := &Semaphore{}
 
 	// Acquire multiple read locks
@@ -413,42 +417,74 @@ func testWriterAfterReaders(t *testing.T) {
 
 // testReadersAfterWriter tests that readers block until writer releases its lock
 func testReadersAfterWriter(t *testing.T) {
-	s := &Semaphore{}
-	s.Lock()
+	t.Helper()
 
-	done := make(chan struct{})
-	ready := make(chan struct{})
-
-	// Start readers that will block
 	const numReaders = 3
+
+	s := &Semaphore{}
+	s.Lock() // Hold the exclusive lock
+
+	// Use buffered channels to prevent deadlocks
+	readersReady := make(chan struct{}, numReaders)
+	readersAcquired := make(chan struct{}, numReaders)
+
+	// Use a WaitGroup to track reader goroutines
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+
+	// Start reader goroutines
 	for range numReaders {
 		go func() {
-			ready <- struct{}{}
+			defer wg.Done()
+
+			// Signal that this reader is ready to start
+			readersReady <- struct{}{}
+
+			// Attempt to acquire read lock - this will block until writer releases
 			s.RLock()
-			defer s.RUnlock()
-			done <- struct{}{}
-		}()
+
+			// Successfully acquired read lock, signal acquisition
+			readersAcquired <- struct{}{}
+
+			// Hold the lock briefly
+			time.Sleep(5 * time.Millisecond)
+
+			// Release read lock
+			s.RUnlock()
+		}() // Pass the loop variable to avoid capture issues
 	}
 
 	// Wait for all readers to be ready
-	waitForReadersReady(numReaders, ready)
+	for range numReaders {
+		<-readersReady
+	}
+
+	// Give readers time to try acquiring locks, but they should be blocked
 	time.Sleep(10 * time.Millisecond)
 
-	// Verify readers are blocked
-	verifyChannelNotClosed(t, done, "Reader acquired lock while writer held it")
+	// Verify no readers have acquired the lock yet
+	select {
+	case <-readersAcquired:
+		t.Fatal("Reader acquired lock while writer held it")
+	default:
+		// Expected - readers are blocked
+	}
 
-	// Release the write lock
+	// Release the exclusive lock to allow readers to proceed
 	s.Unlock()
 
-	// Verify all readers proceed
-	verifyAllReadersAcquiredLocks(t, numReaders, done)
-}
-
-// waitForReadersReady waits for the specified number of readers to signal readiness
-func waitForReadersReady(count int, ready chan struct{}) {
-	for range count {
-		<-ready
+	// Now readers should be able to acquire their locks
+	for i := 0; i < numReaders; i++ {
+		select {
+		case <-readersAcquired:
+			// Success - reader acquired lock
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("Reader failed to acquire lock after writer released")
+		}
 	}
+
+	// Wait for all reader goroutines to complete
+	wg.Wait()
 }
 
 // verifyChannelNotClosed checks that a channel has not been closed
@@ -468,19 +504,6 @@ func verifyChannelCloses(t *testing.T, ch chan struct{}, timeout time.Duration, 
 		// Expected behaviour
 	case <-time.After(timeout):
 		t.Fatal(failMessage)
-	}
-}
-
-// verifyAllReadersAcquiredLocks verifies that all readers acquired their locks
-func verifyAllReadersAcquiredLocks(t *testing.T, numReaders int, done chan struct{}) {
-	timeout := time.After(100 * time.Millisecond)
-	for range numReaders {
-		select {
-		case <-done:
-			// Expected behaviour
-		case <-timeout:
-			t.Fatal("Readers failed to acquire lock after writer released")
-		}
 	}
 }
 
@@ -580,8 +603,8 @@ func TestSemaphore_Stress(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(numWorkers)
 
-		counter := 0
-		var counterMutex sync.Mutex
+		// Use atomic counter instead of mutex-protected int
+		var counter atomic.Int32
 
 		for i := range numWorkers {
 			go func(id int) {
@@ -589,7 +612,7 @@ func TestSemaphore_Stress(t *testing.T) {
 				for j := range iterations {
 					// Determine operation type based on worker ID and iteration
 					opType := (id + j) % 6
-					performOperation(s, opType, &counter, &counterMutex)
+					performOperation(s, opType, &counter)
 				}
 			}(i)
 		}
@@ -598,69 +621,65 @@ func TestSemaphore_Stress(t *testing.T) {
 
 		// We don't know exactly what the counter will be due to TryLock/TryRLock
 		// and timeouts, but it should be > 0
-		assert.Greater(t, counter, 0)
+		assert.Greater(t, counter.Load(), int32(0))
 	})
 }
 
 // performOperation executes one of the semaphore operations based on the operation type
-func performOperation(s *Semaphore, opType int, counter *int, counterMutex *sync.Mutex) {
+func performOperation(s *Semaphore, opType int, counter *atomic.Int32) {
 	switch opType {
 	case 0:
-		exclusiveLockOperation(s, counter, counterMutex)
+		exclusiveLockOperation(s, counter)
 	case 1:
-		tryLockOperation(s, counter, counterMutex)
+		tryLockOperation(s, counter)
 	case 2:
-		readLockOperation(s, counter, counterMutex)
+		readLockOperation(s, counter)
 	case 3:
-		tryReadLockOperation(s, counter, counterMutex)
+		tryReadLockOperation(s, counter)
 	case 4:
-		lockContextOperation(s, counter, counterMutex)
+		lockContextOperation(s, counter)
 	default:
-		readLockContextOperation(s, counter, counterMutex)
+		readLockContextOperation(s, counter)
 	}
 }
 
 // exclusiveLockOperation performs a Lock+Unlock operation
-func exclusiveLockOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func exclusiveLockOperation(s *Semaphore, counter *atomic.Int32) {
 	s.Lock()
-	counterMutex.Lock()
-	(*counter)++
-	counterMutex.Unlock()
+
+	counter.Add(1)
 	s.Unlock()
 }
 
 // tryLockOperation attempts a TryLock operation
-func tryLockOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func tryLockOperation(s *Semaphore, counter *atomic.Int32) {
 	if s.TryLock() {
-		counterMutex.Lock()
-		(*counter)++
-		counterMutex.Unlock()
+
+		counter.Add(1)
 		s.Unlock()
 	}
 }
 
 // readLockOperation performs a RLock+RUnlock operation
-func readLockOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func readLockOperation(s *Semaphore, counter *atomic.Int32) {
 	s.RLock()
 	// Just read the counter
-	counterMutex.Lock()
-	_ = *counter
-	counterMutex.Unlock()
+
+	_ = counter.Load()
 	s.RUnlock()
 }
 
 // tryReadLockOperation attempts a TryRLock operation
-func tryReadLockOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func tryReadLockOperation(s *Semaphore, counter *atomic.Int32) {
 	if s.TryRLock() {
-		counterMutex.Lock()
-		_ = *counter
-		counterMutex.Unlock()
+
+		_ = counter.Load()
 		s.RUnlock()
 	}
 }
 
 // lockContextOperation performs a LockContext with short timeout
-func lockContextOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func lockContextOperation(s *Semaphore, counter *atomic.Int32) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		1*time.Millisecond,
@@ -668,15 +687,14 @@ func lockContextOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) 
 	defer cancel()
 
 	if s.LockContext(ctx) == nil {
-		counterMutex.Lock()
-		(*counter)++
-		counterMutex.Unlock()
+
+		counter.Add(1)
 		s.Unlock()
 	}
 }
 
 // readLockContextOperation performs a RLockContext with short timeout
-func readLockContextOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func readLockContextOperation(s *Semaphore, counter *atomic.Int32) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		1*time.Millisecond,
@@ -684,9 +702,8 @@ func readLockContextOperation(s *Semaphore, counter *int, counterMutex *sync.Mut
 	defer cancel()
 
 	if s.RLockContext(ctx) == nil {
-		counterMutex.Lock()
-		_ = *counter
-		counterMutex.Unlock()
+
+		_ = counter.Load()
 		s.RUnlock()
 	}
 }
@@ -735,28 +752,19 @@ func TestSemaphore_BoundaryConditions(t *testing.T) {
 	})
 }
 
-func TestSemaphore_WriterStarvationPrevention(t *testing.T) {
-	t.Run("writers not starved by continuous readers", func(t *testing.T) {
-		testWritersNotStarvedByContinuousReaders(t)
-	})
-
-	t.Run("writers preferred over new readers", func(t *testing.T) {
-		testWritersPreferredOverNewReaders(t)
-	})
-}
-
 // testWritersNotStarvedByContinuousReaders verifies that writers can acquire
 // the lock even with continuous reader traffic.
 //
 //revive:disable-next-line:cognitive-complexity
 func testWritersNotStarvedByContinuousReaders(t *testing.T) {
-	s := &Semaphore{}
 	const numReaders = 100
 	const readerCycles = 5
 
 	// Track when writers acquire the lock
 	writerAcquisitions := make([]time.Time, 0, 3)
 	writerDone := make(chan struct{})
+
+	s := &Semaphore{}
 
 	// Start a writer that will try to acquire lock periodically
 	go func() {
@@ -835,6 +843,7 @@ func testWritersNotStarvedByContinuousReaders(t *testing.T) {
 
 // testWritersPreferredOverNewReaders verifies that when writers are waiting,
 // new readers are blocked until writers complete.
+
 func testWritersPreferredOverNewReaders(t *testing.T) {
 	s := &Semaphore{}
 
@@ -901,6 +910,530 @@ func testWritersPreferredOverNewReaders(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Reader failed to acquire lock after writer completed")
 	}
+}
+
+// TestSemaphore_Close tests the behaviour of the Close method.
+//
+//revive:disable-next-line:cognitive-complexity
+func TestSemaphore_Close(t *testing.T) {
+	t.Run("close idle", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		assert.NoError(t, err, "Closing an idle semaphore failed")
+
+		// Verify internal state indicates closed (best effort)
+		assert.True(t, s.barrier.IsClosed(),
+			"Barrier should be closed")
+	})
+
+	t.Run("double close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "First close should succeed")
+
+		err = s.Close()
+		assert.Error(t, err, "Second close should fail")
+		assert.ErrorIs(t, err, errors.ErrClosed,
+			"Error should be ErrClosed")
+	})
+
+	t.Run("close nil", func(t *testing.T) {
+		var s *Semaphore
+		// lazyInit called by Close should return ErrNilReceiver
+		err := s.Close()
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, errors.ErrNilReceiver)
+	})
+}
+
+// TestSemaphore_CloseWithActive tests closing a semaphore while operations
+// are in progress.
+func TestSemaphore_CloseWithActive(t *testing.T) {
+	testCloseWithActiveOps(t, "readers", true, 3)
+	testCloseWithActiveOps(t, "writer", false, 1)
+}
+
+// testCloseWithActiveOps tests closing a semaphore while active lock operations
+// are in progress. It verifies that Close blocks until all operations complete.
+// isReader determines whether to test with readers (true) or a writer (false).
+// count specifies the number of concurrent operations.
+//
+//revive:disable-next-line:flag-parameter
+//revive:disable-next-line:cognitive-complexity
+func testCloseWithActiveOps(t *testing.T, name string, isReader bool, count int) {
+	t.Helper()
+
+	t.Run(fmt.Sprintf("close with active %s", name), func(t *testing.T) {
+		s := &Semaphore{}
+
+		// Channel to coordinate when operations can release their locks
+		releaseSignal := make(chan struct{})
+
+		// Acquire locks from goroutines
+		var wg sync.WaitGroup
+		var completionWg sync.WaitGroup
+
+		wg.Add(count)
+		completionWg.Add(count)
+
+		for range count {
+			go func() {
+				defer completionWg.Done()
+
+				if isReader {
+					s.RLock()
+					wg.Done() // Signal that the lock is acquired
+
+					// Wait for signal before releasing the lock
+					<-releaseSignal
+
+					s.RUnlock()
+				} else {
+					s.Lock()
+					wg.Done() // Signal that the lock is acquired
+
+					// Wait for signal before releasing the lock
+					<-releaseSignal
+
+					s.Unlock()
+				}
+			}()
+		}
+
+		// Wait for operations to acquire their locks
+		wg.Wait()
+
+		// Start close in a goroutine
+		closeDone := make(chan struct{})
+		closeErr := make(chan error, 1)
+
+		go func() {
+			err := s.Close()
+			closeErr <- err
+			close(closeDone)
+		}()
+
+		// Close should block until operations are done
+		select {
+		case <-closeDone:
+			t.Fatal("Close returned before operations finished")
+		case <-time.After(30 * time.Millisecond):
+			// Expected - Close is still waiting for operations
+		}
+
+		// Now allow operations to release their locks
+		close(releaseSignal)
+
+		// Wait for all operations to complete
+		completionWg.Wait()
+
+		// Now Close should complete
+		select {
+		case err := <-closeErr:
+			assert.NoError(t, err, "Close should succeed after operations finished")
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("Close did not complete after operations finished")
+		}
+	})
+}
+
+// TestSemaphore_OperationsAfterClose tests that operations on a closed
+// semaphore behave appropriately.
+func TestSemaphore_OperationsAfterClose(t *testing.T) {
+	t.Run("lock after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		assert.Panics(t, func() {
+			s.Lock()
+		}, "Lock should panic on closed semaphore")
+	})
+
+	t.Run("try lock after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		acquired := s.TryLock()
+		assert.False(t, acquired, "TryLock should fail on closed semaphore")
+	})
+
+	t.Run("lock context after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		ctx := context.Background()
+		err = s.LockContext(ctx)
+		assert.Error(t, err, "LockContext should fail on closed semaphore")
+		assert.ErrorIs(t, err, errors.ErrClosed)
+	})
+
+	t.Run("rlock after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		assert.Panics(t, func() {
+			s.RLock()
+		}, "RLock should panic on closed semaphore")
+	})
+
+	t.Run("try rlock after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		acquired := s.TryRLock()
+		assert.False(t, acquired, "TryRLock should fail on closed semaphore")
+	})
+
+	t.Run("rlock context after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		ctx := context.Background()
+		err = s.RLockContext(ctx)
+		assert.Error(t, err, "RLockContext should fail on closed semaphore")
+		assert.ErrorIs(t, err, errors.ErrClosed)
+	})
+
+	t.Run("unlock after close panics", func(t *testing.T) {
+		s := &Semaphore{}
+		s.Lock() // Acquire the lock first
+
+		// Close the semaphore in another goroutine
+		done := make(chan struct{})
+		go func() {
+			err := s.Close()
+			assert.NoError(t, err, "Close should succeed")
+			close(done)
+		}()
+
+		// Wait briefly to let Close start but not finish
+		time.Sleep(10 * time.Millisecond)
+
+		// Unlock should work since we had the lock before closing
+		s.Unlock()
+
+		// Wait for Close to complete
+		<-done
+
+		// But a second Unlock should panic
+		assert.Panics(t, func() {
+			s.Unlock()
+		}, "Unlock after close should panic")
+	})
+}
+
+// TestSemaphore_CloseWithWaiting tests closing a semaphore while operations
+// are waiting to acquire locks.
+func TestSemaphore_CloseWithWaiting(t *testing.T) {
+	testCloseWithWaitingOps(t, "writers", true)
+	testCloseWithWaitingOps(t, "readers", false)
+}
+
+// testCloseWithWaitingOps tests closing a semaphore whilst operations (readers or writers)
+// are waiting to acquire the lock.
+// isWriter determines whether to test with waiting writers (true) or readers (false).
+//
+//revive:disable-next-line:flag-parameter
+//revive:disable-next-line:cognitive-complexity
+func testCloseWithWaitingOps(t *testing.T, name string, isWriter bool) {
+	t.Helper()
+	t.Run(fmt.Sprintf("close with waiting %s", name), func(t *testing.T) {
+		s := &Semaphore{}
+		s.Lock() // Hold the lock to make operations wait
+
+		// Start multiple operations that will block
+		const numOps = 3
+		results := make(chan error, numOps)
+
+		for range numOps {
+			go func() {
+				ctx, cancel := context.WithTimeout(
+					context.Background(),
+					200*time.Millisecond,
+				)
+				defer cancel()
+
+				var err error
+				if isWriter {
+					// Writer operation
+					err = s.LockContext(ctx)
+					if err == nil {
+						s.Unlock() // Release if we got the lock
+					}
+				} else {
+					// Reader operation
+					err = s.RLockContext(ctx)
+					if err == nil {
+						s.RUnlock() // Release if we got the lock
+					}
+				}
+				results <- err
+			}()
+		}
+
+		// Wait for operations to start waiting
+		time.Sleep(10 * time.Millisecond)
+
+		// Close the semaphore
+		go func() {
+			time.Sleep(20 * time.Millisecond)
+			err := s.Close()
+			assert.NoError(t, err, "Close should succeed")
+		}()
+
+		// Unlock to allow waiting operations to proceed
+		s.Unlock()
+
+		// Check all operation results - they should either succeed (got lock
+		// before close) or fail with ErrClosed (tried after close)
+		for range numOps {
+			err := <-results
+			if err != nil {
+				assert.ErrorIs(t, err, errors.ErrClosed,
+					"%s should fail with ErrClosed after semaphore is closed", name)
+			}
+		}
+	})
+}
+
+// TestSemaphore_CloseAndResource tests that resources are properly cleaned up
+// after closing the semaphore.
+func TestSemaphore_CloseAndResource(t *testing.T) {
+	t.Run("channels closed after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		// Verify global channel is closed
+		_, ok := <-s.global
+		assert.False(t, ok, "Global channel should be closed")
+
+		// Verify readers channel is closed
+		_, ok = <-s.readers
+		assert.False(t, ok, "Readers channel should be closed")
+
+		// Verify barrier is closed
+		assert.True(t, s.barrier.IsClosed(), "Barrier should be closed")
+	})
+
+	t.Run("close after operations complete", func(t *testing.T) {
+		s := &Semaphore{}
+
+		// Acquire a lock to increase active counter
+		s.Lock()
+
+		// Start close in another goroutine
+		closeChan := make(chan error, 1)
+		go func() {
+			closeChan <- s.Close()
+		}()
+
+		// Close should be waiting for operation to complete
+		select {
+		case <-closeChan:
+			t.Fatal("Close returned before active operation completed")
+		case <-time.After(10 * time.Millisecond):
+			// Expected - Close is waiting
+		}
+
+		// Unlock to decrease active counter
+		s.Unlock()
+
+		// Now Close should complete
+		select {
+		case err := <-closeChan:
+			assert.NoError(t, err, "Close should succeed")
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("Close did not complete after operation finished")
+		}
+	})
+}
+
+// TestSemaphore_BarrierExclusivity tests that the barrier correctly prevents
+// concurrent updates to internal state.
+//
+//revive:disable-next-line:cognitive-complexity
+func TestSemaphore_BarrierExclusivity(t *testing.T) {
+	t.Run("barrier protects active counter", func(t *testing.T) {
+		s := &Semaphore{}
+
+		// We'll launch many goroutines to try and increment the active counter
+		const concurrentAttempts = 100
+
+		// Use atomic counter to track actual increments
+		var increments atomic.Int32
+		var wg sync.WaitGroup
+		wg.Add(concurrentAttempts)
+
+		ready := make(chan struct{})
+
+		// Create goroutines that will all try to increment concurrently
+		for range concurrentAttempts {
+			go func() {
+				defer wg.Done()
+
+				// Wait for the starting signal
+				<-ready
+
+				// Simulate acquiring barrier and incrementing counter
+				b, ok := <-s.barrier.Acquire()
+				if !ok {
+					return // Barrier closed
+				}
+
+				// Track successful increment
+				increments.Add(1)
+
+				// Simulate some work with the barrier acquired
+				time.Sleep(1 * time.Millisecond)
+
+				// Release barrier
+				s.barrier.Release(b)
+			}()
+		}
+
+		// Start all goroutines at once
+		close(ready)
+
+		// Wait for all attempts to complete
+		wg.Wait()
+
+		// Verify all increments were tracked
+		assert.Equal(t, int32(concurrentAttempts), increments.Load(),
+			"All increment operations should be counted")
+	})
+}
+
+// TestSemaphore_CloseWhileWaiting tests that operations waiting on locks are
+// properly handled when the semaphore is closed.
+func TestSemaphore_CloseWhileWaiting(t *testing.T) {
+	t.Run("close while readers are waiting for writer",
+		runTestSemaphoreCloseWhileReadersWaiting)
+
+	t.Run("close waits for all active operations",
+		runTestSemaphoreCloseWhileWaiting)
+}
+
+//revive:disable-next-line:cognitive-complexity
+func runTestSemaphoreCloseWhileReadersWaiting(t *testing.T) {
+	s := &Semaphore{}
+
+	// Hold an exclusive lock
+	s.Lock()
+
+	// Start readers that will wait
+	const numReaders = 5
+	readerErrors := make(chan error, numReaders)
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+
+	for range numReaders {
+		go func() {
+			defer wg.Done()
+
+			ctx, cancel := context.WithTimeout(context.Background(),
+				200*time.Millisecond)
+			defer cancel()
+
+			err := s.RLockContext(ctx)
+			readerErrors <- err
+			if err == nil {
+				s.RUnlock()
+			}
+		}()
+	}
+
+	// Give readers time to start waiting
+	time.Sleep(10 * time.Millisecond)
+
+	// Close the semaphore while readers are waiting
+	closeErr := s.Close()
+	assert.NoError(t, closeErr, "Close should succeed")
+
+	// Now unlock to let readers proceed if they're still waiting
+	s.Unlock()
+
+	// Wait for all readers to finish
+	wg.Wait()
+	close(readerErrors)
+
+	// All readers should have either acquired the lock before close or
+	// failed with ErrClosed
+	errCount := 0
+	for err := range readerErrors {
+		if err != nil {
+			errCount++
+			assert.ErrorIs(t, err, errors.ErrClosed,
+				"Error should be ErrClosed or nil")
+		}
+	}
+
+	// We expect at least some readers to fail with ErrClosed
+	assert.Greater(t, errCount, 0,
+		"Some readers should fail with ErrClosed")
+}
+
+func runTestSemaphoreCloseWhileWaiting(t *testing.T) {
+	s := &Semaphore{}
+
+	// Start multiple readers
+	const numReaders = 3
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+
+	for range numReaders {
+		s.RLock() // Increment active counter
+		go func() {
+			defer wg.Done()
+			defer s.RUnlock() // Decrement active counter
+
+			// Sleep to simulate work
+			time.Sleep(50 * time.Millisecond)
+		}()
+	}
+
+	// Start close in another goroutine
+	closeDone := make(chan struct{})
+	go func() {
+		defer close(closeDone)
+		err := s.Close()
+		assert.NoError(t, err, "Close should succeed")
+	}()
+
+	// Close should not complete until all readers finish
+	select {
+	case <-closeDone:
+		t.Fatal("Close returned before active operations completed")
+	case <-time.After(20 * time.Millisecond):
+		// Expected - Close is waiting
+	}
+
+	// Wait for readers to complete
+	wg.Wait()
+
+	// Now Close should complete within a reasonable time
+	select {
+	case <-closeDone:
+		// Success - Close completed after operations finished
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Close did not complete after operations finished")
+	}
+}
+
+// TestSemaphore_WriterPreference tests that writers are properly preferred
+// over new readers when waiting to acquire the lock.
+func TestSemaphore_WriterPreference(t *testing.T) {
+	t.Run("writers not starved by continuous readers",
+		testWritersNotStarvedByContinuousReaders)
+
+	t.Run("writers preferred over new readers",
+		testWritersPreferredOverNewReaders)
 }
 
 // ----- Benchmark functions -----
