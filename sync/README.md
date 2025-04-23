@@ -43,12 +43,15 @@ leaked, even during panic scenarios.
     implementation with counting semaphore algorithms.
   * [`spinlock`][sync-spinlock-link]: Contains a lightweight spinlock
     implementation of `mutex.Mutex`.
+  * [`workgroup`][sync-workgroup-link]: Provides concurrent task management and
+    synchronisation within a shared lifecycle.
 
 [sync-link]: https://pkg.go.dev/darvaza.org/x/sync
 [sync-errors-link]: https://pkg.go.dev/darvaza.org/x/sync/errors
 [sync-mutex-link]: https://pkg.go.dev/darvaza.org/x/sync/mutex
 [sync-semaphore-link]: https://pkg.go.dev/darvaza.org/x/sync/semaphore
 [sync-spinlock-link]: https://pkg.go.dev/darvaza.org/x/sync/spinlock
+[sync-workgroup-link]: https://pkg.go.dev/darvaza.org/x/sync/workgroup
 
 ## Interfaces
 
@@ -231,6 +234,71 @@ defer lock.Unlock()
 Benchmark testing shows SpinLock is efficient for operations that complete
 quickly, as it avoids the overhead of parking and unparking goroutines or
 using channels.
+
+## Workgroup
+
+The `workgroup` package provides concurrent task management and synchronisation
+for coordinating multiple operations within a shared lifecycle.
+
+```go
+type Group struct{}
+```
+
+Unlike `sync.WaitGroup`, the `workgroup.Group` integrates with contexts for
+cancellation propagation and lifecycle management of concurrent operations.
+
+### Key features
+
+* Context integration for propagating cancellation signals
+* Coordinated lifecycle management for concurrent tasks
+* Graceful shutdown of operations
+* Error tracking and propagation
+* Concurrent safety for multi-goroutine use
+
+### Group Methods
+
+* `Context() context.Context`: Returns the context associated with the Group
+* `Err() error`: Returns the cancellation cause, if any
+* `IsCancelled() bool`: Reports whether the Group has been cancelled
+* `Cancelled() <-chan struct{}`: Returns a channel closed on cancellation
+* `Done() <-chan struct{}`: Returns a channel closed when all tasks complete
+* `Wait() error`: Blocks until all tasks complete
+* `Cancel(error) bool`: Cancels the Group with an optional error cause
+* `Close() error`: Cancels the Group and waits for all tasks to complete
+* `Go(func(context.Context)) error`: Spawns a new goroutine with context
+* `GoCatch(func(context.Context) error, func(context.Context, error) error) error`:
+  Spawns a goroutine with error handling and error-triggered cancellation
+
+### Group Example usage
+
+```go
+wg := workgroup.New(ctx)
+defer wg.Close()
+
+// Add tasks to the workgroup
+wg.Go(func(ctx context.Context) {
+    // Task implementation with context-based cancellation
+    select {
+    case <-ctx.Done():
+        return // respond to cancellation
+    case <-time.After(1 * time.Second):
+        // do work
+    }
+})
+
+// Wait for all tasks to complete or context to be cancelled
+if err := wg.Wait(); err != nil {
+    // Handle error
+}
+```
+
+### Group Implementation details
+
+* Propagates cancellation signals from parent contexts to all tasks
+* Provides hooks for cancellation via `OnCancel` field
+* Safe for concurrent use from multiple goroutines
+* Supports reuse after completion if not cancelled
+* Error tracking distinguishes between normal cancellation and error causes
 
 ## Utility Functions
 
