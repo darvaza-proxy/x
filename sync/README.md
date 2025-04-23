@@ -467,10 +467,41 @@ cancellation propagation and lifecycle management of concurrent operations.
 * Graceful shutdown of operations
 * Error tracking and propagation
 * Concurrent safety for multi-goroutine use
+* **Concurrency limiting**: Optional control over maximum concurrent tasks
+
+### Group Construction
+
+* `New(ctx context.Context)`: Creates a Group with unlimited concurrency
+* `NewLimited(ctx context.Context, limit int)`: Creates a Group with a
+  maximum limit on concurrent tasks
+
+When a limit is specified, the Group internally uses a Limiter implementation
+to control concurrency. This prevents excessive resource consumption by
+ensuring only a fixed number of tasks execute simultaneously, with additional
+tasks queued until execution slots become available.
+
+```go
+// Create a workgroup with a timeout and concurrency limit of 10
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+wg := workgroup.NewLimited(ctx, 10)
+defer wg.Close()
+
+// Even if 100 tasks are added, only 10 will run concurrently
+for i := 0; i < 100; i++ {
+    wg.Go(func(ctx context.Context) {
+        // Task implementation
+    })
+}
+```
+
+The concurrency limit is fixed at creation time and cannot be changed later.
 
 ### Group Methods
 
 * `Context() context.Context`: Returns the context associated with the Group
+* `Count() int`: Returns the number of active tasks in the Group
 * `Err() error`: Returns the cancellation cause, if any
 * `IsCancelled() bool`: Reports whether the Group has been cancelled
 * `Cancelled() <-chan struct{}`: Returns a channel closed on cancellation
@@ -481,6 +512,158 @@ cancellation propagation and lifecycle management of concurrent operations.
 * `Go(func(context.Context)) error`: Spawns a new goroutine with context
 * `GoCatch(func(context.Context) error, func(context.Context, error) error) error`:
   Spawns a goroutine with error handling and error-triggered cancellation
+
+### WaitGroup Interface
+
+The package also provides a `WaitGroup` interface for simpler goroutine
+management without context integration:
+
+```go
+type WaitGroup interface {
+    // IsClosed reports whether the WaitGroup has been closed.
+    IsClosed() bool
+
+    // Go spawns a new goroutine to execute the provided function.
+    // Returns an error if the WaitGroup is closed or otherwise invalid.
+    Go(func()) error
+
+    // Count returns the number of active goroutines.
+    Count() int
+
+    // Wait blocks until all goroutines complete.
+    Wait() error
+
+    // Close prevents adding new goroutines and optionally waits for
+    // existing ones to complete.
+    Close() error
+}
+```
+
+The `WaitGroup` interface provides a lightweight alternative when context
+propagation isn't needed, focusing on pure goroutine lifecycle management
+with explicit control over task creation and completion.
+
+### Runner Implementation
+
+The `Runner` struct implements the `WaitGroup` interface, providing a
+mechanism to spawn and coordinate multiple goroutines:
+
+```go
+type Runner struct{}
+```
+
+The Runner uses a `cond.CountZero` counter to track active goroutines and
+coordinates their execution lifecycle.
+
+#### Runner Characteristics
+
+* **Zero-dependency coordination**: No context integration, focused solely
+  on goroutine lifecycle management
+* **Safe concurrent access**: Thread-safe for all operations
+* **Automatic clean-up**: Resources are released when all goroutines complete
+  after closure
+* **Initialisation safety**: Methods check for proper initialisation before
+  executing
+* **Finalization support**: Uses runtime finalizers to ensure resource clean-up
+
+#### Runner Methods
+
+* `IsNil() bool`: Reports whether the Runner is nil or uninitialised
+* `IsClosed() bool`: Reports whether the Runner has been closed
+* `Count() int`: Returns the number of active goroutines
+* `Go(func()) error`: Spawns a new goroutine to execute the function
+* `Wait() error`: Blocks until all goroutines complete
+* `Close() error`: Prevents spawning new goroutines and waits for existing
+  ones to finish
+* `Init() error`: Initialises an uninitialised Runner
+
+#### Runner Example Usage
+
+```go
+// Create a new runner
+runner := workgroup.NewRunner()
+defer runner.Close()
+
+// Spawn goroutines
+for i := 0; i < 5; i++ {
+    i := i // Capture loop variable
+    _ = runner.Go(func() {
+        // Task implementation
+        fmt.Printf("Task %d running\n", i)
+        time.Sleep(100 * time.Millisecond)
+        fmt.Printf("Task %d complete\n", i)
+    })
+}
+
+// Wait for all goroutines to complete
+if err := runner.Wait(); err != nil {
+    // Handle error
+}
+```
+
+### Limiter Implementation
+
+The `Limiter` struct implements the `WaitGroup` interface with an added
+constraint on the maximum number of concurrently executing goroutines:
+
+```go
+type Limiter struct{}
+```
+
+The Limiter maintains a queue of pending functions when the concurrent limit
+is reached. These functions will be executed as running goroutines complete.
+
+#### Limiter Characteristics
+
+* **Concurrency control**: Limits the number of simultaneously running
+  goroutines
+* **Function queueing**: Automatically queues functions when the limit is
+  reached
+* **Safe concurrent access**: Thread-safe for all operations
+* **Graceful shutdown**: Once closed, releases resources after all active
+  goroutines complete
+* **Resource management**: Uses tokens to control access to execution slots
+
+#### Limiter Methods
+
+* `IsNil() bool`: Reports whether the Limiter is nil or uninitialised
+* `IsClosed() bool`: Reports whether the Limiter has been closed
+* `Size() int`: Returns the maximum number of goroutines that can run
+  concurrently
+* `Count() int`: Returns the number of currently active goroutines
+* `Len() int`: Returns the total number of active and queued goroutines
+* `Go(func()) error`: Spawns a new goroutine or queues the function if at
+  capacity
+* `Wait() error`: Blocks until all goroutines complete
+* `Close() error`: Prevents spawning new goroutines and waits for existing
+  ones to finish
+* `Init(limit int) error`: Initialises with the specified worker limit
+
+#### Limiter Example Usage
+
+```go
+// Create a new limiter with maximum 3 concurrent goroutines
+limiter, err := workgroup.NewLimiter(3)
+if err != nil {
+    log.Fatalf("Failed to create limiter: %v", err)
+}
+defer limiter.Close()
+
+// Spawn 10 goroutines (only 3 will run concurrently)
+for i := 0; i < 10; i++ {
+    i := i // Capture loop variable
+    _ = limiter.Go(func() {
+        fmt.Printf("Task %d started\n", i)
+        time.Sleep(200 * time.Millisecond)
+        fmt.Printf("Task %d completed\n", i)
+    })
+}
+
+// Wait for all goroutines to complete
+if err := limiter.Wait(); err != nil {
+    log.Fatalf("Error waiting for completion: %v", err)
+}
+```
 
 ### Group Example usage
 
