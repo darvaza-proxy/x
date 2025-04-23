@@ -23,6 +23,9 @@ const (
 type Semaphore struct {
 	mu sync.RWMutex
 
+	// barrier controls access to the semaphore state.
+	barrier cond.Barrier
+
 	// global holds the state of the semaphore.
 	// true if an exclusive lock is held,
 	// false if a reader lock is held.
@@ -31,6 +34,8 @@ type Semaphore struct {
 	readers chan int
 	// writers tracks if there are writers waiting
 	writers cond.CountZero
+	// active tracks locks sessions and waiters
+	active cond.CountZero
 }
 
 func (s *Semaphore) lazyInit() error {
@@ -40,7 +45,7 @@ func (s *Semaphore) lazyInit() error {
 
 	// RO
 	s.mu.RLock()
-	if s.global != nil {
+	if !s.barrier.IsNil() {
 		s.mu.RUnlock()
 		return nil
 	}
@@ -48,7 +53,7 @@ func (s *Semaphore) lazyInit() error {
 
 	// RW
 	s.mu.Lock()
-	if s.global == nil {
+	if s.barrier.IsNil() {
 		s.init()
 	}
 	s.mu.Unlock()
@@ -56,25 +61,85 @@ func (s *Semaphore) lazyInit() error {
 }
 
 func (s *Semaphore) init() {
+	_ = s.active.Init(0)
 	_ = s.writers.Init(0)
 
 	s.global = make(chan bool, 1)
 	s.readers = make(chan int, 1)
 }
 
-func (s *Semaphore) checkContext(ctx context.Context) error {
+//revive:disable-next-line:flag-parameter
+func (s *Semaphore) acquire(allowClosed bool) (cond.Token, error) {
+	if err := s.lazyInit(); err != nil {
+		return nil, err
+	}
+
+	t, ok := <-s.barrier.Acquire()
+	if ok || allowClosed {
+		return t, nil
+	}
+	return nil, errors.ErrClosed
+}
+
+//revive:disable-next-line:flag-parameter
+func (s *Semaphore) acquireContext(ctx context.Context, allowClosedOrCancelled bool) (cond.Token, error) {
 	err := s.lazyInit()
 	switch {
 	case err != nil:
-		return err
+		// invalid
+		return nil, err
 	case ctx == nil:
-		return errors.ErrNilContext
+		// context is required
+		return nil, errors.ErrNilContext
+	case allowClosedOrCancelled:
+		// no further checks
+		t := <-s.barrier.Acquire()
+		return t, nil
 	default:
-		return nil
+		t, ok := <-s.barrier.Acquire()
+		if !ok {
+			// closed
+			return nil, errors.ErrClosed
+		} else if err := ctx.Err(); err != nil {
+			// cancelled
+			s.barrier.Release(t)
+			return nil, err
+		}
+
+		return t, nil
 	}
 }
 
-// TODO: implement Semaphore.Close
+// Close releases any resources associated with the Semaphore.
+// Returns an error if the Semaphore cannot be properly closed.
+// After calling Close, the Semaphore cannot be used again.
+func (s *Semaphore) Close() error {
+	_, err := s.acquire(false)
+	if err != nil {
+		return err
+	}
+
+	// close barrier
+	s.barrier.Close()
+
+	if s.active.Value() > 0 {
+		// wait until everyone is done to free resources
+		go func() {
+			_ = s.active.Wait()
+			defer s.doClose()
+		}()
+	} else {
+		// free resources
+		s.doClose()
+	}
+	return nil
+}
+
+func (s *Semaphore) doClose() {
+	close(s.global)
+	close(s.readers)
+	s.writers.Close()
+}
 
 // LockContext attempts to acquire an exclusive lock with a context.
 // Blocks until the lock is acquired or the context is cancelled.
@@ -98,6 +163,9 @@ func (s *Semaphore) Lock() {
 func (s *Semaphore) TryLock() bool {
 	ok, err := s.doTryLock()
 	if err != nil {
+		if errors.Is(err, errors.ErrClosed) {
+			return false
+		}
 		core.Panic(err)
 	}
 	return ok
@@ -125,6 +193,9 @@ func (s *Semaphore) RLock() {
 func (s *Semaphore) TryRLock() bool {
 	ok, err := s.doTryRLock()
 	if err != nil {
+		if errors.Is(err, errors.ErrClosed) {
+			return false
+		}
 		core.Panic(err)
 	}
 	return ok
@@ -147,16 +218,33 @@ func (s *Semaphore) RUnlock() {
 }
 
 func (s *Semaphore) doLockContext(ctx context.Context) error {
-	if err := s.checkContext(ctx); err != nil {
-		// invalid
+	var locked bool
+
+	// acquire barrier, unless closed.
+	b, err := s.acquireContext(ctx, false)
+	if err != nil {
 		return err
 	}
 
+	// increment active counter, decrease on error.
+	s.active.Inc()
+	defer func() {
+		if !locked {
+			s.active.Dec()
+		}
+	}()
+
+	// increment writers counter, decrease on error.
 	s.writers.Inc()
 	defer s.writers.Dec()
 
+	// release token
+	s.barrier.Release(b)
+
 	select {
 	case s.global <- exclusiveLock:
+		// success, remains active.
+		locked = true
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -164,47 +252,89 @@ func (s *Semaphore) doLockContext(ctx context.Context) error {
 }
 
 func (s *Semaphore) doLock() error {
-	if err := s.lazyInit(); err != nil {
-		// invalid
+	var locked bool
+
+	// acquire barrier, unless closed.
+	b, err := s.acquire(false)
+	if err != nil {
 		return err
 	}
 
+	// increment active counter, decrease on error
+	s.active.Inc()
+	defer func() {
+		if !locked {
+			s.active.Dec()
+		}
+	}()
+
+	// increment writers counter, decrease on error
 	s.writers.Inc()
 	defer s.writers.Dec()
 
+	// release barrier
+	s.barrier.Release(b)
+
+	// and wait
 	s.global <- exclusiveLock
+	locked = true
 	return nil
 }
 
 func (s *Semaphore) doTryLock() (bool, error) {
-	if err := s.lazyInit(); err != nil {
+	var locked bool
+
+	// acquire barrier, unless closed.
+	b, err := s.acquire(false)
+	if err != nil {
 		return false, err
 	}
 
+	// increment active counter, decrease on failure
+	s.active.Inc()
+	defer func() {
+		if !locked {
+			s.active.Dec()
+		}
+	}()
+
+	// attempt non-blocking exclusive lock
 	select {
 	case s.global <- exclusiveLock:
-		return true, nil
+		locked = true
 	default:
-		return false, nil
+		locked = false
 	}
+
+	// release barrier
+	s.barrier.Release(b)
+
+	return locked, nil
 }
 
 func (s *Semaphore) doUnlock() error {
 	var errMsg string
 
-	if err := s.lazyInit(); err != nil {
-		// invalid
+	// acquire barrier, don't mind closed.
+	b, err := s.acquire(true)
+	if err != nil {
 		return err
 	}
+	// release barrier, don't mind if nil
+	s.barrier.Release(b)
 
 	select {
-	case exclusive := <-s.global:
-		if exclusive {
-			// success
+	case exclusive, ok := <-s.global:
+		switch {
+		case !ok:
+			errMsg = "unlock of unlocked mutex"
+		case !exclusive:
+			errMsg = "unlock of read-locked mutex"
+		default:
+			// success. decrement active counter
+			s.active.Dec()
 			return nil
 		}
-
-		errMsg = "unlock of read-locked mutex"
 	default:
 		errMsg = "unlock of unlocked mutex"
 	}
@@ -216,37 +346,75 @@ func (s *Semaphore) doUnlock() error {
 }
 
 func (s *Semaphore) doRLockContext(ctx context.Context) error {
-	err := s.checkContext(ctx)
-	switch {
-	case err != nil:
-		// invalid
+	var locked bool
+
+	// acquire barrier, unless closed
+	b, err := s.acquireContext(ctx, false)
+	if err != nil {
 		return err
-	case s.unsafeRLock(ctx.Done()):
-		// cancelled
+	}
+
+	// increment active counter, decrease on error
+	s.active.Inc()
+	defer func() {
+		if !locked {
+			s.active.Dec()
+		}
+	}()
+
+	// release barrier
+	s.barrier.Release(b)
+
+	// lock
+	err = s.unsafeRLock(ctx.Done())
+	switch {
+	case err == nil:
+		locked = true
+		return nil
+	case err == context.Canceled:
 		return ctx.Err()
 	default:
-		// success
-		return nil
+		return err
 	}
 }
 
 func (s *Semaphore) doRLock() error {
-	if err := s.lazyInit(); err != nil {
-		// invalid
+	var locked bool
+
+	// acquire barrier, unless closed
+	b, err := s.acquire(false)
+	if err != nil {
 		return err
 	}
 
-	s.unsafeRLock(nil) // nil means not abort
-	return nil
+	// increment active counter, decrease on failure
+	s.active.Inc()
+	defer func() {
+		if !locked {
+			s.active.Dec()
+		}
+	}()
+
+	// release barrier
+	s.barrier.Release(b)
+
+	// lock
+	err = s.unsafeRLock(nil)
+	if err == nil {
+		locked = true
+	}
+	return err
 }
 
-func (s *Semaphore) unsafeRLock(abort <-chan struct{}) (cancelled bool) {
+//revive:disable-next-line:cognitive-complexity
+func (s *Semaphore) unsafeRLock(abort <-chan struct{}) error {
 	var readers int
+	var ok bool
 
 	// Check if there are writers waiting before attempting to acquire a read lock
 	if err := s.writers.WaitAbort(abort); err != nil {
 		// cancelled
-		return true
+		return err
 	}
 
 	select {
@@ -256,34 +424,60 @@ func (s *Semaphore) unsafeRLock(abort <-chan struct{}) (cancelled bool) {
 		if isCancelled(abort) {
 			// but cancelled. release lock and fail
 			<-s.global
-			return true
+			return context.Canceled
 		}
-	case readers = <-s.readers:
+	case readers, ok = <-s.readers:
+		if !ok {
+			return errors.ErrClosed
+		}
+
 		// another reader.
 
 		if isCancelled(abort) {
 			// cancelled. put back what we took from readers channel
 			s.readers <- readers
-			return true
+			return context.Canceled
 		}
-	case <-abort: // nil channels are ignored
-		// cancelled.
-		return true
+	case <-abort:
+		// cancelled
+		return context.Canceled
 	}
 
 	// increase readers count and let the next reader in.
 	readers++
 	s.readers <- readers
-	return false
+	return nil
+}
+
+func isCancelled(abort <-chan struct{}) bool {
+	select {
+	case <-abort: // nil channels are ignored
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Semaphore) doTryRLock() (bool, error) {
 	var readers int
+	var locked bool
 
-	if err := s.lazyInit(); err != nil {
-		// invalid
+	// acquire barrier, unless closed.
+	b, err := s.acquire(false)
+	if err != nil {
 		return false, err
 	}
+
+	// increase active counter, decrease on failure
+	s.active.Inc()
+	defer func() {
+		if !locked {
+			s.active.Dec()
+		}
+	}()
+
+	// release barrier
+	s.barrier.Release(b)
 
 	// Don't try to acquire read lock if writers are waiting
 	if s.writers.Value() > 0 {
@@ -305,38 +499,26 @@ func (s *Semaphore) doTryRLock() (bool, error) {
 	s.readers <- readers
 
 	// success
+	locked = true
 	return true, nil
 }
 
-func isCancelled(abort <-chan struct{}) bool {
-	select {
-	case <-abort: // nil channels are ignored
-		return true
-	default:
-		return false
-	}
-}
-
 func (s *Semaphore) doRUnlock() error {
-	var readers int
-
-	if err := s.lazyInit(); err != nil {
+	// acquire barrier, don't mind closed.
+	b, err := s.acquire(true)
+	if err != nil {
 		return err
 	}
+	// release barrier, don't mind if nil
+	s.barrier.Release(b)
 
-	select {
-	case s.global <- readerLock:
-		// it wasn't locked. wtf
-		// release unwanted lock
-		<-s.global
-
-		// bad developer, die. now.
-		err := core.NewPanicError(2, "unlock of unlocked mutex")
-		core.Panic(err)
-	case readers = <-s.readers:
-		// decrement
-		readers--
+	readers, ok := <-s.readers
+	if !ok {
+		return errors.ErrClosed
 	}
+
+	// decrement readers count
+	readers--
 
 	if readers == 0 {
 		// last. release global lock
@@ -345,6 +527,9 @@ func (s *Semaphore) doRUnlock() error {
 		// update readers count, and let the next reader in.
 		s.readers <- readers
 	}
+
+	// success. decrement active counter
+	s.active.Dec()
 	return nil
 }
 

@@ -2,14 +2,17 @@ package semaphore
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/mutex"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // doSomething simulates a short operation by sleeping for 10ms.
@@ -901,6 +904,296 @@ func testWritersPreferredOverNewReaders(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Reader failed to acquire lock after writer completed")
 	}
+}
+
+// TestSemaphore_Close tests the behaviour of the Close method.
+//
+//revive:disable-next-line:cognitive-complexity
+func TestSemaphore_Close(t *testing.T) {
+	t.Run("close idle", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		assert.NoError(t, err, "Closing an idle semaphore failed")
+
+		// Verify internal state indicates closed (best effort)
+		assert.True(t, s.barrier.IsClosed(),
+			"Barrier should be closed")
+	})
+
+	t.Run("double close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "First close should succeed")
+
+		err = s.Close()
+		assert.Error(t, err, "Second close should fail")
+		assert.ErrorIs(t, err, errors.ErrClosed,
+			"Error should be ErrClosed")
+	})
+
+	t.Run("close nil", func(t *testing.T) {
+		var s *Semaphore
+		// lazyInit called by Close should return ErrNilReceiver
+		err := s.Close()
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, errors.ErrNilReceiver)
+	})
+}
+
+// TestSemaphore_CloseWithActive tests closing a semaphore while operations
+// are in progress.
+func TestSemaphore_CloseWithActive(t *testing.T) {
+	testCloseWithActiveOps(t, "readers", true, 3)
+	testCloseWithActiveOps(t, "writer", false, 1)
+}
+
+// testCloseWithActiveOps tests closing a semaphore while active lock operations
+// are in progress. It verifies that Close blocks until all operations complete.
+// isReader determines whether to test with readers (true) or a writer (false).
+// count specifies the number of concurrent operations.
+//
+//revive:disable-next-line:flag-parameter
+//revive:disable-next-line:cognitive-complexity
+func testCloseWithActiveOps(t *testing.T, name string, isReader bool, count int) {
+	t.Helper()
+
+	t.Run(fmt.Sprintf("close with active %s", name), func(t *testing.T) {
+		s := &Semaphore{}
+
+		// Channel to coordinate when operations can release their locks
+		releaseSignal := make(chan struct{})
+
+		// Acquire locks from goroutines
+		var wg sync.WaitGroup
+		var completionWg sync.WaitGroup
+
+		wg.Add(count)
+		completionWg.Add(count)
+
+		for range count {
+			go func() {
+				defer completionWg.Done()
+
+				if isReader {
+					s.RLock()
+					wg.Done() // Signal that the lock is acquired
+
+					// Wait for signal before releasing the lock
+					<-releaseSignal
+
+					s.RUnlock()
+				} else {
+					s.Lock()
+					wg.Done() // Signal that the lock is acquired
+
+					// Wait for signal before releasing the lock
+					<-releaseSignal
+
+					s.Unlock()
+				}
+			}()
+		}
+
+		// Wait for operations to acquire their locks
+		wg.Wait()
+
+		// Start close in a goroutine
+		closeDone := make(chan struct{})
+		closeErr := make(chan error, 1)
+
+		go func() {
+			err := s.Close()
+			closeErr <- err
+			close(closeDone)
+		}()
+
+		// Close should block until operations are done
+		select {
+		case <-closeDone:
+			t.Fatal("Close returned before operations finished")
+		case <-time.After(30 * time.Millisecond):
+			// Expected - Close is still waiting for operations
+		}
+
+		// Now allow operations to release their locks
+		close(releaseSignal)
+
+		// Wait for all operations to complete
+		completionWg.Wait()
+
+		// Now Close should complete
+		select {
+		case err := <-closeErr:
+			assert.NoError(t, err, "Close should succeed after operations finished")
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("Close did not complete after operations finished")
+		}
+	})
+}
+
+// TestSemaphore_OperationsAfterClose tests that operations on a closed
+// semaphore behave appropriately.
+func TestSemaphore_OperationsAfterClose(t *testing.T) {
+	t.Run("lock after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		assert.Panics(t, func() {
+			s.Lock()
+		}, "Lock should panic on closed semaphore")
+	})
+
+	t.Run("try lock after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		acquired := s.TryLock()
+		assert.False(t, acquired, "TryLock should fail on closed semaphore")
+	})
+
+	t.Run("lock context after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		ctx := context.Background()
+		err = s.LockContext(ctx)
+		assert.Error(t, err, "LockContext should fail on closed semaphore")
+		assert.ErrorIs(t, err, errors.ErrClosed)
+	})
+
+	t.Run("rlock after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		assert.Panics(t, func() {
+			s.RLock()
+		}, "RLock should panic on closed semaphore")
+	})
+
+	t.Run("try rlock after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		acquired := s.TryRLock()
+		assert.False(t, acquired, "TryRLock should fail on closed semaphore")
+	})
+
+	t.Run("rlock context after close", func(t *testing.T) {
+		s := &Semaphore{}
+		err := s.Close()
+		require.NoError(t, err, "Close should succeed")
+
+		ctx := context.Background()
+		err = s.RLockContext(ctx)
+		assert.Error(t, err, "RLockContext should fail on closed semaphore")
+		assert.ErrorIs(t, err, errors.ErrClosed)
+	})
+
+	t.Run("unlock after close panics", func(t *testing.T) {
+		s := &Semaphore{}
+		s.Lock() // Acquire the lock first
+
+		// Close the semaphore in another goroutine
+		done := make(chan struct{})
+		go func() {
+			err := s.Close()
+			assert.NoError(t, err, "Close should succeed")
+			close(done)
+		}()
+
+		// Wait briefly to let Close start but not finish
+		time.Sleep(10 * time.Millisecond)
+
+		// Unlock should work since we had the lock before closing
+		s.Unlock()
+
+		// Wait for Close to complete
+		<-done
+
+		// But a second Unlock should panic
+		assert.Panics(t, func() {
+			s.Unlock()
+		}, "Unlock after close should panic")
+	})
+}
+
+// TestSemaphore_CloseWithWaiting tests closing a semaphore while operations
+// are waiting to acquire locks.
+func TestSemaphore_CloseWithWaiting(t *testing.T) {
+	testCloseWithWaitingOps(t, "writers", true)
+	testCloseWithWaitingOps(t, "readers", false)
+}
+
+// testCloseWithWaitingOps tests closing a semaphore whilst operations (readers or writers)
+// are waiting to acquire the lock.
+// isWriter determines whether to test with waiting writers (true) or readers (false).
+//
+//revive:disable-next-line:flag-parameter
+//revive:disable-next-line:cognitive-complexity
+func testCloseWithWaitingOps(t *testing.T, name string, isWriter bool) {
+	t.Helper()
+	t.Run(fmt.Sprintf("close with waiting %s", name), func(t *testing.T) {
+		s := &Semaphore{}
+		s.Lock() // Hold the lock to make operations wait
+
+		// Start multiple operations that will block
+		const numOps = 3
+		results := make(chan error, numOps)
+
+		for range numOps {
+			go func() {
+				ctx, cancel := context.WithTimeout(
+					context.Background(),
+					200*time.Millisecond,
+				)
+				defer cancel()
+
+				var err error
+				if isWriter {
+					// Writer operation
+					err = s.LockContext(ctx)
+					if err == nil {
+						s.Unlock() // Release if we got the lock
+					}
+				} else {
+					// Reader operation
+					err = s.RLockContext(ctx)
+					if err == nil {
+						s.RUnlock() // Release if we got the lock
+					}
+				}
+				results <- err
+			}()
+		}
+
+		// Wait for operations to start waiting
+		time.Sleep(10 * time.Millisecond)
+
+		// Close the semaphore
+		go func() {
+			time.Sleep(20 * time.Millisecond)
+			err := s.Close()
+			assert.NoError(t, err, "Close should succeed")
+		}()
+
+		// Unlock to allow waiting operations to proceed
+		s.Unlock()
+
+		// Check all operation results - they should either succeed (got lock
+		// before close) or fail with ErrClosed (tried after close)
+		for range numOps {
+			err := <-results
+			if err != nil {
+				assert.ErrorIs(t, err, errors.ErrClosed,
+					"%s should fail with ErrClosed after semaphore is closed", name)
+			}
+		}
+	})
 }
 
 // ----- Benchmark functions -----
