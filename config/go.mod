@@ -1,13 +1,15 @@
 module darvaza.org/x/config
 
-go 1.22
+go 1.23
+
+toolchain go1.24.3
 
 require darvaza.org/core v0.16.3
 
 require (
 	github.com/amery/defaults v0.1.0
 	github.com/go-playground/validator/v10 v10.26.0
-	mvdan.cc/sh/v3 v3.10.0
+	mvdan.cc/sh/v3 v3.11.0
 )
 
 require (
