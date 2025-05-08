@@ -291,3 +291,144 @@ func TestAsEqualNil(t *testing.T) {
 		AsEqual[float64](nil)
 	}, "AsEqual(nil) should panic with appropriate error message")
 }
+
+// TestAsCmp ensures that AsCmp correctly converts a less-than condition function
+// to a comparison function for various data types.
+//
+//revive:disable-next-line:cognitive-complexity
+func TestAsCmp(t *testing.T) {
+	t.Run("with integers", func(t *testing.T) {
+		// Create a less-than condition function
+		less := func(a, b int) bool {
+			return a < b
+		}
+
+		tests := []struct {
+			name     string
+			a, b     int
+			expected int
+		}{
+			{"less than", 5, 10, -1},
+			{"greater than", 10, 5, 1},
+			{"equal", 5, 5, 0},
+			{"with zero", 0, 1, -1},
+			{"negative numbers", -5, -3, -1},
+			{"mixed signs", -1, 1, -1},
+		}
+
+		cmp := AsCmp(less)
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				assert.Equal(t, tt.expected, cmp(tt.a, tt.b),
+					"AsCmp should convert less function correctly for %d and %d", tt.a, tt.b)
+			})
+		}
+	})
+
+	t.Run("with strings", func(t *testing.T) {
+		// Create a less-than condition function for strings
+		less := func(a, b string) bool {
+			return a < b
+		}
+
+		tests := []struct {
+			name     string
+			a, b     string
+			expected int
+		}{
+			{"less than", "apple", "banana", -1},
+			{"greater than", "zebra", "apple", 1},
+			{"equal", "cherry", "cherry", 0},
+			{"empty string", "", "something", -1},
+		}
+
+		cmp := AsCmp(less)
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				assert.Equal(t, tt.expected, cmp(tt.a, tt.b),
+					"AsCmp should convert less function correctly for %q and %q", tt.a, tt.b)
+			})
+		}
+	})
+
+	t.Run("with custom struct", func(t *testing.T) {
+		type version struct {
+			major, minor, patch int
+		}
+
+		// A less condition for semantic versioning
+		less := func(a, b version) bool {
+			if a.major != b.major {
+				return a.major < b.major
+			}
+			if a.minor != b.minor {
+				return a.minor < b.minor
+			}
+			return a.patch < b.patch
+		}
+
+		tests := []struct {
+			name     string
+			a, b     version
+			expected int
+		}{
+			{"lower major version", version{1, 0, 0}, version{2, 0, 0}, -1},
+			{"higher major version", version{2, 0, 0}, version{1, 0, 0}, 1},
+			{"same major different minor", version{1, 2, 0}, version{1, 3, 0}, -1},
+			{"same major and minor different patch", version{1, 2, 3}, version{1, 2, 4}, -1},
+			{"identical versions", version{1, 2, 3}, version{1, 2, 3}, 0},
+		}
+
+		cmp := AsCmp(less)
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				assert.Equal(t, tt.expected, cmp(tt.a, tt.b),
+					"AsCmp should correctly convert version comparison for %v and %v", tt.a, tt.b)
+			})
+		}
+	})
+}
+
+// TestAsCmpNil confirms that AsCmp panics when given a nil function.
+func TestAsCmpNil(t *testing.T) {
+	assert.Panics(t, func() {
+		AsCmp[string](nil)
+	}, "AsCmp(nil) should panic with appropriate error message")
+}
+
+// TestAsCmpAsLessCycle confirms that combining AsCmp and AsLess returns
+// a function equivalent to the original condition function.
+func TestAsCmpAsLessCycle(t *testing.T) {
+	// Original less function
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	// Convert to comparison function and back to less function
+	backToLess := AsLess(AsCmp(less))
+
+	tests := []struct {
+		name     string
+		a, b     int
+		expected bool
+	}{
+		{"less than", 3, 8, true},
+		{"greater than", 10, 5, false},
+		{"equal", 7, 7, false},
+		{"negative numbers", -5, -2, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Function composition should preserve original behavior
+			assert.Equal(t, tt.expected, backToLess(tt.a, tt.b),
+				"AsLess(AsCmp(less)) should match original less function for %d and %d",
+				tt.a, tt.b)
+			assert.Equal(t, tt.expected, less(tt.a, tt.b),
+				"Original less function for %d and %d", tt.a, tt.b)
+		})
+	}
+}

@@ -40,6 +40,25 @@ func AsLess[T any](cmp CompFunc[T]) CondFunc[T] {
 	}
 }
 
+// AsCmp converts a less-than condition function into a CompFunc.
+// Panics if the provided condition function is nil.
+func AsCmp[T any](less CondFunc[T]) CompFunc[T] {
+	if less == nil {
+		core.Panic(newNilCondFuncErr())
+	}
+
+	return func(a, b T) int {
+		switch {
+		case less(a, b):
+			return -1
+		case less(b, a):
+			return 1
+		default:
+			return 0
+		}
+	}
+}
+
 // AsEqual converts a CompFunc into an equality condition function.
 // Returns a function that evaluates to true if the first argument equals
 // the second. Panics if the provided comparison function is nil.
