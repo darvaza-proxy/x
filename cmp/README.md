@@ -49,6 +49,9 @@ Conversion functions:
   to a "less than" condition function.
 * `AsEqual[T any](cmp CompFunc[T]) CondFunc[T]`: Converts a comparison
   function to an equality condition function.
+* `AsCmp[T any](less CondFunc[T]) CompFunc[T]`: Converts a "less than" condition
+  function to a comparison function. Returns -1 if less(a,b) is true, 1 if less(b,a)
+  is true, and 0 otherwise.
 
 ## `Matcher`
 
