@@ -1,6 +1,6 @@
 # `darvaza.org/x/container/slices`
 
-The `slices` package provides a higher level abstractions and functionality
+The `slices` package provides a higher-level abstraction and functionality
 based on the standard Go slices.
 
 ## `Set[T]`

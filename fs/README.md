@@ -1,10 +1,9 @@
 # Helpers to work with fs.FS
 
-## Globing
+## Globbing
 
-We use the excellent https://github.com/gobwas/glob to compile
-file listing patterns, and `**` is supported to ignore the `/`
-delimiters
+We use the excellent [github.com/gobwas/glob](https://github.com/gobwas/glob) to compile
+file listing patterns, and `**` is supported to ignore the `/` delimiters
 
 * `Matcher` a type alias of glob.Glob to keep the import-space clean
 * `GlobCompile` compiles a list of patterns
@@ -60,8 +59,8 @@ gain parity with the `os` package.
 
 ### fs.File
 
- * `fs.File`
- * `fs.ReadDirFile`
+* `fs.File`
+* `fs.ReadDirFile`
 
 ## Proxies
 
@@ -86,3 +85,7 @@ and proxies of commonly used symbols.
 ### Functions
 
 * `fs.ValidPath`
+
+## Development
+
+For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
