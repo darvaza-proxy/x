@@ -5,7 +5,7 @@
 ### Middleware
 
 To facilitate the implementation of standard `func(http.Handler) http.Handler`
-middleware the `MiddlewareFunc` interface and the `NewMiddleware()` factory were
+middleware, the `MiddlewareFunc` interface and the `NewMiddleware()` factory were
 created.
 
 ```go
@@ -13,7 +13,7 @@ type MiddlewareFunc func(rw http.ResponseWriter, req *http.Request, next http.Ha
 ```
 
 The `next` argument is never `nil`, and a do-nothing `NoMiddleware` middleware was introduced.
-When `NoMiddleware()` is called without a handler, it will return a 404 handler.
+When the `NoMiddleware()` is called without a handler, it will return a 404 handler.
 
 Alternatively there is `MiddlewareErrorFunc` and `NewMiddlewareError()` that allows the handler
 to return an error that is then passed to `HandleError()` and then to the registered
@@ -57,6 +57,10 @@ option we consider unless it's explicitly forbidden.
 
 `qlist.BestEncoding()` is a special case of `BestQualityWithIdentity()` using the `Accept`
 header, and falling back to `"identity"` as magic type.
+
+## Development
+
+For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
 
 ### See also
 

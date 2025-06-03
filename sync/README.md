@@ -635,3 +635,7 @@ This package only depends on the standard library and
 
 MIT. See `LICENCE.txt` in the `x/sync` directory of the repository for
 details.
+
+## Development
+
+For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).

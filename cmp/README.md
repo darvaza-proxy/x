@@ -84,12 +84,12 @@ making it act as a logical identity element.
 The package provides two concrete implementations of the `Matcher` interface:
 
 1. `ands[T]`: A slice-backed matcher that implements logical AND semantics
-     * Returns true if all contained matchers match the value
-     * An empty ands matcher matches everything (true)
+     * Returns true if all contained matchers match the value.
+     * An empty ands matcher matches everything (true).
 
 2. `ors[T]`: A slice-backed matcher that implements logical OR semantics
-     * Returns true if any contained matcher matches the value
-     * An empty ors matcher matches nothing (false)
+     * Returns true if any contained matcher matches the value.
+     * An empty ors matcher matches nothing (false).
 
 Both implementations handle nil matchers gracefully by ignoring them during
 matching.
@@ -284,6 +284,10 @@ as building blocks for more complex comparisons:
 
 All functions that accept custom comparison or condition functions will panic
 if a nil function is provided.
+
+## Development
+
+For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
 
 ## Dependencies
 

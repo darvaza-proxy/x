@@ -51,7 +51,11 @@ Wrappers for [`github.com/go-playground/validator/v10`][go-playground-validator]
 
 * `Validate()`
 * `AsValidationError()`
-* and `Prepare()`. calling `SetDefaults()` and `Validate()`.
+* and `Prepare()`, calling `SetDefaults()` and `Validate()`.
+
+## Development
+
+For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
 
 ## See also
 
