@@ -3,7 +3,7 @@ module darvaza.org/x/tls
 go 1.23.0
 
 require (
-	darvaza.org/core v0.16.3
+	darvaza.org/core v0.17.0
 	darvaza.org/slog v0.6.2
 	darvaza.org/x/container v0.2.8
 )

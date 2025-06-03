@@ -3,7 +3,7 @@ module darvaza.org/x/web
 go 1.23.0
 
 require (
-	darvaza.org/core v0.16.3
+	darvaza.org/core v0.17.0
 	darvaza.org/x/fs v0.4.3
 )
 

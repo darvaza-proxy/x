@@ -98,13 +98,13 @@ func newCertAdder(pool *CertPool, caOnly bool, errs *core.CompoundError) x509uti
 		case errs == nil, err == nil, err == x509utils.ErrIgnored:
 			// ignore
 		case fileName != "":
-			errs.AppendError(&fs.PathError{
+			_ = errs.AppendError(&fs.PathError{
 				Op:   "ParseCertificate",
 				Path: fileName,
 				Err:  err,
 			})
 		default:
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 		return true
 	}

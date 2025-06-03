@@ -68,12 +68,16 @@ func (SourceName) doNewError2(op, note string) error {
 // AppendError appends an error annotated by with source details. Compound errors will be
 // appended individually to the output.
 func (sn SourceName) AppendError(out *core.CompoundError, err error, op, note string) {
+	if out == nil {
+		core.Panic("nil CompoundError")
+	}
+
 	if errs, ok := err.(*core.CompoundError); ok {
 		for _, err := range errs.Errs {
 			sn.AppendError(out, err, op, note)
 		}
 	} else {
-		out.AppendError(sn.NewError(err, op, note))
+		_ = out.AppendError(sn.NewError(err, op, note))
 	}
 }
 
@@ -266,14 +270,14 @@ func addSourceFn[T any](ctx context.Context, out tls.StoreX509Writer, src *Sourc
 	count, err := doAddSourceFn(ctx, out, data, fn)
 	if err != nil {
 		// append add errors
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	// append source errors
-	errs.AppendError(src.Errs...)
+	_ = errs.AppendError(src.Errs...)
 
 	if err := ctx.Err(); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	return returnAdd2(count, errs.AsError())
@@ -297,7 +301,7 @@ loop:
 			break loop
 		case !IsExists(err):
 			// error
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 
 		if ctx.Err() != nil {

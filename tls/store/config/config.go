@@ -49,12 +49,12 @@ func (cfg *Config) AddCACerts(ctx context.Context, out tls.StoreX509Writer, valu
 	buf := buffer.New(ctx, cfg.getLogger())
 	fn := buf.NewAddCertsCallback()
 	if err := cfg.readDeep(value, fn, options...); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	n, err := buf.AddCACerts(ctx, out)
 	if err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	return n, errs.AsError()
@@ -69,13 +69,13 @@ func (cfg *Config) applyRoots(ctx context.Context, out tls.StoreX509Writer) erro
 	for _, v := range cfg.Roots {
 		if v != "" {
 			if err := cfg.readDeep(v, fn); err != nil {
-				errs.Append(err, "Roots")
+				_ = errs.Append(err, "Roots")
 			}
 		}
 	}
 
 	if _, err := buf.AddCACerts(ctx, out); err != nil {
-		errs.Append(err, "AddCACerts")
+		_ = errs.Append(err, "AddCACerts")
 	}
 
 	return errs.AsError()
@@ -90,11 +90,11 @@ func (cfg *Config) AddCert(ctx context.Context, out tls.StoreX509Writer, value s
 	buf := buffer.New(ctx, cfg.getLogger())
 	fn := buf.NewAddCertsCallback()
 	if err := cfg.readShallow(value, fn, options...); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	if _, err := buf.AddCert(ctx, out); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	return errs.AsError()
@@ -108,13 +108,13 @@ func (cfg *Config) applyCerts(ctx context.Context, out tls.StoreX509Writer) erro
 	for _, v := range cfg.Certs {
 		if v != "" {
 			if err := cfg.readDeep(v, fn); err != nil {
-				errs.Append(err, "Certs")
+				_ = errs.Append(err, "Certs")
 			}
 		}
 	}
 
 	if _, err := buf.AddCert(ctx, out); err != nil {
-		errs.Append(err, "AddCert")
+		_ = errs.Append(err, "AddCert")
 	}
 
 	return errs.AsError()
@@ -129,16 +129,16 @@ func (cfg *Config) AddCertPair(ctx context.Context, out tls.StoreX509Writer, key
 	buf := buffer.New(ctx, cfg.getLogger())
 	fn1 := buf.NewAddPrivateKeysCallback()
 	if err := cfg.readShallow(key, fn1, options...); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	fn2 := buf.NewAddCertsCallback()
 	if err := cfg.readShallow(cert, fn2, options...); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	if _, err := buf.AddCertPair(ctx, out); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	return errs.AsError()
@@ -154,11 +154,11 @@ func (cfg *Config) AddPrivateKey(ctx context.Context, out tls.StoreX509Writer, k
 	fn := buf.NewAddPrivateKeysCallback()
 
 	if err := cfg.readShallow(key, fn, options...); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	if _, err := buf.AddPrivateKey(ctx, out); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	return errs.AsError()
@@ -173,13 +173,13 @@ func (cfg *Config) applyKeys(ctx context.Context, out tls.StoreX509Writer) error
 	for _, v := range cfg.Keys {
 		if v != "" {
 			if err := cfg.readShallow(v, fn); err != nil {
-				errs.Append(err, "Keys")
+				_ = errs.Append(err, "Keys")
 			}
 		}
 	}
 
 	if _, err := buf.AddPrivateKey(ctx, out); err != nil {
-		errs.Append(err, "AddPrivateKey")
+		_ = errs.Append(err, "AddPrivateKey")
 	}
 
 	return errs.AsError()
@@ -201,7 +201,7 @@ func (cfg *Config) Apply(ctx context.Context, s tls.StoreX509Writer) error {
 			cfg.applyCerts,
 		} {
 			if err := fn(ctx, s); err != nil {
-				errs.AppendError(err)
+				_ = errs.AppendError(err)
 			}
 		}
 

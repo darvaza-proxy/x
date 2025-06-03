@@ -20,13 +20,13 @@ type Config[K, H comparable, T any] struct {
 func (cfg Config[K, H, T]) Validate() error {
 	var errs core.CompoundError
 	if cfg.Hash == nil {
-		errs.Append(core.ErrInvalid, "missing callback: %s", "Hash")
+		_ = errs.Append(core.ErrInvalid, "missing callback: %s", "Hash")
 	}
 	if cfg.ItemKey == nil {
-		errs.Append(core.ErrInvalid, "missing callback: %s", "ItemKey")
+		_ = errs.Append(core.ErrInvalid, "missing callback: %s", "ItemKey")
 	}
 	if cfg.ItemMatch == nil {
-		errs.Append(core.ErrInvalid, "missing callback: %s", "ItemMatch")
+		_ = errs.Append(core.ErrInvalid, "missing callback: %s", "ItemMatch")
 	}
 	return errs.AsError()
 }

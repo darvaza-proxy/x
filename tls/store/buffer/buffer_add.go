@@ -76,7 +76,7 @@ func (buf *Buffer) doAddFnFromChannel(ctx context.Context, out tls.StoreX509Writ
 			count += n
 		}
 		if err != nil {
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 		if !cont {
 			break
@@ -100,11 +100,11 @@ func (buf *Buffer) doAddFnFromSource(ctx context.Context, out tls.StoreX509Write
 
 	if err := ctx.Err(); err != nil {
 		// cancelled
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 		cont = false
 	} else if err := buf.ctx.Err(); err != nil {
 		// cancelled
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 		cont = false
 	}
 
