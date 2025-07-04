@@ -1,6 +1,6 @@
 module darvaza.org/x/sync
 
-go 1.22
+go 1.23.0
 
 require darvaza.org/core v0.16.3
 

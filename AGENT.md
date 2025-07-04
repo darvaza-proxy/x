@@ -14,7 +14,7 @@ utility libraries that extend Go's standard library capabilities.
 
 Before starting development, ensure you have:
 
-- Go 1.22 or later installed (check with `go version`).
+- Go 1.23 or later installed (check with `go version`).
 - `make` command available (usually pre-installed on Unix systems).
 - `$GOPATH` configured correctly (typically `~/go`).
 - Git configured for proper line endings.
@@ -72,7 +72,7 @@ go mod tidy
 ### Key Design Principles
 
 - **Minimal dependencies**: Primarily the Go standard library and minimal golang.org/x packages.
-- **Generic programming**: Extensive use of Go 1.22+ generics for type-safe utilities.
+- **Generic programming**: Extensive use of Go 1.23+ generics for type-safe utilities.
 - **Interface-driven design**: For extensibility and testability.
 - **Common foundation**: Each package depends on `darvaza.org/core` for basic utilities.
 
@@ -109,7 +109,7 @@ Always run `make tidy` before committing to ensure proper formatting.
 
 ## Important Notes
 
-- Go 1.22 is the minimum required version.
+- Go 1.23 is the minimum required version.
 - Each package maintains its own README.md and AGENT.md.
 - The Makefile dynamically generates rules for subprojects.
 - Tool versions (golangci-lint, revive) are selected based on Go version.
