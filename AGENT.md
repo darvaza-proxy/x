@@ -71,10 +71,13 @@ go mod tidy
 
 ### Key Design Principles
 
-- **Minimal dependencies**: Primarily the Go standard library and minimal golang.org/x packages.
-- **Generic programming**: Extensive use of Go 1.23+ generics for type-safe utilities.
+- **Minimal dependencies**: Primarily the Go standard library and minimal
+  golang.org/x packages.
+- **Generic programming**: Extensive use of Go 1.23+ generics for
+  type-safe utilities.
 - **Interface-driven design**: For extensibility and testability.
-- **Common foundation**: Each package depends on `darvaza.org/core` for basic utilities.
+- **Common foundation**: Each package depends on `darvaza.org/core` for
+  basic utilities.
 
 ### Module Structure
 
@@ -84,7 +87,8 @@ go mod tidy
 
 ### Code Quality Standards
 
-The project enforces strict linting rules via revive (configuration in each package's `internal/build/revive.toml`):
+The project enforces strict linting rules via revive (configuration in each
+package's `internal/build/revive.toml`):
 
 - Max function length: 40 lines.
 - Max function results: 3.
@@ -126,6 +130,8 @@ When editing markdown files, ensure compliance with:
 - **LanguageTool**: Check for missing articles ("a", "an", "the"), punctuation,
   and proper hyphenation of compound modifiers.
 - **Markdownlint**: Follow standard Markdown formatting rules.
+- **Line Length**: Keep lines at 80 characters or less (enforced by
+  .editorconfig).
 
 ### Common Documentation Issues to Check
 
@@ -160,22 +166,32 @@ When editing markdown files, ensure compliance with:
 When creating or editing documentation files:
 
 1. **File Structure**:
-   - Always include a link to related documentation (e.g., AGENT.md should link to README.md).
+   - Always include a link to related documentation (e.g., AGENT.md should
+     link to README.md).
    - Add prerequisites or setup instructions before diving into commands.
-   - Include paths to configuration files when mentioning tools (e.g., revive.toml).
+   - Include paths to configuration files when mentioning tools
+     (e.g., revive.toml).
 
 2. **Formatting Consistency**:
+   - **Line Length**: Wrap lines at 80 characters maximum.
    - End all bullet points with periods for consistency.
    - Capitalize proper nouns correctly (JavaScript, TypeScript, Markdown).
    - Use consistent punctuation in examples and lists.
-   - In "See also" sections, add colons after section headers and periods after all items.
+   - In "See also" sections, add colons after section headers and periods
+     after all items.
 
-3. **Clarity and Context**:
+3. **Markdownlint Compliance**:
+   - Add blank lines before and after lists, code blocks, and headings.
+   - End files with exactly one newline character.
+   - Avoid spaces inside emphasis markers (use `_text_` not `_ text _`).
+   - Follow all markdownlint rules (run `pnpx markdownlint-cli *.md`).
+
+4. **Clarity and Context**:
    - Provide context for AI agents and developers alike.
    - Include "why" explanations, not just "what" descriptions.
    - Add examples for complex concepts or common pitfalls.
 
-4. **Maintenance**:
+5. **Maintenance**:
    - Update documentation when adding new tools or changing workflows.
    - Keep the pre-commit checklist current with project practices.
    - Review documentation changes for the issues listed above.
@@ -183,8 +199,11 @@ When creating or editing documentation files:
 ### Pre-commit Checklist
 
 1. Run `make tidy` for Go code formatting.
-2. Check markdown files with LanguageTool and markdownlint.
-3. Verify all tests pass with `make test`.
-4. Ensure no linting violations remain.
-5. Update `AGENT.md` to reflect any changes in development workflow or standards.
-6. Update `README.md` to reflect significant changes in functionality or API.
+2. Check markdown files with `pnpx markdownlint-cli *.md **/*.md`.
+3. Check markdown files with LanguageTool for grammar and style issues.
+4. Verify all tests pass with `make test`.
+5. Ensure no linting violations remain.
+6. Update `AGENT.md` to reflect any changes in development workflow or
+   standards.
+7. Update `README.md` to reflect significant changes in functionality or API.
+8. Ensure all markdown files follow the 80-character line length rule.

@@ -14,6 +14,7 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 ### Main Features
 
 #### bind Package
+
 - Multi-interface/address binding support.
 - Port retry logic with configurable attempts.
 - Socket option control (SO_REUSEADDR, SO_REUSEPORT).
@@ -21,6 +22,7 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 - Connection upgrading capabilities.
 
 #### reconnect Package
+
 - Automatic connection retry with backoff.
 - Session management with lifecycle callbacks.
 - Context-based cancellation.
@@ -49,6 +51,7 @@ The package follows several design principles:
 4. **Thread Safety**: Concurrent-safe operations in reconnect client.
 
 Key patterns:
+
 - Config structs for complex initialization.
 - Callback-based lifecycle management.
 - Interface-based abstraction for extensibility.
@@ -61,6 +64,7 @@ For common development commands and workflow, see the [root AGENT.md](../AGENT.m
 ## Testing Patterns
 
 Tests focus on:
+
 - Port binding edge cases (conflicts, retries).
 - Reconnection logic and timing.
 - Platform-specific behavior.
@@ -69,6 +73,7 @@ Tests focus on:
 ## Common Usage Patterns
 
 ### Advanced Port Binding
+
 ```go
 cfg := &bind.Config{
     Interfaces: []string{"lo", "eth0"},
@@ -86,6 +91,7 @@ for _, l := range listeners {
 ```
 
 ### Reconnecting Client
+
 ```go
 cfg := &reconnect.Config{
     Address: "server:9000",
@@ -105,6 +111,7 @@ err := client.Spawn(ctx)
 ```
 
 ### Socket Control
+
 ```go
 // Custom listener with socket options
 control := bind.ControlFunc(func(fd uintptr) error {
@@ -116,6 +123,7 @@ ln, err := bind.ListenTCP("tcp", addr, control)
 ```
 
 ### Connection Lifecycle
+
 ```go
 client := reconnect.NewClient(cfg,
     reconnect.WithOnConnect(func(ctx context.Context, conn net.Conn) error {

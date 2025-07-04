@@ -2,8 +2,9 @@
 
 ## Globbing
 
-We use the excellent [github.com/gobwas/glob](https://github.com/gobwas/glob) to compile
-file listing patterns, and `**` is supported to ignore the `/` delimiters
+We use the excellent [github.com/gobwas/glob](https://github.com/gobwas/glob)
+to compile file listing patterns, and `**` is supported to ignore the `/`
+delimiters
 
 * `Matcher` a type alias of glob.Glob to keep the import-space clean
 * `GlobCompile` compiles a list of patterns
@@ -11,7 +12,8 @@ file listing patterns, and `**` is supported to ignore the `/` delimiters
   If no pattern is provided all entries not giving a `fs.Stat` error will be
   returned.
 * `Match` is similar to `Glob` but it takes a root value, which will be cleaned,
-  and a list of compiled `Matcher` patterns. it will only fail if the root gives an error.
+  and a list of compiled `Matcher` patterns. it will only fail if the root
+  gives an error.
 * `MatchFunc` is an alternative to `Match` which actually receives a checker function.
 
 ## Paths
@@ -26,13 +28,13 @@ absolute OS paths. `/..` will be returned if the reduction lead to that.
 
 ### `Split`
 
-We also have a variant of [path.Split] which cleans the argument and splits `dir` and `file`
-without the trailing slash on `dir`.
+We also have a variant of [path.Split] which cleans the argument and splits
+`dir` and `file` without the trailing slash on `dir`.
 
 ## Interfaces
 
-This package provides aliases of the standard `fs.FooFS` and adds the missing ones to
-gain parity with the `os` package.
+This package provides aliases of the standard `fs.FooFS` and adds the missing
+ones to gain parity with the `os` package.
 
 ### Aliases
 
@@ -64,8 +66,8 @@ gain parity with the `os` package.
 
 ## Proxies
 
-As this package is named `fs` and would shadow the standard `io.fs` package we include aliases
-and proxies of commonly used symbols.
+As this package is named `fs` and would shadow the standard `io.fs` package we
+include aliases and proxies of commonly used symbols.
 
 ### Types
 

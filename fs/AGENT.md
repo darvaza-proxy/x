@@ -42,8 +42,9 @@ The package follows several design principles:
 4. **Zero Allocation**: Path operations designed to minimize allocations.
 
 Key patterns:
+
 - Interfaces follow os package naming conventions (e.g., ChmodFS for Chmod).
-- Platform-specific code uses build tags (_linux.go, _windows.go).
+- Platform-specific code uses build tags (_linux.go_, _windows.go).
 - Glob patterns support `**` for recursive matching.
 
 ## Development Commands
@@ -53,6 +54,7 @@ For common development commands and workflow, see the [root AGENT.md](../AGENT.m
 ## Testing Patterns
 
 Tests focus on:
+
 - Path cleaning edge cases (absolute paths, `..` handling).
 - Glob pattern matching accuracy.
 - Cross-platform compatibility.
