@@ -199,11 +199,12 @@ When creating or editing documentation files:
 ### Pre-commit Checklist
 
 1. Run `make tidy` for Go code formatting.
-2. Check markdown files with `pnpx markdownlint-cli *.md **/*.md`.
-3. Check markdown files with LanguageTool for grammar and style issues.
-4. Verify all tests pass with `make test`.
-5. Ensure no linting violations remain.
-6. Update `AGENT.md` to reflect any changes in development workflow or
+2. Remove trailing whitespace: `sed -i 's/[ \t]*$//' *.md`.
+3. Check markdown files with `pnpx markdownlint-cli *.md **/*.md`.
+4. Check markdown files with LanguageTool for grammar and style issues.
+5. Verify all tests pass with `make test`.
+6. Ensure no linting violations remain.
+7. Update `AGENT.md` to reflect any changes in development workflow or
    standards.
-7. Update `README.md` to reflect significant changes in functionality or API.
-8. Ensure all markdown files follow the 80-character line length rule.
+8. Update `README.md` to reflect significant changes in functionality or API.
+9. Ensure all markdown files follow the 80-character line length rule.
