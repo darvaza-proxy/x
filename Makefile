@@ -29,10 +29,10 @@ REVIVE ?= $(GO) run $(REVIVE_URL)
 PNPX ?= pnpx
 
 ifndef MARKDOWNLINT
-ifeq ($(shell command -v $(PNPX) 2>/dev/null),)
-MARKDOWNLINT = true
-else
+ifeq ($(shell $(PNPX) --version 2>&1 | grep -q 'is not in the npm registry' && echo yes),yes)
 MARKDOWNLINT = $(PNPX) markdownlint-cli
+else
+MARKDOWNLINT = true
 endif
 endif
 MARKDOWNLINT_FLAGS ?= --fix
