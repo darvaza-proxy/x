@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	darvaza.org/core v0.17.1
-	darvaza.org/x/fs v0.4.3
+	darvaza.org/x/fs v0.5.0
 )
 
 require lukechampine.com/blake3 v1.4.1
