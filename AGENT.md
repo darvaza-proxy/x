@@ -208,3 +208,9 @@ When creating or editing documentation files:
    standards.
 8. Update `README.md` to reflect significant changes in functionality or API.
 9. Ensure all markdown files follow the 80-character line length rule.
+
+## Release Process
+
+For information about releasing packages and managing dependencies, see
+[RELEASE.md](RELEASE.md). The mono-repo structure requires careful coordination
+of releases due to internal dependencies between packages.
