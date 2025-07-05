@@ -39,6 +39,7 @@ The package follows several design principles:
 4. **Flexibility**: Custom comparison and hashing functions supported.
 
 Key patterns:
+
 - Generic type parameters enable reuse across different types.
 - Interface-based design allows multiple implementations.
 - Error handling uses wrapped errors from darvaza.org/core.
@@ -50,6 +51,7 @@ For common development commands and workflow, see the [root AGENT.md](../AGENT.m
 ## Testing Patterns
 
 Tests focus on:
+
 - Type safety verification.
 - Thread safety for concurrent operations.
 - Performance benchmarks for different set sizes.

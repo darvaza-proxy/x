@@ -47,11 +47,13 @@ For common development commands and workflow, see the [root AGENT.md](../AGENT.m
 ## Testing Patterns
 
 Tests are organized alongside their implementation files:
+
 - `*_test.go` files contain unit tests for corresponding source files.
 - Tests use table-driven patterns for comprehensive coverage.
 - Benchmarks are included for performance-critical operations.
 
 Example test pattern:
+
 ```go
 func TestMatchEq(t *testing.T) {
     tests := []struct {

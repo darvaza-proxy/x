@@ -104,10 +104,11 @@ Tests focus on:
 
 ```go
 // Create middleware
-logMiddleware := web.NewMiddleware(func(w http.ResponseWriter, r *http.Request, next http.Handler) {
-    log.Printf("%s %s", r.Method, r.URL.Path)
-    next.ServeHTTP(w, r)
-})
+logMiddleware := web.NewMiddleware(
+    func(w http.ResponseWriter, r *http.Request, next http.Handler) {
+        log.Printf("%s %s", r.Method, r.URL.Path)
+        next.ServeHTTP(w, r)
+    })
 
 // Apply to handler
 handler := logMiddleware(myHandler)
@@ -117,9 +118,10 @@ handler := logMiddleware(myHandler)
 
 ```go
 // Create error handler middleware
-errorMiddleware := web.NewErrorHandlerMiddleware(func(w http.ResponseWriter, r *http.Request, err error) {
-    web.HandleError(w, r, err)
-})
+errorMiddleware := web.NewErrorHandlerMiddleware(
+    func(w http.ResponseWriter, r *http.Request, err error) {
+        web.HandleError(w, r, err)
+    })
 
 // Return errors from handlers
 handler := web.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
@@ -143,11 +145,13 @@ func (u *UserResource) Check(r *http.Request) (*http.Request, *User, error) {
     return r, user, err
 }
 
-func (u *UserResource) Get(w http.ResponseWriter, r *http.Request, user *User) error {
+func (u *UserResource) Get(w http.ResponseWriter, r *http.Request,
+    user *User) error {
     return resource.RenderJSON(w, r, user)
 }
 
-func (u *UserResource) Put(w http.ResponseWriter, r *http.Request, user *User) error {
+func (u *UserResource) Put(w http.ResponseWriter, r *http.Request,
+    user *User) error {
     // Update user
     return nil
 }

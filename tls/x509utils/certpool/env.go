@@ -47,7 +47,7 @@ func NewFromStrings(certs ...string) (*CertPool, error) {
 	for _, s := range certs {
 		err := x509utils.ReadStringPEM(s, addFn)
 		if err != nil {
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 	}
 

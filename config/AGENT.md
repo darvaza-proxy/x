@@ -45,6 +45,7 @@ The package follows several design principles:
 4. **Extensibility**: Decoder interface allows custom format support.
 
 Key patterns:
+
 - Loader[T] provides a generic configuration loader with multiple fallbacks.
 - Option[T] functions allow post-processing of loaded configurations.
 - Platform-specific code is isolated in separate files (_unix.go suffixes).
@@ -56,6 +57,7 @@ For common development commands and workflow, see the [root AGENT.md](../AGENT.m
 ## Testing Patterns
 
 The package uses table-driven tests and focuses on:
+
 - Platform-specific behavior testing.
 - Environment variable expansion edge cases.
 - Validation error handling.

@@ -72,12 +72,12 @@ func ReadDirPEM(fSys fs.FS, dir string, cb DecodePEMBlockFunc) error {
 
 		// files first
 		if err = doReadDirPEM(fSys, dir, cb, ReadFilePEM, files); err != nil {
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 
 		// then sub-directories
 		if err = doReadDirPEM(fSys, dir, cb, ReadDirPEM, dirs); err != nil {
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 
 		return errs.AsError()
@@ -92,7 +92,7 @@ func doReadDirPEM(fSys fs.FS, dir string, cb DecodePEMBlockFunc,
 	for _, fi := range entries {
 		fullName := path.Join(dir, fi.Name())
 		if err := fn(fSys, fullName, cb); err != nil {
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 	}
 
