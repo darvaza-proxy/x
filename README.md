@@ -68,6 +68,108 @@ and certificates.
 
 For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
 
+## Architecture Overview
+
+The following C4 Context diagram shows the relationships between all
+darvaza.org packages:
+
+```mermaid
+graph TB
+    subgraph "External Dependencies"
+        stdlib[Go Standard Library]
+        ext[golang.org/x/*]
+    end
+
+    subgraph "Core Libraries"
+        core[darvaza.org/core<br/>Core utilities]
+        slog[darvaza.org/slog<br/>Logger interface]
+        cache[darvaza.org/cache<br/>Caching library]
+    end
+
+    subgraph "darvaza.org/x - Tier 1 (Independent)"
+        cmp[x/cmp<br/>Comparison utilities]
+        config[x/config<br/>Config management]
+        sync[x/sync<br/>Sync primitives]
+        fs[x/fs<br/>Filesystem utilities]
+        container[x/container<br/>Data structures]
+    end
+
+    subgraph "darvaza.org/x - Tier 2 (Dependent)"
+        net[x/net<br/>Network utilities]
+        web[x/web<br/>Web helpers]
+        tls[x/tls<br/>TLS management]
+    end
+
+    subgraph "Higher-Level Packages"
+        resolver[darvaza.org/resolver<br/>DNS resolver]
+        penne[darvaza.org/penne<br/>Proxy server]
+        sidecar[darvaza.org/sidecar<br/>Sidecar proxy]
+    end
+
+    %% Core dependencies
+    stdlib --> core
+    ext --> core
+    core --> slog
+    core --> cache
+
+    %% x/ Tier 1 dependencies
+    core --> cmp
+    core --> config
+    core --> sync
+    core --> fs
+    core --> container
+
+    %% x/ Tier 2 dependencies
+    fs --> net
+    fs --> web
+    container --> tls
+    slog --> net
+    slog --> tls
+
+    %% Higher-level dependencies
+    core --> resolver
+    slog --> resolver
+    cache --> resolver
+
+    resolver --> penne
+    resolver --> sidecar
+    net --> penne
+    tls --> penne
+    web --> penne
+
+    classDef core fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef tier1 fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef tier2 fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef external fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef highlevel fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+
+    class core,slog,cache core
+    class cmp,config,sync,fs,container tier1
+    class net,web,tls tier2
+    class stdlib,ext external
+    class resolver,penne,sidecar highlevel
+```
+
+### Package Relationships
+
+* **Core Libraries**: Foundational packages that provide basic functionality
+  * `darvaza.org/core`: Network addresses, error handling, worker groups
+  * `darvaza.org/slog`: Structured logging interface
+  * `darvaza.org/cache`: LRU caching with `simplelru`
+
+* **Tier 1 Packages**: No internal dependencies within `x/`
+  * Can be released independently
+  * Depend only on core libraries and standard library
+
+* **Tier 2 Packages**: Depend on Tier 1 packages
+  * `net` and `web` depend on `fs`
+  * `tls` depends on `container`
+  * Must be released after their dependencies
+
+* **Higher-Level Packages**: Built on top of `x/` packages
+  * `resolver`: DNS resolution capabilities
+  * `penne` and `sidecar`: Proxy implementations
+
 ## See also
 
 * [JPI Technologies' Open-Source Software](https://oss.jpi.io/).
