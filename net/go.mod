@@ -4,8 +4,8 @@ go 1.23.0
 
 require (
 	darvaza.org/core v0.17.1
-	darvaza.org/slog v0.7.0
-	darvaza.org/slog/handlers/discard v0.6.0
+	darvaza.org/slog v0.7.1
+	darvaza.org/slog/handlers/discard v0.6.1
 	darvaza.org/x/fs v0.5.0
 	github.com/amery/defaults v0.1.0
 )
