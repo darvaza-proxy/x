@@ -1,11 +1,11 @@
 darvaza.org/core v0.17.1 h1:cq6FGdJpTmSod7QPuYpMPWDFGhuyyLaB4BCWUe2yCo4=
 darvaza.org/core v0.17.1/go.mod h1:SR+V36LJ1qssyYIJjqvH0FpBIvp0G51ASX4RKLKeXzo=
-darvaza.org/slog v0.6.2 h1:EH+xYvrzI9uI8YhMSoGex+Im509Rz73oVqj0jDH71Ag=
-darvaza.org/slog v0.6.2/go.mod h1:BRZRLBroPejx5p7KWHlD4AmF4MkEr7wxOCHXOGnRrWo=
-darvaza.org/slog/handlers/discard v0.5.2 h1:LpVjzSs6ihcG5TJmyMotO5/aOhuw6EdkXc1J1Kx0YlI=
-darvaza.org/slog/handlers/discard v0.5.2/go.mod h1:5TDfOFOGrMO5LZtv+EqRhHCtOsOYlC5wIoMWPGq8pIw=
-darvaza.org/x/fs v0.4.3 h1:e3oYsWDdZ9fLFCoG582UJLRES2MmYb6NaT/DoppkeLw=
-darvaza.org/x/fs v0.4.3/go.mod h1:cF39sYd9jZ3+wb8XkdlzM/GokhVS2FhPncOq9ENz8jY=
+darvaza.org/slog v0.7.0 h1:71lNNkw+gBrQoc3tu/ukrdZ8H6QFvUKCSCFnsK8+gBE=
+darvaza.org/slog v0.7.0/go.mod h1:gbukmzDiombrnhtv28SJU51WdeQHhZ2tfUxX1Z7I0WA=
+darvaza.org/slog/handlers/discard v0.6.0 h1:nGTPFuDGqa57KbCnomhYx7I773mqkayJPxbKXNOmlZ4=
+darvaza.org/slog/handlers/discard v0.6.0/go.mod h1:E6xhUOw029pBXnuHADifg/PsjlHqlh7qYp97HMQZFQo=
+darvaza.org/x/fs v0.5.0 h1:PPCBexMioMP/oyeIkSSxpS1tdXW8Jhr4ZQVvQ5jpO3I=
+darvaza.org/x/fs v0.5.0/go.mod h1:m26uoy3qjg8rBbxQjfXME3uTKUAjtdyT/Wn9Ws26ndo=
 github.com/amery/defaults v0.1.0 h1:4AhTgLUnj8BPjVRBzg4+/cSCwPWPT6+yWCM4rD6Feyc=
 github.com/amery/defaults v0.1.0/go.mod h1:duOYkvd60q8XOL1+vdSHx5ABTGDMU2iFKr5xJnMEpBk=
 github.com/gobwas/glob v0.2.3 h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y=
