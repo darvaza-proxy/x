@@ -328,7 +328,7 @@ defer counter.Close()
 for i := 0; i < 5; i++ {
     go func() {
         // Perform work
-        
+
         // Decrement counter when done
         counter.Dec()
     }()
