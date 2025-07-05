@@ -162,9 +162,9 @@ func doLockLoop[T Mutex](
 			// Failed to lock mutex. Release all previously acquired locks
 			// and fail returning the aggregated error.
 			if err := doReverseUnlock(unlock, locks[:i]); err != nil {
-				errs.AppendError(err)
+				_ = errs.AppendError(err)
 			}
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 			return false, errs.AsError()
 		}
 	}
@@ -179,7 +179,7 @@ func doUnlockLoop[T Mutex](locks []T, unlock func(T) error) error {
 
 	for _, mu := range locks {
 		if err := unlock(mu); err != nil {
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 	}
 
@@ -194,7 +194,7 @@ func doReverseUnlock[T Mutex](unlock func(T) error, locks []T) error {
 
 	for i := len(locks) - 1; i >= 0; i-- {
 		if err := unlock(locks[i]); err != nil {
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 	}
 

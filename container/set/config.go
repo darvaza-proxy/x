@@ -18,15 +18,15 @@ type Config[K, H comparable, T any] struct {
 
 // Validate confirms the [Config] is good for use.
 func (cfg Config[K, H, T]) Validate() error {
-	var errs core.CompoundError
+	errs := new(core.CompoundError)
 	if cfg.Hash == nil {
-		errs.Append(core.ErrInvalid, "missing callback: %s", "Hash")
+		errs = errs.Append(core.ErrInvalid, "missing callback: %s", "Hash")
 	}
 	if cfg.ItemKey == nil {
-		errs.Append(core.ErrInvalid, "missing callback: %s", "ItemKey")
+		errs = errs.Append(core.ErrInvalid, "missing callback: %s", "ItemKey")
 	}
 	if cfg.ItemMatch == nil {
-		errs.Append(core.ErrInvalid, "missing callback: %s", "ItemMatch")
+		errs = errs.Append(core.ErrInvalid, "missing callback: %s", "ItemMatch")
 	}
 	return errs.AsError()
 }

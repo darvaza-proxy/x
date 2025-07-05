@@ -24,7 +24,7 @@ func NewSystemCertPool() (*CertPool, error) {
 	// Possible directories with certificate files; all will be read.
 	for _, dir := range certDirectories {
 		if err := loadCertsDir(&pool, dir); err != nil {
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		}
 	}
 
@@ -48,7 +48,7 @@ func loadCertsFirstFile(pool *CertPool, errs *core.CompoundError, files ...strin
 		err := loadCertsFile(addFn, fileName)
 		switch {
 		case err != nil:
-			errs.AppendError(err)
+			_ = errs.AppendError(err)
 		case pool.Count() > initial:
 			return
 		}
@@ -76,7 +76,7 @@ func loadCertsDir(pool *CertPool, dir string) error {
 
 	addFn := newCertAdder(pool, SystemCAOnly, &errs)
 	if err := x509utils.ReadDirPEM(os.DirFS(dir), ".", addFn); err != nil {
-		errs.AppendError(err)
+		_ = errs.AppendError(err)
 	}
 
 	// amend PathError.Path
