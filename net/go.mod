@@ -11,11 +11,11 @@ require (
 )
 
 require (
-	golang.org/x/net v0.41.0
-	golang.org/x/sys v0.33.0
+	golang.org/x/net v0.42.0
+	golang.org/x/sys v0.34.0
 )
 
 require (
 	github.com/gobwas/glob v0.2.3 // indirect
-	golang.org/x/text v0.26.0 // indirect
+	golang.org/x/text v0.27.0 // indirect
 )
