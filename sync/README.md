@@ -479,8 +479,9 @@ cancellation propagation and lifecycle management of concurrent operations.
 * `Cancel(error) bool`: Cancels the Group with an optional error cause
 * `Close() error`: Cancels the Group and waits for all tasks to complete
 * `Go(func(context.Context)) error`: Spawns a new goroutine with context
-* `GoCatch(func(context.Context) error, func(context.Context, error) error) error`:
-  Spawns a goroutine with error handling and error-triggered cancellation
+* `GoCatch(func(context.Context) error, func(context.Context, error) error)
+  error`: Spawns a goroutine with error handling and error-triggered
+  cancellation
 
 ### Group Example usage
 
@@ -638,4 +639,5 @@ details.
 
 ## Development
 
-For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
+For development guidelines, architecture notes, and AI agent instructions, see
+[AGENT.md](AGENT.md).

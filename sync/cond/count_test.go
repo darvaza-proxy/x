@@ -1003,7 +1003,7 @@ func TestCountClosed(t *testing.T) {
 	t.Run("BeforeClose", runTestBeforeClose)
 	t.Run("AfterClose", runTestAfterClose)
 	t.Run("NilCount", runTestNilCountIsClosed)
-	t.Run("UnitialisedCount", runTestUnitialisedCountIsClosed)
+	t.Run("UninitialisedCount", runTestUninitialisedCountIsClosed)
 }
 
 func runTestBeforeClose(t *testing.T) {
@@ -1051,7 +1051,7 @@ func runTestNilCountIsClosed(t *testing.T) {
 	assert.True(t, c.IsClosed())
 }
 
-func runTestUnitialisedCountIsClosed(t *testing.T) {
+func runTestUninitialisedCountIsClosed(t *testing.T) {
 	c := new(Count)
 
 	// An uninitialised Count should report as closed
