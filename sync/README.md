@@ -2,11 +2,14 @@
 
 [![Go Reference][godoc-badge]][godoc-link]
 [![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
 
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/sync.svg
 [godoc-link]: https://pkg.go.dev/darvaza.org/x/sync
 [goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x/sync
 [goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/sync
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=sync
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
 
 Package `sync` provides interfaces and utilities for synchronisation
 primitives.

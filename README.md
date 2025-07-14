@@ -2,6 +2,7 @@
 
 [![Go Reference][godoc-badge]][godoc]
 [![Go Report Card][goreport-badge]][goreport]
+[![codecov][codecov-badge]][codecov]
 
 `darvaza.org/x` hosts mid-complexity packages with no significant dependencies
 or assumptions.
@@ -10,6 +11,8 @@ or assumptions.
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x.svg
 [goreport]: https://goreportcard.com/report/darvaza.org/x
 [goreport-badge]: https://goreportcard.com/badge/darvaza.org/x
+[codecov]: https://codecov.io/gh/darvaza-proxy/x
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg
 
 ## Dependencies
 

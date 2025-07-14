@@ -2,11 +2,14 @@
 
 [![Go Reference][godoc_badge]][godoc_link]
 [![Go Report Card][goreportcard_badge]][goreportcard_link]
+[![codecov][codecov_badge]][codecov_link]
 
 [godoc_badge]: https://pkg.go.dev/badge/darvaza.org/x/cmp.svg
 [godoc_link]: https://pkg.go.dev/darvaza.org/x/cmp
 [goreportcard_badge]: https://goreportcard.com/badge/darvaza.org/x/cmp
 [goreportcard_link]: https://goreportcard.com/report/darvaza.org/x/cmp
+[codecov_badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=cmp
+[codecov_link]: https://codecov.io/gh/darvaza-proxy/x
 
 ## Overview
 

@@ -1,5 +1,16 @@
 # Helpers for implementing http.Handlers
 
+[![Go Reference][godoc-badge]][godoc-link]
+[![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
+
+[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/web.svg
+[godoc-link]: https://pkg.go.dev/darvaza.org/x/web
+[goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x/web
+[goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/web
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=web
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
+
 ## Requests Handling
 
 ### Middleware

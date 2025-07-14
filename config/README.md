@@ -2,6 +2,7 @@
 
 [![Go Reference][godoc-badge]][godoc]
 [![Go Report Card][goreport-badge]][goreport]
+[![codecov][codecov-badge]][codecov]
 
 `darvaza.org/x/config` provides helpers
 for dealing with config files.
@@ -10,6 +11,8 @@ for dealing with config files.
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/config.svg
 [goreport]: https://goreportcard.com/report/darvaza.org/x/config
 [goreport-badge]: https://goreportcard.com/badge/darvaza.org/x/config
+[codecov]: https://codecov.io/gh/darvaza-proxy/x
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=config
 
 [darvaza-core]: https://pkg.go.dev/darvaza.org/core
 [darvaza-penne]: https://pkg.go.dev/darvaza.org/penne
