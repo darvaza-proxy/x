@@ -423,7 +423,7 @@ func TestAsCmpAsLessCycle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Function composition should preserve original behavior
+			// Function composition should preserve original behaviour
 			assert.Equal(t, tt.expected, backToLess(tt.a, tt.b),
 				"AsLess(AsCmp(less)) should match original less function for %d and %d",
 				tt.a, tt.b)
