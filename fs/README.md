@@ -14,14 +14,16 @@ delimiters
 * `Match` is similar to `Glob` but it takes a root value, which will be cleaned,
   and a list of compiled `Matcher` patterns. it will only fail if the root
   gives an error.
-* `MatchFunc` is an alternative to `Match` which actually receives a checker function.
+* `MatchFunc` is an alternative to `Match` which actually receives a checker
+  function.
 
 ## Paths
 
 ### `Clean`
 
 We offer an alternative to the standard [fs.Clean] which optionally supports
-paths starting with `/`, and also returns if the cleaned path satisfies [fs.ValidPath].
+paths starting with `/`, and also returns if the cleaned path satisfies
+[fs.ValidPath].
 
 as leading `../` are supported, it can be used for concatenations and to clean
 absolute OS paths. `/..` will be returned if the reduction lead to that.
@@ -90,4 +92,5 @@ include aliases and proxies of commonly used symbols.
 
 ## Development
 
-For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
+For development guidelines, architecture notes, and AI agent instructions, see
+[AGENT.md](AGENT.md).
