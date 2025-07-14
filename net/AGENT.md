@@ -59,7 +59,8 @@ Key patterns:
 
 ## Development Commands
 
-For common development commands and workflow, see the [root AGENT.md](../AGENT.md).
+For common development commands and workflow, see the
+[root AGENT.md](../AGENT.md).
 
 ## Testing Patterns
 
@@ -67,7 +68,7 @@ Tests focus on:
 
 - Port binding edge cases (conflicts, retries).
 - Reconnection logic and timing.
-- Platform-specific behavior.
+- Platform-specific behaviour.
 - Concurrent access patterns.
 
 ## Common Usage Patterns
@@ -161,5 +162,6 @@ client := reconnect.NewClient(cfg,
 
 ## See Also
 
-- [reconnect README](reconnect/README.md) for automatic reconnection client details.
+- [reconnect README](reconnect/README.md) for automatic reconnection client
+  details.
 - [Root AGENT.md](../AGENT.md) for mono-repo overview.

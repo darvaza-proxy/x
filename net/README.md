@@ -135,7 +135,8 @@ client := reconnect.NewClient(cfg,
 
 ## Development
 
-For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
+For development guidelines, architecture notes, and AI agent instructions, see
+[AGENT.md](AGENT.md).
 
 ## License
 

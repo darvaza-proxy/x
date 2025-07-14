@@ -16,7 +16,7 @@ var (
 	_ AllUDPListener = (*ListenConfig)(nil)
 )
 
-// ListenConfig extends the standard net.ListeConfig with a central holder
+// ListenConfig extends the standard net.ListenConfig with a central holder
 // for the Context bound to the listeners
 type ListenConfig struct {
 	net.ListenConfig
