@@ -67,7 +67,7 @@ func testGetInfo(t *testing.T, ci *ClientHelloInfo, serverName string) {
 	_, _ = fmt.Println()
 	_, _ = fmt.Println()
 	_, _ = fmt.Println("Version is:", VersionName(ci.Vers))
-	_, _ = fmt.Println("Chiper Suites:", CipherSuites(ci.CipherSuites))
+	_, _ = fmt.Println("Cipher Suites:", CipherSuites(ci.CipherSuites))
 	_, _ = fmt.Println("Compression Methods:", CompressionMethods(ci.CompressionMethods))
 	_, _ = fmt.Println("Supported Algos:", SignatureAlgos(ci.SupportedSignatureAlgorithms))
 	_, _ = fmt.Println("Supported Versions:", SupportedVersions(ci.SupportedVersions))

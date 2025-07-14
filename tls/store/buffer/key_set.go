@@ -137,7 +137,7 @@ func keySetItemMatch(pub x509utils.PublicKey, key x509utils.PrivateKey) bool {
 	return pub.Equal(key.Public())
 }
 
-// keySetConfig defines the behavior of KeySet's underlying Set implementation,
+// keySetConfig defines the behaviour of KeySet's underlying Set implementation,
 // including how keys are hashed, validated, and compared for equality.
 var keySetConfig = set.Config[x509utils.PublicKey, certpool.Hash, x509utils.PrivateKey]{
 	Hash:      keySetHash,
