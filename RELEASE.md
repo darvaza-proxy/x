@@ -135,7 +135,8 @@ Before starting the release process:
 3. Push all tags at once:
 
    ```bash
-   git push origin cmp/v0.3.0 config/v0.5.0 sync/v0.3.0 fs/v0.5.0 container/v0.3.0
+   git push origin cmp/v0.3.0 config/v0.5.0 sync/v0.3.0 \
+     fs/v0.5.0 container/v0.3.0
    ```
 
 4. Wait for pkg.go.dev to index the new versions (usually 5-10 minutes).
@@ -264,7 +265,7 @@ Each package maintains its own semantic version. When releasing:
 
 2. **Updating core dependencies** (e.g., darvaza.org/core):
    - If API changes require code updates, bump minor version
-   - Document any behavior changes in release notes
+   - Document any behaviour changes in release notes
 
 3. **Adding new features**:
    - Minor version bump for the affected package only

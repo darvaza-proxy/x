@@ -3,8 +3,8 @@
 [![Go Reference][godoc-badge]][godoc]
 [![Go Report Card][goreport-badge]][goreport]
 
-`darvaza.org/x` hosts mid-complexity packages with no significant dependencies or
-assumptions.
+`darvaza.org/x` hosts mid-complexity packages with no significant dependencies
+or assumptions.
 
 [godoc]: https://pkg.go.dev/darvaza.org/x
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x.svg
@@ -66,7 +66,8 @@ and certificates.
 
 ## Development
 
-For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
+For development guidelines, architecture notes, and AI agent instructions, see
+[AGENT.md](AGENT.md).
 
 ## Architecture Overview
 
