@@ -52,13 +52,14 @@ Key patterns:
 
 ## Development Commands
 
-For common development commands and workflow, see the [root AGENT.md](../AGENT.md).
+For common development commands and workflow, see the
+[root AGENT.md](../AGENT.md).
 
 ## Testing Patterns
 
 The package uses table-driven tests and focuses on:
 
-- Platform-specific behavior testing.
+- Platform-specific behaviour testing.
 - Environment variable expansion edge cases.
 - Validation error handling.
 - File loading with various formats.
@@ -122,10 +123,13 @@ err := config.Prepare(&cfg)
 
 - **Unix/Linux**: Full XDG Base Directory support.
 - **Windows**: Uses standard OS paths (via os.UserCacheDir, etc.).
-- **FHS Compliance**: System directories follow the Filesystem Hierarchy Standard.
+- **FHS Compliance**: System directories follow the Filesystem Hierarchy
+  Standard.
 
 ## See Also
 
 - [Package README](README.md) for API documentation.
 - [Root AGENT.md](../AGENT.md) for mono-repo overview.
-- [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html).
+- [XDG Base Directory Specification][xdg-spec].
+
+[xdg-spec]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html

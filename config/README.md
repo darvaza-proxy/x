@@ -47,7 +47,8 @@ Attempts to decode an object from one of a list of filenames.
 
 ## Validations
 
-Wrappers for [`github.com/go-playground/validator/v10`][go-playground-validator]:
+Wrappers for
+[`github.com/go-playground/validator/v10`][go-playground-validator]:
 
 * `Validate()`
 * `AsValidationError()`
@@ -55,7 +56,8 @@ Wrappers for [`github.com/go-playground/validator/v10`][go-playground-validator]
 
 ## Development
 
-For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
+For development guidelines, architecture notes, and AI agent instructions, see
+[AGENT.md](AGENT.md).
 
 ## See also
 
