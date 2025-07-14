@@ -76,7 +76,7 @@ func (set *Set[K, H, T]) unsafeIsReady() bool {
 	return set.buckets != nil
 }
 
-// Reset removes all entires from the [Set].
+// Reset removes all entries from the [Set].
 func (set *Set[K, H, T]) Reset() error {
 	if set == nil {
 		return core.ErrNilReceiver
