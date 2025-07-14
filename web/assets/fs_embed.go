@@ -451,7 +451,7 @@ func (fd *EmbedFile) Read(b []byte) (int, error) {
 // Seek sets the offset for the next Read or Write on file to offset, interpreted
 // according to whence: 0 means relative to the origin of the file, 1 means relative
 // to the current offset, and 2 means relative to the end. It returns the new offset
-// and an error, if any. The behavior of Seek on a file opened with O_APPEND is not
+// and an error, if any. The behaviour of Seek on a file opened with O_APPEND is not
 // specified.
 func (fd *EmbedFile) Seek(offset int64, whence int) (int64, error) {
 	r, err := fd.getReader()

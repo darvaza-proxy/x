@@ -1,4 +1,4 @@
-// Package respond assists handlers to produce reponses
+// Package respond assists handlers to produce responses
 package respond
 
 import (

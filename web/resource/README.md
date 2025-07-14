@@ -6,31 +6,33 @@
 of a class. `Resource` will provide the `http.Handler` and `web.Handler`
 entry points, and handle errors and `OPTIONS` and 403 errors directly.
 
-`Resource` supports a special `Check()` method to validate and prepare the request
-before being passed to the dedicated method handler.
+`Resource` supports a special `Check()` method to validate and prepare the
+request before being passed to the dedicated method handler.
 
-If `Check` isn't implemented, `WithChecker()` can be used during the `New` call to
-set one. Otherwise the `DefaultChecker` will be used.
+If `Check` isn't implemented, `WithChecker()` can be used during the `New`
+call to set one. Otherwise the `DefaultChecker` will be used.
 
-`Resource` will check for `Get`, `Head`, `Post`, `Put`, `Delete`, `Options` and
-`Patch` methods, but `WithMethod()` can be used during the `New` call for setting
-custom ones or replacing/deleting a detected one.
+`Resource` will check for `Get`, `Head`, `Post`, `Put`, `Delete`, `Options`
+and `Patch` methods, but `WithMethod()` can be used during the `New` call for
+setting custom ones or replacing/deleting a detected one.
 
 If the `Peek` method doesn't exist, `Get` will be used.
-If the `Options` method doesn't exist, a simple implementation will be provided.
+If the `Options` method doesn't exist, a simple implementation will be
+provided.
 
-`Resource` offers a `Methods()` method with the list of supported HTTP methods.
-This slice can be safely modified.
+`Resource` offers a `Methods()` method with the list of supported HTTP
+methods. This slice can be safely modified.
 
-`Resource` deals with the `403 Method Not Allowed` directly and with bad `req.URL.Path`s
-when using the `DefaultChecker`
+`Resource` deals with the `403 Method Not Allowed` directly and with bad
+`req.URL.Path`s when using the `DefaultChecker`
 
 ### Signatures
 
 `Resource` supports two signatures for `Check` and also two signatures for the
 method handlers.
 
-The recommended workflow is to use `Check` to return a resource data pointer using
+The recommended workflow is to use `Check` to return a resource data pointer
+using
 
 ```go
 Check(*http.Request) (*http.Request, T, error)
