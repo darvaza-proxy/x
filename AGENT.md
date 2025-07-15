@@ -111,6 +111,159 @@ Always run `make tidy` before committing to ensure proper formatting.
 - Integrated linting with golangci-lint and revive.
 - Version-aware tool selection based on Go version.
 
+## Build System Features
+
+### Whitespace and EOF Handling
+
+The `internal/build/fix_whitespace.sh` script automatically:
+
+- Removes trailing whitespace from all text files.
+- Ensures files end with a newline.
+- Excludes binary files and version control directories.
+- Integrates with `make fmt` for non-Go files.
+- Supports both directory scanning and explicit file arguments.
+
+### Markdownlint Integration
+
+The build system includes automatic Markdown linting:
+
+- Detects markdownlint-cli via pnpx.
+- Configuration in `internal/build/markdownlint.json`.
+- 80-character line limits and strict formatting rules.
+- Selective HTML allowlist (comments, br, kbd, etc.).
+- Runs automatically with `make fmt` when available.
+
+### CSpell Integration
+
+Spell checking for both Markdown and Go source files:
+
+- Detects cspell via pnpx.
+- British English configuration in `internal/build/cspell.json`.
+- New `check-spelling` target.
+- Integrated into `make tidy`.
+- Custom word list for project-specific terminology.
+- Checks both documentation and code comments.
+
+### LanguageTool Integration
+
+Grammar and style checking for Markdown files:
+
+- Detects LanguageTool via pnpx.
+- British English configuration in `internal/build/languagetool.cfg`.
+- New `check-grammar` target.
+- Checks for missing articles, punctuation, and proper hyphenation.
+
+### ShellCheck Integration
+
+Shell script analysis for all `.sh` files:
+
+- Detects shellcheck via pnpx.
+- New `check-shell` target.
+- Integrated into `make tidy`.
+- Uses inline disable directives for SC1007 (empty assignments) and SC3043
+  (`local` usage).
+- Checks for common shell scripting issues and best practices.
+
+### Test Coverage Collection
+
+Automated coverage reporting across all modules:
+
+- New `coverage` target runs tests with coverage profiling.
+- Uses `internal/build/make_coverage.sh` to orchestrate testing.
+- Tests each module independently via generated `test-*` targets.
+- Merges coverage profiles automatically.
+- Stores results in `.tmp/coverage/` directory.
+- Displays coverage summary after test runs.
+- Optional HTML report generation with `COVERAGE_HTML=true`.
+
+### CI/CD Workflow Separation
+
+GitHub Actions workflows split for better performance:
+
+- **Build workflow** (`.github/workflows/build.yml`): Focuses on compilation
+  only.
+- **Test workflow** (`.github/workflows/test.yml`): Dedicated testing
+  pipeline.
+  - Race condition detection job with Go 1.23.
+  - Multi-version testing matrix (Go 1.23 and 1.24).
+  - Conditional execution to avoid duplicate runs on PRs.
+- Workflows skip branches ending in `-wip`.
+- Improves parallelism and reduces redundant work.
+
+### Codecov Integration
+
+Automated coverage reporting with monorepo support:
+
+- **Codecov workflow** (`.github/workflows/codecov.yml`): Coverage collection
+  and upload.
+- Enhanced `make_coverage.sh` generates:
+  - `codecov.yml`: Dynamic configuration with per-module flags.
+  - Module-specific coverage targets (80% default).
+  - Path mappings for accurate coverage attribution.
+  - `codecov.sh`: Upload script for bulk submission.
+- Supports both GitHub Actions and local coverage uploads.
+- PR comments show coverage changes per module.
+
+## Testing with GOTEST_FLAGS
+
+The `GOTEST_FLAGS` environment variable allows flexible test execution by
+passing additional flags to `go test`. This variable is defined in the
+Makefile with an empty default value and is used when running tests through
+the generated rules.
+
+### Common Usage Examples
+
+```bash
+# Run tests with race detection
+make test GOTEST_FLAGS="-race"
+
+# Run specific tests by pattern
+make test GOTEST_FLAGS="-run TestSpecific"
+
+# Generate coverage profile (alternative to 'make coverage')
+make test GOTEST_FLAGS="-coverprofile=coverage.out"
+
+# Run tests with timeout
+make test GOTEST_FLAGS="-timeout 30s"
+
+# Combine multiple flags
+make test GOTEST_FLAGS="-v -race -coverprofile=coverage.out"
+
+# Run benchmarks
+make test GOTEST_FLAGS="-bench=. -benchmem"
+
+# Skip long-running tests
+make test GOTEST_FLAGS="-short"
+
+# Test with specific CPU count
+make test GOTEST_FLAGS="-cpu=1,2,4"
+```
+
+### Integration with Coverage
+
+While `make coverage` provides automated coverage collection across all
+modules, you can use `GOTEST_FLAGS` for more targeted coverage analysis:
+
+```bash
+# Coverage for specific package with detailed output
+make test GOTEST_FLAGS="-v -coverprofile=coverage.out -covermode=atomic"
+
+# Coverage with HTML output
+make test GOTEST_FLAGS="-coverprofile=coverage.out"
+go tool cover -html=coverage.out
+```
+
+### How It Works
+
+1. The Makefile defines `GOTEST_FLAGS ?=` (empty by default).
+2. The generated rules use it in the test target:
+   `$(GO) test $(GOTEST_FLAGS) ./...`.
+3. Any flags passed via `GOTEST_FLAGS` are forwarded directly to `go test`.
+
+This provides a clean interface for passing arbitrary test flags without
+modifying the Makefile, making it easy to run tests with different
+configurations for debugging, coverage analysis, or CI/CD pipelines.
+
 ## Important Notes
 
 - Go 1.23 is the minimum required version.
@@ -198,16 +351,46 @@ When creating or editing documentation files:
 
 ### Pre-commit Checklist
 
-1. Run `make tidy` for Go code formatting.
-2. Remove trailing whitespace: `sed -i 's/[ \t]*$//' *.md`.
-3. Check markdown files with `pnpx markdownlint-cli *.md **/*.md`.
-4. Check markdown files with LanguageTool for grammar and style issues.
-5. Verify all tests pass with `make test`.
-6. Ensure no linting violations remain.
-7. Update `AGENT.md` to reflect any changes in development workflow or
+1. **ALWAYS run `make tidy` first** - Fix ALL issues before committing:
+   - Go code formatting and whitespace clean-up.
+   - Markdown files checked with CSpell and markdownlint.
+   - Shell scripts checked with ShellCheck.
+   - If `make tidy` fails, fix the issues and run it again until it passes.
+2. Verify all tests pass with `make test`.
+3. Ensure no linting violations remain.
+4. Update `AGENT.md` to reflect any changes in development workflow or
    standards.
-8. Update `README.md` to reflect significant changes in functionality or API.
-9. Ensure all markdown files follow the 80-character line length rule.
+5. Update `README.md` to reflect significant changes in functionality or API.
+6. Update package documentation if modifying package behaviour.
+7. Verify package examples still compile and run correctly.
+
+### Grammar and Style Checking
+
+The project now includes integrated grammar checking via LanguageTool:
+
+```bash
+# Run formatting and spell/shell checks
+make tidy
+
+# Run only grammar checks (Markdown and Go files)
+make check-grammar
+```
+
+LanguageTool is automatically installed via npm (using pnpx) when available.
+It checks both Markdown documentation and Go source files (comments and
+strings). The following rules are disabled for technical documentation
+compatibility:
+
+- COMMA_PARENTHESIS_WHITESPACE (conflicts with Markdown links).
+- ARROWS (used in code examples).
+- EN_QUOTES (technical docs use straight quotes).
+- MORFOLOGIK_RULE_EN_GB (flags technical terms).
+- UPPERCASE_SENTENCE_START (conflicts with inline code).
+
+Configuration files are located in `internal/build/`:
+
+- `markdownlint.json` - Markdown formatting rules.
+- `languagetool.cfg` - Grammar checking rules for British English.
 
 ## Release Process
 

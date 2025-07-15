@@ -19,7 +19,7 @@ type Upgrader interface {
 	ListenWithCallback(network, addr string,
 		callback func(network, addr string) (net.Listener, error)) (net.Listener, error)
 	ListenPacketWithCallback(network, addr string,
-		callback func(netowkr, addr string) (net.PacketConn, error)) (net.PacketConn, error)
+		callback func(network, addr string) (net.PacketConn, error)) (net.PacketConn, error)
 }
 
 // UpgraderListenConfig represents an object equivalent to a ListenConfig but

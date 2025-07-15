@@ -21,7 +21,8 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 #### set Package
 
 - **`Set[K, H comparable, T any]`**: Thread-safe set with configurable hashing.
-- **`Config[K, H, T]`**: Configuration for Set behavior (key extraction, hashing).
+- **`Config[K, H, T]`**: Configuration for Set behaviour (key extraction,
+  hashing).
 
 #### slices Package
 
@@ -35,7 +36,8 @@ The package follows several design principles:
 
 1. **Type Safety**: All containers use Go generics for compile-time type safety.
 2. **Thread Safety**: The map-based set includes built-in mutex protection.
-3. **Performance**: Slice-based sets maintain sorted order for efficient operations.
+3. **Performance**: Slice-based sets maintain sorted order for efficient
+   operations.
 4. **Flexibility**: Custom comparison and hashing functions supported.
 
 Key patterns:
@@ -46,7 +48,8 @@ Key patterns:
 
 ## Development Commands
 
-For common development commands and workflow, see the [root AGENT.md](../AGENT.md).
+For common development commands and workflow, see the
+[root AGENT.md](../AGENT.md).
 
 ## Testing Patterns
 

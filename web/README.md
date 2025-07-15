@@ -1,5 +1,16 @@
 # Helpers for implementing http.Handlers
 
+[![Go Reference][godoc-badge]][godoc-link]
+[![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
+
+[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/web.svg
+[godoc-link]: https://pkg.go.dev/darvaza.org/x/web
+[goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x/web
+[goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/web
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=web
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
+
 ## Requests Handling
 
 ### Middleware
@@ -9,7 +20,8 @@ middleware, the `MiddlewareFunc` interface and the `NewMiddleware()` factory
 were created.
 
 ```go
-type MiddlewareFunc func(rw http.ResponseWriter, req *http.Request, next http.Handler)
+type MiddlewareFunc func(rw http.ResponseWriter, req *http.Request,
+    next http.Handler)
 ```
 
 The `next` argument is never `nil`, and a do-nothing `NoMiddleware` middleware
@@ -27,7 +39,8 @@ handling, and for this task `darvaza.org/x/web` provides four helpers.
 
 * `WithResolver()` to attach a dedicated _Resolver_ to the request's context.
 * `NewResolverMiddleware()` to attach one to every request.
-* `Resolver()`, to retrieve a previously attached _Resolver_ from the request's context.
+* `Resolver()`, to retrieve a previously attached _Resolver_ from the request's
+  context.
 * and a `Resolve()` helper that will use the above and call the specified
   _Resolver_, or take the request's `URL.Path`, and then clean it to make sure
   its safe to use.
@@ -63,13 +76,18 @@ using the `Accept` header, and falling back to `"identity"` as magic type.
 
 ## Development
 
-For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
+For development guidelines, architecture notes, and AI agent instructions, see
+[AGENT.md](AGENT.md).
 
 ### See also
 
-* [Accept](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept)
-* [Content Negotiation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation)
-* [Quality Values](https://developer.mozilla.org/en-US/docs/Glossary/Quality_values)
+* [Accept][mdn-accept]
+* [Content Negotiation][mdn-content-negotiation]
+* [Quality Values][mdn-quality-values]
+
+[mdn-accept]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept
+[mdn-content-negotiation]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation
+[mdn-quality-values]: https://developer.mozilla.org/en-US/docs/Glossary/Quality_values
 
 ## HTTP Errors
 
@@ -83,7 +101,8 @@ build HTTP errors.
 `darvaza.org/x/web` provides a mechanism to hook an HTTP error handler to the
 request Context.
 
-* `WithErrorHandler()` to attach a `func(http.ResponseWriter, *http.Request, error)`
+* `WithErrorHandler()` to attach a
+  `func(http.ResponseWriter, *http.Request, error)`
 * `NewErrorHandlerMiddleware()` to attach it to every request,
 * and `ErrorHandler()` to read it back.
 
@@ -101,13 +120,14 @@ serve it.
 ### Error Factories
 
 * `AsError()` that will do the same as `HandleError()` to ensure the given
-  error, if any, error is `http.Handler`-able
+  error, if any, is `http.Handler`-able
 * and `AsErrorWithCode()` to **suggest** an HTTP status code to be used
   instead of 500 when it can't be determined.
 
 There are also `web.HTTPError` factories to create new errors, from a generic:
 
-* `NewHTTPError()` and `NewHTTPErrorf()` and a companion `ErrorText(code)` helper.
+* `NewHTTPError()` and `NewHTTPErrorf()` and a companion `ErrorText(code)`
+  helper.
 
 to redirect factories from formatted strings:
 

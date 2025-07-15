@@ -123,7 +123,7 @@ func certSetItemMatch(a, b *x509.Certificate) bool {
 	return a.Equal(b)
 }
 
-// certSetConfig defines the behavior of CertSet's underlying Set implementation,
+// certSetConfig defines the behaviour of CertSet's underlying Set implementation,
 // including how certificates are hashed, validated, and compared for equality.
 var certSetConfig = set.Config[*x509.Certificate, Hash, *x509.Certificate]{
 	Hash:      certSetHash,

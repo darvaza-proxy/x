@@ -2,7 +2,7 @@ package sni
 
 //revive:disable:var-naming
 //revive:disable:exported
-var chipersuites = map[uint16]string{
+var cipherSuites = map[uint16]string{
 	TLS_RSA_WITH_AES_128_CBC_SHA:                  "TLS_RSA_WITH_AES_128_CBC_SHA",
 	TLS_RSA_WITH_AES_256_CBC_SHA:                  "TLS_RSA_WITH_AES_256_CBC_SHA",
 	TLS_RSA_WITH_AES_128_GCM_SHA256:               "TLS_RSA_WITH_AES_128_GCM_SHA256",
@@ -55,7 +55,7 @@ var compressionMethods = map[uint8]string{
 func CipherSuites(u []uint16) []string {
 	result := make([]string, 0)
 	for _, k := range u {
-		if m, ok := chipersuites[k]; ok {
+		if m, ok := cipherSuites[k]; ok {
 			result = append(result, m)
 		} else {
 			result = append(result, "Unknown")

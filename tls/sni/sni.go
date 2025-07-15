@@ -1,4 +1,4 @@
-// Package sni provices logic to work with TLS SNI fields
+// Package sni provides logic to work with TLS SNI fields
 package sni
 
 import (

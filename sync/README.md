@@ -2,11 +2,14 @@
 
 [![Go Reference][godoc-badge]][godoc-link]
 [![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
 
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/sync.svg
 [godoc-link]: https://pkg.go.dev/darvaza.org/x/sync
 [goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x/sync
 [goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/sync
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=sync
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
 
 Package `sync` provides interfaces and utilities for synchronisation
 primitives.
@@ -479,8 +482,9 @@ cancellation propagation and lifecycle management of concurrent operations.
 * `Cancel(error) bool`: Cancels the Group with an optional error cause
 * `Close() error`: Cancels the Group and waits for all tasks to complete
 * `Go(func(context.Context)) error`: Spawns a new goroutine with context
-* `GoCatch(func(context.Context) error, func(context.Context, error) error) error`:
-  Spawns a goroutine with error handling and error-triggered cancellation
+* `GoCatch(func(context.Context) error, func(context.Context, error) error)
+  error`: Spawns a goroutine with error handling and error-triggered
+  cancellation
 
 ### Group Example usage
 
@@ -638,4 +642,5 @@ details.
 
 ## Development
 
-For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
+For development guidelines, architecture notes, and AI agent instructions, see
+[AGENT.md](AGENT.md).

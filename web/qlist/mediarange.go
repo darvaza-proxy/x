@@ -115,7 +115,7 @@ func MediaRangeQuality(mimetype string, ranges ...string) (quality float32) {
 // a list of media_ranges that have already been
 // parsed by ParseMediaRange(). Returns the
 // 'q' quality parameter of the best match, 0 if no
-// match was found. This function bahaves the same as quality()
+// match was found. This function behaves the same as quality()
 // except that 'parsed_ranges' must be a list of
 // parsed media ranges.
 func MediaRangeQualityParsed(mimetype string, parsedRanges QualityList) (quality float32) {

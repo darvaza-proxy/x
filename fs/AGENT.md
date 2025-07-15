@@ -49,7 +49,8 @@ Key patterns:
 
 ## Development Commands
 
-For common development commands and workflow, see the [root AGENT.md](../AGENT.md).
+For common development commands and workflow, see the
+[root AGENT.md](../AGENT.md).
 
 ## Testing Patterns
 
@@ -58,7 +59,7 @@ Tests focus on:
 - Path cleaning edge cases (absolute paths, `..` handling).
 - Glob pattern matching accuracy.
 - Cross-platform compatibility.
-- File locking behavior.
+- File locking behaviour.
 
 ## Common Usage Patterns
 

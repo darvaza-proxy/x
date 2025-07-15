@@ -24,7 +24,8 @@ For use with embedded `CustomSet[T]` variables, `InitCustomSet[T]` and
 For performance, `CustomSet[T]` implements two methods not covered by the
 `Set[T]` interface.
 
-* `Clone() Set[T]` to create a copy with the same elements and comparison function.
+* `Clone() Set[T]` to create a copy with the same elements and comparison
+  function.
 * and `New()` to create a new empty set with the same comparison function.
 
 ## See also

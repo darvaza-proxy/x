@@ -86,7 +86,8 @@ Key patterns:
 
 ## Development Commands
 
-For common development commands and workflow, see the [root AGENT.md](../AGENT.md).
+For common development commands and workflow, see the
+[root AGENT.md](../AGENT.md).
 
 ## Testing Patterns
 

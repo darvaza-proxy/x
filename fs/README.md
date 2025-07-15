@@ -1,5 +1,16 @@
 # Helpers to work with fs.FS
 
+[![Go Reference][godoc-badge]][godoc-link]
+[![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
+
+[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/fs.svg
+[godoc-link]: https://pkg.go.dev/darvaza.org/x/fs
+[goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x/fs
+[goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/fs
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=fs
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
+
 ## Globbing
 
 We use the excellent [github.com/gobwas/glob](https://github.com/gobwas/glob)
@@ -14,14 +25,16 @@ delimiters
 * `Match` is similar to `Glob` but it takes a root value, which will be cleaned,
   and a list of compiled `Matcher` patterns. it will only fail if the root
   gives an error.
-* `MatchFunc` is an alternative to `Match` which actually receives a checker function.
+* `MatchFunc` is an alternative to `Match` which actually receives a checker
+  function.
 
 ## Paths
 
 ### `Clean`
 
 We offer an alternative to the standard [fs.Clean] which optionally supports
-paths starting with `/`, and also returns if the cleaned path satisfies [fs.ValidPath].
+paths starting with `/`, and also returns if the cleaned path satisfies
+[fs.ValidPath].
 
 as leading `../` are supported, it can be used for concatenations and to clean
 absolute OS paths. `/..` will be returned if the reduction lead to that.
@@ -90,4 +103,5 @@ include aliases and proxies of commonly used symbols.
 
 ## Development
 
-For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
+For development guidelines, architecture notes, and AI agent instructions, see
+[AGENT.md](AGENT.md).

@@ -2,11 +2,14 @@
 
 [![Go Reference][godoc_badge]][godoc_link]
 [![Go Report Card][goreportcard_badge]][goreportcard_link]
+[![codecov][codecov_badge]][codecov_link]
 
 [godoc_badge]: https://pkg.go.dev/badge/darvaza.org/x/cmp.svg
 [godoc_link]: https://pkg.go.dev/darvaza.org/x/cmp
 [goreportcard_badge]: https://goreportcard.com/badge/darvaza.org/x/cmp
 [goreportcard_link]: https://goreportcard.com/report/darvaza.org/x/cmp
+[codecov_badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=cmp
+[codecov_link]: https://codecov.io/gh/darvaza-proxy/x
 
 ## Overview
 
@@ -49,9 +52,9 @@ Conversion functions:
   to a "less than" condition function.
 * `AsEqual[T any](cmp CompFunc[T]) CondFunc[T]`: Converts a comparison
   function to an equality condition function.
-* `AsCmp[T any](less CondFunc[T]) CompFunc[T]`: Converts a "less than" condition
-  function to a comparison function. Returns -1 if less(a,b) is true, 1 if less(b,a)
-  is true, and 0 otherwise.
+* `AsCmp[T any](less CondFunc[T]) CompFunc[T]`: Converts a "less than"
+  condition function to a comparison function. Returns -1 if less(a,b) is true,
+  1 if less(b,a) is true, and 0 otherwise.
 
 ## `Matcher`
 
@@ -290,7 +293,8 @@ if a nil function is provided.
 
 ## Development
 
-For development guidelines, architecture notes, and AI agent instructions, see [AGENT.md](AGENT.md).
+For development guidelines, architecture notes, and AI agent instructions, see
+[AGENT.md](AGENT.md).
 
 ## Dependencies
 

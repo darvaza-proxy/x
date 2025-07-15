@@ -100,7 +100,7 @@ func certSetItemMatch(leaf *x509.Certificate, cert *tls.Certificate) bool {
 	return cert.Leaf.Equal(leaf)
 }
 
-// certSetConfig defines the behavior of CertSet's underlying Set implementation,
+// certSetConfig defines the behaviour of CertSet's underlying Set implementation,
 // including how certificates are hashed, validated, and compared for equality.
 var certSetConfig = set.Config[*x509.Certificate, certpool.Hash, *tls.Certificate]{
 	Hash:      certSetHash,
