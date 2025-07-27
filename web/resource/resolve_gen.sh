@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043 # local usage
 
 set -eu
 
