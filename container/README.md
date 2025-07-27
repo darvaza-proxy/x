@@ -33,6 +33,12 @@ l.PushBack("third")
 for e := l.First(); e != nil; e = e.Next() {
     fmt.Println(e.Value)
 }
+
+// Use ForEach for iteration
+l.ForEach(func(value string) bool {
+    fmt.Println(value)
+    return true // true continues, false stops
+})
 ```
 
 ### `set`
@@ -51,6 +57,14 @@ cfg := set.Config[string, string, Person]{
 s := &set.Set[string, string, Person]{}
 s.Init(cfg, person1, person2)
 s.Push(person3)
+
+// Check existence and iterate
+if s.Has(person1) {
+    s.ForEach(func(p Person) bool {
+        fmt.Printf("Person: %s\n", p.ID)
+        return false // continue iteration
+    })
+}
 ```
 
 ### `slices`
@@ -59,10 +73,18 @@ Provides slice-based set implementations and utilities. See the
 [slices README](slices/README.md) for detailed documentation.
 
 ```go
-// Create an ordered set
+// Create an ordered set (duplicates are automatically removed)
 s := slices.NewOrderedSet[int](3, 1, 4, 1, 5)
 s.Add(9)
 exists := s.Contains(4)
+
+// Get sorted values
+values := s.Values() // [1, 3, 4, 5, 9]
+
+// Use custom comparison function
+custom := slices.NewCustomSet(func(a, b string) int {
+    return strings.Compare(strings.ToLower(a), strings.ToLower(b))
+}, "Hello", "world", "HELLO") // case-insensitive set
 ```
 
 ## Features
@@ -71,6 +93,8 @@ exists := s.Contains(4)
 * **Thread Safety**: Map-based set includes built-in synchronization
 * **Performance**: Optimized implementations for common operations
 * **Flexibility**: Configurable comparison and hashing functions
+* **Comprehensive Testing**: All packages now have extensive test coverage
+  with examples
 
 ## Installation
 
