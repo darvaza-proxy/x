@@ -304,12 +304,15 @@ func newGetMatchElement[T any](cond matchFunc[T],
 
 // newMatchElement returns an iterator callback that calls a helper for each (*list.Element, T) pair.
 func newMatchElement[T any](fn matchElemTypeFunc[T]) matchElemFunc {
-	cont := true
 	return func(el *list.Element) bool {
 		if value, ok := el.Value.(T); ok {
-			cont = fn == nil || fn(el, value)
+			if fn != nil {
+				// fn returns true to continue, false to stop
+				// but core.ListForEachElement expects true to stop, false to continue
+				return !fn(el, value)
+			}
 		}
-		return cont
+		return false // continue iteration
 	}
 }
 
