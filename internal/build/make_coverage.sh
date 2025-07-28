@@ -70,7 +70,7 @@ else
 	echo "Tests failed for $MODULE_NAME" >&2
 	# Show failed test output
 	if [ -s "$COVERSTDOUT" ]; then
-		grep -E '(FAIL|Error:|panic:|^---)|^\s+' "$COVERSTDOUT" | tail -20 >&2
+		grep -aE '(FAIL|Error:|panic:|^---)|^[[:space:]]+' "$COVERSTDOUT" | tail -20 >&2
 	fi
 	exit $exit_code
 fi
