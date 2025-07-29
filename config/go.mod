@@ -7,7 +7,7 @@ require darvaza.org/core v0.17.4
 require (
 	github.com/amery/defaults v0.1.0
 	github.com/go-playground/validator/v10 v10.27.0
-	mvdan.cc/sh/v3 v3.11.0
+	mvdan.cc/sh/v3 v3.12.0
 )
 
 require (
