@@ -207,7 +207,7 @@ func TestGroup_Done(t *testing.T) {
 		// Channel should close quickly as there are no tasks
 		select {
 		case <-ch:
-			// This is expected
+			// Expected behaviour
 		case <-time.After(100 * time.Millisecond):
 			assert.Fail(t, "Done channel should close when no tasks")
 		}
@@ -228,13 +228,13 @@ func TestGroup_Done(t *testing.T) {
 		case <-ch:
 			assert.Fail(t, "Done channel should not close before tasks complete")
 		case <-time.After(10 * time.Millisecond):
-			// This is expected
+			// Expected behaviour
 		}
 
 		// Channel should be closed after task completes
 		select {
 		case <-ch:
-			// This is expected
+			// Expected behaviour
 		case <-time.After(200 * time.Millisecond):
 			assert.Fail(t, "Done channel should close after tasks complete")
 		}
@@ -1123,6 +1123,41 @@ func TestGroup_GoCatch(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, taskCtx, wg.Context())
 		assert.Equal(t, catchCtx, wg.Context())
+	})
+}
+
+// TestGroup_Count tests the Count method
+func TestGroup_Count(t *testing.T) {
+	t.Run("ReportsActiveTaskCount", func(t *testing.T) {
+		wg := New(context.Background())
+
+		assert.Equal(t, 0, wg.Count())
+
+		taskStarted := make(chan struct{})
+		taskDone := make(chan struct{})
+
+		_ = wg.Go(func(_ context.Context) {
+			close(taskStarted)
+			<-taskDone
+		})
+
+		<-taskStarted
+		assert.Equal(t, 1, wg.Count())
+
+		_ = wg.Go(func(_ context.Context) {
+			<-taskDone
+		})
+
+		assert.Equal(t, 2, wg.Count())
+
+		close(taskDone)
+		time.Sleep(19 * time.Millisecond) // Allow tasks to complete
+		assert.Equal(t, 0, wg.Count())
+	})
+
+	t.Run("ReportsZeroForNilReceiver", func(t *testing.T) {
+		var wg *Group
+		assert.Equal(t, 0, wg.Count())
 	})
 }
 
