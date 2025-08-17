@@ -26,6 +26,7 @@ type Resource[T any] struct {
 
 	h  map[string]HandlerFunc[T]
 	r  map[string]HandlerFunc[T]
+	rc map[string]RendererFunc[T]
 	ql []qlist.QualityValue
 }
 
@@ -136,8 +137,9 @@ func New[T any](x any, options ...OptionFunc[T]) (*Resource[T], error) {
 
 func newResource[T any](x any) *Resource[T] {
 	h := &Resource[T]{
-		h: make(map[string]HandlerFunc[T]),
-		r: make(map[string]HandlerFunc[T]),
+		h:  make(map[string]HandlerFunc[T]),
+		r:  make(map[string]HandlerFunc[T]),
+		rc: make(map[string]RendererFunc[T]),
 	}
 
 	if x != nil {
