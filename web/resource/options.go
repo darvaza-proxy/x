@@ -98,3 +98,36 @@ func (r *Resource[T]) setIdentity(mediaType string) error {
 	r.identity = mediaType
 	return nil
 }
+
+// WithRendererCode provides a custom renderer with status code support for
+// the specified media type
+func WithRendererCode[T any](mediaType string, fn RendererFunc[T]) OptionFunc[T] {
+	s := strings.ToLower(strings.TrimSpace(mediaType))
+	return func(r *Resource[T]) error {
+		if len(r.methods) > 0 {
+			return errBusy
+		}
+		return r.addRendererWithCode(s, fn)
+	}
+}
+
+func (r *Resource[T]) addRendererWithCode(mediaType string, fn RendererFunc[T]) error {
+	qv, err := qlist.ParseQualityValue(mediaType)
+	switch {
+	case err != nil, !qv.IsMediaType():
+		return fmt.Errorf("%q: invalid media type", mediaType)
+	case fn == nil:
+		return fmt.Errorf("%q: no renderer specified", mediaType)
+	}
+
+	name := qv.String()
+	if prev := r.getRendererWithCode(name); prev == nil &&
+		r.getRenderer(name) == nil {
+		// completely new renderer
+		r.ql = append(r.ql, qv)
+	}
+
+	// set or replace
+	r.rc[name] = fn
+	return nil
+}

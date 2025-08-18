@@ -28,16 +28,17 @@ func NewSystemCertPool() (*CertPool, error) {
 		}
 	}
 
+	err := errs.AsError()
 	switch {
 	case pool.Count() > 0:
 		// success
-		return &pool, errs.AsError()
-	case errs.Ok():
+		return &pool, err
+	case err == nil:
 		// no certs and no errors... don't bother again.
 		return nil, ErrNoCertificatesFound
 	default:
 		// no cert, but we got errors to report.
-		return nil, &errs
+		return nil, err
 	}
 }
 
