@@ -32,22 +32,24 @@ go -C package mod tidy
 The following diagram shows the internal dependencies between packages:
 
 ```text
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌─────────────┐
-│    cmp      │     │   config     │     │    sync     │     │     fs      │
-│(no deps)    │     │ (no deps)    │     │ (no deps)   │     │ (no deps)   │
-└─────────────┘     └──────────────┘     └─────────────┘     └──────┬───────┘
-                                                                      │
-                                                                      ├───────┐
-                                                                      │       │
-┌─────────────┐                                                    ▼       ▼
-│  container  │                                          ┌─────────┐ ┌─────────┐
-│ (no deps)   │◄─────────────────────────────────────────│   net   │ │   web   │
-└─────────────┘                                          └─────────┘ └─────────┘
-        ▲
-        │
-┌───────┴─────┐
-│     tls     │
-└─────────────┘
+                Tier 1 - Independent packages:
+┌─────────────┐ ┌──────────────┐ ┌─────────────┐
+│     cmp     │ │    config    │ │     sync    │
+│  (no deps)  │ │  (no deps)   │ │  (no deps)  │
+└─────────────┘ └──────────────┘ └─────────────┘
+
+┌─────────────┐                  ┌─────────────┐
+│     fs      │                  │  container  │
+│  (no deps)  │                  │  (no deps)  │
+└──────┬──────┘                  └──────┬──────┘
+       │                                │
+       ├─────────────┐                  │
+       ▼             ▼                  ▼
+┌─────────┐   ┌─────────┐       ┌─────────────┐
+│   net   │   │   web   │       │     tls     │
+└─────────┘   └─────────┘       └─────────────┘
+
+                Tier 2 - Dependent packages
 ```
 
 ## Release Tiers
@@ -136,7 +138,7 @@ Before starting the release process:
 
    ```bash
    git push origin cmp/v0.3.0 config/v0.5.0 sync/v0.3.0 \
-     fs/v0.5.0 container/v0.3.0
+     fs/v0.5.1 container/v0.3.0
    ```
 
 4. Wait for pkg.go.dev to index the new versions (usually 5-10 minutes).
@@ -153,7 +155,7 @@ Before starting the release process:
    go get darvaza.org/x/cmp@v0.3.0
    go get darvaza.org/x/config@v0.5.0
    go get darvaza.org/x/sync@v0.3.0
-   go get darvaza.org/x/fs@v0.5.0
+   go get darvaza.org/x/fs@v0.5.1
    go get darvaza.org/x/container@v0.3.0
    \`\`\`"
    ```
@@ -164,10 +166,10 @@ Before starting the release process:
 
    ```bash
    # Update without changing directories (avoiding confusion)
-   go -C net get darvaza.org/x/fs@v0.5.0
+   go -C net get darvaza.org/x/fs@v0.5.1
    go -C net mod tidy
 
-   go -C web get darvaza.org/x/fs@v0.5.0
+   go -C web get darvaza.org/x/fs@v0.5.1
    go -C web mod tidy
 
    go -C tls get darvaza.org/x/container@v0.3.0
@@ -195,8 +197,8 @@ Before starting the release process:
    git add -A
    git commit -m "build: update internal dependencies for release
 
-   - net: update fs to v0.5.0
-   - web: update fs to v0.5.0
+   - net: update fs to v0.5.1
+   - web: update fs to v0.5.1
    - tls: update container to v0.3.0"
    ```
 
@@ -217,12 +219,12 @@ Before starting the release process:
    Release with updated dependencies
 
    Changes since vX.Y.Z:
-   - Update darvaza.org/x/fs to v0.5.0
+   - Update darvaza.org/x/fs to v0.5.1
    - Other changes...
 
    Dependencies:
    - darvaza.org/core vX.Y.Z
-   - darvaza.org/x/fs v0.5.0
+   - darvaza.org/x/fs v0.5.1
    - Go 1.23 or later"
    ```
 
