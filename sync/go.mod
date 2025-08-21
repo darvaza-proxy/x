@@ -2,7 +2,7 @@ module darvaza.org/x/sync
 
 go 1.23.0
 
-require darvaza.org/core v0.18.1
+require darvaza.org/core v0.18.2
 
 require github.com/stretchr/testify v1.10.0
 
