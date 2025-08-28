@@ -4,6 +4,14 @@ package fssyscall
 
 import (
 	"syscall"
+
+	"golang.org/x/sys/windows"
+)
+
+const (
+	// Windows file locking constants
+	reserved = 0
+	allBytes = ^uint32(0)
 )
 
 // ZeroHandle represents a closed Handle
@@ -15,29 +23,52 @@ type Handle syscall.Handle
 // Sys returns the underlying type for syscall operations
 func (h Handle) Sys() syscall.Handle { return syscall.Handle(h) }
 
-// LockEx is a no-op function that simulates an advisory exclusive lock on the file
-// associated to the given [Handle].
-//
-// Note: This function does not provide actual locking functionality on Windows.
-// It exists for API compatibility with other platforms.
-//
-// TODO: implement
-func LockEx(Handle) error { return nil }
+// LockEx attempts to create an advisory exclusive lock on
+// the file associated to the given [Handle].
+func LockEx(h Handle) error {
+	ol := &windows.Overlapped{}
+	err := windows.LockFileEx(
+		windows.Handle(h.Sys()),
+		windows.LOCKFILE_EXCLUSIVE_LOCK,
+		reserved,
+		allBytes,
+		allBytes,
+		ol,
+	)
+	return err
+}
 
-// UnlockEx is a no-op function that releases an advisory lock on the file associated
-// with the given Handle.
-//
-// Note: This function does not provide actual locking functionality on Windows.
-// It exists for API compatibility with other platforms.
-//
-// TODO: implement
-func UnlockEx(Handle) error { return nil }
+// UnlockEx releases an advisory lock on the file associated with the given Handle.
+func UnlockEx(h Handle) error {
+	ol := &windows.Overlapped{}
+	err := windows.UnlockFileEx(
+		windows.Handle(h.Sys()),
+		reserved,
+		allBytes,
+		allBytes,
+		ol,
+	)
+	return err
+}
 
-// TryLockEx is a no-op function that attempts to create an advisory exclusive lock on
+// TryLockEx attempts to create an advisory exclusive lock on
 // the file associated to the given [Handle] without blocking.
-//
-// Note: This function does not provide actual locking functionality on Windows.
-// It exists for API compatibility with other platforms.
-//
-// TODO: implement
-func TryLockEx(Handle) error { return nil }
+// Returns syscall.EBUSY if the lock cannot be acquired immediately.
+func TryLockEx(h Handle) error {
+	ol := &windows.Overlapped{}
+	err := windows.LockFileEx(
+		windows.Handle(h.Sys()),
+		windows.LOCKFILE_EXCLUSIVE_LOCK|windows.LOCKFILE_FAIL_IMMEDIATELY,
+		reserved,
+		allBytes,
+		allBytes,
+		ol,
+	)
+	if err != nil {
+		// Convert Windows lock violation to EBUSY for consistency with Linux
+		if err == windows.ERROR_LOCK_VIOLATION {
+			return syscall.EBUSY
+		}
+	}
+	return err
+}
