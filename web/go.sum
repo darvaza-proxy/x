@@ -1,5 +1,5 @@
-darvaza.org/core v0.18.1 h1:d7yqVGRSj8ZNy1cLaY/7cSZQAZ9+yeTw8p+PI8iCmWA=
-darvaza.org/core v0.18.1/go.mod h1:kc6mS+nBKf4FMbGQ1OqOEkMt58gpX4qzs8eYiMH99ME=
+darvaza.org/core v0.18.2 h1:nLi3nm5EiReCbbJzqllP6DS/jHKZfWacsy/v+7DVapM=
+darvaza.org/core v0.18.2/go.mod h1:aorjyDTgc1Bnn7jAdQK1VhQyZEIfqvdLddL8lUGzy9I=
 darvaza.org/x/fs v0.5.1 h1:oqBevXW2IxyhqgwDk/SbnmIGLcSbtmqazGKN0KpRfzM=
 darvaza.org/x/fs v0.5.1/go.mod h1:ZGk0BoK1od+qA7GtdiG0YGFfQgADRwhx3Enu5XmSwao=
 github.com/gobwas/glob v0.2.3 h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y=
