@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/cond"
 	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/mutex"
 )
@@ -28,6 +29,8 @@ type Semaphore struct {
 	global chan bool
 	// readers holds the count of readers unless it's the first
 	readers chan int
+	// writers tracks if there are writers waiting
+	writers cond.CountZero
 }
 
 func (s *Semaphore) lazyInit() error {
@@ -45,16 +48,18 @@ func (s *Semaphore) lazyInit() error {
 
 	// RW
 	s.mu.Lock()
-	if s.global != nil {
-		s.mu.Unlock()
-		return nil
+	if s.global == nil {
+		s.init()
 	}
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *Semaphore) init() {
+	_ = s.writers.Init(0)
 
 	s.global = make(chan bool, 1)
 	s.readers = make(chan int, 1)
-
-	s.mu.Unlock()
-	return nil
 }
 
 func (s *Semaphore) checkContext(ctx context.Context) error {
@@ -68,6 +73,8 @@ func (s *Semaphore) checkContext(ctx context.Context) error {
 		return nil
 	}
 }
+
+// TODO: implement Semaphore.Close
 
 // LockContext attempts to acquire an exclusive lock with a context.
 // Blocks until the lock is acquired or the context is cancelled.
@@ -141,8 +148,12 @@ func (s *Semaphore) RUnlock() {
 
 func (s *Semaphore) doLockContext(ctx context.Context) error {
 	if err := s.checkContext(ctx); err != nil {
+		// invalid
 		return err
 	}
+
+	s.writers.Inc()
+	defer s.writers.Dec()
 
 	select {
 	case s.global <- exclusiveLock:
@@ -154,8 +165,12 @@ func (s *Semaphore) doLockContext(ctx context.Context) error {
 
 func (s *Semaphore) doLock() error {
 	if err := s.lazyInit(); err != nil {
+		// invalid
 		return err
 	}
+
+	s.writers.Inc()
+	defer s.writers.Dec()
 
 	s.global <- exclusiveLock
 	return nil
@@ -178,7 +193,7 @@ func (s *Semaphore) doUnlock() error {
 	var errMsg string
 
 	if err := s.lazyInit(); err != nil {
-		// light error
+		// invalid
 		return err
 	}
 
@@ -217,6 +232,7 @@ func (s *Semaphore) doRLockContext(ctx context.Context) error {
 
 func (s *Semaphore) doRLock() error {
 	if err := s.lazyInit(); err != nil {
+		// invalid
 		return err
 	}
 
@@ -224,8 +240,14 @@ func (s *Semaphore) doRLock() error {
 	return nil
 }
 
-func (s *Semaphore) unsafeRLock(abort <-chan struct{}) bool {
+func (s *Semaphore) unsafeRLock(abort <-chan struct{}) (cancelled bool) {
 	var readers int
+
+	// Check if there are writers waiting before attempting to acquire a read lock
+	if err := s.writers.WaitAbort(abort); err != nil {
+		// cancelled
+		return true
+	}
 
 	select {
 	case s.global <- readerLock:
@@ -259,7 +281,13 @@ func (s *Semaphore) doTryRLock() (bool, error) {
 	var readers int
 
 	if err := s.lazyInit(); err != nil {
+		// invalid
 		return false, err
+	}
+
+	// Don't try to acquire read lock if writers are waiting
+	if s.writers.Value() > 0 {
+		return false, nil
 	}
 
 	select {
