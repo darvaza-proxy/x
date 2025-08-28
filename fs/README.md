@@ -3,6 +3,7 @@
 [![Go Reference][godoc-badge]][godoc-link]
 [![Go Report Card][goreportcard-badge]][goreportcard-link]
 [![codecov][codecov-badge]][codecov-link]
+[![Socket Badge][socket-badge]][socket-link]
 
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/fs.svg
 [godoc-link]: https://pkg.go.dev/darvaza.org/x/fs
@@ -10,6 +11,8 @@
 [goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/fs
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=fs
 [codecov-link]: https://codecov.io/gh/darvaza-proxy/x
+[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/fs
+[socket-link]: https://socket.dev/go/package/darvaza.org/x/fs
 
 ## Globbing
 
@@ -100,6 +103,34 @@ include aliases and proxies of commonly used symbols.
 ### Functions
 
 * `fs.ValidPath`
+
+## File Locking
+
+The `fssyscall` subpackage provides cross-platform file locking functionality
+through platform-specific syscalls.
+
+### Handle Operations
+
+* `LockEx(Handle) error` - acquire exclusive advisory lock.
+* `UnlockEx(Handle) error` - release advisory lock.
+* `TryLockEx(Handle) error` - attempt non-blocking exclusive lock.
+* `Open(filename, mode, perm) (Handle, error)` - open file and return handle.
+
+### os.File Convenience Functions
+
+* `FLockEx(*os.File) error` - lock using os.File.
+* `FUnlockEx(*os.File) error` - unlock using os.File.
+* `FTryLockEx(*os.File) error` - try-lock using os.File.
+
+### Cross-Platform Behaviour
+
+The implementation uses native APIs on each platform:
+
+* **Linux**: Uses `flock()` syscalls with `LOCK_EX` and `LOCK_NB` flags.
+* **Windows**: Uses `LockFileEx()` and `UnlockFileEx()` Win32 APIs.
+
+All platforms return `syscall.EBUSY` when `TryLockEx` cannot acquire a lock
+immediately, providing consistent error handling across systems.
 
 ## Development
 

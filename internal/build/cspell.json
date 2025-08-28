@@ -37,6 +37,7 @@
     "dialer",
     "dialing",
     "dotdot",
+    "EBUSY",
     "ELEC",
     "Errorf",
     "flock",
