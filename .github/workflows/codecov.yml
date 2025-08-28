@@ -17,8 +17,9 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: '1.25'
         cache: true
+        cache-dependency-path: '**/go.sum'
 
     - name: Run tests with coverage
       run: make clean-coverage codecov
@@ -30,4 +31,3 @@ jobs:
         ./.tmp/coverage/codecov.sh
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
