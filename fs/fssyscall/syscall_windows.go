@@ -32,3 +32,12 @@ func LockEx(Handle) error { return nil }
 //
 // TODO: implement
 func UnlockEx(Handle) error { return nil }
+
+// TryLockEx is a no-op function that attempts to create an advisory exclusive lock on
+// the file associated to the given [Handle] without blocking.
+//
+// Note: This function does not provide actual locking functionality on Windows.
+// It exists for API compatibility with other platforms.
+//
+// TODO: implement
+func TryLockEx(Handle) error { return nil }
