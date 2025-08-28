@@ -101,6 +101,34 @@ include aliases and proxies of commonly used symbols.
 
 * `fs.ValidPath`
 
+## File Locking
+
+The `fssyscall` subpackage provides cross-platform file locking functionality
+through platform-specific syscalls.
+
+### Handle Operations
+
+* `LockEx(Handle) error` - acquire exclusive advisory lock.
+* `UnlockEx(Handle) error` - release advisory lock.
+* `TryLockEx(Handle) error` - attempt non-blocking exclusive lock.
+* `Open(filename, mode, perm) (Handle, error)` - open file and return handle.
+
+### os.File Convenience Functions
+
+* `FLockEx(*os.File) error` - lock using os.File.
+* `FUnlockEx(*os.File) error` - unlock using os.File.
+* `FTryLockEx(*os.File) error` - try-lock using os.File.
+
+### Cross-Platform Behaviour
+
+The implementation uses native APIs on each platform:
+
+* **Linux**: Uses `flock()` syscalls with `LOCK_EX` and `LOCK_NB` flags.
+* **Windows**: Uses `LockFileEx()` and `UnlockFileEx()` Win32 APIs.
+
+All platforms return `syscall.EBUSY` when `TryLockEx` cannot acquire a lock
+immediately, providing consistent error handling across systems.
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
