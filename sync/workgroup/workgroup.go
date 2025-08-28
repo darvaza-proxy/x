@@ -7,6 +7,7 @@
 //   - Coordinate graceful shutdown of concurrent operations
 //   - Track completion of multiple concurrent tasks
 //   - Handle errors across concurrent operations
+//   - Control the maximum number of concurrent tasks
 //
 // Unlike sync.WaitGroup, this implementation provides context integration,
 // cancellation propagation, and lifecycle management for concurrent operations.
@@ -14,6 +15,7 @@ package workgroup
 
 import (
 	"context"
+	"runtime"
 	"sync"
 	"sync/atomic"
 
@@ -50,6 +52,15 @@ type Group struct {
 	// context.Background() will be used as the default parent.
 	Parent context.Context
 
+	// Limit specifies the maximum number of concurrent tasks that can be
+	// executed simultaneously in the Group.
+	// If set to zero or a negative value, no limit is applied, allowing
+	// unlimited concurrent tasks. This is useful for controlling resource
+	// usage or preventing excessive concurrency.
+	// The Limit value is fixed after the Group is created via New() or
+	// NewLimited() and cannot be changed later.
+	Limit int
+
 	// OnCancel is called when the Group is cancelled if defined.
 	OnCancel func(context.Context, error)
 
@@ -57,7 +68,7 @@ type Group struct {
 	cancel    context.CancelCauseFunc
 	cancelled atomic.Bool
 	mu        sync.RWMutex
-	wg        sync.WaitGroup
+	wg        WaitGroup
 	doneCh    chan struct{}
 }
 
@@ -77,6 +88,18 @@ func (wg *Group) Context() context.Context {
 	}
 
 	return wg.ctx
+}
+
+// Count returns the number of active tasks in the Group.
+// If initialisation fails or the receiver is nil, it returns 0.
+// This method is safe to call on a Group and provides a snapshot
+// of current task count.
+func (wg *Group) Count() int {
+	if err := wg.lazyInit(); err != nil {
+		return 0
+	}
+
+	return wg.wg.Count()
 }
 
 // Err returns the cancellation cause, if any.
@@ -179,7 +202,7 @@ func (wg *Group) doDone() <-chan struct{} {
 			wg.mu.Unlock()
 		}()
 
-		wg.wg.Wait()
+		_ = wg.wg.Wait()
 	}()
 	return ch
 }
@@ -200,7 +223,7 @@ func (wg *Group) Wait() error {
 		return err
 	}
 
-	wg.wg.Wait()
+	_ = wg.wg.Wait()
 
 	err := context.Cause(wg.ctx)
 	if err == context.Canceled {
@@ -255,12 +278,14 @@ func (wg *Group) doCancel(cause error) bool {
 	// call the OnCancel function if defined
 	if fn := wg.OnCancel; fn != nil {
 		ready = make(chan struct{})
-		wg.wg.Add(1)
-		go func() {
-			defer wg.wg.Done()
+
+		// Offload the OnCancel function to a goroutine
+		// to avoid blocking the critical section.
+		// It skips the queue if a limiter was set.
+		_ = wg.wg.Go(func() {
 			close(ready)
 			fn(wg.ctx, cause)
-		}()
+		})
 	}
 
 	wg.cancelled.Store(true)
@@ -271,6 +296,8 @@ func (wg *Group) doCancel(cause error) bool {
 		// wait until onCancel has started
 		<-ready
 	}
+
+	_ = wg.wg.Close()
 
 	return true
 }
@@ -295,7 +322,7 @@ func (wg *Group) Close() error {
 	}
 
 	wg.doCancel(context.Canceled)
-	wg.wg.Wait()
+	_ = wg.wg.Wait()
 	return nil
 }
 
@@ -338,13 +365,9 @@ func (wg *Group) doGo(fn func(context.Context)) error {
 	case wg.cancelled.Load():
 		return errors.ErrClosed
 	default:
-		wg.wg.Add(1)
-		go func() {
-			defer wg.wg.Done()
-
+		return wg.wg.Go(func() {
 			fn(wg.ctx)
-		}()
-		return nil
+		})
 	}
 }
 
@@ -415,12 +438,28 @@ func (wg *Group) run(fn func(context.Context) error, catch func(context.Context,
 
 // init initialises the Group with a context and cancel function.
 // If Parent is nil, it uses context.Background() as the default parent.
-func (wg *Group) init() {
+func (wg *Group) init() error {
+	var runner WaitGroup
+	var err error
+
+	if wg.Limit > 0 {
+		runner, err = NewLimiter(wg.Limit)
+	} else {
+		runner = NewRunner()
+	}
+
+	if err != nil {
+		return err
+	}
+
 	if wg.Parent == nil {
 		wg.Parent = context.Background()
 	}
 
 	wg.ctx, wg.cancel = context.WithCancelCause(wg.Parent)
+	wg.wg = runner
+
+	return nil
 }
 
 // lazyInit ensures the Group is properly initialised before use.
@@ -445,14 +484,14 @@ func (wg *Group) lazyInit() error {
 	defer wg.mu.Unlock()
 
 	if wg.ctx == nil {
-		wg.init()
+		return wg.init()
 	}
 
 	return nil
 }
 
-// New creates a new Group with the given parent context.
-// The Group is initialised and ready for use.
+// New creates a new Group with the given parent context and no concurrency
+// limit. This is equivalent to calling NewLimited(ctx, 0).
 //
 // If ctx is nil, context.Background() will be used as the default parent.
 //
@@ -472,7 +511,35 @@ func (wg *Group) lazyInit() error {
 //	wg.Go(func(ctx context.Context) { ... })
 //	wg.Go(func(ctx context.Context) { ... })
 func New(ctx context.Context) *Group {
-	wg := &Group{Parent: ctx}
-	wg.init()
+	return NewLimited(ctx, 0)
+}
+
+// NewLimited creates a new Group with the given parent context and concurrency
+// limit. The limit parameter sets the maximum number of concurrent tasks,
+// with a value of zero or less meaning unlimited concurrency.
+//
+// If ctx is nil, context.Background() will be used as the default parent.
+//
+// The limit is fixed upon creation and cannot be changed afterwards.
+//
+// Example:
+//
+//	// Create a workgroup with a timeout and concurrency limit of 10
+//	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+//	defer cancel()
+//
+//	wg := workgroup.NewLimited(ctx, 10)
+//	defer wg.Close()
+//
+//	// Add tasks to the workgroup
+//	wg.Go(func(ctx context.Context) { ... })
+func NewLimited(ctx context.Context, limit int) *Group {
+	wg := &Group{Parent: ctx, Limit: limit}
+	_ = wg.init()
+
+	runtime.SetFinalizer(wg, func(wg *Group) {
+		_ = wg.Close()
+	})
+
 	return wg
 }
