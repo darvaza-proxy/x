@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	darvaza.org/core v0.18.2
-	darvaza.org/slog v0.8.0
+	darvaza.org/slog v0.8.1
 	darvaza.org/x/container v0.3.1
 )
 
