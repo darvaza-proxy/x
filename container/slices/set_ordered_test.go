@@ -1,30 +1,28 @@
 package slices
 
 import (
-	"slices"
 	"testing"
+
+	"darvaza.org/core"
 )
 
 //revive:disable-next-line:cognitive-complexity
 func TestSet(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		var s []string
-		if got := NewOrderedSet(s...); got.Len() != 0 {
-			t.Errorf("Set() = %v, want empty slice", got)
-		}
+		got := NewOrderedSet(s...)
+		core.AssertEqual(t, 0, got.Len(), "empty set length")
 	})
 
 	t.Run("no duplicates", func(t *testing.T) {
 		s := []string{"a", "b", "c"}
 		got := NewOrderedSet(s...)
 		want := []string{"a", "b", "c"}
-		if got.Len() != len(want) {
-			t.Errorf("Set() = %v, want %v", got, want)
-		}
+		core.AssertEqual(t, len(want), got.Len(), "set length")
 		for i := range want {
-			if v, ok := got.GetByIndex(i); !ok || v != want[i] {
-				t.Errorf("Set()[%d] = %v, want %v", i, v, want[i])
-			}
+			v, ok := got.GetByIndex(i)
+			core.AssertEqual(t, true, ok, "GetByIndex should succeed")
+			core.AssertEqual(t, want[i], v, "value at index %d", i)
 		}
 	})
 
@@ -32,26 +30,43 @@ func TestSet(t *testing.T) {
 		s := []string{"a", "b", "a", "c", "b", "c"}
 		got := NewOrderedSet(s...)
 		want := []string{"a", "b", "c"}
-		if got.Len() != len(want) {
-			t.Errorf("Set() = %v, want %v", got, want)
-		}
+		core.AssertEqual(t, len(want), got.Len(), "set length")
 		for i := range want {
-			if v, ok := got.GetByIndex(i); !ok || v != want[i] {
-				t.Errorf("Set()[%d] = %v, want %v", i, v, want[i])
-			}
+			v, ok := got.GetByIndex(i)
+			core.AssertEqual(t, true, ok, "GetByIndex should succeed")
+			core.AssertEqual(t, want[i], v, "value at index %d", i)
 		}
 	})
 }
 
+type sortedSetAddTestCase struct {
+	name     string
+	initial  []int
+	add      []int
+	result   []int
+	expected int
+}
+
+func (tc sortedSetAddTestCase) Name() string {
+	return tc.name
+}
+
+func (tc sortedSetAddTestCase) Test(t *testing.T) {
+	t.Helper()
+	set := NewOrderedSet(tc.initial...)
+	n := set.Add(tc.add...)
+	core.AssertEqual(t, tc.expected, n, "added count")
+
+	values := set.Export()
+	core.AssertSliceEqual(t, tc.result, values, "final set")
+}
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = sortedSetAddTestCase{}
+
 //revive:disable-next-line:cognitive-complexity
 func TestSortedSet_Add(t *testing.T) {
-	tests := []struct {
-		name     string
-		initial  []int
-		add      []int
-		expected int
-		result   []int
-	}{
+	tests := []sortedSetAddTestCase{
 		{
 			name:     "add to empty set",
 			initial:  nil,
@@ -89,34 +104,37 @@ func TestSortedSet_Add(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			set := NewOrderedSet[int]()
-			if tt.initial != nil {
-				set.Add(tt.initial...)
-			}
-
-			count := set.Add(tt.add...)
-			if count != tt.expected {
-				t.Errorf("Add() returned %v, want %v", count, tt.expected)
-			}
-
-			if got := set.Export(); !slices.Equal(got, tt.result) {
-				t.Errorf("After Add() got %v, want %v", got, tt.result)
-			}
-		})
-	}
+	core.RunTestCases(t, tests)
 }
+
+type sortedSetRemoveTestCase struct {
+	name     string
+	initial  []int
+	remove   []int
+	expected []int
+	count    int
+}
+
+func (tc sortedSetRemoveTestCase) Name() string {
+	return tc.name
+}
+
+func (tc sortedSetRemoveTestCase) Test(t *testing.T) {
+	t.Helper()
+	set := NewOrderedSet(tc.initial...)
+	n := set.Remove(tc.remove...)
+	core.AssertEqual(t, tc.count, n, "removed count")
+
+	values := set.Export()
+	core.AssertSliceEqual(t, tc.expected, values, "final set")
+}
+
+// Compile-time verification
+var _ core.TestCase = sortedSetRemoveTestCase{}
 
 //revive:disable-next-line:cognitive-complexity
 func TestSortedSet_Remove(t *testing.T) {
-	tests := []struct {
-		name     string
-		initial  []int
-		remove   []int
-		expected []int
-		count    int
-	}{
+	tests := []sortedSetRemoveTestCase{
 		{
 			name:     "remove_from_empty",
 			initial:  []int{},
@@ -154,32 +172,36 @@ func TestSortedSet_Remove(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			set := NewOrderedSet[int]()
-			set.Add(tt.initial...)
+	core.RunTestCases(t, tests)
+}
 
-			count := set.Remove(tt.remove...)
+type sortedSetTrimNTestCase struct {
+	set         *CustomSet[int]
+	name        string
+	minCapacity int
+	want        bool
+}
 
-			if count != tt.count {
-				t.Errorf("Remove() count = %v, want %v", count, tt.count)
-			}
+func (tc sortedSetTrimNTestCase) Name() string {
+	return tc.name
+}
 
-			if got := set.Export(); !slices.Equal(got, tt.expected) {
-				t.Errorf("After Remove() got = %v, want %v", got, tt.expected)
-			}
-		})
+func (tc sortedSetTrimNTestCase) Test(t *testing.T) {
+	t.Helper()
+	got := tc.set.TrimN(tc.minCapacity)
+	core.AssertEqual(t, tc.want, got, "TrimN result")
+	if tc.set != nil {
+		_, c := tc.set.Cap()
+		core.AssertTrue(t, c >= tc.minCapacity, "capacity >= minCapacity")
 	}
 }
 
+// Compile-time verification
+var _ core.TestCase = sortedSetTrimNTestCase{}
+
 //revive:disable-next-line:cognitive-complexity
 func TestSortedSet_TrimN(t *testing.T) {
-	tests := []struct {
-		name        string
-		set         *CustomSet[int]
-		minCapacity int
-		want        bool
-	}{
+	tests := []sortedSetTrimNTestCase{
 		{
 			name:        "nil set",
 			set:         nil,
@@ -212,16 +234,5 @@ func TestSortedSet_TrimN(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.set.TrimN(tt.minCapacity); got != tt.want {
-				t.Errorf("SortedSet.TrimN() = %v, want %v", got, tt.want)
-			}
-			if tt.set != nil {
-				if _, c := tt.set.Cap(); c < tt.minCapacity {
-					t.Errorf("SortedSet.Cap() = %v, want >= %v", c, tt.minCapacity)
-				}
-			}
-		})
-	}
+	core.RunTestCases(t, tests)
 }

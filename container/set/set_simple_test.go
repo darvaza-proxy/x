@@ -4,48 +4,45 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	"darvaza.org/core"
 )
 
 func doTestPush(t *testing.T, s *Set[int, int, testItem]) {
+	t.Helper()
 	item := testItem{ID: 1, Name: "test"}
-	if _, err := s.Push(item); err != nil {
-		t.Fatalf("Push failed: %v", err)
-	}
+	_, err := s.Push(item)
+	core.AssertMustNoError(t, err, "Push")
 }
 
 func doTestContains(t *testing.T, s *Set[int, int, testItem]) {
-	if !s.Contains(1) {
-		t.Error("Contains should return true")
-	}
+	t.Helper()
+	core.AssertTrue(t, s.Contains(1), "Contains(1)")
 }
 
 func doTestGet(t *testing.T, s *Set[int, int, testItem]) {
-	if v, err := s.Get(1); err != nil {
-		t.Errorf("Get failed: %v", err)
-	} else if v.ID != 1 {
-		t.Errorf("Get returned wrong item: %+v", v)
-	}
+	t.Helper()
+	v, err := s.Get(1)
+	core.AssertMustNoError(t, err, "Get")
+	core.AssertEqual(t, 1, v.ID, "Get item ID")
 }
 
 func doTestPop(t *testing.T, s *Set[int, int, testItem]) {
-	if _, err := s.Pop(1); err != nil {
-		t.Errorf("Pop failed: %v", err)
-	}
+	t.Helper()
+	_, err := s.Pop(1)
+	core.AssertMustNoError(t, err, "Pop")
 }
 
 func doTestVerifyRemoved(t *testing.T, s *Set[int, int, testItem]) {
-	if s.Contains(1) {
-		t.Error("Item should be removed")
-	}
+	t.Helper()
+	core.AssertFalse(t, s.Contains(1), "item should be removed")
 }
 
 // Simple test to ensure basic functionality works
 func TestSetBasicOperations(t *testing.T) {
 	cfg := testConfig()
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	doTestPush(t, s)
 	doTestContains(t, s)
@@ -81,9 +78,7 @@ func runConcurrentRemoves(s *Set[int, int, testItem], wg *sync.WaitGroup, base, 
 func TestSetConcurrency(t *testing.T) {
 	cfg := testConfig()
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	const numGoroutines = 10
 	const itemsPerGoroutine = 100
@@ -110,7 +105,7 @@ func TestSetConcurrency(t *testing.T) {
 		count++
 		return false
 	})
-	t.Logf("Set contains %d items after concurrent operations", count)
+	// Set operations completed successfully
 }
 
 func makeFilledSet(b *testing.B, size int) *Set[int, int, testItem] {
