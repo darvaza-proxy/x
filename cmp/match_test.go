@@ -11,10 +11,10 @@ var _ core.TestCase = matchTestCase[int]{}
 
 // matchTestCase is a generic test case for match functions
 type matchTestCase[T any] struct {
-	name     string
-	value    T
-	expected bool
 	matcher  Matcher[T]
+	value    T
+	name     string
+	expected bool
 }
 
 func newMatchTestCase[T any](name string, value T, expected bool, matcher Matcher[T]) matchTestCase[T] {

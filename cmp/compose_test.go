@@ -12,10 +12,10 @@ var _ core.TestCase = composeTestCase[int]{}
 
 // composeTestCase is a generic test case for Compose function
 type composeTestCase[T any] struct {
-	name     string
-	input    T
-	expected bool
 	matcher  Matcher[T]
+	input    T
+	name     string
+	expected bool
 }
 
 func newComposeTestCase[T any](name string, input T, expected bool, matcher Matcher[T]) composeTestCase[T] {
@@ -133,10 +133,26 @@ func runTestComposeNested(t *testing.T) {
 		Zip    string
 	}
 
+	newAddress := func(street, city, zip string) Address {
+		return Address{
+			Street: street,
+			City:   city,
+			Zip:    zip,
+		}
+	}
+
 	type Person struct {
+		Address Address
 		Name    string
 		Age     int
-		Address Address
+	}
+
+	newPerson := func(name string, age int, address Address) Person {
+		return Person{
+			Address: address,
+			Name:    name,
+			Age:     age,
+		}
 	}
 
 	// Create a matcher that checks if a person's city starts with 'New'
@@ -153,25 +169,25 @@ func runTestComposeNested(t *testing.T) {
 	tests := []composeTestCase[Person]{
 		newComposeTestCase(
 			"from new city",
-			Person{"Alice", 30, Address{"123 Broadway", "New York", "10001"}},
+			newPerson("Alice", 30, newAddress("123 Broadway", "New York", "10001")),
 			true,
 			isFromNewCity,
 		),
 		newComposeTestCase(
 			"from another new city",
-			Person{"Bob", 25, Address{"456 Main St", "New Orleans", "70112"}},
+			newPerson("Bob", 25, newAddress("456 Main St", "New Orleans", "70112")),
 			true,
 			isFromNewCity,
 		),
 		newComposeTestCase(
 			"not from new city",
-			Person{"Charlie", 40, Address{"789 Oak Dr", "Boston", "02108"}},
+			newPerson("Charlie", 40, newAddress("789 Oak Dr", "Boston", "02108")),
 			false,
 			isFromNewCity,
 		),
 		newComposeTestCase(
 			"empty city",
-			Person{"David", 22, Address{"101 Pine Ave", "", "90210"}},
+			newPerson("David", 22, newAddress("101 Pine Ave", "", "90210")),
 			false,
 			isFromNewCity,
 		),

@@ -18,10 +18,10 @@ var _ core.TestCase = asCmpAsLessCycleTestCase[int]{}
 
 // reverseTestCase tests the Reverse function
 type reverseTestCase[T any] struct {
-	name     string
 	a, b     T
-	expected int
 	cmp      CompFunc[T]
+	name     string
+	expected int
 }
 
 func newReverseTestCase[T any](name string, a, b T, expected int, cmp CompFunc[T]) reverseTestCase[T] {
@@ -165,10 +165,10 @@ func TestReverseNil(t *testing.T) {
 
 // asLessTestCase tests the AsLess function
 type asLessTestCase[T any] struct {
-	name     string
 	a, b     T
-	expected bool
 	cmp      CompFunc[T]
+	name     string
+	expected bool
 }
 
 func newAsLessTestCase[T any](name string, a, b T, expected bool, cmp CompFunc[T]) asLessTestCase[T] {
@@ -296,10 +296,10 @@ func TestAsLessNil(t *testing.T) {
 
 // asEqualTestCase tests the AsEqual function
 type asEqualTestCase[T any] struct {
-	name     string
 	a, b     T
-	expected bool
 	cmp      CompFunc[T]
+	name     string
+	expected bool
 }
 
 func newAsEqualTestCase[T any](name string, a, b T, expected bool, cmp CompFunc[T]) asEqualTestCase[T] {
@@ -364,10 +364,10 @@ func TestAsEqualNil(t *testing.T) {
 
 // asCmpTestCase tests the AsCmp function
 type asCmpTestCase[T any] struct {
-	name     string
 	a, b     T
-	expected int
 	less     CondFunc[T]
+	name     string
+	expected int
 }
 
 func newAsCmpTestCase[T any](name string, a, b T, expected int, less CondFunc[T]) asCmpTestCase[T] {
@@ -481,8 +481,8 @@ func TestAsCmpNil(t *testing.T) {
 
 // asCmpAsLessCycleTestCase tests the AsCmp and AsLess function composition
 type asCmpAsLessCycleTestCase[T core.Ordered] struct {
-	name     string
 	a, b     T
+	name     string
 	expected bool
 }
 

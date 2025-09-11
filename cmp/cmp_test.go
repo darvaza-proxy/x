@@ -12,11 +12,11 @@ var _ core.TestCase = cmpTestCase[string]{}
 
 // cmpTestCase is a generic test case for comparison functions
 type cmpTestCase[T any] struct {
-	name     string
 	a, b     T
-	expected bool
 	fn       func(a, b T) bool
+	name     string
 	fmt      string // format string for error messages
+	expected bool
 }
 
 //revive:disable-next-line:argument-limit
@@ -77,12 +77,12 @@ func runTestEqWithStrings(t *testing.T) {
 
 // cmpFnTestCase is a generic test case for comparison functions with custom comparator
 type cmpFnTestCase[T any] struct {
-	name     string
 	a, b     T
-	expected bool
-	cmp      CompFunc[T]
 	fn       func(a, b T, cmp CompFunc[T]) bool
+	cmp      CompFunc[T]
+	name     string
 	fmt      string
+	expected bool
 }
 
 var _ core.TestCase = cmpFnTestCase[int]{}
@@ -260,12 +260,12 @@ func TestEqFnPanic(t *testing.T) {
 
 // cmpFn2TestCase is a generic test case for comparison functions with condition function
 type cmpFn2TestCase[T any] struct {
-	name     string
 	a, b     T
-	expected bool
-	cond     CondFunc[T]
 	fn       func(a, b T, cond CondFunc[T]) bool
+	cond     CondFunc[T]
+	name     string
 	fmt      string
+	expected bool
 }
 
 var _ core.TestCase = cmpFn2TestCase[int]{}
@@ -595,11 +595,11 @@ func TestCustomTypeComparison(t *testing.T) {
 
 // ltEqFn2TestCase is a test case for LtEqFn2 function
 type ltEqFn2TestCase[T any] struct {
-	name     string
 	a, b     T
-	expected bool
 	less     CondFunc[T]
+	name     string
 	fmt      string
+	expected bool
 }
 
 var _ core.TestCase = ltEqFn2TestCase[int]{}
