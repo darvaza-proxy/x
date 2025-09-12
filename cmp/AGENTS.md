@@ -2,9 +2,10 @@
 
 ## Overview
 
-The `cmp` package provides generic comparison and matching utilities for Go.
-It offers type-safe comparison functions, condition predicates, and a powerful
-`Matcher` interface for building composable filtering logic.
+The `cmp` package provides generic helpers for comparing and matching values
+in Go. It defines type-safe comparison functions and utilities to adapt them
+for various use cases, leveraging Go's generics for compile-time safety and a
+powerful `Matcher` interface for building composable filtering logic.
 
 For detailed API documentation and usage examples, see [README.md](README.md).
 
@@ -43,7 +44,7 @@ maintaining flexibility. Key design patterns:
 ## Development Commands
 
 For common development commands and workflow, see the
-[root AGENT.md](../AGENT.md).
+[root AGENTS.md](../AGENTS.md).
 
 ## Testing Patterns
 
@@ -122,4 +123,4 @@ isAdult := Compose(
 ## See Also
 
 - [Package README](README.md) for detailed API documentation.
-- [Root AGENT.md](../AGENT.md) for mono-repo overview.
+- [Root AGENTS.md](../AGENTS.md) for mono-repo overview.
