@@ -122,7 +122,7 @@ gen_make_targets() {
 		#
 		call="$(cat <<-EOT | packed
 		\$(GO) vet ./...
-		\$(GOLANGCI_LINT) run
+		\$(GOLANGCI_LINT) run \$(GOLANGCI_LINT_RUN_ARGS)
 		\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
 		EOT
 		)"
