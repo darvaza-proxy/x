@@ -2,6 +2,11 @@
 
 ## Overview
 
+The `net` package provides advanced networking utilities that extend Go's
+standard net package. It includes sophisticated port binding mechanisms,
+automatic reconnection clients, and platform-specific socket control for
+robust network programming.
+
 For detailed API documentation and usage examples, see [README.md](README.md).
 
 ## Key Components
@@ -60,7 +65,7 @@ Key patterns:
 ## Development Commands
 
 For common development commands and workflow, see the
-[root AGENT.md](../AGENT.md).
+[root AGENTS.md](../AGENTS.md).
 
 ## Testing Patterns
 
@@ -164,4 +169,4 @@ client := reconnect.NewClient(cfg,
 
 - [reconnect README](reconnect/README.md) for automatic reconnection client
   details.
-- [Root AGENT.md](../AGENT.md) for mono-repo overview.
+- [Root AGENTS.md](../AGENTS.md) for mono-repo overview.

@@ -1,15 +1,18 @@
 # `darvaza.org/x/net`
 
-[![Go Reference][godoc_badge]][godoc_link]
-[![Go Report Card][goreportcard_badge]][goreportcard_link]
-[![codecov][codecov_badge]][codecov_link]
+[![Go Reference][godoc-badge]][godoc-link]
+[![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
+[![Socket Badge][socket-badge]][socket-link]
 
-[godoc_badge]: https://pkg.go.dev/badge/darvaza.org/x/net.svg
-[godoc_link]: https://pkg.go.dev/darvaza.org/x/net
-[goreportcard_badge]: https://goreportcard.com/badge/darvaza.org/x/net
-[goreportcard_link]: https://goreportcard.com/report/darvaza.org/x/net
-[codecov_badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=net
-[codecov_link]: https://codecov.io/gh/darvaza-proxy/x
+[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/net.svg
+[godoc-link]: https://pkg.go.dev/darvaza.org/x/net
+[goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x/net
+[goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/net
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=net
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
+[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/net
+[socket-link]: https://socket.dev/go/package/darvaza.org/x/net
 
 ## Overview
 
@@ -38,11 +41,11 @@ listeners, err := bind.Bind(cfg)
 
 Features:
 
-* Multi-interface and multi-address binding
-* Automatic port retry with configurable attempts
-* Socket option control (SO_REUSEADDR, SO_REUSEPORT)
-* Buffer size configuration for UDP
-* Connection upgrading capabilities
+* Multi-interface and multi-address binding.
+* Automatic port retry with configurable attempts.
+* Socket option control (SO_REUSEADDR, SO_REUSEPORT).
+* Buffer size configuration for UDP.
+* Connection upgrading capabilities.
 
 ### `reconnect`
 
@@ -68,19 +71,19 @@ err := client.Spawn(ctx)
 
 Features:
 
-* Automatic connection retry with backoff
-* Session management with lifecycle callbacks
-* Context-based cancellation
-* Thread-safe connection handling
-* Configurable timeouts and retry strategies
+* Automatic connection retry with backoff.
+* Session management with lifecycle callbacks.
+* Context-based cancellation.
+* Thread-safe connection handling.
+* Configurable timeouts and retry strategies.
 
 ## Features
 
 * **Platform Abstraction**: Socket control operations work across Unix/Linux
-  and Windows
-* **Graceful Degradation**: Features degrade safely on unsupported platforms
-* **Context Integration**: Full context.Context support throughout
-* **Thread Safety**: Concurrent-safe operations in reconnect client
+  and Windows.
+* **Graceful Degradation**: Features degrade safely on unsupported platforms.
+* **Context Integration**: Full context.Context support throughout.
+* **Thread Safety**: Concurrent-safe operations in reconnect client.
 
 ## Installation
 
@@ -123,24 +126,25 @@ client := reconnect.NewClient(cfg,
 
 ## Dependencies
 
-* [`darvaza.org/core`][core-link]: Core utilities
-* [`darvaza.org/slog`][slog-link]: Structured logging
-* Standard library (net, syscall, context)
+* [`darvaza.org/core`][core-link]: Core utilities.
+* [`darvaza.org/slog`][slog-link]: Structured logging.
+* Standard library (net, syscall, context).
 
 [core-link]: https://pkg.go.dev/darvaza.org/core
 [slog-link]: https://pkg.go.dev/darvaza.org/slog
 
 ## Platform Support
 
-* **Unix/Linux**: Full socket control support
-* **Windows**: Adapted control operations
-* Platform-specific implementations use build tags
+* **Unix/Linux**: Full socket control support.
+* **Windows**: Adapted control operations.
+* Platform-specific implementations use build tags.
 
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
-[AGENT.md](AGENT.md).
+[AGENTS.md](AGENTS.md).
 
-## License
+## Licence
 
-See [LICENCE.txt](LICENCE.txt) for details.
+This project is licensed under the MIT Licence. See [LICENCE.txt](LICENCE.txt)
+for details.
