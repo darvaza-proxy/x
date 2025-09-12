@@ -1,18 +1,21 @@
 # Darvaza Config
 
-[![Go Reference][godoc-badge]][godoc]
-[![Go Report Card][goreport-badge]][goreport]
-[![codecov][codecov-badge]][codecov]
+[![Go Reference][godoc-badge]][godoc-link]
+[![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
+[![Socket Badge][socket-badge]][socket-link]
 
 `darvaza.org/x/config` provides helpers
 for dealing with config files.
 
-[godoc]: https://pkg.go.dev/darvaza.org/x/config
+[godoc-link]: https://pkg.go.dev/darvaza.org/x/config
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/config.svg
-[goreport]: https://goreportcard.com/report/darvaza.org/x/config
-[goreport-badge]: https://goreportcard.com/badge/darvaza.org/x/config
-[codecov]: https://codecov.io/gh/darvaza-proxy/x
+[goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/config
+[goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x/config
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=config
+[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/config
+[socket-link]: https://socket.dev/go/package/darvaza.org/x/config
 
 [darvaza-core]: https://pkg.go.dev/darvaza.org/core
 [darvaza-penne]: https://pkg.go.dev/darvaza.org/penne
@@ -57,10 +60,16 @@ Wrappers for
 * `AsValidationError()`
 * and `Prepare()`, calling `SetDefaults()` and `Validate()`.
 
+## Installation
+
+```bash
+go get darvaza.org/x/config
+```
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
-[AGENT.md](AGENT.md).
+[AGENTS.md](AGENTS.md).
 
 ## See also
 
