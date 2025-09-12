@@ -2,6 +2,11 @@
 
 ## Overview
 
+The `tls` package provides advanced TLS/SSL certificate handling utilities
+that extend Go's standard crypto/tls package. It includes certificate stores,
+SNI inspection, certificate bundling, and enhanced x509 utilities with a focus
+on dynamic certificate management.
+
 For detailed API documentation and usage examples, see [README.md](README.md).
 
 ## Key Components
@@ -60,7 +65,7 @@ Key patterns:
 ## Development Commands
 
 For common development commands and workflow, see the
-[root AGENT.md](../AGENT.md).
+[root AGENTS.md](../AGENTS.md).
 
 ## Testing Patterns
 
@@ -198,4 +203,4 @@ err := tls.Verify(cert, &tls.VerifyOptions{
 - [sni Package](sni/) for SNI handling details.
 - [store Package](store/) for storage implementations.
 - [x509utils Package](x509utils/) for certificate utilities.
-- [Root AGENT.md](../AGENT.md) for mono-repo overview.
+- [Root AGENTS.md](../AGENTS.md) for mono-repo overview.
