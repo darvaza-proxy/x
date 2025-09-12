@@ -71,7 +71,7 @@ Key patterns:
 ## Development Commands
 
 For common development commands and workflow, see the
-[root AGENT.md](../AGENT.md).
+[root AGENTS.md](../AGENTS.md).
 
 ## Testing Patterns
 
@@ -219,5 +219,5 @@ Standard errors from the errors package:
 ## See Also
 
 - [Package README](README.md) for comprehensive API documentation.
-- [Root AGENT.md](../AGENT.md) for mono-repo overview.
+- [Root AGENTS.md](../AGENTS.md) for mono-repo overview.
 - Individual subpackage documentation for detailed usage.
