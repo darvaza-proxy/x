@@ -24,7 +24,7 @@ provided.
 methods. This slice can be safely modified.
 
 `Resource` deals with the `403 Method Not Allowed` directly and with bad
-`req.URL.Path`s when using the `DefaultChecker`
+`req.URL.Path`s when using the `DefaultChecker`.
 
 ### Signatures
 
