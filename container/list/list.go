@@ -93,7 +93,7 @@ func (l *List[T]) Values() []T {
 }
 
 // ForEach calls a function on each element of the list, allowing safe modification of the
-// list during iteration.
+// list during iteration. The function should return true to continue iteration or false to stop.
 func (l *List[T]) ForEach(fn func(T) bool) {
 	if l != nil && fn != nil {
 		cb := func(_ *list.Element, v T) bool {
@@ -174,7 +174,8 @@ func (l *List[T]) FirstMatchFn(fn func(T) bool) (T, bool) {
 }
 
 // Purge removes any element not complying with the type restriction.
-// It returns the number of elements removed.
+// It returns the number of elements removed. This is useful when a raw list.List
+// with mixed types is cast to List[T] and you need to remove non-T elements.
 func (l *List[T]) Purge() int {
 	var count int
 
@@ -185,9 +186,10 @@ func (l *List[T]) Purge() int {
 			if _, ok := el.Value.(T); !ok {
 				remove = append(remove, el)
 			}
-			return true
+			return false // continue iteration
 		}
 
+		// core.ListForEachElement expects true to stop, false to continue
 		core.ListForEachElement(ll, cb)
 
 		for _, el := range remove {
@@ -205,6 +207,8 @@ func (l *List[T]) Clone() *List[T] {
 }
 
 // Copy returns a copy of the list, optionally altered or filtered.
+// The function receives each element and returns the transformed value and a bool
+// indicating whether to include it in the copy. If fn is nil, all elements are copied unchanged.
 func (l *List[T]) Copy(fn func(T) (T, bool)) *List[T] {
 	if fn == nil {
 		fn = func(v T) (T, bool) {
