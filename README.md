@@ -1,18 +1,21 @@
 # Darvaza Extra
 
-[![Go Reference][godoc-badge]][godoc]
-[![Go Report Card][goreport-badge]][goreport]
-[![codecov][codecov-badge]][codecov]
+[![Go Reference][godoc-badge]][godoc-link]
+[![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
+[![Socket Badge][socket-badge]][socket-link]
 
 `darvaza.org/x` hosts mid-complexity packages with no significant dependencies
 or assumptions.
 
-[godoc]: https://pkg.go.dev/darvaza.org/x
+[godoc-link]: https://pkg.go.dev/darvaza.org/x
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x.svg
-[goreport]: https://goreportcard.com/report/darvaza.org/x
-[goreport-badge]: https://goreportcard.com/badge/darvaza.org/x
-[codecov]: https://codecov.io/gh/darvaza-proxy/x
+[goreportcard-link]: https://goreportcard.com/report/darvaza.org/x
+[goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg
+[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x
+[socket-link]: https://socket.dev/go/package/darvaza.org/x
 
 ## Dependencies
 
@@ -70,7 +73,7 @@ and certificates.
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
-[AGENT.md](AGENT.md).
+[AGENTS.md](AGENTS.md).
 
 ## Architecture Overview
 
@@ -176,23 +179,23 @@ graph TB
 
 ## See also
 
-* [JPI Technologies' Open-Source Software](https://oss.jpi.io/).
+* [Apptly Software Open-Source Projects](https://oss.apptly.co/).
 * _darvaza libraries_:
-  * [darvaza.org/cache][cache].
-  * [darvaza.org/core][core].
-  * [darvaza.org/resolver][resolver].
-  * [darvaza.org/slog][slog].
-  * [darvaza.org/x/cmp][x-cmp].
-  * [darvaza.org/x/config][x-config].
-  * [darvaza.org/x/container][x-container].
-  * [darvaza.org/x/fs][x-fs].
-  * [darvaza.org/x/net][x-net].
-  * [darvaza.org/x/sync][x-sync].
-  * [darvaza.org/x/tls][x-tls].
-  * [darvaza.org/x/web][x-web].
+  * [darvaza.org/cache][cache]
+  * [darvaza.org/core][core]
+  * [darvaza.org/resolver][resolver]
+  * [darvaza.org/slog][slog]
+  * [darvaza.org/x/cmp][x-cmp]
+  * [darvaza.org/x/config][x-config]
+  * [darvaza.org/x/container][x-container]
+  * [darvaza.org/x/fs][x-fs]
+  * [darvaza.org/x/net][x-net]
+  * [darvaza.org/x/sync][x-sync]
+  * [darvaza.org/x/tls][x-tls]
+  * [darvaza.org/x/web][x-web]
 * _darvaza servers_:
-  * [darvaza.org/penne][penne].
-  * [darvaza.org/sidecar][sidecar].
+  * [darvaza.org/penne][penne]
+  * [darvaza.org/sidecar][sidecar]
 
 [cache]: https://pkg.go.dev/darvaza.org/cache
 [core]: https://pkg.go.dev/darvaza.org/core

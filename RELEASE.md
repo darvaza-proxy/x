@@ -310,4 +310,4 @@ If issues are discovered after release:
 ## See also
 
 - [README.md](README.md): General repository information.
-- [AGENT.md](AGENT.md): Development guidelines for AI agents.
+- [AGENTS.md](AGENTS.md): Development guidelines for AI agents.

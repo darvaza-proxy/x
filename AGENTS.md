@@ -1,4 +1,4 @@
-# AGENT.md
+# AGENTS.md
 
 This file provides guidance to AI agents when working with code in this
 repository. For developers and general project information, please refer to
@@ -21,16 +21,16 @@ Before starting development, ensure you have:
 
 ## Packages
 
-Each package has its own AGENT.md file with detailed documentation:
+Each package has its own AGENTS.md file with detailed documentation:
 
-- **cmp**: See [cmp/AGENT.md](cmp/AGENT.md).
-- **config**: See [config/AGENT.md](config/AGENT.md).
-- **container**: See [container/AGENT.md](container/AGENT.md).
-- **fs**: See [fs/AGENT.md](fs/AGENT.md).
-- **net**: See [net/AGENT.md](net/AGENT.md).
-- **sync**: See [sync/AGENT.md](sync/AGENT.md).
-- **tls**: See [tls/AGENT.md](tls/AGENT.md).
-- **web**: See [web/AGENT.md](web/AGENT.md).
+- **cmp**: See [cmp/AGENTS.md](cmp/AGENTS.md).
+- **config**: See [config/AGENTS.md](config/AGENTS.md).
+- **container**: See [container/AGENTS.md](container/AGENTS.md).
+- **fs**: See [fs/AGENTS.md](fs/AGENTS.md).
+- **net**: See [net/AGENTS.md](net/AGENTS.md).
+- **sync**: See [sync/AGENTS.md](sync/AGENTS.md).
+- **tls**: See [tls/AGENTS.md](tls/AGENTS.md).
+- **web**: See [web/AGENTS.md](web/AGENTS.md).
 
 ## Common Development Commands
 
@@ -267,7 +267,7 @@ configurations for debugging, coverage analysis, or CI/CD pipelines.
 ## Important Notes
 
 - Go 1.23 is the minimum required version.
-- Each package maintains its own README.md and AGENT.md.
+- Each package maintains its own README.md and AGENTS.md.
 - The Makefile dynamically generates rules for subprojects.
 - Tool versions (golangci-lint, revive) are selected based on Go version.
 - These are utility libraries - no business logic, only reusable helpers.
@@ -319,7 +319,7 @@ When editing markdown files, ensure compliance with:
 When creating or editing documentation files:
 
 1. **File Structure**:
-   - Always include a link to related documentation (e.g., AGENT.md should
+   - Always include a link to related documentation (e.g., AGENTS.md should
      link to README.md).
    - Add prerequisites or setup instructions before diving into commands.
    - Include paths to configuration files when mentioning tools
@@ -358,7 +358,7 @@ When creating or editing documentation files:
    - If `make tidy` fails, fix the issues and run it again until it passes.
 2. Verify all tests pass with `make test`.
 3. Ensure no linting violations remain.
-4. Update `AGENT.md` to reflect any changes in development workflow or
+4. Update `AGENTS.md` to reflect any changes in development workflow or
    standards.
 5. Update `README.md` to reflect significant changes in functionality or API.
 6. Update package documentation if modifying package behaviour.
