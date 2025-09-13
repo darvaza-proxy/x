@@ -1,16 +1,16 @@
 # `darvaza.org/x/cmp`
 
-[![Go Reference][godoc_badge]][godoc_link]
-[![Go Report Card][goreportcard_badge]][goreportcard_link]
-[![codecov][codecov_badge]][codecov_link]
+[![Go Reference][godoc-badge]][godoc-link]
+[![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
 [![Socket Badge][socket-badge]][socket-link]
 
-[godoc_badge]: https://pkg.go.dev/badge/darvaza.org/x/cmp.svg
-[godoc_link]: https://pkg.go.dev/darvaza.org/x/cmp
-[goreportcard_badge]: https://goreportcard.com/badge/darvaza.org/x/cmp
-[goreportcard_link]: https://goreportcard.com/report/darvaza.org/x/cmp
-[codecov_badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=cmp
-[codecov_link]: https://codecov.io/gh/darvaza-proxy/x
+[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/cmp.svg
+[godoc-link]: https://pkg.go.dev/darvaza.org/x/cmp
+[goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x/cmp
+[goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/cmp
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=cmp
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
 [socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/cmp
 [socket-link]: https://socket.dev/go/package/darvaza.org/x/cmp
 
@@ -297,7 +297,7 @@ if a nil function is provided.
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
-[AGENT.md](AGENT.md).
+[AGENTS.md](AGENTS.md).
 
 ## Dependencies
 
@@ -306,6 +306,7 @@ This package only depends on the standard library and
 
 [core-link]: https://pkg.go.dev/darvaza.org/core
 
-## License
+## Licence
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT Licence. See [LICENCE.txt](LICENCE.txt)
+for details.

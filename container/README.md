@@ -3,6 +3,7 @@
 [![Go Reference][godoc-badge]][godoc-link]
 [![Go Report Card][goreportcard-badge]][goreportcard-link]
 [![codecov][codecov-badge]][codecov-link]
+[![Socket Badge][socket-badge]][socket-link]
 
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/container.svg
 [godoc-link]: https://pkg.go.dev/darvaza.org/x/container
@@ -10,6 +11,8 @@
 [goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/container
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=container
 [codecov-link]: https://codecov.io/gh/darvaza-proxy/x
+[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/container
+[socket-link]: https://socket.dev/go/package/darvaza.org/x/container
 
 ## Overview
 
@@ -89,12 +92,12 @@ custom := slices.NewCustomSet(func(a, b string) int {
 
 ## Features
 
-* **Type Safety**: All containers use Go generics for compile-time type safety
-* **Thread Safety**: Map-based set includes built-in synchronization
-* **Performance**: Optimized implementations for common operations
-* **Flexibility**: Configurable comparison and hashing functions
+* **Type Safety**: All containers use Go generics for compile-time type safety.
+* **Thread Safety**: Map-based set includes built-in synchronisation.
+* **Performance**: Optimised implementations for common operations.
+* **Flexibility**: Configurable comparison and hashing functions.
 * **Comprehensive Testing**: All packages now have extensive test coverage
-  with examples
+  with examples.
 
 ## Installation
 
@@ -112,8 +115,9 @@ This package only depends on the standard library and
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
-[AGENT.md](AGENT.md).
+[AGENTS.md](AGENTS.md).
 
-## License
+## Licence
 
-See [LICENCE.txt](LICENCE.txt) for details.
+This project is licensed under the MIT Licence. See [LICENCE.txt](LICENCE.txt)
+for details.

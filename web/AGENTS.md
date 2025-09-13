@@ -87,7 +87,7 @@ Key patterns:
 ## Development Commands
 
 For common development commands and workflow, see the
-[root AGENT.md](../AGENT.md).
+[root AGENTS.md](../AGENTS.md).
 
 ## Testing Patterns
 
@@ -252,5 +252,5 @@ if err != nil {
 ## See Also
 
 - [resource README](resource/README.md) for RESTful resource framework details.
-- [Root AGENT.md](../AGENT.md) for mono-repo overview.
+- [Root AGENTS.md](../AGENTS.md) for mono-repo overview.
 - HTTP RFCs for standards compliance.

@@ -1,15 +1,18 @@
 # `darvaza.org/x/tls`
 
-[![Go Reference][godoc_badge]][godoc_link]
-[![Go Report Card][goreportcard_badge]][goreportcard_link]
-[![codecov][codecov_badge]][codecov_link]
+[![Go Reference][godoc-badge]][godoc-link]
+[![Go Report Card][goreportcard-badge]][goreportcard-link]
+[![codecov][codecov-badge]][codecov-link]
+[![Socket Badge][socket-badge]][socket-link]
 
-[godoc_badge]: https://pkg.go.dev/badge/darvaza.org/x/tls.svg
-[godoc_link]: https://pkg.go.dev/darvaza.org/x/tls
-[goreportcard_badge]: https://goreportcard.com/badge/darvaza.org/x/tls
-[goreportcard_link]: https://goreportcard.com/report/darvaza.org/x/tls
-[codecov_badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=tls
-[codecov_link]: https://codecov.io/gh/darvaza-proxy/x
+[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/tls.svg
+[godoc-link]: https://pkg.go.dev/darvaza.org/x/tls
+[goreportcard-badge]: https://goreportcard.com/badge/darvaza.org/x/tls
+[goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/tls
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=tls
+[codecov-link]: https://codecov.io/gh/darvaza-proxy/x
+[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/tls
+[socket-link]: https://socket.dev/go/package/darvaza.org/x/tls
 
 ## Overview
 
@@ -87,26 +90,26 @@ dispatcher.Add("*.api.com", apiHandler)
 
 Server Name Indication parsing and routing.
 
-* ClientHello parsing without full handshake
-* SNI-based dispatching
-* Chi router integration
+* ClientHello parsing without full handshake.
+* SNI-based dispatching.
+* Chi router integration.
 
 ### `store`
 
 Certificate storage implementations.
 
-* `basic`: Simple in-memory store
-* `buffer`: Buffered certificate operations
-* `config`: Configuration-based loading
+* `basic`: Simple in-memory store.
+* `buffer`: Buffered certificate operations.
+* `config`: Configuration-based loading.
 
 ### `x509utils`
 
 Enhanced X.509 certificate utilities.
 
-* `certpool`: Advanced certificate pool management
-* PEM encoding/decoding
-* Certificate validation
-* System certificate integration
+* `certpool`: Advanced certificate pool management.
+* PEM encoding/decoding.
+* Certificate validation.
+* System certificate integration.
 
 ## Examples
 
@@ -153,25 +156,26 @@ go get darvaza.org/x/tls
 
 ## Dependencies
 
-* [`darvaza.org/core`][core-link]: Core utilities
-* [`golang.org/x/crypto`][xcrypto-link]: Low-level crypto parsing
-* Standard library (crypto/tls, crypto/x509)
+* [`darvaza.org/core`][core-link]: Core utilities.
+* [`golang.org/x/crypto`][xcrypto-link]: Low-level crypto parsing.
+* Standard library (crypto/tls, crypto/x509).
 
 [core-link]: https://pkg.go.dev/darvaza.org/core
 [xcrypto-link]: https://pkg.go.dev/golang.org/x/crypto
 
 ## Security Considerations
 
-* Private keys are stored in memory (consider HSM for production)
-* Certificate validation follows standard x509 rules
-* SNI parsing is resistant to malformed packets
-* System cert pool access may require elevated privileges
+* Private keys are stored in memory (consider HSM for production).
+* Certificate validation follows standard x509 rules.
+* SNI parsing is resistant to malformed packets.
+* System cert pool access may require elevated privileges.
 
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
-[AGENT.md](AGENT.md).
+[AGENTS.md](AGENTS.md).
 
-## License
+## Licence
 
-See [LICENCE.txt](LICENCE.txt) for details.
+This project is licensed under the MIT Licence. See [LICENCE.txt](LICENCE.txt)
+for details.

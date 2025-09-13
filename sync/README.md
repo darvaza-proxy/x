@@ -3,6 +3,7 @@
 [![Go Reference][godoc-badge]][godoc-link]
 [![Go Report Card][goreportcard-badge]][goreportcard-link]
 [![codecov][codecov-badge]][codecov-link]
+[![Socket Badge][socket-badge]][socket-link]
 
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/sync.svg
 [godoc-link]: https://pkg.go.dev/darvaza.org/x/sync
@@ -10,6 +11,8 @@
 [goreportcard-link]: https://goreportcard.com/report/darvaza.org/x/sync
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=sync
 [codecov-link]: https://codecov.io/gh/darvaza-proxy/x
+[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/sync
+[socket-link]: https://socket.dev/go/package/darvaza.org/x/sync
 
 Package `sync` provides interfaces and utilities for synchronisation
 primitives.
@@ -28,13 +31,13 @@ leaked, even during panic scenarios.
 
 ### Features
 
-* Standardised `Mutex` and `RWMutex` interfaces
-* Context-aware mutex interfaces for cancellation and timeout support
-* Functions for operating on multiple locks simultaneously
-* Safe lock/unlock operations with proper error handling
-* Lightweight spinlock implementation for low-contention scenarios
-* Semaphore implementation supporting both exclusive and shared access patterns
-* Condition-based synchronisation primitives for goroutine coordination
+* Standardised `Mutex` and `RWMutex` interfaces.
+* Context-aware mutex interfaces for cancellation and timeout support.
+* Functions for operating on multiple locks simultaneously.
+* Safe lock/unlock operations with proper error handling.
+* Lightweight spinlock implementation for low-contention scenarios.
+* Semaphore implementation supporting both exclusive and shared access patterns.
+* Condition-based synchronisation primitives for goroutine coordination.
 
 ## Package Structure
 
@@ -66,13 +69,13 @@ The `cond` package complements the other synchronisation primitives in the
 `darvaza.org/x/sync` package:
 
 * **Layered architecture**: `Barrier` provides building blocks that other
-synchronisation mechanisms like `semaphore` can use internally
+synchronisation mechanisms like `semaphore` can use internally.
 * **Consistent interfaces**: Follows similar patterns to other package
-components for error handling and method naming
+components for error handling and method naming.
 * **Complementary functionality**: Addresses coordination use cases that
-mutexes and spinlocks don't directly solve
+mutexes and spinlocks don't directly solve.
 * **Composability**: Can be used alongside other primitives to create
-advanced synchronisation patterns
+advanced synchronisation patterns.
 
 The addition of the `cond` package makes the `darvaza.org/x/sync` package
 more complete by addressing a broader range of concurrency control
@@ -81,10 +84,10 @@ coordination between concurrent operations.
 
 This completes the synchronisation primitive ecosystem with:
 
-* Mutex interfaces and utilities for exclusion (`mutex`)
-* Lightweight spinlocks for low-contention cases (`spinlock`)
-* Counting semaphores for resource control (`semaphore`)
-* Coordination barriers for signalling and waiting (`cond`)
+* Mutex interfaces and utilities for exclusion (`mutex`).
+* Lightweight spinlocks for low-contention cases (`spinlock`).
+* Counting semaphores for resource control (`semaphore`).
+* Coordination barriers for signalling and waiting (`cond`).
 
 ## Interfaces
 
@@ -192,12 +195,12 @@ no longer needed to release resources.
 
 ### Core methods
 
-* `Broadcast()`: Notifies all waiting goroutines at once
-* `Signal() bool`: Attempts to wake up a single waiting goroutine
-* `Wait()`: Blocks until the barrier is signalled
-* `Signaled() <-chan struct{}`: Returns a channel for select-based waiting
+* `Broadcast()`: Notifies all waiting goroutines at once.
+* `Signal() bool`: Attempts to wake up a single waiting goroutine.
+* `Wait()`: Blocks until the barrier is signalled.
+* `Signaled() <-chan struct{}`: Returns a channel for select-based waiting.
 * `Acquire()/Release(Token)`: Manual token acquisition and release for
-  fine-grained control
+  fine-grained control.
 
 ### Token concept
 
@@ -213,10 +216,10 @@ or closed to wake up all waiters simultaneously.
 
 ### Barrier Implementation
 
-* Uses a buffered channel with capacity 1 to store the token
-* Maintains an internal state to track if the barrier has been closed
-* Provides graceful handling of nil receivers and improper initialisation
-* Returns appropriate errors from the `errors` package for common failure modes
+* Uses a buffered channel with capacity 1 to store the token.
+* Maintains an internal state to track if the barrier has been closed.
+* Provides graceful handling of nil receivers and improper initialisation.
+* Returns appropriate errors from the `errors` package for common failure modes.
 
 ## Count
 
@@ -237,38 +240,38 @@ resource leaks.
 ### Count Characteristics
 
 * **Atomic counter operations**: Provides thread-safe increment, decrement,
-  and add operations
+  and add operations.
 * **Conditional waiting**: Supports waiting until the counter reaches specific
-  values or meets custom conditions
+  values or meets custom conditions.
 * **Context-aware waiting**: Includes methods that respect context cancellation
-  and timeouts
+  and timeouts.
 * **Broadcast capability**: Can notify all waiting goroutines when conditions
-  are met
+  are met.
 
 ### Count core methods
 
-* `Add(n int) int`: Atomically adds n to the counter and returns the new value
-* `Inc() int`: Atomically increments the counter by 1
-* `Dec() int`: Atomically decrements the counter by 1
-* `Value() int`: Returns the current counter value
-* `Wait()`: Blocks until the counter becomes zero
+* `Add(n int) int`: Atomically adds n to the counter and returns the new value.
+* `Inc() int`: Atomically increments the counter by 1.
+* `Dec() int`: Atomically decrements the counter by 1.
+* `Value() int`: Returns the current counter value.
+* `Wait()`: Blocks until the counter becomes zero.
 * `WaitFn(func(int32) bool)`: Blocks until the provided condition function
-  returns true
+  returns true.
 * `WaitFnContext(context.Context, func(int32) bool)`: Context-aware waiting
-  with cancellation support
+  with cancellation support.
 * `Reset(n int)`: Resets the counter to the specified value and wakes all
-  waiting goroutines
-* `Signal() bool`: Wakes a single waiting goroutine
-* `Broadcast()`: Wakes all waiting goroutines
+  waiting goroutines.
+* `Signal() bool`: Wakes a single waiting goroutine.
+* `Broadcast()`: Wakes all waiting goroutines.
 
 ### Count Implementation
 
-* Uses atomic operations for counter management to ensure thread safety
-* Leverages the `Barrier` type internally for goroutine coordination
+* Uses atomic operations for counter management to ensure thread safety.
+* Leverages the `Barrier` type internally for goroutine coordination.
 * Supports custom conditions for signalling waiters when specific values
-  are reached
-* Provides robust error handling for nil receivers and uninitialised instances
-* Integrates with Go's context package for cancellation and timeout support
+  are reached.
+* Provides robust error handling for nil receivers and uninitialised instances.
+* Integrates with Go's context package for cancellation and timeout support.
 
 ## CountZero
 
@@ -286,11 +289,11 @@ applications.
 ### CountZero Characteristics
 
 * **Zero-focused**: Automatically wakes all waiters when the counter
-  reaches zero
-* **Simplified API**: Built specifically for the zero-value condition
+  reaches zero.
+* **Simplified API**: Built specifically for the zero-value condition.
 * **Identical core operations**: Provides the same atomic counter
-  operations as `Count`
-* **Streamlined waiting**: Methods specifically wait for the zero condition
+  operations as `Count`.
+* **Streamlined waiting**: Methods specifically wait for the zero condition.
 
 ### Relation to Count
 
@@ -298,9 +301,9 @@ The `CountZero` type is implemented as a thin wrapper around `Count` with a
 predefined condition function that checks for zero. It provides equivalent
 functionality with these key differences:
 
-* No need to specify custom condition functions
-* All waiting methods specifically wait for the counter to reach zero
-* Method signatures are simplified to focus on the zero-value use case
+* No need to specify custom condition functions.
+* All waiting methods specifically wait for the counter to reach zero.
+* Method signatures are simplified to focus on the zero-value use case.
 
 ### Core Methods
 
@@ -308,18 +311,18 @@ functionality with these key differences:
 `Inc`, `Dec`, `Value`) and similar coordination methods with simpler
 signatures:
 
-* `Wait()`: Blocks until the counter becomes zero
-* `WaitAbort(<-chan struct{})`: Blocks until zero or abort channel closes
-* `WaitContext(context.Context)`: Blocks until zero or context cancellation
+* `Wait()`: Blocks until the counter becomes zero.
+* `WaitAbort(<-chan struct{})`: Blocks until zero or abort channel closes.
+* `WaitContext(context.Context)`: Blocks until zero or context cancellation.
 
 ### Common Use Cases
 
 The `CountZero` type excels in scenarios such as:
 
-* Tracking completion of a known number of concurrent operations
-* Managing graceful shutdown processes
-* Implementing simple worker pools with completion signalling
-* Coordinating resource clean-up when all references are released
+* Tracking completion of a known number of concurrent operations.
+* Managing graceful shutdown processes.
+* Implementing simple worker pools with completion signalling.
+* Coordinating resource clean-up when all references are released.
 
 ### Example Usage
 
@@ -337,11 +340,11 @@ for i := 0; i < 5; i++ {
     }()
 }
 
-// Wait for all operations to complete
+// Wait for all operations to complete.
 if err := counter.Wait(); err != nil {
-    // Handle error
+    // Handle error.
 }
-// All operations complete when counter reaches zero
+// All operations complete when counter reaches zero.
 ```
 
 `CountZero` provides a concise way to express the common pattern of
@@ -361,9 +364,9 @@ The `Semaphore` fully implements the context-aware mutex interfaces:
 
 * `sync.Locker`
 * `mutex.Mutex`
-* `mutex.MutexContext` - supporting context cancellation and timeouts
+* `mutex.MutexContext` - supporting context cancellation and timeouts.
 * `mutex.RWMutex`
-* `mutex.RWMutexContext` - supporting context cancellation and timeouts
+* `mutex.RWMutexContext` - supporting context cancellation and timeouts.
 
 This makes it compatible with all lock operations provided by the package,
 with comprehensive capabilities for both exclusive and shared access patterns.
@@ -407,23 +410,23 @@ SpinLock is a mutual exclusion primitive that uses active spinning
 
 ### SpinLock Characteristics
 
-* **Zero value**: An unlocked spinlock ready for use
-* **Memory footprint**: Minimal (just a uint32)
-* **CPU usage**: Consumes CPU cycles while waiting (unlike traditional mutexes)
-* **Target use cases**: Low-contention scenarios with briefly held locks
+* **Zero value**: An unlocked spinlock ready for use.
+* **Memory footprint**: Minimal (just a uint32).
+* **CPU usage**: Consumes CPU cycles while waiting (unlike traditional mutexes).
+* **Target use cases**: Low-contention scenarios with briefly held locks.
 
 ### Methods
 
-* `Lock()`: Acquires the lock, spinning until successful
-* `TryLock() bool`: Attempts to acquire the lock without blocking
-* `Unlock()`: Releases the lock
+* `Lock()`: Acquires the lock, spinning until successful.
+* `TryLock() bool`: Attempts to acquire the lock without blocking.
+* `Unlock()`: Releases the lock.
 
 ### When to use
 
-* Use when lock contention is rare and locks are held for minimal duration
-* Avoid when locks might be held for extended periods
-* Best for performance-critical code paths where context switching would be
-  costly
+* Use when lock contention is rare and locks are held for minimal duration.
+* Avoid when locks might be held for extended periods.
+* Best for performance-critical code paths where context switching would
+  be costly.
 
 ### Example usage
 
@@ -438,12 +441,12 @@ defer lock.Unlock()
 
 ### SpinLock Implementation
 
-* Uses atomic operations for lock state management
-* Calls `runtime.Gosched()` while spinning to yield the processor
+* Uses atomic operations for lock state management.
+* Calls `runtime.Gosched()` while spinning to yield the processor.
 * Panics with appropriate errors for nil receivers or unlocking unlocked
-  spinlocks
+  spinlocks.
 * Provides internal methods that return errors rather than panicking for
-  composability
+  composability.
 
 ### Performance characteristics
 
@@ -465,26 +468,26 @@ cancellation propagation and lifecycle management of concurrent operations.
 
 ### Key features
 
-* Context integration for propagating cancellation signals
-* Coordinated lifecycle management for concurrent tasks
-* Graceful shutdown of operations
-* Error tracking and propagation
-* Concurrent safety for multi-goroutine use
+* Context integration for propagating cancellation signals.
+* Coordinated lifecycle management for concurrent tasks.
+* Graceful shutdown of operations.
+* Error tracking and propagation.
+* Concurrent safety for multi-goroutine use.
 
 ### Group Methods
 
-* `Context() context.Context`: Returns the context associated with the Group
-* `Err() error`: Returns the cancellation cause, if any
-* `IsCancelled() bool`: Reports whether the Group has been cancelled
-* `Cancelled() <-chan struct{}`: Returns a channel closed on cancellation
-* `Done() <-chan struct{}`: Returns a channel closed when all tasks complete
-* `Wait() error`: Blocks until all tasks complete
-* `Cancel(error) bool`: Cancels the Group with an optional error cause
-* `Close() error`: Cancels the Group and waits for all tasks to complete
-* `Go(func(context.Context)) error`: Spawns a new goroutine with context
+* `Context() context.Context`: Returns the context associated with the Group.
+* `Err() error`: Returns the cancellation cause, if any.
+* `IsCancelled() bool`: Reports whether the Group has been cancelled.
+* `Cancelled() <-chan struct{}`: Returns a channel closed on cancellation.
+* `Done() <-chan struct{}`: Returns a channel closed when all tasks complete.
+* `Wait() error`: Blocks until all tasks complete.
+* `Cancel(error) bool`: Cancels the Group with an optional error cause.
+* `Close() error`: Cancels the Group and waits for all tasks to complete.
+* `Go(func(context.Context)) error`: Spawns a new goroutine with context.
 * `GoCatch(func(context.Context) error, func(context.Context, error) error)
   error`: Spawns a goroutine with error handling and error-triggered
-  cancellation
+  cancellation.
 
 ### Group Example usage
 
@@ -505,17 +508,17 @@ wg.Go(func(ctx context.Context) {
 
 // Wait for all tasks to complete or context to be cancelled
 if err := wg.Wait(); err != nil {
-    // Handle error
+    // Handle error.
 }
 ```
 
 ### Group Implementation details
 
-* Propagates cancellation signals from parent contexts to all tasks
-* Provides hooks for cancellation via `OnCancel` field
-* Safe for concurrent use from multiple goroutines
-* Supports reuse after completion if not cancelled
-* Error tracking distinguishes between normal cancellation and error causes
+* Propagates cancellation signals from parent contexts to all tasks.
+* Provides hooks for cancellation via `OnCancel` field.
+* Safe for concurrent use from multiple goroutines.
+* Supports reuse after completion if not cancelled.
+* Error tracking distinguishes between normal cancellation and error causes.
 
 ## Utility Functions
 
@@ -525,51 +528,52 @@ edge cases and panic conditions:
 ### Single Mutex Operations
 
 * `mutex.SafeLock[T sync.Locker](mu T) (bool, error)`: Safely acquires an
-  exclusive lock, handling nil mutexes and panics
+  exclusive lock, handling nil mutexes and panics.
 * `mutex.SafeRLock[T sync.Locker](mu T) (bool, error)`: Safely acquires a
-  read lock (or normal lock if not RWMutex)
+  read lock (or normal lock if not RWMutex).
 * `mutex.SafeTryLock[T mutex.Mutex](mu T) (bool, error)`: Non-blocking
-  attempt to acquire a lock with nil and panic handling
+  attempt to acquire a lock with nil and panic handling.
 * `mutex.SafeTryRLock[T mutex.Mutex](mu T) (bool, error)`: Non-blocking
-  attempt to acquire a read lock safely
+  attempt to acquire a read lock safely.
 * `mutex.SafeUnlock[T sync.Locker](mu T) error`: Safely releases a lock,
-  handling nil mutexes and panics
+  handling nil mutexes and panics.
 * `mutex.SafeRUnlock[T sync.Locker](mu T) error`: Safely releases a read
-  lock (or normal lock if not RWMutex)
+  lock (or normal lock if not RWMutex).
 
 ### Multiple Mutex Operations
 
-* `mutex.Lock[T mutex.Mutex](locks ...T)`: Acquires multiple locks in order
+* `mutex.Lock[T mutex.Mutex](locks ...T)`: Acquires multiple locks in order.
 * `mutex.TryLock[T mutex.Mutex](locks ...T) bool`: Non-blocking attempt to
-  acquire multiple locks
+  acquire multiple locks.
 * `mutex.RLock[T mutex.Mutex](locks ...T)`: Acquires multiple read locks
-  when possible
+  when possible.
 * `mutex.TryRLock[T mutex.Mutex](locks ...T) bool`: Non-blocking attempt to
-  acquire multiple read locks
-* `mutex.Unlock(locks ...mutex.Mutex)`: Releases multiple locks
+  acquire multiple read locks.
+* `mutex.Unlock(locks ...mutex.Mutex)`: Releases multiple locks.
 * `mutex.RUnlock(locks ...mutex.Mutex)`: Releases multiple read locks
+  safely.
 * `mutex.ReverseUnlock[T Mutex](unlock func(T) error, locks ...T) error`:
-  Releases locks in reverse order, collecting any panics
+  Releases locks in reverse order, collecting any panics.
 
 ### Context-Aware Operations
 
 * `NewSafeLockContext[T MutexContext](ctx context.Context)
-  func(mu T) (bool, error)`: Creates a function for context-aware locking
+  func(mu T) (bool, error)`: Creates a function for context-aware locking.
 * `NewSafeRLockContext[T MutexContext](ctx context.Context)
-  func(mu T) (bool, error)`: Creates a function for context-aware read locking
+  func(mu T) (bool, error)`: Creates a function for context-aware read locking.
 * `SafeLockContext[T MutexContext](ctx context.Context, mu T) (bool, error)`:
-  Acquires a lock with context cancellation/timeout support
+  Acquires a lock with context cancellation/timeout support.
 * `SafeRLockContext[T MutexContext](ctx context.Context, mu T) (bool, error)`:
-  Acquires a read lock with context cancellation/timeout support
+  Acquires a read lock with context cancellation/timeout support.
 
 These utility functions provide:
 
-1. **Error handling**: Returns explicit success/failure indicators
-2. **Type safety**: Uses generics to work with any compatible type
-3. **Panic protection**: Catches and converts panics into regular errors
-4. **Nil handling**: Checks for nil mutexes, returning appropriate errors
+1. **Error handling**: Returns explicit success/failure indicators.
+2. **Type safety**: Uses generics to work with any compatible type.
+3. **Panic protection**: Catches and converts panics into regular errors.
+4. **Nil handling**: Checks for nil mutexes, returning appropriate errors.
 5. **Interface detection**: Automatically uses RWMutex implementations when
-   available
+   available.
 
 ## Error Handling
 
@@ -637,10 +641,16 @@ This package only depends on the standard library and
 
 ## Licence
 
-MIT. See `LICENCE.txt` in the `x/sync` directory of the repository for
-details.
+This project is licensed under the MIT Licence. See [LICENCE.txt](LICENCE.txt)
+for details.
+
+## Installation
+
+```bash
+go get darvaza.org/x/sync
+```
 
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
-[AGENT.md](AGENT.md).
+[AGENTS.md](AGENTS.md).

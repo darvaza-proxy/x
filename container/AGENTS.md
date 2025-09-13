@@ -2,6 +2,11 @@
 
 ## Overview
 
+The `container` package provides type-safe, generic container implementations
+that extend Go's standard library containers. It includes doubly linked lists,
+map-based sets with thread safety, and slice-based sets with sorted ordering
+for efficient operations and flexible data management.
+
 For detailed API documentation and usage examples, see [README.md](README.md).
 
 ## Key Components
@@ -49,7 +54,7 @@ Key patterns:
 ## Development Commands
 
 For common development commands and workflow, see the
-[root AGENT.md](../AGENT.md).
+[root AGENTS.md](../AGENTS.md).
 
 ## Testing Patterns
 
@@ -142,5 +147,5 @@ s.Add(person3)
 ## See Also
 
 - [slices README](slices/README.md) for slice-based set implementation details.
-- [Root AGENT.md](../AGENT.md) for mono-repo overview.
+- [Root AGENTS.md](../AGENTS.md) for mono-repo overview.
 - Go standard library container documentation.

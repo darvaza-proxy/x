@@ -135,4 +135,4 @@ immediately, providing consistent error handling across systems.
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
-[AGENT.md](AGENT.md).
+[AGENTS.md](AGENTS.md).

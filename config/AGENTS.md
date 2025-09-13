@@ -33,7 +33,7 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 
 - `appdir.go`: Core directory resolution logic.
 - `appdir_xdg.go`: XDG Base Directory Specification implementation.
-- `appdir_fhs.go`: the Filesystem Hierarchy Standard support.
+- `appdir_fhs.go`: Filesystem Hierarchy Standard support.
 
 ## Architecture Notes
 
@@ -53,7 +53,7 @@ Key patterns:
 ## Development Commands
 
 For common development commands and workflow, see the
-[root AGENT.md](../AGENT.md).
+[root AGENTS.md](../AGENTS.md).
 
 ## Testing Patterns
 
@@ -129,7 +129,7 @@ err := config.Prepare(&cfg)
 ## See Also
 
 - [Package README](README.md) for API documentation.
-- [Root AGENT.md](../AGENT.md) for mono-repo overview.
+- [Root AGENTS.md](../AGENTS.md) for mono-repo overview.
 - [XDG Base Directory Specification][xdg-spec].
 
 [xdg-spec]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
