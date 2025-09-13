@@ -50,7 +50,7 @@ Key patterns:
 ## Development Commands
 
 For common development commands and workflow, see the
-[root AGENT.md](../AGENT.md).
+[root AGENTS.md](../AGENTS.md).
 
 ## Testing Patterns
 
@@ -135,5 +135,5 @@ err := fs.Copy(destFS, "dest.txt", srcFS, "src.txt")
 ## See Also
 
 - [Package README](README.md) for detailed API documentation.
-- [Root AGENT.md](../AGENT.md) for mono-repo overview.
+- [Root AGENTS.md](../AGENTS.md) for mono-repo overview.
 - [Go fs package documentation](https://pkg.go.dev/io/fs).
