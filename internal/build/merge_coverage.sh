@@ -27,7 +27,7 @@ for f; do
 	if [ -z "$first" ]; then
 		# first
 		first="$f"
-		head -1 "$f"
+		cat "$f"
 	else
 		# others
 		tail -n +2 "$f"
