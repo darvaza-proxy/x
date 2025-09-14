@@ -240,7 +240,8 @@ EOT
 done
 
 # Convert newlines to spaces for Makefile compatibility
-PROJECTS_SPACE="$(echo "$PROJECTS" | tr '\n' ' ' | sed 's/ $//')"
+# shellcheck disable=SC2086 # word splitting of PROJECTS intended
+PROJECTS_SPACE="$(expand '' '' $PROJECTS)"
 
 cat <<EOT
 
