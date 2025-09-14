@@ -1,4 +1,4 @@
-// Package reconnect implement a generic retrying TCP client
+// Package reconnect implements a generic retrying network client.
 package reconnect
 
 import (
@@ -16,7 +16,7 @@ var (
 	_ WorkGroup = (*Client)(nil)
 )
 
-// Client is a reconnecting TCP Client
+// Client is a reconnecting network client.
 type Client struct {
 	mu      sync.Mutex
 	wg      sync.WaitGroup
@@ -27,6 +27,7 @@ type Client struct {
 
 	cfg     *Config
 	dialer  net.Dialer
+	network string
 	address string
 	logger  slog.Logger
 
@@ -57,7 +58,7 @@ func (c *Client) Reload() error {
 	return core.ErrTODO
 }
 
-// Connect launches the [Client]
+// Connect launches the [Client].
 func (c *Client) Connect() error {
 	// once
 	if !c.started.CompareAndSwap(false, true) {
@@ -80,7 +81,7 @@ func (c *Client) Connect() error {
 	return nil
 }
 
-// New creates a new [Client] using the given [Config] and options
+// New creates a new [Client] using the given [Config] and options.
 func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 	cfg, err := prepareNewConfig(cfg, options...)
 	if err != nil {
@@ -93,10 +94,9 @@ func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 		ctx:    ctx,
 		cancel: cancel,
 
-		cfg:     cfg,
-		dialer:  cfg.ExportDialer(),
-		address: cfg.Remote,
-		logger:  cfg.Logger,
+		cfg:    cfg,
+		dialer: cfg.ExportDialer(),
+		logger: cfg.Logger,
 
 		readTimeout:  cfg.ReadTimeout,
 		writeTimeout: cfg.WriteTimeout,
@@ -107,6 +107,8 @@ func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 		onDisconnect:  cfg.OnDisconnect,
 		onError:       cfg.OnError,
 	}
+
+	c.network, c.address = parseRemote(cfg.Remote)
 
 	cfg.unsafeBindClient(c)
 	return c, nil
@@ -129,7 +131,7 @@ func (c *Client) getRemote() (network, addr string) {
 }
 
 func (c *Client) unsafeGetRemote() (network, addr string) {
-	return "tcp", c.address
+	return c.network, c.address
 }
 
 func (c *Client) getWaitReconnect() func(context.Context) error {

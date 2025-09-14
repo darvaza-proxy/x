@@ -20,7 +20,7 @@ const (
 
 // WithDebug gets a logger at Debug level optionally annotated
 // by an IP address. If the Debug log-level is disabled, it
-// will return `nil, false`
+// will return `nil, false`.
 func (c *Client) WithDebug(addr net.Addr) (slog.Logger, bool) {
 	if l, ok := c.logger.Debug().WithEnabled(); ok {
 		l = logWithAddress(l, addr)
@@ -31,7 +31,7 @@ func (c *Client) WithDebug(addr net.Addr) (slog.Logger, bool) {
 
 // WithInfo gets a logger at Info level optionally annotated
 // by an IP address. If the Info log-level is disabled, it
-// will return `nil, false`
+// will return `nil, false`.
 func (c *Client) WithInfo(addr net.Addr) (slog.Logger, bool) {
 	if l, ok := c.logger.Info().WithEnabled(); ok {
 		l = logWithAddress(l, addr)
@@ -42,7 +42,7 @@ func (c *Client) WithInfo(addr net.Addr) (slog.Logger, bool) {
 
 // WithError gets a logger at Error level optionally annotated
 // by an IP address. If the Error log-level is disabled, it
-// will return `nil, false`
+// will return `nil, false`.
 func (c *Client) WithError(addr net.Addr, err error) (slog.Logger, bool) {
 	if l, ok := c.logger.Error().WithEnabled(); ok {
 		l = logWithAddress(l, addr)
