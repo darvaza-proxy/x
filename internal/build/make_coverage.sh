@@ -121,41 +121,16 @@ format_dual_coverage_output() {
 			# Display format based on whether we have self coverage
 			if [ -n "$self_cov" ] && [ "$self_cov" != "0.0" ]; then
 				# Both self and module coverage (only show dual when self-coverage exists)
-				printf "coverage: %-25s %5.1f%% (%4.1f%%)\n" "$subpackage" "$self_cov" "$module_cov"
+				printf "coverage: %-30.30s %5.1f%% (%4.1f%%)\n" "$subpackage" "$self_cov" "$module_cov"
 			else
 				# Only module coverage (for packages with no Go files or 0% self coverage)
-				printf "coverage: %-25s %5.1f%%\n" "$subpackage" "$module_cov"
+				printf "coverage: %-30.30s %5.1f%%\n" "$subpackage" "$module_cov"
 			fi
 		done | sort -k2
 
 		# Cleanup temp files
 		rm -f "${self_cov_file}~" "${processed_packages}~"
 		rm -f "${self_cov_file}" "${processed_packages}"
-	else
-		echo "coverage: $module_name: no test output"
-	fi
-}
-
-# Helper function to format coverage output (legacy, kept for compatibility)
-format_coverage_output() {
-	local stdout_file="$1"
-	local module_name="$2"
-	local module_dir="$3"
-
-	# Read module path from go.mod
-	local module_path=""
-	if [ -f "$module_dir/go.mod" ]; then
-		module_path=$(awk '/^module / {print $2}' "$module_dir/go.mod")
-	fi
-
-	if [ -s "$stdout_file" ]; then
-		grep -E 'coverage: [0-9.]+%' "$stdout_file" | while read -r line; do
-			package=$(extract_package_name "$line")
-			coverage=$(extract_coverage_percentage "$line")
-			subpackage=$(convert_to_subpackage_path "$package" "$module_path" "$module_name")
-
-			printf "coverage: %-30s %5.1f%%\n" "$subpackage" "$coverage"
-		done
 	else
 		echo "coverage: $module_name: no test output"
 	fi
