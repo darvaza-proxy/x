@@ -1,0 +1,5 @@
+look where you are using `pwd` and `git root`.
+carefully read `AGENT.md`, `container/AGENT.md` and `../../darvaza.org/core/TESTING.md` (relative to the current directory) for guidelines.
+remember I drive and guessing/galloping is FORBIDDEN.
+HYGIENE IS NOT OPTIONAL. `make tidy` is a MUST.
+THINK READ INVESTIGATE RTFM ASK before acting.

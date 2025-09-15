@@ -8,11 +8,11 @@ import (
 
 // Config defines the callbacks used by a [Set].
 type Config[K, H comparable, T any] struct {
-	// Hash computes the bucket identifier for the given K type
+	// Hash computes the bucket identifier for the given K type.
 	Hash func(k K) (H, error)
-	// ItemKey computes the K value from the T instance
+	// ItemKey computes the K value from the T instance.
 	ItemKey func(v T) (K, error)
-	// ItemMatch confirms the T instance matches the K value
+	// ItemMatch confirms the T instance matches the K value.
 	ItemMatch func(k K, v T) bool
 }
 
@@ -42,7 +42,7 @@ func (cfg Config[K, H, T]) New(items ...T) (*Set[K, H, T], error) {
 	return set, nil
 }
 
-// Init initializes a [Set] that wasn't created using [Config.New].
+// Init initialises a [Set] that wasn't created using [Config.New].
 func (cfg Config[K, H, T]) Init(set *Set[K, H, T], items ...T) error {
 	var err error
 	if err = cfg.Validate(); err != nil {
@@ -64,7 +64,7 @@ func (cfg Config[K, H, T]) Must(items ...T) *Set[K, H, T] {
 }
 
 // Equal determines if two Config instances use exactly the same callback functions
-// by comparing their memory addresses using reflection. This is used to optimize
+// by comparing their memory addresses using reflection. This is used to optimise
 // Set operations like Copy() when configs are identical.
 //
 // Equal isn't cheap but it saves Copy() from performing unnecessary rehashing.

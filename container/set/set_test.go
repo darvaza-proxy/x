@@ -1,26 +1,26 @@
-package set
+package set_test
 
 import (
 	"testing"
 
 	"darvaza.org/core"
+
+	"darvaza.org/x/container/set"
 )
 
-// Test types
+// Interface validation
+var _ core.TestCase = configValidationTestCase{}
+var _ core.TestCase = configEqualTestCase{}
+
+// Test types for external package tests
 type testItem struct {
-	ID    int
 	Name  string
 	Value string
+	ID    int
 }
 
-// testCase represents a single test case
-type testCase struct {
-	name string
-	test func(t *testing.T)
-}
-
-func testConfig() Config[int, int, testItem] {
-	return Config[int, int, testItem]{
+func testConfig() set.Config[int, int, testItem] {
+	return set.Config[int, int, testItem]{
 		ItemKey:   func(v testItem) (int, error) { return v.ID, nil },
 		Hash:      func(k int) (int, error) { return k % 10, nil },
 		ItemMatch: func(k int, v testItem) bool { return k == v.ID },
@@ -34,80 +34,63 @@ func makeTestItems() []testItem {
 	}
 }
 
-func verifySetContains(t *testing.T, s *Set[int, int, testItem], items []testItem) {
+func verifySetContains(t *testing.T, s *set.Set[int, int, testItem], items []testItem) {
+	t.Helper()
 	for _, item := range items {
-		if v, err := s.Get(item.ID); err != nil {
-			t.Errorf("Get(%d) failed: %v", item.ID, err)
-		} else if v.ID != item.ID {
-			t.Errorf("Get(%d) returned wrong item: %+v", item.ID, v)
-		}
+		v, err := s.Get(item.ID)
+		core.AssertMustNoError(t, err, "Get(%d)", item.ID)
+		core.AssertEqual(t, item.ID, v.ID, "Get(%d) item ID", item.ID)
 	}
 }
 
-func doTestConfigNew(t *testing.T) {
+func runTestConfigNew(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := makeTestItems()
 
 	s, err := cfg.New(items...)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
-
-	if s == nil {
-		t.Fatal("New returned nil")
-	}
+	core.AssertMustNoError(t, err, "New")
+	core.AssertNotNil(t, s, "New result")
 
 	verifySetContains(t, s, items)
 }
 
 func TestConfigNew(t *testing.T) {
-	tests := []testCase{
-		{"basic new", doTestConfigNew},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("basic new", runTestConfigNew)
 }
 
-func doTestConfigInit(t *testing.T) {
+func runTestConfigInit(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := makeTestItems()
 
-	var s Set[int, int, testItem]
-	if err := cfg.Init(&s, items...); err != nil {
-		t.Fatalf("Init failed: %v", err)
-	}
+	var s set.Set[int, int, testItem]
+	err := cfg.Init(&s, items...)
+	core.AssertMustNoError(t, err, "Init")
 
 	verifySetContains(t, &s, items)
 }
 
-func doTestConfigInitTwice(t *testing.T) {
+func runTestConfigInitTwice(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
-	var s Set[int, int, testItem]
+	var s set.Set[int, int, testItem]
 
-	if err := cfg.Init(&s); err != nil {
-		t.Fatalf("First Init failed: %v", err)
-	}
+	err := cfg.Init(&s)
+	core.AssertMustNoError(t, err, "first Init")
 
 	// Try to init again - should fail
-	if err := cfg.Init(&s); err == nil {
-		t.Error("Second Init should fail")
-	}
+	err = cfg.Init(&s)
+	core.AssertError(t, err, "second Init should fail")
 }
 
 func TestConfigInit(t *testing.T) {
-	tests := []testCase{
-		{"basic init", doTestConfigInit},
-		{"init twice", doTestConfigInitTwice},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("basic init", runTestConfigInit)
+	t.Run("init twice", runTestConfigInitTwice)
 }
 
-func testConfigMustValid(t *testing.T) {
+func runTestConfigMustValid(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
@@ -115,55 +98,41 @@ func testConfigMustValid(t *testing.T) {
 
 	// Should not panic
 	s := cfg.Must(items...)
-	if s == nil {
-		t.Fatal("Must returned nil")
-	}
+	core.AssertNotNil(t, s, "Must result")
 }
 
-func testConfigMustPanic(t *testing.T) {
+func runTestConfigMustPanic(t *testing.T) {
+	t.Helper()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
 	}
 
 	// Test panic with invalid config
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Must should panic with invalid config")
-		}
-	}()
-
-	// This should panic
-	invalidCfg := Config[int, int, testItem]{}
-	_ = invalidCfg.Must(items...)
+	invalidCfg := set.Config[int, int, testItem]{}
+	core.AssertPanic(t, func() {
+		_ = invalidCfg.Must(items...)
+	}, nil, "invalid config Must")
 }
 
 func TestConfigMust(t *testing.T) {
-	tests := []testCase{
-		{"valid config", testConfigMustValid},
-		{"panic on invalid", testConfigMustPanic},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("valid config", runTestConfigMustValid)
+	t.Run("panic on invalid", runTestConfigMustPanic)
 }
 
 func verifyPushSuccess(t *testing.T, stored testItem, err error, expected testItem) {
-	if err != nil {
-		t.Errorf("Push failed: %v", err)
-	} else if stored.ID != expected.ID {
-		t.Errorf("Push returned wrong item: %+v", stored)
-	}
+	t.Helper()
+	core.AssertMustNoError(t, err, "Push")
+	core.AssertEqual(t, expected.ID, stored.ID, "Push returned item ID")
 }
 
 func verifyPushDuplicate(t *testing.T, err error) {
-	if err != ErrExist {
-		t.Errorf("Push duplicate should return ErrExist, got: %v", err)
-	}
+	t.Helper()
+	core.AssertSame(t, set.ErrExist, err, "Push duplicate error")
 }
 
 //revive:disable-next-line:flag-parameter
-func testPushItem(t *testing.T, s *Set[int, int, testItem], item testItem, shouldFail bool) {
+func testPushItem(t *testing.T, s *set.Set[int, int, testItem], item testItem, shouldFail bool) {
+	t.Helper()
 	stored, err := s.Push(item)
 	if shouldFail {
 		verifyPushDuplicate(t, err)
@@ -172,39 +141,32 @@ func testPushItem(t *testing.T, s *Set[int, int, testItem], item testItem, shoul
 	}
 }
 
-func testPushNew(t *testing.T) {
+func runTestPushNew(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	testPushItem(t, s, testItem{ID: 1, Name: "one", Value: "first"}, false)
 	testPushItem(t, s, testItem{ID: 2, Name: "two", Value: "second"}, false)
 }
 
-func testPushDuplicate(t *testing.T) {
+func runTestPushDuplicate(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	s, err := cfg.New(testItem{ID: 1, Name: "one", Value: "first"})
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	testPushItem(t, s, testItem{ID: 1, Name: "one-dup", Value: "duplicate"}, true)
 }
 
 func TestPush(t *testing.T) {
-	tests := []testCase{
-		{"push new items", testPushNew},
-		{"push duplicate", testPushDuplicate},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("push new items", runTestPushNew)
+	t.Run("push duplicate", runTestPushDuplicate)
 }
 
-func testGetExisting(t *testing.T) {
+func runTestGetExisting(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
@@ -212,20 +174,17 @@ func testGetExisting(t *testing.T) {
 	}
 
 	s, err := cfg.New(items...)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	for _, item := range items {
-		if v, err := s.Get(item.ID); err != nil {
-			t.Errorf("Get(%d) failed: %v", item.ID, err)
-		} else if v.ID != item.ID {
-			t.Errorf("Get(%d) returned wrong item: %+v", item.ID, v)
-		}
+		v, err := s.Get(item.ID)
+		core.AssertMustNoError(t, err, "Get(%d)", item.ID)
+		core.AssertEqual(t, item.ID, v.ID, "Get(%d) item ID", item.ID)
 	}
 }
 
-func testGetWithCollisions(t *testing.T) {
+func runTestGetWithCollisions(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
@@ -233,158 +192,110 @@ func testGetWithCollisions(t *testing.T) {
 	}
 
 	s, err := cfg.New(items...)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	for _, item := range items {
-		if v, err := s.Get(item.ID); err != nil {
-			t.Errorf("Get(%d) failed: %v", item.ID, err)
-		} else if v.ID != item.ID {
-			t.Errorf("Get(%d) returned wrong item: %+v", item.ID, v)
-		}
+		v, err := s.Get(item.ID)
+		core.AssertMustNoError(t, err, "Get(%d)", item.ID)
+		core.AssertEqual(t, item.ID, v.ID, "Get(%d) item ID", item.ID)
 	}
 }
 
-func testGetNonExistent(t *testing.T) {
+func runTestGetNonExistent(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
-	if _, err := s.Get(999); err != ErrNotExist {
-		t.Errorf("Get(999) should return ErrNotExist, got: %v", err)
-	}
+	_, err = s.Get(999)
+	core.AssertSame(t, set.ErrNotExist, err, "Get(999) error")
 }
 
 func TestGet(t *testing.T) {
-	tests := []testCase{
-		{"get existing", testGetExisting},
-		{"get with collisions", testGetWithCollisions},
-		{"get non-existent", testGetNonExistent},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("get existing", runTestGetExisting)
+	t.Run("get with collisions", runTestGetWithCollisions)
+	t.Run("get non-existent", runTestGetNonExistent)
 }
 
-func testContainsExisting(t *testing.T) {
+func runTestContainsExisting(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	s, err := cfg.New(testItem{ID: 1, Name: "one"})
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
-	if !s.Contains(1) {
-		t.Error("Contains(1) should return true")
-	}
+	core.AssertTrue(t, s.Contains(1), "Contains(1)")
 }
 
-func testContainsNonExistent(t *testing.T) {
+func runTestContainsNonExistent(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	s, err := cfg.New(testItem{ID: 1, Name: "one"})
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
-	if s.Contains(2) {
-		t.Error("Contains(2) should return false")
-	}
+	core.AssertFalse(t, s.Contains(2), "Contains(2)")
 }
 
 func TestContains(t *testing.T) {
-	tests := []testCase{
-		{"contains existing", testContainsExisting},
-		{"contains non-existent", testContainsNonExistent},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("contains existing", runTestContainsExisting)
+	t.Run("contains non-existent", runTestContainsNonExistent)
 }
 
-func testPopExisting(t *testing.T) {
+func runTestPopExisting(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	item := testItem{ID: 1, Name: "one", Value: "first"}
 	s, err := cfg.New(item)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
-	if v, err := s.Pop(1); err != nil {
-		t.Errorf("Pop failed: %v", err)
-	} else if v.ID != item.ID {
-		t.Errorf("Pop returned wrong item: %+v", v)
-	}
+	v, err := s.Pop(1)
+	core.AssertMustNoError(t, err, "Pop")
+	core.AssertEqual(t, item.ID, v.ID, "Pop item ID")
 
-	if s.Contains(1) {
-		t.Error("Item should be removed after Pop")
-	}
+	core.AssertFalse(t, s.Contains(1), "item removed after Pop")
 }
 
-func testPopNonExistent(t *testing.T) {
+func runTestPopNonExistent(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
-	if _, err := s.Pop(1); err != ErrNotExist {
-		t.Errorf("Pop non-existent should return ErrNotExist, got: %v", err)
-	}
+	_, err = s.Pop(1)
+	core.AssertSame(t, set.ErrNotExist, err, "Pop non-existent error")
 }
 
 func TestPop(t *testing.T) {
-	tests := []testCase{
-		{"pop existing", testPopExisting},
-		{"pop non-existent", testPopNonExistent},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("pop existing", runTestPopExisting)
+	t.Run("pop non-existent", runTestPopNonExistent)
 }
 
-func doTestReset(t *testing.T) {
+func runTestReset(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	s, err := cfg.New(
 		testItem{ID: 1, Name: "one"},
 		testItem{ID: 2, Name: "two"},
 		testItem{ID: 3, Name: "three"},
 	)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	// Verify items exist
-	if !s.Contains(1) || !s.Contains(2) || !s.Contains(3) {
-		t.Error("Items should exist before reset")
-	}
+	core.AssertTrue(t, s.Contains(1) && s.Contains(2) && s.Contains(3), "items exist before reset")
 
 	// Reset
-	if err := s.Reset(); err != nil {
-		t.Errorf("Reset failed: %v", err)
-	}
+	err = s.Reset()
+	core.AssertMustNoError(t, err, "Reset")
 
 	// Verify all items are removed
-	if s.Contains(1) || s.Contains(2) || s.Contains(3) {
-		t.Error("Items should not exist after reset")
-	}
+	core.AssertFalse(t, s.Contains(1) || s.Contains(2) || s.Contains(3), "items removed after reset")
 }
 
 func TestReset(t *testing.T) {
-	tests := []testCase{
-		{"reset set", doTestReset},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("reset set", runTestReset)
 }
 
-func doTestClone(t *testing.T) {
+func runTestClone(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
@@ -392,44 +303,46 @@ func doTestClone(t *testing.T) {
 	}
 
 	s1, err := cfg.New(items...)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	s2 := s1.Clone()
-	if s2 == nil {
-		t.Fatal("Clone returned nil")
-	}
+	core.AssertNotNil(t, s2, "Clone result")
 
 	// Verify clone has same items
 	for _, item := range items {
-		if !s2.Contains(item.ID) {
-			t.Errorf("Clone missing item %d", item.ID)
-		}
+		core.AssertTrue(t, s2.Contains(item.ID), "Clone contains item %d", item.ID)
 	}
 
 	// Modify original
-	if _, err := s1.Push(testItem{ID: 3, Name: "three", Value: "third"}); err != nil {
-		t.Errorf("Push failed: %v", err)
-	}
+	_, err = s1.Push(testItem{ID: 3, Name: "three", Value: "third"})
+	core.AssertMustNoError(t, err, "Push")
 
 	// Verify clone is independent
-	if s2.Contains(3) {
-		t.Error("Clone should not be affected by original modification")
-	}
+	core.AssertFalse(t, s2.Contains(3), "clone independence")
+}
+
+func runTestCloneNilReceiver(t *testing.T) {
+	t.Helper()
+	var s *set.Set[int, int, testItem]
+	clone := s.Clone()
+	core.AssertNil(t, clone, "Clone on nil receiver")
+}
+
+func runTestCloneUninitialized(t *testing.T) {
+	t.Helper()
+	s := &set.Set[int, int, testItem]{}
+	clone := s.Clone()
+	core.AssertNil(t, clone, "Clone on uninitialised set")
 }
 
 func TestClone(t *testing.T) {
-	tests := []testCase{
-		{"clone set", doTestClone},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("clone set", runTestClone)
+	t.Run("nil receiver", runTestCloneNilReceiver)
+	t.Run("uninitialized", runTestCloneUninitialized)
 }
 
-func testCopyFilter(t *testing.T) {
+func runTestCopyFilter(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
@@ -438,25 +351,19 @@ func testCopyFilter(t *testing.T) {
 	}
 
 	s1, err := cfg.New(items...)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	// Copy only even IDs
 	s2 := s1.Copy(nil, func(v testItem) bool {
 		return v.ID%2 == 0
 	})
 
-	if s2.Contains(1) || s2.Contains(3) {
-		t.Error("Copy should not contain odd IDs")
-	}
-
-	if !s2.Contains(2) {
-		t.Error("Copy should contain even IDs")
-	}
+	core.AssertFalse(t, s2.Contains(1) || s2.Contains(3), "copy should not contain odd IDs")
+	core.AssertTrue(t, s2.Contains(2), "copy should contain even IDs")
 }
 
-func testCopyAll(t *testing.T) {
+func runTestCopyAll(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
@@ -465,34 +372,25 @@ func testCopyAll(t *testing.T) {
 	}
 
 	s1, err := cfg.New(items...)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	// Copy all items
 	s2 := s1.Copy(nil, nil)
 
 	for _, item := range items {
-		if v, err := s2.Get(item.ID); err != nil {
-			t.Errorf("Get(%d) failed: %v", item.ID, err)
-		} else if v.Value != item.Value {
-			t.Errorf("Value mismatch: got %s, expected %s", v.Value, item.Value)
-		}
+		v, err := s2.Get(item.ID)
+		core.AssertMustNoError(t, err, "Get(%d)", item.ID)
+		core.AssertEqual(t, item.Value, v.Value, "Get(%d) value", item.ID)
 	}
 }
 
 func TestCopy(t *testing.T) {
-	tests := []testCase{
-		{"copy with filter", testCopyFilter},
-		{"copy all", testCopyAll},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("copy with filter", runTestCopyFilter)
+	t.Run("copy all", runTestCopyAll)
 }
 
-func doTestValues(t *testing.T) {
+func runTestValues(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
@@ -501,14 +399,10 @@ func doTestValues(t *testing.T) {
 	}
 
 	s, err := cfg.New(items...)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	values := s.Values()
-	if len(values) != len(items) {
-		t.Errorf("Values returned %d items, expected %d", len(values), len(items))
-	}
+	core.AssertEqual(t, len(items), len(values), "Values count")
 
 	// Verify all items are present
 	found := make(map[int]bool)
@@ -517,23 +411,32 @@ func doTestValues(t *testing.T) {
 	}
 
 	for _, item := range items {
-		if !found[item.ID] {
-			t.Errorf("Values missing item %d", item.ID)
-		}
+		core.AssertTrue(t, found[item.ID], "Values contains item %d", item.ID)
 	}
+}
+
+func runTestValuesNilReceiver(t *testing.T) {
+	t.Helper()
+	var s *set.Set[int, int, testItem]
+	values := s.Values()
+	core.AssertNil(t, values, "Values on nil receiver")
+}
+
+func runTestValuesUninitialized(t *testing.T) {
+	t.Helper()
+	s := &set.Set[int, int, testItem]{}
+	values := s.Values()
+	core.AssertNil(t, values, "Values on uninitialised set")
 }
 
 func TestValues(t *testing.T) {
-	tests := []testCase{
-		{"get values", doTestValues},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("get values", runTestValues)
+	t.Run("nil receiver", runTestValuesNilReceiver)
+	t.Run("uninitialized", runTestValuesUninitialized)
 }
 
-func testForEachAll(t *testing.T) {
+func runTestForEachAll(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
@@ -542,9 +445,7 @@ func testForEachAll(t *testing.T) {
 	}
 
 	s, err := cfg.New(items...)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	count := 0
 	s.ForEach(func(_ testItem) bool {
@@ -552,12 +453,11 @@ func testForEachAll(t *testing.T) {
 		return true // continue
 	})
 
-	if count != len(items) {
-		t.Errorf("ForEach visited %d items, expected %d", count, len(items))
-	}
+	core.AssertEqual(t, len(items), count, "ForEach visited count")
 }
 
-func testForEachEarlyTermination(t *testing.T) {
+func runTestForEachEarlyTermination(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	items := []testItem{
 		{ID: 1, Name: "one", Value: "first"},
@@ -566,9 +466,7 @@ func testForEachEarlyTermination(t *testing.T) {
 	}
 
 	s, err := cfg.New(items...)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	count := 0
 	s.ForEach(func(_ testItem) bool {
@@ -576,116 +474,282 @@ func testForEachEarlyTermination(t *testing.T) {
 		return count < 2 // stop after 2 items
 	})
 
-	if count != 2 {
-		t.Errorf("ForEach should stop after 2 items, visited %d", count)
-	}
+	core.AssertEqual(t, 2, count, "ForEach early termination count")
+}
+
+func runTestForEachNilReceiver(t *testing.T) {
+	t.Helper()
+	var s *set.Set[int, int, testItem]
+	count := 0
+	s.ForEach(func(_ testItem) bool {
+		count++
+		return true
+	})
+	core.AssertEqual(t, 0, count, "ForEach on nil receiver should not iterate")
+}
+
+func runTestForEachUninitialized(t *testing.T) {
+	t.Helper()
+	s := &set.Set[int, int, testItem]{}
+	count := 0
+	s.ForEach(func(_ testItem) bool {
+		count++
+		return true
+	})
+	core.AssertEqual(t, 0, count, "ForEach on uninitialised set should not iterate")
+}
+
+func runTestForEachNilFunction(t *testing.T) {
+	t.Helper()
+	cfg := testConfig()
+	s, err := cfg.New(testItem{ID: 1, Name: "one"})
+	core.AssertMustNoError(t, err, "New")
+
+	// Should not panic with nil function
+	s.ForEach(nil)
+	// Test passes if no panic
 }
 
 func TestForEach(t *testing.T) {
-	tests := []testCase{
-		{"all items", testForEachAll},
-		{"early termination", testForEachEarlyTermination},
-	}
+	t.Run("all items", runTestForEachAll)
+	t.Run("early termination", runTestForEachEarlyTermination)
+	t.Run("nil receiver", runTestForEachNilReceiver)
+	t.Run("uninitialized", runTestForEachUninitialized)
+	t.Run("nil function", runTestForEachNilFunction)
+}
 
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
+// configValidationTestCase implements core.TestCase for config validation tests
+type configValidationTestCase struct {
+	config      set.Config[int, int, testItem]
+	name        string
+	errorMsg    string
+	expectError bool
+}
+
+func (tc configValidationTestCase) Name() string {
+	return tc.name
+}
+
+func (tc configValidationTestCase) Test(t *testing.T) {
+	t.Helper()
+	err := tc.config.Validate()
+	if tc.expectError {
+		core.AssertError(t, err, tc.errorMsg)
+	} else {
+		core.AssertMustNoError(t, err, tc.errorMsg)
 	}
 }
 
-func testConfigValidationMissingItemKey(t *testing.T) {
-	cfg := Config[int, int, testItem]{
-		Hash:      func(k int) (int, error) { return k, nil },
-		ItemMatch: func(_ int, _ testItem) bool { return true },
-	}
-
-	if err := cfg.Validate(); err == nil {
-		t.Error("Validate should fail without ItemKey function")
-	}
-}
-
-func testConfigValidationMissingHash(t *testing.T) {
-	cfg := Config[int, int, testItem]{
-		ItemKey:   func(v testItem) (int, error) { return v.ID, nil },
-		ItemMatch: func(_ int, _ testItem) bool { return true },
-	}
-
-	if err := cfg.Validate(); err == nil {
-		t.Error("Validate should fail without Hash function")
+// newConfigValidationTestCase creates a new configValidationTestCase
+//
+//revive:disable-next-line:argument-limit
+func newConfigValidationTestCase(name string, config set.Config[int, int, testItem],
+	expectError bool, errorMsg string) configValidationTestCase {
+	return configValidationTestCase{
+		name:        name,
+		config:      config,
+		expectError: expectError,
+		errorMsg:    errorMsg,
 	}
 }
 
-func testConfigValidationMissingItemMatch(t *testing.T) {
-	cfg := Config[int, int, testItem]{
-		ItemKey: func(v testItem) (int, error) { return v.ID, nil },
-		Hash:    func(k int) (int, error) { return k, nil },
-	}
-
-	if err := cfg.Validate(); err == nil {
-		t.Error("Validate should fail without ItemMatch function")
-	}
-}
-
-func testConfigValidationValid(t *testing.T) {
-	cfg := testConfig()
-	if err := cfg.Validate(); err != nil {
-		t.Errorf("Validate failed on valid config: %v", err)
+func makeConfigValidationTestCases() []core.TestCase {
+	return []core.TestCase{
+		newConfigValidationTestCase(
+			"missing ItemKey",
+			set.Config[int, int, testItem]{
+				Hash:      func(k int) (int, error) { return k, nil },
+				ItemMatch: func(_ int, _ testItem) bool { return true },
+			},
+			true,
+			"Validate should fail without ItemKey function",
+		),
+		newConfigValidationTestCase(
+			"missing Hash",
+			set.Config[int, int, testItem]{
+				ItemKey:   func(v testItem) (int, error) { return v.ID, nil },
+				ItemMatch: func(_ int, _ testItem) bool { return true },
+			},
+			true,
+			"Validate should fail without Hash function",
+		),
+		newConfigValidationTestCase(
+			"missing ItemMatch",
+			set.Config[int, int, testItem]{
+				ItemKey: func(v testItem) (int, error) { return v.ID, nil },
+				Hash:    func(k int) (int, error) { return k, nil },
+			},
+			true,
+			"Validate should fail without ItemMatch function",
+		),
+		newConfigValidationTestCase(
+			"valid config",
+			testConfig(),
+			false,
+			"Validate valid config",
+		),
 	}
 }
 
 func TestConfigValidation(t *testing.T) {
-	tests := []testCase{
-		{"missing ItemKey", testConfigValidationMissingItemKey},
-		{"missing Hash", testConfigValidationMissingHash},
-		{"missing ItemMatch", testConfigValidationMissingItemMatch},
-		{"valid config", testConfigValidationValid},
-	}
+	core.RunTestCases(t, makeConfigValidationTestCases())
+}
 
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
+// configEqualTestCase implements core.TestCase for config equality tests
+type configEqualTestCase struct {
+	makeFunc func() (set.Config[int, int, testItem], set.Config[int, int, testItem])
+	name     string
+	errorMsg string
+	expected bool
+}
+
+func (tc configEqualTestCase) Name() string {
+	return tc.name
+}
+
+func (tc configEqualTestCase) Test(t *testing.T) {
+	t.Helper()
+	cfg1, cfg2 := tc.makeFunc()
+	result := cfg1.Equal(cfg2)
+	if tc.expected {
+		core.AssertTrue(t, result, tc.errorMsg)
+	} else {
+		core.AssertFalse(t, result, tc.errorMsg)
 	}
 }
 
-func testConfigEqualSame(t *testing.T) {
+// newConfigEqualTestCase creates a new configEqualTestCase
+//
+//revive:disable-next-line:flag-parameter
+func newConfigEqualTestCase(name string,
+	makeFunc func() (set.Config[int, int, testItem], set.Config[int, int, testItem]),
+	expected bool, errorMsg string) configEqualTestCase {
+	return configEqualTestCase{
+		name:     name,
+		makeFunc: makeFunc,
+		expected: expected,
+		errorMsg: errorMsg,
+	}
+}
+
+func makeConfigWithSameFunctions() (cfg1, cfg2 set.Config[int, int, testItem]) {
 	keyFn := func(v testItem) (int, error) { return v.ID, nil }
 	hashFn := func(k int) (int, error) { return k, nil }
 	matchFn := func(k int, v testItem) bool { return k == v.ID }
 
-	cfg1 := Config[int, int, testItem]{ItemKey: keyFn, Hash: hashFn, ItemMatch: matchFn}
-	cfg2 := Config[int, int, testItem]{ItemKey: keyFn, Hash: hashFn, ItemMatch: matchFn}
-
-	if !cfg1.Equal(cfg2) {
-		t.Error("Configs with same functions should be equal")
-	}
+	cfg1 = set.Config[int, int, testItem]{ItemKey: keyFn, Hash: hashFn, ItemMatch: matchFn}
+	cfg2 = set.Config[int, int, testItem]{ItemKey: keyFn, Hash: hashFn, ItemMatch: matchFn}
+	return cfg1, cfg2
 }
 
-func testConfigEqualDifferent(t *testing.T) {
-	cfg1 := testConfig()
-	cfg2 := testConfig() // Different function instances
+func makeConfigWithMixedNil() (cfg1, cfg2 set.Config[int, int, testItem]) {
+	cfg1 = set.Config[int, int, testItem]{
+		ItemKey:   func(v testItem) (int, error) { return v.ID, nil },
+		ItemMatch: func(k int, v testItem) bool { return k == v.ID },
+		// Hash is nil
+	}
+	cfg2 = set.Config[int, int, testItem]{
+		ItemKey: func(v testItem) (int, error) { return v.ID, nil },
+		Hash:    func(k int) (int, error) { return k, nil },
+		// ItemMatch is nil
+	}
+	return cfg1, cfg2
+}
 
-	if cfg1.Equal(cfg2) {
-		t.Error("Configs with different function instances should not be equal")
+func makeConfigEqualTestCases() []core.TestCase {
+	// Shared function instances
+	hashFn := func(k int) (int, error) { return k, nil }
+	keyFn := func(v testItem) (int, error) { return v.ID, nil }
+	matchFn := func(k int, v testItem) bool { return k == v.ID }
+
+	return []core.TestCase{
+		newConfigEqualTestCase(
+			"same functions",
+			makeConfigWithSameFunctions,
+			true,
+			"configs with same functions should be equal",
+		),
+		newConfigEqualTestCase(
+			"different function instances",
+			func() (set.Config[int, int, testItem], set.Config[int, int, testItem]) {
+				return testConfig(), testConfig()
+			},
+			false,
+			"configs with different function instances should not be equal",
+		),
+		newConfigEqualTestCase(
+			"both nil functions",
+			func() (set.Config[int, int, testItem], set.Config[int, int, testItem]) {
+				return set.Config[int, int, testItem]{}, set.Config[int, int, testItem]{}
+			},
+			true,
+			"configs with all nil functions should be equal",
+		),
+		newConfigEqualTestCase(
+			"one nil one not",
+			func() (set.Config[int, int, testItem], set.Config[int, int, testItem]) {
+				return set.Config[int, int, testItem]{}, testConfig()
+			},
+			false,
+			"config with nil functions should not equal config with functions",
+		),
+		newConfigEqualTestCase(
+			"mixed nil non-nil",
+			makeConfigWithMixedNil,
+			false,
+			"configs with different nil fields should not be equal",
+		),
+		newConfigEqualTestCase(
+			"different ItemKey",
+			func() (set.Config[int, int, testItem], set.Config[int, int, testItem]) {
+				cfg1 := set.Config[int, int, testItem]{
+					Hash:      hashFn,
+					ItemKey:   func(v testItem) (int, error) { return v.ID, nil },
+					ItemMatch: matchFn,
+				}
+				cfg2 := set.Config[int, int, testItem]{
+					Hash:      hashFn,
+					ItemKey:   func(v testItem) (int, error) { return v.ID + 1, nil },
+					ItemMatch: matchFn,
+				}
+				return cfg1, cfg2
+			},
+			false,
+			"configs with different ItemKey should not be equal",
+		),
+		newConfigEqualTestCase(
+			"different ItemMatch",
+			func() (set.Config[int, int, testItem], set.Config[int, int, testItem]) {
+				cfg1 := set.Config[int, int, testItem]{
+					Hash:      hashFn,
+					ItemKey:   keyFn,
+					ItemMatch: func(k int, v testItem) bool { return k == v.ID },
+				}
+				cfg2 := set.Config[int, int, testItem]{
+					Hash:      hashFn,
+					ItemKey:   keyFn,
+					ItemMatch: func(_ int, _ testItem) bool { return false },
+				}
+				return cfg1, cfg2
+			},
+			false,
+			"configs with different ItemMatch should not be equal",
+		),
 	}
 }
 
 func TestConfigEqual(t *testing.T) {
-	tests := []testCase{
-		{"same functions", testConfigEqualSame},
-		{"different functions", testConfigEqualDifferent},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	core.RunTestCases(t, makeConfigEqualTestCases())
 }
 
-func runConcurrentWriter(s *Set[int, int, testItem], done chan bool) {
+func runConcurrentWriter(s *set.Set[int, int, testItem], done chan bool) {
 	for i := 0; i < 100; i++ {
 		_, _ = s.Push(testItem{ID: i, Name: "item", Value: "value"})
 	}
 	done <- true
 }
 
-func runConcurrentReader(s *Set[int, int, testItem], done chan bool) {
+func runConcurrentReader(s *set.Set[int, int, testItem], done chan bool) {
 	for i := 0; i < 100; i++ {
 		s.Contains(i)
 		_, _ = s.Get(i)
@@ -693,19 +757,18 @@ func runConcurrentReader(s *Set[int, int, testItem], done chan bool) {
 	done <- true
 }
 
-func runConcurrentForEach(s *Set[int, int, testItem], done chan bool) {
-	for i := 0; i < 10; i++ {
+func runConcurrentForEach(s *set.Set[int, int, testItem], done chan bool) {
+	for range 10 {
 		s.ForEach(func(testItem) bool { return true })
 	}
 	done <- true
 }
 
-func doTestThreadSafety(t *testing.T) {
+func runTestThreadSafety(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	// Run concurrent operations
 	done := make(chan bool)
@@ -721,96 +784,68 @@ func doTestThreadSafety(t *testing.T) {
 }
 
 func TestThreadSafety(t *testing.T) {
-	tests := []testCase{
-		{"concurrent operations", doTestThreadSafety},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("concurrent operations", runTestThreadSafety)
 }
 
-func testNilReceiverInit(t *testing.T) {
-	var s *Set[int, int, testItem]
+func runTestNilReceiverInit(t *testing.T) {
+	t.Helper()
+	var s *set.Set[int, int, testItem]
 	cfg := testConfig()
 
-	if err := cfg.Init(s); err == nil {
-		t.Error("Init on nil receiver should return error")
-	}
+	err := cfg.Init(s)
+	core.AssertError(t, err, "Init on nil receiver should return error")
 }
 
-func testNilReceiverMethods(t *testing.T) {
-	var s *Set[int, int, testItem]
+func runTestNilReceiverMethods(t *testing.T) {
+	t.Helper()
+	var s *set.Set[int, int, testItem]
 
-	if s.Contains(1) {
-		t.Error("nil set Contains should return false")
-	}
+	core.AssertFalse(t, s.Contains(1), "nil set Contains should return false")
 
-	if _, err := s.Get(1); err == nil || !core.IsError(err, core.ErrNilReceiver) {
-		t.Errorf("nil set Get should return ErrNilReceiver, got: %v", err)
-	}
+	_, err := s.Get(1)
+	core.AssertError(t, err, "nil set Get should return error")
+	core.AssertErrorIs(t, err, core.ErrNilReceiver, "error type")
 
-	if _, err := s.Push(testItem{ID: 1}); err == nil || !core.IsError(err, core.ErrNilReceiver) {
-		t.Errorf("nil set Push should return ErrNilReceiver, got: %v", err)
-	}
+	_, err = s.Push(testItem{ID: 1})
+	core.AssertError(t, err, "nil set Push should return error")
+	core.AssertErrorIs(t, err, core.ErrNilReceiver, "error type")
 }
 
 func TestNilReceiver(t *testing.T) {
-	tests := []testCase{
-		{"init nil receiver", testNilReceiverInit},
-		{"methods on nil", testNilReceiverMethods},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("init nil receiver", runTestNilReceiverInit)
+	t.Run("methods on nil", runTestNilReceiverMethods)
 }
 
-func doTestEmptySet(t *testing.T) {
+func runTestEmptySet(t *testing.T) {
+	t.Helper()
 	cfg := testConfig()
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	// Test operations on empty set
 	values := s.Values()
-	if len(values) != 0 {
-		t.Errorf("Empty set Values() should return empty slice, got %d items", len(values))
-	}
+	core.AssertEqual(t, 0, len(values), "empty set Values()")
 
 	count := 0
 	s.ForEach(func(testItem) bool {
 		count++
 		return true
 	})
-	if count != 0 {
-		t.Errorf("Empty set ForEach should not iterate, got %d iterations", count)
-	}
+	core.AssertEqual(t, 0, count, "empty set ForEach iterations")
 
-	if s.Contains(1) {
-		t.Error("Empty set Contains should return false")
-	}
+	core.AssertFalse(t, s.Contains(1), "empty set Contains")
 
 	// Test Pop on empty set
-	if _, err := s.Pop(1); err == nil {
-		t.Error("Pop on empty set should return error")
-	}
+	_, err = s.Pop(1)
+	core.AssertError(t, err, "Pop on empty set should return error")
 
 	// Test Get on empty set
-	if _, err := s.Get(1); err == nil {
-		t.Error("Get on empty set should return error")
-	}
+	_, err = s.Get(1)
+	core.AssertError(t, err, "Get on empty set should return error")
 }
 
 func TestEmptySet(t *testing.T) {
-	tests := []testCase{
-		{"empty set operations", doTestEmptySet},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	t.Run("empty set operations", runTestEmptySet)
 }
 
 func makeHashCollisionItems() []testItem {
@@ -822,38 +857,35 @@ func makeHashCollisionItems() []testItem {
 	}
 }
 
-func verifyPushItems(t *testing.T, s *Set[int, int, testItem], items []testItem) {
+func verifyPushItems(t *testing.T, s *set.Set[int, int, testItem], items []testItem) {
+	t.Helper()
 	for _, item := range items {
-		if _, err := s.Push(item); err != nil {
-			t.Errorf("Push(%d) failed: %v", item.ID, err)
-		}
+		_, err := s.Push(item)
+		core.AssertMustNoError(t, err, "Push(%d)", item.ID)
 	}
 }
 
-func verifyGetItems(t *testing.T, s *Set[int, int, testItem], items []testItem) {
+func verifyGetItems(t *testing.T, s *set.Set[int, int, testItem], items []testItem) {
+	t.Helper()
 	for _, item := range items {
-		if v, err := s.Get(item.ID); err != nil {
-			t.Errorf("Get(%d) failed: %v", item.ID, err)
-		} else if v.ID != item.ID {
-			t.Errorf("Get(%d) returned wrong item: %+v", item.ID, v)
-		}
+		v, err := s.Get(item.ID)
+		core.AssertMustNoError(t, err, "Get(%d)", item.ID)
+		core.AssertEqual(t, item.ID, v.ID, "Get(%d) item ID", item.ID)
 	}
 }
 
-func verifyContainsItems(t *testing.T, s *Set[int, int, testItem], items []testItem) {
+func verifyContainsItems(t *testing.T, s *set.Set[int, int, testItem], items []testItem) {
+	t.Helper()
 	for _, item := range items {
-		if !s.Contains(item.ID) {
-			t.Errorf("Contains(%d) should return true", item.ID)
-		}
+		core.AssertTrue(t, s.Contains(item.ID), "Contains(%d)", item.ID)
 	}
 }
 
-func doTestHashCollisions(t *testing.T) {
+func runTestHashCollisions(t *testing.T) {
+	t.Helper()
 	cfg := testConfig() // Uses hash function that returns k % 10
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	items := makeHashCollisionItems()
 	verifyPushItems(t, s, items)
@@ -862,11 +894,72 @@ func doTestHashCollisions(t *testing.T) {
 }
 
 func TestHashCollisions(t *testing.T) {
-	tests := []testCase{
-		{"hash collisions", doTestHashCollisions},
+	t.Run("hash collisions", runTestHashCollisions)
+}
+
+// Tests for achieving 100% coverage
+
+func runTestResetNilReceiver(t *testing.T) {
+	t.Helper()
+	var s *set.Set[int, int, testItem]
+	err := s.Reset()
+	core.AssertError(t, err, "Reset on nil receiver")
+	core.AssertErrorIs(t, err, core.ErrNilReceiver, "error type")
+}
+
+func runTestResetUninitialized(t *testing.T) {
+	t.Helper()
+	s := &set.Set[int, int, testItem]{}
+	err := s.Reset()
+	core.AssertError(t, err, "Reset on uninitialised set")
+	core.AssertErrorIs(t, err, core.ErrInvalid, "error type")
+}
+
+func TestResetEdgeCases(t *testing.T) {
+	t.Run("nil receiver", runTestResetNilReceiver)
+	t.Run("uninitialized", runTestResetUninitialized)
+}
+
+func runTestUnsafeInitPushWithError(t *testing.T) {
+	t.Helper()
+	// Create a config that will cause errors
+	errorConfig := set.Config[int, int, testItem]{
+		ItemKey: func(v testItem) (int, error) {
+			if v.ID == 999 {
+				return 0, core.ErrInvalid // This will cause Push to fail
+			}
+			return v.ID, nil
+		},
+		Hash:      func(k int) (int, error) { return k % 10, nil },
+		ItemMatch: func(k int, v testItem) bool { return k == v.ID },
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
+	s := &set.Set[int, int, testItem]{}
+	err := errorConfig.Init(s, testItem{ID: 1}, testItem{ID: 999})
+	core.AssertError(t, err, "unsafeInitPush with error item")
+}
+
+func TestUnsafeInitPush(t *testing.T) {
+	t.Run("with error", runTestUnsafeInitPushWithError)
+}
+
+func runTestCheckWithValueItemKeyError(t *testing.T) {
+	t.Helper()
+	errorConfig := set.Config[int, int, testItem]{
+		ItemKey: func(_ testItem) (int, error) {
+			return 0, core.ErrInvalid
+		},
+		Hash:      func(k int) (int, error) { return k, nil },
+		ItemMatch: func(k int, v testItem) bool { return k == v.ID },
 	}
+
+	s, err := errorConfig.New()
+	core.AssertMustNoError(t, err, "New")
+
+	_, err = s.Push(testItem{ID: 1})
+	core.AssertError(t, err, "Push with ItemKey error")
+}
+
+func TestCheckWithValueItemKeyError(t *testing.T) {
+	t.Run("ItemKey error", runTestCheckWithValueItemKeyError)
 }

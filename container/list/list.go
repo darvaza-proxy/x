@@ -1,4 +1,4 @@
-// Package list provides a type-safe wrapper to the standard container/list
+// Package list provides a type-safe wrapper to the standard container/list.
 package list
 
 import (
@@ -21,7 +21,7 @@ func New[T any](entries ...T) *List[T] {
 	return l
 }
 
-// Sys returns the native [list.List]
+// Sys returns the native [list.List].
 func (l *List[T]) Sys() *list.List {
 	if l == nil {
 		return nil
@@ -29,7 +29,7 @@ func (l *List[T]) Sys() *list.List {
 	return (*list.List)(l)
 }
 
-// Len returns the number of elements in the list
+// Len returns the number of elements in the list.
 func (l *List[T]) Len() int {
 	if l == nil {
 		return 0
@@ -38,7 +38,7 @@ func (l *List[T]) Len() int {
 }
 
 // Zero returns the zero value of the type associated
-// to the list.
+// with the list.
 func (*List[T]) Zero() T {
 	var zero T
 	return zero

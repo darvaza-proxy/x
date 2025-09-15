@@ -18,9 +18,9 @@ func cmpOrdered[T core.Ordered](a, b T) int {
 	}
 }
 
-// InitOrderedSet initializes a CustomSet with a default comparison function for ordered types.
+// InitOrderedSet initialises a CustomSet with a default comparison function for ordered types.
 // It sets the comparison function and populates the set with the initial elements.
-// Returns an error if the initialization fails.
+// Returns an error if the initialisation fails.
 func InitOrderedSet[T core.Ordered](set *CustomSet[T], initial ...T) error {
 	return InitCustomSet(set, cmpOrdered, initial...)
 }

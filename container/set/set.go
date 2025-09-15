@@ -21,8 +21,8 @@ var (
 // Set implements a simple set using generics.
 type Set[K, H comparable, T any] struct {
 	cfg     Config[K, H, T]
-	mu      sync.RWMutex
 	buckets map[H]*list.List[T]
+	mu      sync.RWMutex
 }
 
 func (set *Set[K, H, T]) init(cfg Config[K, H, T], items ...T) error {
@@ -39,7 +39,7 @@ func (set *Set[K, H, T]) init(cfg Config[K, H, T], items ...T) error {
 		set.cfg = cfg
 		set.unsafeReset()
 	} else {
-		err = core.Wrap(core.ErrInvalid, "Set already initialized")
+		err = core.Wrap(core.ErrInvalid, "Set already initialised")
 	}
 	set.mu.Unlock()
 
@@ -98,7 +98,7 @@ func (set *Set[K, H, T]) unsafeReset() {
 	set.buckets = make(map[H]*list.List[T])
 }
 
-// Push adds entries to the set unless it already exist.
+// Push adds entries to the set unless they already exist.
 // It returns the value with matching key stored in the Set so it
 // can be treated as a global reference.
 func (set *Set[K, H, T]) Push(value T) (T, error) {
@@ -129,7 +129,7 @@ func (set *Set[K, H, T]) Push(value T) (T, error) {
 	}
 }
 
-// Get returns the item matching the key
+// Get returns the item matching the key.
 func (set *Set[K, H, T]) Get(key K) (T, error) {
 	var zero T
 
@@ -163,7 +163,7 @@ func (set *Set[K, H, T]) unsafeGet(key K, hash H) (T, *list.List[T], bool) {
 
 // Contains tells if there is a matching item in the [Set].
 // It returns false if:
-// - the Set is nil or uninitialized
+// - the Set is nil or uninitialised
 // - the key is invalid according to the Set's configuration
 // - no matching item exists.
 func (set *Set[K, H, T]) Contains(key K) bool {
@@ -180,7 +180,7 @@ func (set *Set[K, H, T]) Contains(key K) bool {
 	return found
 }
 
-// Pop removes and return the item matching the given key from the
+// Pop removes and returns the item matching the given key from the
 // Set.
 func (set *Set[K, H, T]) Pop(key K) (T, error) {
 	var zero T

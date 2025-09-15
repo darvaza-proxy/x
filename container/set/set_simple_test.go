@@ -1,60 +1,59 @@
-package set
+package set_test
 
 import (
 	"fmt"
 	"sync"
 	"testing"
+
+	"darvaza.org/core"
+
+	"darvaza.org/x/container/set"
 )
 
-func doTestPush(t *testing.T, s *Set[int, int, testItem]) {
+func runTestPush(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
 	item := testItem{ID: 1, Name: "test"}
-	if _, err := s.Push(item); err != nil {
-		t.Fatalf("Push failed: %v", err)
-	}
+	_, err := s.Push(item)
+	core.AssertMustNoError(t, err, "Push")
 }
 
-func doTestContains(t *testing.T, s *Set[int, int, testItem]) {
-	if !s.Contains(1) {
-		t.Error("Contains should return true")
-	}
+func runTestContains(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
+	core.AssertTrue(t, s.Contains(1), "Contains(1)")
 }
 
-func doTestGet(t *testing.T, s *Set[int, int, testItem]) {
-	if v, err := s.Get(1); err != nil {
-		t.Errorf("Get failed: %v", err)
-	} else if v.ID != 1 {
-		t.Errorf("Get returned wrong item: %+v", v)
-	}
+func runTestGet(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
+	v, err := s.Get(1)
+	core.AssertMustNoError(t, err, "Get")
+	core.AssertEqual(t, 1, v.ID, "Get item ID")
 }
 
-func doTestPop(t *testing.T, s *Set[int, int, testItem]) {
-	if _, err := s.Pop(1); err != nil {
-		t.Errorf("Pop failed: %v", err)
-	}
+func runTestPop(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
+	_, err := s.Pop(1)
+	core.AssertMustNoError(t, err, "Pop")
 }
 
-func doTestVerifyRemoved(t *testing.T, s *Set[int, int, testItem]) {
-	if s.Contains(1) {
-		t.Error("Item should be removed")
-	}
+func runTestVerifyRemoved(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
+	core.AssertFalse(t, s.Contains(1), "item should be removed")
 }
 
 // Simple test to ensure basic functionality works
 func TestSetBasicOperations(t *testing.T) {
 	cfg := testConfig()
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
-	doTestPush(t, s)
-	doTestContains(t, s)
-	doTestGet(t, s)
-	doTestPop(t, s)
-	doTestVerifyRemoved(t, s)
+	runTestPush(t, s)
+	runTestContains(t, s)
+	runTestGet(t, s)
+	runTestPop(t, s)
+	runTestVerifyRemoved(t, s)
 }
 
-func runConcurrentAdds(s *Set[int, int, testItem], wg *sync.WaitGroup, base, itemsPerGoroutine int) {
+func runConcurrentAdds(s *set.Set[int, int, testItem], wg *sync.WaitGroup, base, itemsPerGoroutine int) {
 	defer wg.Done()
 	for j := range itemsPerGoroutine {
 		id := base*itemsPerGoroutine + j
@@ -67,7 +66,7 @@ func runConcurrentAdds(s *Set[int, int, testItem], wg *sync.WaitGroup, base, ite
 	}
 }
 
-func runConcurrentRemoves(s *Set[int, int, testItem], wg *sync.WaitGroup, base, itemsPerGoroutine int) {
+func runConcurrentRemoves(s *set.Set[int, int, testItem], wg *sync.WaitGroup, base, itemsPerGoroutine int) {
 	defer wg.Done()
 	for j := range itemsPerGoroutine {
 		id := base*itemsPerGoroutine + j
@@ -81,9 +80,7 @@ func runConcurrentRemoves(s *Set[int, int, testItem], wg *sync.WaitGroup, base, 
 func TestSetConcurrency(t *testing.T) {
 	cfg := testConfig()
 	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "New")
 
 	const numGoroutines = 10
 	const itemsPerGoroutine = 100
@@ -110,10 +107,10 @@ func TestSetConcurrency(t *testing.T) {
 		count++
 		return false
 	})
-	t.Logf("Set contains %d items after concurrent operations", count)
+	// Set operations completed successfully
 }
 
-func makeFilledSet(b *testing.B, size int) *Set[int, int, testItem] {
+func makeFilledSet(b *testing.B, size int) *set.Set[int, int, testItem] {
 	cfg := testConfig()
 	s, _ := cfg.New()
 	for i := range size {
@@ -131,7 +128,7 @@ func doBenchmarkSetPush(b *testing.B, size int) {
 	for i := range b.N {
 		item := testItem{ID: size + i}
 		_, err := s.Push(item)
-		if err != nil && err != ErrExist {
+		if err != nil && err != set.ErrExist {
 			b.Fatalf("Push failed: %v", err)
 		}
 		_, _ = s.Pop(size + i) // Clean up to maintain size

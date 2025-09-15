@@ -9,19 +9,19 @@ import (
 	"darvaza.org/core"
 )
 
-// Compile-time check to ensure CustomSet implements the Set interface
+// Compile-time check to ensure CustomSet implements the Set interface.
 var _ Set[struct{}] = (*CustomSet[struct{}])(nil)
 
 // CustomSet is a generic thread-safe set implementation with custom element comparison.
 // It maintains a sorted slice of unique elements using a provided comparison function.
 type CustomSet[T any] struct {
-	mu  sync.RWMutex
-	s   []T
 	cmp func(T, T) int // comparison function: negative if a<b, zero if a==b, positive if a>b
+	s   []T
+	mu  sync.RWMutex
 }
 
 // New creates a new empty CustomSet with the same comparison function as the current set.
-// Returns nil if the current set is nil, and panics if the set is not initialized.
+// Returns nil if the current set is nil, and panics if the set is not initialised.
 func (set *CustomSet[T]) New() Set[T] {
 	if set == nil {
 		return nil
@@ -53,7 +53,7 @@ func NewCustomSet[T any](cmp func(T, T) int, initial ...T) (*CustomSet[T], error
 	}, nil
 }
 
-// MustCustomSet creates a new CustomSet, panicking if initialization fails.
+// MustCustomSet creates a new CustomSet, panicking if initialisation fails.
 // This is a convenience function for when error handling is not needed.
 func MustCustomSet[T any](cmd func(T, T) int, initial ...T) *CustomSet[T] {
 	set, err := NewCustomSet(cmd, initial...)
@@ -63,8 +63,8 @@ func MustCustomSet[T any](cmd func(T, T) int, initial ...T) *CustomSet[T] {
 	return set
 }
 
-// InitCustomSet initializes a pre-allocated CustomSet with thread-safe semantics.
-// Returns an error if the set is nil, the comparison function is nil, or the set is already initialized.
+// InitCustomSet initialises a pre-allocated CustomSet with thread-safe semantics.
+// Returns an error if the set is nil, the comparison function is nil, or the set is already initialised.
 func InitCustomSet[T any](set *CustomSet[T], cmp func(T, T) int, initial ...T) error {
 	switch {
 	case set == nil:
@@ -76,7 +76,7 @@ func InitCustomSet[T any](set *CustomSet[T], cmp func(T, T) int, initial ...T) e
 		defer set.mu.Unlock()
 
 		if set.cmp != nil || set.s != nil {
-			return core.Wrap(core.ErrInvalid, "set already initialized")
+			return core.Wrap(core.ErrInvalid, "set already initialised")
 		}
 
 		set.s = dedupeFn(cmp, initial)
@@ -120,7 +120,7 @@ func dedupeFn[T any](cmp func(T, T) int, s []T) []T {
 }
 
 // Contains checks if the given value is present in the CustomSet.
-// Returns false if the set is nil or not initialized.
+// Returns false if the set is nil or not initialised.
 func (set *CustomSet[T]) Contains(v T) bool {
 	if set == nil || set.cmp == nil {
 		return false
@@ -149,7 +149,7 @@ func (set *CustomSet[T]) search(start int, v T) (int, bool) {
 }
 
 // Clone creates a copy of the CustomSet.
-// Returns nil if the current set is nil, and panics if not initialized.
+// Returns nil if the current set is nil, and panics if not initialised.
 func (set *CustomSet[T]) Clone() Set[T] {
 	if set == nil {
 		return nil
@@ -200,7 +200,7 @@ func (set *CustomSet[T]) Cap() (available, total int) {
 
 // Add adds the given values to the CustomSet.
 // Returns the number of unique values that were added.
-// Panics if the set is not properly initialized.
+// Panics if the set is not properly initialised.
 func (set *CustomSet[T]) Add(values ...T) int {
 	if set == nil || len(values) == 0 {
 		return 0
@@ -257,7 +257,7 @@ func (set *CustomSet[T]) doAddOne(start int, v T) (int, bool) {
 
 // Remove removes the given values from the CustomSet.
 // Returns the number of values that were actually removed.
-// Panics if the set is not properly initialized.
+// Panics if the set is not properly initialised.
 func (set *CustomSet[T]) Remove(values ...T) int {
 	if set == nil || len(values) == 0 {
 		return 0
@@ -491,5 +491,5 @@ func (set *CustomSet[T]) GetByIndex(i int) (T, bool) {
 }
 
 func (*CustomSet[T]) newNotInitialized(skip int) error {
-	return core.NewPanicError(skip+1, "CustomSet not initialized")
+	return core.NewPanicError(skip+1, "CustomSet not initialised")
 }

@@ -7,10 +7,10 @@ import (
 	"darvaza.org/x/container/set"
 )
 
-// User represents a user with ID and name
+// User represents a user with ID and name.
 type User struct {
-	ID   int
 	Name string
+	ID   int
 }
 
 func ExampleConfig_New() {

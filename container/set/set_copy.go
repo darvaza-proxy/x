@@ -42,7 +42,7 @@ func (set *Set[K, H, T]) unsafeClone(dst *Set[K, H, T], cond func(T) bool) *Set[
 // using a condition function.
 //
 // If no destination is provided, one will be created.
-// If an uninitialized destination is provided, it will be initialized using
+// If an uninitialised destination is provided, it will be initialised using
 // the source's [Config] and values copied in bulk.
 func (set *Set[K, H, T]) Copy(dst *Set[K, H, T], cond func(T) bool) *Set[K, H, T] {
 	if set == nil || set == dst {
@@ -57,7 +57,7 @@ func (set *Set[K, H, T]) Copy(dst *Set[K, H, T], cond func(T) bool) *Set[K, H, T
 
 	switch {
 	case !set.unsafeIsReady():
-		// uninitialized source, nothing to do.
+		// uninitialised source, nothing to do.
 		return dst
 	case dst == nil:
 		// destination not provided, create new.
@@ -68,7 +68,7 @@ func (set *Set[K, H, T]) Copy(dst *Set[K, H, T], cond func(T) bool) *Set[K, H, T
 
 		switch {
 		case !dst.unsafeIsReady():
-			// uninitialized destination. externally allocated.
+			// uninitialised destination. externally allocated.
 			// keep lock but treat as own.
 			defer dst.mu.Unlock()
 
@@ -79,7 +79,7 @@ func (set *Set[K, H, T]) Copy(dst *Set[K, H, T], cond func(T) bool) *Set[K, H, T
 
 			return set.unsafeAppend(dst, cond)
 		default:
-			// no optimizations. release lock and Push.
+			// no optimisations. release lock and Push.
 			dst.mu.Unlock()
 
 			return set.unsafeCopy(dst, cond)
