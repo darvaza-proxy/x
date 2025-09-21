@@ -7,13 +7,13 @@ import (
 	"darvaza.org/core"
 )
 
-// WorkerFunc is a run function for core.ErrGroup's GoCatch
+// WorkerFunc is a run function for core.ErrGroup's GoCatch.
 type WorkerFunc func(context.Context) error
 
-// CatcherFunc is a catch function for core.ErrGroup's GoCatch
+// CatcherFunc is a catch function for core.ErrGroup's GoCatch.
 type CatcherFunc func(context.Context, error) error
 
-// A WorkGroup is an error group interface
+// A WorkGroup is an error group interface.
 type WorkGroup interface {
 	Go(...WorkerFunc)
 	GoCatch(WorkerFunc, CatcherFunc)
@@ -26,8 +26,8 @@ type WorkGroup interface {
 }
 
 // A Shutdowner is an object that provides a Shutdown method
-// that takes a context with deadline to shutdown all associated
-// workers
+// that takes a context with deadline to shut down all associated
+// workers.
 type Shutdowner interface {
 	Shutdown(context.Context) error
 }

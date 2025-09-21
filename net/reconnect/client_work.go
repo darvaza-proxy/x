@@ -16,7 +16,7 @@ func (c *Client) Wait() error {
 }
 
 // Err returns the cancellation reason.
-// it will return nil if the cause was initiated
+// It will return nil if the cause was initiated
 // by the user.
 func (c *Client) Err() error {
 	c.mu.Lock()
@@ -39,7 +39,7 @@ func (c *Client) Done() <-chan struct{} {
 	return barrier
 }
 
-// Shutdown initiates a shutdown and wait until the workers
+// Shutdown initiates a shutdown and waits until the workers
 // are done, or the given context times out.
 func (c *Client) Shutdown(ctx context.Context) error {
 	_ = c.terminate(nil)
@@ -83,7 +83,7 @@ func (c *Client) Go(funcs ...WorkerFunc) {
 	}
 }
 
-// GoCatch spawns a goroutine within the [Client]'s context
+// GoCatch spawns a goroutine within the [Client]'s context,
 // optionally allowing filtering the error to stop cascading.
 func (c *Client) GoCatch(run WorkerFunc, catch CatcherFunc) {
 	if run != nil {
@@ -111,7 +111,7 @@ func (c *Client) spawnOne(run WorkerFunc, catch CatcherFunc) {
 	}()
 }
 
-// run implements the main loop
+// run implements the main loop.
 func (c *Client) run(conn net.Conn) {
 	var abort bool
 
@@ -216,8 +216,8 @@ func (c *Client) doOnError(conn net.Conn, err error, note string, args ...any) e
 }
 
 // handlePossiblyFatalError handles an error and returns nil if it wasn't fatal.
-// fatal errors should terminate the worker immediately.
-// the returned error is unfiltered.
+// Fatal errors should terminate the worker immediately.
+// The returned error is unfiltered.
 func (c *Client) handlePossiblyFatalError(conn net.Conn, err error) error {
 	if err != nil {
 		err = c.doOnError(conn, err, "")

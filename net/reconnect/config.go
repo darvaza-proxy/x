@@ -15,7 +15,7 @@ import (
 	"darvaza.org/x/net"
 )
 
-// A OptionFunc modifies a [Config] consistently before SetDefaults() and Validate().
+// An OptionFunc modifies a [Config] consistently before SetDefaults() and Validate().
 type OptionFunc func(*Config) error
 
 var (
@@ -83,7 +83,7 @@ func (cfg *Config) busy() bool {
 	return cfg.c != nil
 }
 
-// SetDefaults fills any gap in the config
+// SetDefaults fills any gap in the config.
 func (cfg *Config) SetDefaults() error {
 	if err := defaults.Set(cfg); err != nil {
 		return err
@@ -116,7 +116,7 @@ func (cfg *Config) Valid() error {
 		return errors.New("logger missing")
 	}
 
-	if err := cfg.validateRemote(cfg.Remote); err != nil {
+	if err := validateRemote(cfg.Remote); err != nil {
 		return core.Wrap(err, "invalid remote")
 	}
 
@@ -130,13 +130,27 @@ func (cfg *Config) Valid() error {
 	return nil
 }
 
-func (*Config) validateRemote(remote string) error {
-	_, port, err := core.SplitHostPort(remote)
+func validateRemote(remote string) error {
+	if remote == "" {
+		return errors.New("remote address missing")
+	}
+
+	network, address := parseRemote(remote)
+	if network == NetworkUnix {
+		// Unix socket - just check it's not empty
+		if address == "" {
+			return errors.New("unix socket path missing")
+		}
+		return nil
+	}
+
+	// TCP - validate host:port
+	_, port, err := core.SplitHostPort(address)
 	switch {
 	case err != nil:
 		return err
 	case port == "":
-		return fmt.Errorf("%q: port missing", remote)
+		return fmt.Errorf("%q: port missing", address)
 	default:
 		return nil
 	}
