@@ -108,6 +108,7 @@
     "TCPUDP",
     "tctx",
     "terr",
+    "testutils",
     "tlsversions",
     "tmpl",
     "trylock",
