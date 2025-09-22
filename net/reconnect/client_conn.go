@@ -14,7 +14,7 @@ var (
 	_ fs.Closer = (*Client)(nil)
 )
 
-// dial attempts to stablish a connection to the server.
+// dial attempts to establish a connection to the server.
 func (c *Client) dial(network, addr string) (net.Conn, error) {
 	conn, err := c.dialer.DialContext(c.ctx, network, addr)
 	switch {
@@ -40,7 +40,7 @@ func (c *Client) dial(network, addr string) (net.Conn, error) {
 	return conn, nil
 }
 
-// reconnect waits before dialing
+// reconnect waits before dialling.
 func (c *Client) reconnect(network, addr string) (net.Conn, error) {
 	if fn := c.getWaitReconnect(); fn != nil {
 		if err := fn(c.ctx); err != nil {
@@ -65,7 +65,7 @@ func (c *Client) unsafeSetConn(conn net.Conn) (prev net.Conn) {
 	return prev
 }
 
-// getConn returns the current connection, or an ErrNotConnected error
+// getConn returns the current connection, or an ErrNotConnected error.
 func (c *Client) getConn() (net.Conn, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

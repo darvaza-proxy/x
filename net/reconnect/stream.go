@@ -254,7 +254,7 @@ func (s *StreamSession[_, _]) Close() error {
 	return nil
 }
 
-// Shutdown initiates a shutdown and wait until it's
+// Shutdown initiates a shutdown and waits until it's
 // done or the given context has expired.
 func (s *StreamSession[_, _]) Shutdown(ctx context.Context) error {
 	mustStarted(s)
@@ -275,14 +275,14 @@ func (s *StreamSession[_, _]) Wait() error {
 	return s.wg.Wait()
 }
 
-// Done returns a channel that will be closed with all workers are done
+// Done returns a channel that will be closed when all workers are done.
 func (s *StreamSession[_, _]) Done() <-chan struct{} {
 	mustStarted(s)
 
 	return s.wg.Done()
 }
 
-// Err returns the error that initiated a shutdown
+// Err returns the error that initiated a shutdown.
 func (s *StreamSession[Input, Output]) Err() error {
 	mustStarted(s)
 
@@ -314,7 +314,7 @@ func (s *StreamSession[Input, _]) Recv() <-chan Input {
 	return s.in
 }
 
-// Next blocks until a new message is received
+// Next blocks until a new message is received.
 func (s *StreamSession[Input, _]) Next() (Input, bool) {
 	mustStarted(s)
 
