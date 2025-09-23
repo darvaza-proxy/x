@@ -1,20 +1,23 @@
-# Generic Reconnecting TCP Client
+# Generic Reconnecting Network Client
 
-The `reconnect` package provides a robust, generic TCP client with automatic
-reconnection capabilities. It implements retry mechanisms, connection lifecycle
-management, and configurable callbacks for handling connection events.
+The `reconnect` package provides a robust, generic network client with automatic
+reconnection capabilities for both TCP and Unix domain sockets. It implements
+retry mechanisms, connection lifecycle management, and configurable callbacks
+for handling connection events.
 
 ## Overview
 
-The reconnecting TCP client automatically handles connection failures by
-implementing configurable retry logic. It provides hooks for custom connection
-handling, session management, and error processing whilst maintaining thread
-safety and proper resource clean-up.
+The reconnecting network client automatically handles connection failures by
+implementing configurable retry logic. It supports both TCP connections and
+Unix domain sockets, provides hooks for custom connection handling, session
+management, and error processing whilst maintaining thread safety and proper
+resource clean-up.
 
 ## Key Features
 
 - **Automatic Reconnection**: Transparent reconnection with configurable retry
   strategies.
+- **Multiple Network Types**: Support for both TCP and Unix domain sockets.
 - **Lifecycle Callbacks**: Customisable hooks for socket, connect, session,
   disconnect, and error events.
 - **Thread Safety**: Built-in synchronisation for concurrent operations.
@@ -49,6 +52,7 @@ cfg := &reconnect.Config{
     Logger:  logger,
 
     // Connection settings.
+    // TCP: "host:port" or Unix: "/path/to/socket" or "unix:/path"
     Remote:       "example.com:8080",
     KeepAlive:    5 * time.Second,  // Default: 5s.
     DialTimeout:  2 * time.Second,  // Default: 2s.
@@ -76,6 +80,30 @@ defer func() {
         logger.Error().Printf("Client error: %v", err)
     }
 }()
+```
+
+### Unix Domain Socket Usage
+
+The client automatically detects Unix domain sockets based on the Remote string:
+
+```go
+// Unix socket with explicit prefix
+cfg := &reconnect.Config{
+    Remote: "unix:/var/run/app.sock",
+    // ... other configuration
+}
+
+// Unix socket with absolute path (auto-detected)
+cfg := &reconnect.Config{
+    Remote: "/var/run/app.sock",
+    // ... other configuration
+}
+
+// Unix socket with .sock extension (auto-detected)
+cfg := &reconnect.Config{
+    Remote: "./app.sock",
+    // ... other configuration
+}
 ```
 
 ## Advanced Configuration
@@ -177,8 +205,8 @@ The `Config` structure supports the following fields:
 |-------|------|---------|-------------|
 | `Context` | `context.Context` | `context.Background()` | Base context for the client. |
 | `Logger` | `slog.Logger` | Default logger | Logger for structured logging. |
-| `Remote` | `string` | Required | Target address in `host:port` format. |
-| `KeepAlive` | `time.Duration` | `5s` | TCP keep-alive interval. |
+| `Remote` | `string` | Required | Target address. TCP: `host:port`, Unix: `/path/to/socket` or `unix:/path` |
+| `KeepAlive` | `time.Duration` | `5s` | TCP keep-alive interval (ignored for Unix sockets). |
 | `DialTimeout` | `time.Duration` | `2s` | Connection establishment timeout. |
 | `ReadTimeout` | `time.Duration` | `2s` | Read deadline for connections. |
 | `WriteTimeout` | `time.Duration` | `2s` | Write deadline for connections. |
@@ -232,6 +260,44 @@ func (cfg *Config) Valid() error
 
 // ExportDialer creates a net.Dialer from the configuration.
 func (cfg *Config) ExportDialer() net.Dialer
+```
+
+### Utility Functions
+
+```go
+// ParseRemote determines network type and address from a remote string.
+// Returns (network, address, error) where network is reconnect.NetworkTCP or
+// reconnect.NetworkUnix.
+func ParseRemote(remote string) (network, address string, err error)
+
+// ValidateRemote validates a remote address for TCP or Unix socket connection.
+// Returns nil if the address is valid for either protocol.
+func ValidateRemote(remote string) error
+
+// TimeoutToAbsoluteTime adds duration to base time.
+// Returns zero time if duration is negative.
+func TimeoutToAbsoluteTime(base time.Time, d time.Duration) time.Time
+```
+
+#### Using Utility Functions
+
+```go
+import "darvaza.org/x/net/reconnect"
+
+// Parse and validate remote addresses
+network, address, err := reconnect.ParseRemote("unix:/var/run/app.sock")
+if err != nil {
+    // Handle parsing error
+}
+// network = "unix", address = "/var/run/app.sock"
+
+// Validate before using in configuration
+if err := reconnect.ValidateRemote("example.com:8080"); err != nil {
+    // Handle invalid address
+}
+
+// Convert relative timeout to absolute time
+deadline := reconnect.TimeoutToAbsoluteTime(time.Now(), 30*time.Second)
 ```
 
 ## Error Handling
@@ -394,5 +460,60 @@ func createClient(addr string) (*reconnect.Client, error) {
 }
 ```
 
-This implementation provides enterprise-grade reliability for TCP client
-connections whilst maintaining simplicity and flexibility for various use cases.
+### Example: Unix Domain Socket Connection
+
+```go
+import (
+    "context"
+    "net"
+    "time"
+
+    "darvaza.org/x/net/reconnect"
+)
+
+func createUnixClient() (*reconnect.Client, error) {
+    cfg := &reconnect.Config{
+        // Automatically detected as Unix socket
+        Remote:         "/var/run/myapp.sock",
+        ReconnectDelay: 5 * time.Second,
+
+        OnConnect: func(ctx context.Context, conn net.Conn) error {
+            // Unix socket connected
+            logger.Info().Printf("Connected to Unix: %s", conn.RemoteAddr())
+            return nil
+        },
+
+        OnSession: func(ctx context.Context) error {
+            // Handle Unix socket communication
+            return handleUnixProtocol(ctx)
+        },
+    }
+
+    return reconnect.New(cfg)
+}
+
+// Alternative: explicit Unix socket prefix
+func createExplicitUnixClient() (*reconnect.Client, error) {
+    cfg := &reconnect.Config{
+        Remote: "unix:/tmp/app.sock",
+        // ... rest of configuration
+    }
+    return reconnect.New(cfg)
+}
+```
+
+## Network Type Auto-Detection
+
+The client automatically determines the network type based on the `Remote`
+string:
+
+| Pattern | Network Type | Example |
+|---------|-------------|---------|
+| `unix:` prefix | Unix socket | `unix:/var/run/app.sock` |
+| Absolute path (`/`) | Unix socket | `/tmp/socket` |
+| Ends with `.sock` | Unix socket | `./app.sock`, `run/app.sock` |
+| All others | TCP | `example.com:8080`, `192.168.1.1:443` |
+
+This implementation provides enterprise-grade reliability for both TCP and Unix
+domain socket connections whilst maintaining simplicity and flexibility for
+various use cases.

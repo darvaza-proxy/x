@@ -166,15 +166,17 @@ Shell script analysis for all `.sh` files:
 
 ### Test Coverage Collection
 
-Automated coverage reporting across all modules:
+Automated dual coverage reporting across all modules:
 
 - New `coverage` target runs tests with coverage profiling.
 - Uses `internal/build/make_coverage.sh` to orchestrate testing.
+- Generates both self-coverage and integration coverage perspectives.
 - Tests each module independently via generated `test-*` targets.
 - Merges coverage profiles automatically.
 - Stores results in `.tmp/coverage/` directory.
-- Displays coverage summary after test runs.
-- Optional HTML report generation with `COVERAGE_HTML=true`.
+- Displays dual coverage summary after test runs.
+- Automatic HTML report generation in `.tmp/coverage/` directory.
+- Creates module-specific coverage targets (`coverage-<module>`).
 
 ### CI/CD Workflow Separation
 

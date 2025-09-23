@@ -3,7 +3,6 @@ package reconnect
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io/fs"
 	"syscall"
 	"time"
@@ -15,11 +14,11 @@ import (
 	"darvaza.org/x/net"
 )
 
-// A OptionFunc modifies a [Config] consistently before SetDefaults() and Validate().
+// An OptionFunc modifies a [Config] consistently before SetDefaults() and Validate().
 type OptionFunc func(*Config) error
 
 var (
-	// ErrConfigBusy indicates the [Config] is in used and can't
+	// ErrConfigBusy indicates the [Config] is in use and can't
 	// be used to create another [Client].
 	ErrConfigBusy = core.QuietWrap(fs.ErrPermission, "config already in use")
 )
@@ -29,7 +28,8 @@ type Config struct {
 	Context context.Context
 	Logger  slog.Logger
 
-	// Remote indicates the `host:port` address of the remote.
+	// Remote indicates the remote endpoint: TCP "host:port" or Unix socket path,
+	// e.g., "/path/to/socket" or "unix:/path".
 	Remote string
 
 	// KeepAlive indicates the value to be set to TCP connections
@@ -38,11 +38,11 @@ type Config struct {
 	// DialTimeout indicates how long are we willing to wait for new
 	// connections getting established.
 	DialTimeout time.Duration `default:"2s"`
-	// ReadTimeout indicates the default what to use for the connection's
-	// read deadline. zero or negative means the deadline should be disabled.
+	// ReadTimeout is the default read deadline for the connection.
+	// Zero or negative disables the deadline.
 	ReadTimeout time.Duration `default:"2s"`
-	// WriteTimeout indicates the default what to use for the connection's
-	// write deadline. zero or negative means the deadline should be disabled.
+	// WriteTimeout is the default write deadline for the connection.
+	// Zero or negative disables the deadline.
 	WriteTimeout time.Duration `default:"2s"`
 
 	// ReconnectDelay specifies how long to wait between re-connections
@@ -83,7 +83,7 @@ func (cfg *Config) busy() bool {
 	return cfg.c != nil
 }
 
-// SetDefaults fills any gap in the config
+// SetDefaults fills any gap in the config.
 func (cfg *Config) SetDefaults() error {
 	if err := defaults.Set(cfg); err != nil {
 		return err
@@ -116,7 +116,7 @@ func (cfg *Config) Valid() error {
 		return errors.New("logger missing")
 	}
 
-	if err := cfg.validateRemote(cfg.Remote); err != nil {
+	if err := ValidateRemote(cfg.Remote); err != nil {
 		return core.Wrap(err, "invalid remote")
 	}
 
@@ -128,18 +128,6 @@ func (cfg *Config) Valid() error {
 	}
 
 	return nil
-}
-
-func (*Config) validateRemote(remote string) error {
-	_, port, err := core.SplitHostPort(remote)
-	switch {
-	case err != nil:
-		return err
-	case port == "":
-		return fmt.Errorf("%q: port missing", remote)
-	default:
-		return nil
-	}
 }
 
 func (cfg *Config) validateBusy() error {

@@ -14,7 +14,7 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 ### Subpackages
 
 - **`bind`**: Advanced TCP/UDP port binding with retry logic and control.
-- **`reconnect`**: Generic reconnecting TCP client with automatic retry.
+- **`reconnect`**: Generic reconnecting network client with automatic retry.
 
 ### Main Features
 
@@ -29,6 +29,8 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 #### reconnect Package
 
 - Automatic connection retry with backoff.
+- Support for both TCP and Unix domain sockets.
+- Automatic network type detection from address patterns.
 - Session management with lifecycle callbacks.
 - Context-based cancellation.
 - Thread-safe connection handling.
@@ -44,6 +46,7 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 - `bind/listen.go`: TCP/UDP listener creation.
 - `reconnect/client.go`: Reconnecting client implementation.
 - `reconnect/config.go`: Client configuration.
+- `reconnect/utils.go`: Network address parsing and validation utilities.
 - `reconnect/worker.go`: Background worker management.
 
 ## Architecture Notes
