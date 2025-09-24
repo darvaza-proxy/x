@@ -66,6 +66,13 @@ including mutexes, semaphores, barriers, and workgroups.
 [darvaza.org/x/text][x-text] provides shared text-processing primitives,
 including a state-function lexer toolkit.
 
+### Time
+
+[darvaza.org/x/time/tai][x-time] provides various time functions.
+For now only tai subfolder exists for TAI (International Atomic
+Time) timestamps with second, nanosecond, and attosecond precision,
+following the TAI64/TAI64N/TAI64NA specifications.
+
 ### TLS
 
 [darvaza.org/x/tls][x-tls] provides helpers to work with TLS connections
@@ -105,6 +112,7 @@ graph TB
         fs[x/fs<br/>Filesystem utilities]
         container[x/container<br/>Data structures]
         text[x/text<br/>Text-processing primitives]
+        tai[x/time/tai<br/>TAI timestamps]
     end
 
     subgraph "darvaza.org/x - Tier 2 (Dependent)"
@@ -132,6 +140,7 @@ graph TB
     core --> fs
     core --> container
     core --> text
+    core --> time
 
     %% x/ Tier 2 dependencies
     fs --> net
@@ -159,7 +168,7 @@ graph TB
     classDef highlevel fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
 
     class core,slog,cache core
-    class cmp,config,sync,fs,container,text tier1
+    class cmp,config,sync,fs,container,text,time tier1
     class net,web,tls tier2
     class stdlib,ext external
     class resolver,penne,sidecar highlevel
@@ -201,6 +210,7 @@ graph TB
   * [darvaza.org/x/net][x-net]
   * [darvaza.org/x/sync][x-sync]
   * [darvaza.org/x/text][x-text]
+  * [darvaza.org/x/time][x-time]
   * [darvaza.org/x/tls][x-tls]
   * [darvaza.org/x/web][x-web]
 * _darvaza servers_:
@@ -221,5 +231,6 @@ graph TB
 [x-net]: https://pkg.go.dev/darvaza.org/x/net
 [x-sync]: https://pkg.go.dev/darvaza.org/x/sync
 [x-text]: https://pkg.go.dev/darvaza.org/x/text
+[x-time]: https://pkg.go.dev/darvaza.org/x/time
 [x-tls]: https://pkg.go.dev/darvaza.org/x/tls
 [x-web]: https://pkg.go.dev/darvaza.org/x/web

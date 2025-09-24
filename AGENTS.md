@@ -30,6 +30,7 @@ Each package has its own AGENTS.md file with detailed documentation:
 - **net**: See [net/AGENTS.md](net/AGENTS.md).
 - **sync**: See [sync/AGENTS.md](sync/AGENTS.md).
 - **text**: See [text/AGENTS.md](text/AGENTS.md).
+- **time/tai**: See [time/tai/AGENTS.md](time/tai/AGENTS.md).
 - **tls**: See [tls/AGENTS.md](tls/AGENTS.md).
 - **web**: See [web/AGENTS.md](web/AGENTS.md).
 
