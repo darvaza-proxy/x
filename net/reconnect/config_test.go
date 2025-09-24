@@ -2,6 +2,7 @@ package reconnect
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"darvaza.org/core"
@@ -54,6 +55,7 @@ func makeValidateRemoteTestCases() []core.TestCase {
 		newValidateRemoteTestCase("valid unix absolute path", "/var/run/app.sock", false),
 		newValidateRemoteTestCase("valid unix with .sock", "app.sock", false),
 		newValidateRemoteTestCase("valid unix relative", "./run/app.sock", false),
+		newValidateRemoteTestCase("valid abstract socket", "@abstract-name", false),
 
 		// Valid TCP addresses (edge cases)
 		newValidateRemoteTestCase("valid tcp hostname ending with .sock", "foo.sock:443", false),
@@ -62,7 +64,13 @@ func makeValidateRemoteTestCases() []core.TestCase {
 		newValidateRemoteTestCase("empty string", "", true),
 		newValidateRemoteTestCase("tcp missing port", "example.com", true),
 		newValidateRemoteTestCase("tcp colon no port", "example.com:", true),
+		newValidateRemoteTestCase("tcp port zero", "localhost:0", true),
+		newValidateRemoteTestCase("tcp port zero ipv6", "[::1]:0", true),
+		newValidateRemoteTestCase("tcp empty host", ":8080", true),
 		newValidateRemoteTestCase("unix empty after prefix", "unix:", true),
+		newValidateRemoteTestCase("abstract socket empty name", "@", true),
+		newValidateRemoteTestCase("unix path too long", "/"+strings.Repeat("a", 107), true),
+		newValidateRemoteTestCase("unix path with null byte", "/tmp/sock\x00et", true),
 	}
 }
 

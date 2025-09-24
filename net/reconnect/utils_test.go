@@ -74,11 +74,19 @@ func makeParseRemoteTestCases() []core.TestCase {
 		newParseRemoteTestCase("unix relative nested with .sock", "var/run/app.sock", "unix",
 			"var/run/app.sock", false),
 
+		// Unix socket cases with abstract sockets
+		newParseRemoteTestCase("abstract socket", "@abstract-name", "unix", "@abstract-name", false),
+		newParseRemoteTestCase("abstract socket with dash", "@my-service", "unix", "@my-service", false),
+
 		// Error cases
 		newParseRemoteTestCase("empty string", "", "", "", true),
 		newParseRemoteTestCase("tcp missing port", "example.com", "", "", true),
 		newParseRemoteTestCase("tcp colon no port", "example.com:", "", "", true),
+		newParseRemoteTestCase("tcp port zero", "localhost:0", "", "", true),
+		newParseRemoteTestCase("tcp empty host", ":8080", "", "", true),
 		newParseRemoteTestCase("unix empty after prefix", "unix:", "", "", true),
+		newParseRemoteTestCase("abstract socket empty name", "@", "", "", true),
+		newParseRemoteTestCase("unix path with null byte", "/tmp/sock\x00et", "", "", true),
 	}
 }
 
