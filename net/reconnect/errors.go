@@ -24,6 +24,12 @@ var (
 
 	// ErrRunning indicates the [Client] has already being started.
 	ErrRunning = core.QuietWrap(syscall.EBUSY, "client already running")
+
+	// ErrNameEmpty indicates a name is empty
+	ErrNameEmpty = errors.New("name missing")
+
+	// ErrNameTooLong indicates a name exceeds maximum length
+	ErrNameTooLong = errors.New("name too long")
 )
 
 // IsFatal tells if the error means the connection
