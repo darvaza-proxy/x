@@ -88,6 +88,8 @@ Helper functions for manipulating HTTP headers:
 * `SetCache(hdr, duration)` — Sets the Cache-Control header based on
   the duration.
 * `SetNoCache(hdr)` — Sets the Cache-Control header to `"no-cache"`.
+* `SetRetryAfter(hdr, duration)` — Sets the Retry-After header in
+  seconds, rounded up (minimum 1 second for non-zero durations).
 
 Cache-Control duration conventions:
 
