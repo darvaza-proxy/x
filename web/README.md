@@ -77,6 +77,24 @@ _Identity_ is an special option we consider unless it's explicitly forbidden.
 `qlist.BestEncoding()` is a special case of `BestQualityWithIdentity()`
 using the `Accept` header, and falling back to `"identity"` as magic type.
 
+## Header Utilities
+
+Helper functions for manipulating HTTP headers:
+
+* `SetHeader(hdr, key, value, args...)` — Sets a header value, with
+  optional `fmt.Sprintf` formatting.
+* `SetHeaderUnlessExists(hdr, key, value, args...)` — Sets a header
+  value only if not already present.
+* `SetCache(hdr, duration)` — Sets the Cache-Control header based on
+  the duration.
+* `SetNoCache(hdr)` — Sets the Cache-Control header to `"no-cache"`.
+
+Cache-Control duration conventions:
+
+* Negative duration → `"private"`
+* Zero or sub-second → `"no-cache"`
+* One second or more → `"max-age=<seconds>"`
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
