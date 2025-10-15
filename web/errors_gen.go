@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"darvaza.org/x/fs"
 	"darvaza.org/x/web/consts"
@@ -126,6 +127,32 @@ func NewStatusBadRequest(err error) *HTTPError {
 	}
 }
 
+// NewStatusUnsupportedMediaType returns a 415 HTTP error,
+// unless the given error is already qualified.
+func NewStatusUnsupportedMediaType(err error) *HTTPError {
+	if e, ok := err.(*HTTPError); ok {
+		return e
+	}
+
+	return &HTTPError{
+		Code: http.StatusUnsupportedMediaType,
+		Err:  err,
+	}
+}
+
+// NewStatusUnprocessableEntity returns a 422 HTTP error,
+// unless the given error is already qualified.
+func NewStatusUnprocessableEntity(err error) *HTTPError {
+	if e, ok := err.(*HTTPError); ok {
+		return e
+	}
+
+	return &HTTPError{
+		Code: http.StatusUnprocessableEntity,
+		Err:  err,
+	}
+}
+
 // NewStatusInternalServerError returns a 500 HTTP error,
 // unless the given error is already qualified.
 func NewStatusInternalServerError(err error) *HTTPError {
@@ -136,6 +163,43 @@ func NewStatusInternalServerError(err error) *HTTPError {
 	return &HTTPError{
 		Code: http.StatusInternalServerError,
 		Err:  err,
+	}
+}
+
+// NewStatusBadGateway returns a 502 HTTP error,
+// unless the given error is already qualified.
+func NewStatusBadGateway(err error) *HTTPError {
+	if e, ok := err.(*HTTPError); ok {
+		return e
+	}
+
+	return &HTTPError{
+		Code: http.StatusBadGateway,
+		Err:  err,
+	}
+}
+
+// NewStatusTooManyRequests returns a 429 HTTP error with Retry-After header.
+// The retryAfter duration is rounded up to the nearest second.
+func NewStatusTooManyRequests(retryAfter time.Duration) *HTTPError {
+	hdr := make(http.Header)
+	SetRetryAfter(hdr, retryAfter)
+
+	return &HTTPError{
+		Code: http.StatusTooManyRequests,
+		Hdr:  hdr,
+	}
+}
+
+// NewStatusServiceUnavailable returns a 503 HTTP error with Retry-After header.
+// The retryAfter duration is rounded up to the nearest second.
+func NewStatusServiceUnavailable(retryAfter time.Duration) *HTTPError {
+	hdr := make(http.Header)
+	SetRetryAfter(hdr, retryAfter)
+
+	return &HTTPError{
+		Code: http.StatusServiceUnavailable,
+		Hdr:  hdr,
 	}
 }
 
@@ -171,5 +235,40 @@ func NewStatusNotFound() *HTTPError {
 func NewStatusNotAcceptable() *HTTPError {
 	return &HTTPError{
 		Code: http.StatusNotAcceptable,
+	}
+}
+
+// NewStatusConflict returns a 409 HTTP error.
+func NewStatusConflict() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusConflict,
+	}
+}
+
+// NewStatusGone returns a 410 HTTP error.
+func NewStatusGone() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusGone,
+	}
+}
+
+// NewStatusPreconditionFailed returns a 412 HTTP error.
+func NewStatusPreconditionFailed() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusPreconditionFailed,
+	}
+}
+
+// NewStatusNotImplemented returns a 501 HTTP error.
+func NewStatusNotImplemented() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusNotImplemented,
+	}
+}
+
+// NewStatusGatewayTimeout returns a 504 HTTP error.
+func NewStatusGatewayTimeout() *HTTPError {
+	return &HTTPError{
+		Code: http.StatusGatewayTimeout,
 	}
 }

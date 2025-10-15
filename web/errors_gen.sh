@@ -3,7 +3,7 @@
 set -eu
 
 TAG=go:generate
-GOFILE=${GOFILE:-$0.go}
+GOFILE=${GOFILE:-${0%.sh}.go}
 GOPACKAGE=${GOPACKAGE:-web}
 
 exec > "$GOFILE~"
@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"darvaza.org/x/fs"
 	"darvaza.org/x/web/consts"
@@ -66,7 +67,10 @@ done
 #
 for x in \
 	BadRequest=400 \
+	UnsupportedMediaType=415 \
+	UnprocessableEntity=422 \
 	InternalServerError=500 \
+	BadGateway=502 \
 	; do
 
 	name=${x%=*}
@@ -89,6 +93,32 @@ func NewStatus$name(err error) *HTTPError {
 EOT
 done
 
+# retry (set Retry-After header in seconds)
+#
+for x in \
+	TooManyRequests=429 \
+	ServiceUnavailable=503 \
+	; do
+
+	name=${x%=*}
+	code=${x#*=}
+
+	cat <<EOT
+
+// NewStatus$name returns a $code HTTP error with Retry-After header.
+// The retryAfter duration is rounded up to the nearest second.
+func NewStatus$name(retryAfter time.Duration) *HTTPError {
+	hdr := make(http.Header)
+	SetRetryAfter(hdr, retryAfter)
+
+	return &HTTPError{
+		Code: http.Status$name,
+		Hdr:  hdr,
+	}
+}
+EOT
+done
+
 # basic
 #
 for x in \
@@ -97,6 +127,11 @@ for x in \
 	Forbidden=403 \
 	NotFound=404 \
 	NotAcceptable=406 \
+	Conflict=409 \
+	Gone=410 \
+	PreconditionFailed=412 \
+	NotImplemented=501 \
+	GatewayTimeout=504 \
 	; do
 
 	name=${x%=*}
