@@ -77,6 +77,26 @@ _Identity_ is an special option we consider unless it's explicitly forbidden.
 `qlist.BestEncoding()` is a special case of `BestQualityWithIdentity()`
 using the `Accept` header, and falling back to `"identity"` as magic type.
 
+## Header Utilities
+
+Helper functions for manipulating HTTP headers:
+
+* `SetHeader(hdr, key, value, args...)` — Sets a header value, with
+  optional `fmt.Sprintf` formatting.
+* `SetHeaderUnlessExists(hdr, key, value, args...)` — Sets a header
+  value only if not already present.
+* `SetCache(hdr, duration)` — Sets the Cache-Control header based on
+  the duration.
+* `SetNoCache(hdr)` — Sets the Cache-Control header to `"no-cache"`.
+* `SetRetryAfter(hdr, duration)` — Sets the Retry-After header in
+  seconds, rounded up (minimum 1 second for non-zero durations).
+
+Cache-Control duration conventions:
+
+* Negative duration → `"private"`
+* Zero or sub-second → `"no-cache"`
+* One second or more → `"max-age=<seconds>"`
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
@@ -132,7 +152,7 @@ There are also `web.HTTPError` factories to create new errors, from a generic:
 * `NewHTTPError()` and `NewHTTPErrorf()` and a companion `ErrorText(code)`
   helper.
 
-to redirect factories from formatted strings:
+redirect factories (with Location header):
 
 * `NewStatusMovedPermanently(loc, ...)` (301)
 * `NewStatusFound(loc, ...)` (302)
@@ -140,14 +160,29 @@ to redirect factories from formatted strings:
 * `NewStatusTemporaryRedirect(loc, ...)` (307)
 * `NewStatusPermanentRedirect(loc, ...)` (308)
 
-error wrappers:
+error wrappers (preserve underlying error):
 
 * `NewStatusBadRequest(err)` (400)
+* `NewStatusUnsupportedMediaType(err)` (415)
+* `NewStatusUnprocessableEntity(err)` (422)
+* `NewStatusInternalServerError(err)` (500)
+* `NewStatusBadGateway(err)` (502)
 
-and simple responses:
+retry helpers (with Retry-After header):
+
+* `NewStatusTooManyRequests(duration)` (429)
+* `NewStatusServiceUnavailable(duration)` (503)
+
+and simple status responses:
 
 * `NewStatusNotModified()` (304)
-* `NewStatusBadRequest(err)` (400)
+* `NewStatusUnauthorized()` (401)
+* `NewStatusForbidden()` (403)
 * `NewStatusNotFound()` (404)
 * `NewStatusMethodNotAllowed(allowed...)` (405)
 * `NewStatusNotAcceptable()` (406)
+* `NewStatusConflict()` (409)
+* `NewStatusGone()` (410)
+* `NewStatusPreconditionFailed()` (412)
+* `NewStatusNotImplemented()` (501)
+* `NewStatusGatewayTimeout()` (504)

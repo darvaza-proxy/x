@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -61,4 +62,18 @@ func cacheControlValue(d time.Duration) string {
 // SetNoCache sets the Cache-Control header to "no-cache"
 func SetNoCache(hdr http.Header) {
 	hdr[consts.CacheControl] = []string{"no-cache"}
+}
+
+// SetRetryAfter sets the Retry-After header with a duration in seconds.
+// Uses math.Ceil to round up, ensuring non-zero delays result in at least
+// 1 second. Negative durations are clamped to 0.
+func SetRetryAfter(hdr http.Header, retryAfter time.Duration) {
+	var seconds int
+	if retryAfter < 0 {
+		seconds = 0
+	} else {
+		// Ceil rounds up - any non-zero delay becomes at least 1 second
+		seconds = int(math.Ceil(retryAfter.Seconds()))
+	}
+	hdr[consts.RetryAfter] = []string{fmt.Sprintf("%d", seconds)}
 }

@@ -35,6 +35,10 @@ const (
 	// Location is the canonical name given to the header used
 	// to indicate a redirection.
 	Location = "Location"
+
+	// RetryAfter is the canonical header used to indicate when
+	// the client should retry a request (in seconds or HTTP-date).
+	RetryAfter = "Retry-After"
 )
 
 const (
