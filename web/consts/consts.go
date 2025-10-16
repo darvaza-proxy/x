@@ -32,6 +32,14 @@ const (
 	// ETag is the canonical ETag header
 	ETag = "Etag"
 
+	// IfModifiedSince is the canonical header used to conditionally
+	// request a resource only if it has been modified since a given date.
+	IfModifiedSince = "If-Modified-Since"
+
+	// LastModified is the canonical header used to indicate when
+	// a resource was last modified.
+	LastModified = "Last-Modified"
+
 	// Location is the canonical name given to the header used
 	// to indicate a redirection.
 	Location = "Location"
