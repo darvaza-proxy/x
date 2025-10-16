@@ -16,6 +16,8 @@ TMPDIR ?= $(CURDIR)/.tmp
 OUTDIR ?= $(TMPDIR)
 COVERAGE_DIR ?= $(TMPDIR)/coverage
 
+export TMPDIR
+
 # Dynamic version selection based on Go version
 # Format: $(TOOLSDIR)/get_version.sh <go_version> <tool_version1> <tool_version2> ..
 GOLANGCI_LINT_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.23 v2.3.0)

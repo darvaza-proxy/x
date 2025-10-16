@@ -29,6 +29,7 @@ Each package has its own AGENTS.md file with detailed documentation:
 - **fs**: See [fs/AGENTS.md](fs/AGENTS.md).
 - **net**: See [net/AGENTS.md](net/AGENTS.md).
 - **sync**: See [sync/AGENTS.md](sync/AGENTS.md).
+- **testutils**: See [testutils/AGENTS.md](testutils/AGENTS.md).
 - **tls**: See [tls/AGENTS.md](tls/AGENTS.md).
 - **web**: See [web/AGENTS.md](web/AGENTS.md).
 
