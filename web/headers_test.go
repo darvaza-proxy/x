@@ -271,6 +271,7 @@ func TestCheckIfModifiedSince(t *testing.T) {
 		newCheckIfModifiedSinceTestCase("not modified", past, now.Format(http.TimeFormat), false),
 		newCheckIfModifiedSinceTestCase("same time", now, now.Format(http.TimeFormat), false),
 		newCheckIfModifiedSinceTestCase("future header", past, future.Format(http.TimeFormat), false),
+		newCheckIfModifiedSinceTestCase("future lastModified clamped to now", future, past.Format(http.TimeFormat), true),
 	}
 
 	core.RunTestCases(t, testCases)

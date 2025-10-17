@@ -91,12 +91,18 @@ func SetLastModifiedHeader(hdr http.Header, lastModified time.Time) {
 // Returns true if the resource has been modified since the time specified in the header.
 // If the header is missing, malformed, or lastModified is zero, returns true (consider modified).
 //
-// Per RFC 7232, the comparison should ignore sub-second precision and use
-// the HTTP-date format (http.TimeFormat).
+// Per RFC 7232 §2.2.1, future lastModified timestamps are replaced with the current time,
+// and the comparison uses second precision matching the HTTP-date format.
 func CheckIfModifiedSince(req *http.Request, lastModified time.Time) bool {
 	// If no last modified time, consider it modified
 	if lastModified.IsZero() {
 		return true
+	}
+
+	// Per RFC 7232, if lastModified is in the future, use current time
+	now := time.Now()
+	if lastModified.After(now) {
+		lastModified = now
 	}
 
 	// Check for If-Modified-Since header
