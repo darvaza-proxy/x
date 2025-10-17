@@ -53,7 +53,7 @@ func cacheControlValue(d time.Duration) string {
 	}
 
 	if sec := d / time.Second; sec > 0 {
-		return fmt.Sprintf("max-age=%v", sec)
+		return fmt.Sprintf("max-age=%d", sec)
 	}
 
 	return "no-cache"
@@ -76,4 +76,51 @@ func SetRetryAfter(hdr http.Header, retryAfter time.Duration) {
 		seconds = int(math.Ceil(retryAfter.Seconds()))
 	}
 	hdr[consts.RetryAfter] = []string{fmt.Sprintf("%d", seconds)}
+}
+
+// SetLastModifiedHeader sets the Last-Modified header if not already set.
+// If lastModified is zero, uses current time.
+func SetLastModifiedHeader(hdr http.Header, lastModified time.Time) {
+	if lastModified.IsZero() {
+		lastModified = time.Now()
+	}
+	SetHeaderUnlessExists(hdr, consts.LastModified, lastModified.UTC().Format(http.TimeFormat))
+}
+
+// CheckIfModifiedSince checks the If-Modified-Since header against lastModified time.
+// Returns true if the resource has been modified since the time specified in the header.
+// If the header is missing, malformed, or lastModified is zero, returns true (consider modified).
+//
+// Per RFC 7232 §2.2.1, future lastModified timestamps are replaced with the current time,
+// and the comparison uses second precision matching the HTTP-date format.
+func CheckIfModifiedSince(req *http.Request, lastModified time.Time) bool {
+	// If no last modified time, consider it modified
+	if lastModified.IsZero() {
+		return true
+	}
+
+	// Per RFC 7232, if lastModified is in the future, use current time
+	now := time.Now()
+	if lastModified.After(now) {
+		lastModified = now
+	}
+
+	// Check for If-Modified-Since header
+	ifModSinceStr := req.Header.Get(consts.IfModifiedSince)
+	if ifModSinceStr == "" {
+		return true
+	}
+
+	// Parse the If-Modified-Since header using http.ParseTime
+	ifModSince, err := http.ParseTime(ifModSinceStr)
+	if err != nil {
+		return true
+	}
+
+	// Compare times - resource is modified if lastModified is after ifModSince
+	// Truncate to second precision to match HTTP date format
+	lastModifiedTrunc := lastModified.UTC().Truncate(time.Second)
+	ifModSinceTrunc := ifModSince.UTC().Truncate(time.Second)
+
+	return lastModifiedTrunc.After(ifModSinceTrunc)
 }

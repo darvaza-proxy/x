@@ -90,6 +90,12 @@ Helper functions for manipulating HTTP headers:
 * `SetNoCache(hdr)` — Sets the Cache-Control header to `"no-cache"`.
 * `SetRetryAfter(hdr, duration)` — Sets the Retry-After header in
   seconds, rounded up (minimum 1 second for non-zero durations).
+* `SetLastModifiedHeader(hdr, time)` — Sets the Last-Modified header
+  in HTTP-date format if not already set (uses current time if zero).
+* `CheckIfModifiedSince(req, time)` — Checks the If-Modified-Since
+  header for HTTP 304 caching support (per RFC 7232). Returns true if
+  the resource has been modified since the client's cached time, false
+  otherwise (uses second precision for comparison).
 
 Cache-Control duration conventions:
 
