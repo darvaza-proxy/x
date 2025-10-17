@@ -11,7 +11,104 @@ import (
 )
 
 // TestCase interface validation
-var _ core.TestCase = setRetryAfterTestCase{}
+var (
+	_ core.TestCase = setHeaderTestCase{}
+	_ core.TestCase = setCacheTestCase{}
+	_ core.TestCase = setRetryAfterTestCase{}
+	_ core.TestCase = setLastModifiedHeaderTestCase{}
+	_ core.TestCase = checkIfModifiedSinceTestCase{}
+)
+
+type setHeaderTestCase struct {
+	name     string
+	key      string
+	value    string
+	args     []any
+	expected string
+}
+
+func (tc setHeaderTestCase) Name() string {
+	return tc.name
+}
+
+func (tc setHeaderTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	hdr := make(http.Header)
+	SetHeader(hdr, tc.key, tc.value, tc.args...)
+
+	actual := hdr.Get(tc.key)
+	core.AssertEqual(t, tc.expected, actual, "header value")
+}
+
+func newSetHeaderTestCase(name, key, value string, args []any, expected string) setHeaderTestCase {
+	return setHeaderTestCase{
+		name:     name,
+		key:      key,
+		value:    value,
+		args:     args,
+		expected: expected,
+	}
+}
+
+func TestSetHeader(t *testing.T) {
+	testCases := []setHeaderTestCase{
+		newSetHeaderTestCase("simple value", "X-Test", "value", nil, "value"),
+		newSetHeaderTestCase("with formatting", "X-Count", "count: %d", []any{42}, "count: 42"),
+		newSetHeaderTestCase("multiple args", "X-Multi", "%s=%d", []any{"key", 123}, "key=123"),
+	}
+
+	core.RunTestCases(t, testCases)
+}
+
+type setCacheTestCase struct {
+	name     string
+	duration time.Duration
+	expected string
+}
+
+func (tc setCacheTestCase) Name() string {
+	return tc.name
+}
+
+func (tc setCacheTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	hdr := make(http.Header)
+	SetCache(hdr, tc.duration)
+
+	actual := hdr.Get(consts.CacheControl)
+	core.AssertEqual(t, tc.expected, actual, "Cache-Control header")
+}
+
+func newSetCacheTestCase(name string, duration time.Duration, expected string) setCacheTestCase {
+	return setCacheTestCase{
+		name:     name,
+		duration: duration,
+		expected: expected,
+	}
+}
+
+func TestSetCache(t *testing.T) {
+	testCases := []setCacheTestCase{
+		newSetCacheTestCase("negative duration", -1*time.Second, "private"),
+		newSetCacheTestCase("zero duration", 0, "no-cache"),
+		newSetCacheTestCase("sub-second", 500*time.Millisecond, "no-cache"),
+		newSetCacheTestCase("1 second", 1*time.Second, "max-age=1"),
+		newSetCacheTestCase("1 minute", 1*time.Minute, "max-age=60"),
+		newSetCacheTestCase("1 hour", 1*time.Hour, "max-age=3600"),
+	}
+
+	core.RunTestCases(t, testCases)
+}
+
+func TestSetNoCache(t *testing.T) {
+	hdr := make(http.Header)
+	SetNoCache(hdr)
+
+	actual := hdr.Get(consts.CacheControl)
+	core.AssertEqual(t, "no-cache", actual, "Cache-Control header")
+}
 
 // setRetryAfterTestCase tests SetRetryAfter function
 type setRetryAfterTestCase struct {
@@ -60,8 +157,6 @@ func TestSetRetryAfter(t *testing.T) {
 
 	core.RunTestCases(t, testCases)
 }
-
-var _ core.TestCase = setLastModifiedHeaderTestCase{}
 
 type setLastModifiedHeaderTestCase struct {
 	name           string
@@ -127,8 +222,6 @@ func TestSetLastModifiedHeader(t *testing.T) {
 
 	core.RunTestCases(t, testCases)
 }
-
-var _ core.TestCase = checkIfModifiedSinceTestCase{}
 
 type checkIfModifiedSinceTestCase struct {
 	name           string

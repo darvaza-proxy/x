@@ -53,7 +53,7 @@ func cacheControlValue(d time.Duration) string {
 	}
 
 	if sec := d / time.Second; sec > 0 {
-		return fmt.Sprintf("max-age=%v", sec)
+		return fmt.Sprintf("max-age=%d", sec)
 	}
 
 	return "no-cache"
