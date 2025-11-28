@@ -735,6 +735,174 @@ func TestSemaphore_BoundaryConditions(t *testing.T) {
 	})
 }
 
+func TestSemaphore_WriterStarvationPrevention(t *testing.T) {
+	t.Run("writers not starved by continuous readers", func(t *testing.T) {
+		testWritersNotStarvedByContinuousReaders(t)
+	})
+
+	t.Run("writers preferred over new readers", func(t *testing.T) {
+		testWritersPreferredOverNewReaders(t)
+	})
+}
+
+// testWritersNotStarvedByContinuousReaders verifies that writers can acquire
+// the lock even with continuous reader traffic.
+//
+//revive:disable-next-line:cognitive-complexity
+func testWritersNotStarvedByContinuousReaders(t *testing.T) {
+	s := &Semaphore{}
+	const numReaders = 100
+	const readerCycles = 5
+
+	// Track when writers acquire the lock
+	writerAcquisitions := make([]time.Time, 0, 3)
+	writerDone := make(chan struct{})
+
+	// Start a writer that will try to acquire lock periodically
+	go func() {
+		defer close(writerDone)
+
+		for range 3 {
+			s.Lock()
+			writerAcquisitions = append(writerAcquisitions, time.Now())
+			// Simulate some work
+			time.Sleep(5 * time.Millisecond)
+			s.Unlock()
+
+			// Small wait between attempts
+			time.Sleep(10 * time.Millisecond)
+		}
+	}()
+
+	// Create continuous reader pressure
+	var wg sync.WaitGroup
+	readersStopped := make(chan struct{})
+
+	wg.Add(numReaders)
+	for i := range numReaders {
+		go func(id int) {
+			defer wg.Done()
+
+			// Each reader does multiple read lock cycles
+			for range readerCycles {
+				// Small jitter to prevent perfect synchronisation
+				time.Sleep(time.Duration(id%3) * time.Millisecond)
+
+				s.RLock()
+				// Simulate read operation
+				time.Sleep(1 * time.Millisecond)
+				s.RUnlock()
+			}
+		}(i)
+	}
+
+	// Wait for all readers to finish and signal completion
+	go func() {
+		wg.Wait()
+		close(readersStopped)
+	}()
+
+	// Wait for writer to finish or timeout
+	select {
+	case <-writerDone:
+		// Expected case - writer completed its work
+	case <-time.After(2 * time.Second):
+		t.Fatal("Writers appear to be starved by readers")
+	}
+
+	// Wait for readers to finish or timeout
+	select {
+	case <-readersStopped:
+		// Expected case - readers completed
+	case <-time.After(2 * time.Second):
+		t.Fatal("Readers failed to complete")
+	}
+
+	// Verify writer was able to acquire the lock multiple times
+	assert.Equal(t, 3, len(writerAcquisitions),
+		"Writer should have acquired the lock 3 times")
+
+	// Check that writer acquisitions weren't all bunched at the end
+	if len(writerAcquisitions) >= 2 {
+		totalDuration := writerAcquisitions[len(writerAcquisitions)-1].Sub(
+			writerAcquisitions[0])
+		// 2 intervals of at least 10ms
+		expectedMinDuration := 20 * time.Millisecond
+		assert.GreaterOrEqual(t, totalDuration, expectedMinDuration,
+			"Writer acquisitions should be spread out, not clustered")
+	}
+}
+
+// testWritersPreferredOverNewReaders verifies that when writers are waiting,
+// new readers are blocked until writers complete.
+func testWritersPreferredOverNewReaders(t *testing.T) {
+	s := &Semaphore{}
+
+	// First get some existing readers
+	for range 5 {
+		s.RLock()
+	}
+
+	// Signal when a writer is waiting
+	writerWaiting := make(chan struct{})
+	writerDone := make(chan struct{})
+
+	// Start a writer that will signal when it's waiting
+	go func() {
+		close(writerWaiting)
+		s.Lock()
+		defer s.Unlock()
+		close(writerDone)
+	}()
+
+	// Wait for writer to be waiting
+	<-writerWaiting
+	time.Sleep(10 * time.Millisecond)
+
+	// Start a reader that should be blocked by waiting writer
+	readerBlocked := make(chan struct{})
+	readerAcquired := make(chan struct{})
+	go func() {
+		close(readerBlocked)
+		s.RLock()
+		defer s.RUnlock()
+		close(readerAcquired)
+	}()
+
+	// Wait for reader to be blocked
+	<-readerBlocked
+	time.Sleep(10 * time.Millisecond)
+
+	// Verify new reader doesn't acquire the lock while writer is waiting
+	select {
+	case <-readerAcquired:
+		t.Fatal("New reader shouldn't acquire lock while writers wait")
+	default:
+		// Expected behaviour
+	}
+
+	// Release all initial read locks
+	for range 5 {
+		s.RUnlock()
+	}
+
+	// Verify writer completes before the new reader
+	select {
+	case <-writerDone:
+		// Expected behaviour - writer should get the lock first
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Writer failed to acquire lock after readers released")
+	}
+
+	// Now reader should get the lock
+	select {
+	case <-readerAcquired:
+		// Expected behaviour - reader gets lock after writer
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Reader failed to acquire lock after writer completed")
+	}
+}
+
 // ----- Benchmark functions -----
 
 // runBenchmarkBasicLock benchmarks basic lock/unlock operations

@@ -354,7 +354,8 @@ functions.
 ## Semaphore
 
 The `semaphore` package provides a `Semaphore` type that implements both
-exclusive and shared access patterns using a counting semaphore algorithm.
+exclusive and shared access patterns with proper coordination between readers
+and writers.
 
 ```go
 type Semaphore struct{}
@@ -371,7 +372,23 @@ The `Semaphore` fully implements the context-aware mutex interfaces:
 This makes it compatible with all lock operations provided by the package,
 with comprehensive capabilities for both exclusive and shared access patterns.
 
-### Exclusive Locking Methods
+### Writer Starvation Prevention
+
+The `Semaphore` implementation uses the `Count` type internally to track
+waiting writers and prevent their starvation:
+
+* Writers register in a wait queue using the `Count` counter.
+* Readers check for waiting writers before acquiring read locks.
+* When writers are waiting, new readers pause until writers are serviced.
+* This strategy ensures writers can make progress even during heavy read
+  traffic.
+
+Without this mechanism, continuous reader acquisition could indefinitely
+block writers from accessing the shared resource.
+
+### Locking Methods
+
+**Exclusive Access:**
 
 * `Lock()`: Acquires exclusive lock, panics on error.
 * `LockContext(ctx context.Context) error`: Acquires exclusive lock with
@@ -381,7 +398,7 @@ with comprehensive capabilities for both exclusive and shared access patterns.
   with context support.
 * `Unlock()`: Releases exclusive lock, panics on error.
 
-### Shared Locking Methods
+**Shared Access:**
 
 * `RLock()`: Acquires a read lock, panics on error.
 * `RLockContext(ctx context.Context) error`: Acquires read lock with context
