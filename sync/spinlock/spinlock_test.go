@@ -78,7 +78,7 @@ func TestSpinLock_TryLockConcurrent(t *testing.T) {
 	var attempts int32
 
 	// Track goroutines currently in critical section and maximum seen
-	var currentGoroutines int32
+	var currentGoroutines atomic.Int32
 	var maxGoroutines int32
 
 	const numGoroutines = 100
@@ -92,9 +92,9 @@ func TestSpinLock_TryLockConcurrent(t *testing.T) {
 			defer wg.Done()
 
 			// Increment count of goroutines, and update maximum if needed
-			goroutinesNow := atomic.AddInt32(&currentGoroutines, 1)
+			goroutinesNow := currentGoroutines.Add(1)
 			atomicUpdateMax(&maxGoroutines, goroutinesNow)
-			defer atomic.AddInt32(&currentGoroutines, -1)
+			defer currentGoroutines.Add(-1)
 
 			for range iterations {
 				atomic.AddInt32(&attempts, 1)

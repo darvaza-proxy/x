@@ -52,6 +52,7 @@ func stringifyAddr(host string) (string, error) {
 			host = fmt.Sprintf("[%s]", addr.String())
 		case addr.Is4():
 			host = addr.String()
+		default:
 		}
 
 		return host, nil

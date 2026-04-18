@@ -322,6 +322,7 @@ func TestReverseUnlock(t *testing.T) {
 			unlockOrder = append(unlockOrder, 2)
 		case m3:
 			unlockOrder = append(unlockOrder, 3)
+		default:
 		}
 		mu.Unlock()
 		return nil

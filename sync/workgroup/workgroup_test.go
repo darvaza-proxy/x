@@ -287,7 +287,7 @@ func TestGroup_Wait(t *testing.T) {
 		counter := atomic.Int32{}
 		numTasks := 5
 
-		for i := 0; i < numTasks; i++ {
+		for range numTasks {
 			_ = wg.Go(func(_ context.Context) {
 				time.Sleep(10 * time.Millisecond)
 				counter.Add(1)
@@ -359,7 +359,7 @@ func TestGroup_Cancel(t *testing.T) {
 		tasksCancelled := atomic.Int32{}
 		numTasks := 5
 
-		for i := 0; i < numTasks; i++ {
+		for range numTasks {
 			_ = wg.Go(func(ctx context.Context) {
 				<-ctx.Done()
 				tasksCancelled.Add(1)
@@ -405,7 +405,7 @@ func TestGroup_Close(t *testing.T) {
 		tasksCancelled := atomic.Int32{}
 		numTasks := 5
 
-		for i := 0; i < numTasks; i++ {
+		for range numTasks {
 			_ = wg.Go(func(ctx context.Context) {
 				<-ctx.Done()
 				time.Sleep(10 * time.Millisecond) // Simulate cleanup work
@@ -773,7 +773,7 @@ func TestGroup_Concurrent(t *testing.T) {
 		var startWg sync.WaitGroup
 		startWg.Add(numGoroutines)
 
-		for i := 0; i < numGoroutines; i++ {
+		for i := range numGoroutines {
 			go func(idx int) {
 				defer startWg.Done()
 				channels[idx] = wg.Done()

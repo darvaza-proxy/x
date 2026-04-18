@@ -95,6 +95,7 @@ func walkMatchFunc(fSys ReadDirFS, dir string, check func(string, fs.DirEntry) b
 		case check(path, di):
 			// match
 			out = append(out, path)
+		default:
 		}
 		return nil
 	})

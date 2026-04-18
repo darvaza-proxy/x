@@ -298,6 +298,7 @@ loop:
 		case !IsExists(err):
 			// error
 			_ = errs.AppendError(err)
+		default:
 		}
 
 		if ctx.Err() != nil {

@@ -115,6 +115,7 @@ func (reg *Registry) doRegister(ct string, h Renderer) error {
 	case prev.Renderer != h:
 		// won't override, sorry
 		err = fs.ErrExist
+	default:
 	}
 
 	return err

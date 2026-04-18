@@ -7,6 +7,14 @@ import (
 	"darvaza.org/x/container/set"
 )
 
+// printLn / printF / printS wrap fmt.Println / fmt.Printf /
+// fmt.Print to drop the byte-count and error returns that
+// revive's unhandled-error rule would otherwise flag in every
+// Example body.
+func printLn(args ...any)               { _, _ = fmt.Println(args...) }
+func printF(format string, args ...any) { _, _ = fmt.Printf(format, args...) }
+func printS(s string)                   { _, _ = fmt.Print(s) }
+
 // User represents a user with ID and name
 type User struct {
 	ID   int
@@ -31,8 +39,8 @@ func ExampleConfig_New() {
 	}
 
 	// Check if user exists
-	fmt.Println("Contains user 1:", users.Contains(1))
-	fmt.Println("Contains user 3:", users.Contains(3))
+	printLn("Contains user 1:", users.Contains(1))
+	printLn("Contains user 3:", users.Contains(3))
 
 	// Output:
 	// Contains user 1: true
@@ -50,14 +58,14 @@ func ExampleSet_Push() {
 
 	// Add tags
 	stored, err := tags.Push("golang")
-	fmt.Printf("Added golang: %q (err: %v)\n", stored, err)
+	printF("Added golang: %q (err: %v)\n", stored, err)
 
 	stored, err = tags.Push("testing")
-	fmt.Printf("Added testing: %q (err: %v)\n", stored, err)
+	printF("Added testing: %q (err: %v)\n", stored, err)
 
 	// Try to add duplicate
 	_, err = tags.Push("golang")
-	fmt.Println("Adding duplicate golang:", err)
+	printLn("Adding duplicate golang:", err)
 
 	// Output:
 	// Added golang: "golang" (err: <nil>)
@@ -79,12 +87,12 @@ func ExampleSet_Get() {
 
 	// Get existing user
 	if user, err := users.Get(1); err == nil {
-		fmt.Printf("User 1: %s\n", user.Name)
+		printF("User 1: %s\n", user.Name)
 	}
 
 	// Try to get non-existent user
 	if _, err := users.Get(3); err != nil {
-		fmt.Printf("User 3: %v\n", err)
+		printF("User 3: %v\n", err)
 	}
 
 	// Output:
@@ -108,7 +116,7 @@ func ExampleSet_ForEach() {
 		return true // continue iteration
 	})
 
-	fmt.Println("Sum:", sum)
+	printLn("Sum:", sum)
 
 	// Find all even numbers
 	var evens []int
@@ -121,7 +129,7 @@ func ExampleSet_ForEach() {
 
 	// Sort for consistent output
 	core.SliceSortOrdered(evens)
-	fmt.Printf("Even numbers: %v\n", evens)
+	printF("Even numbers: %v\n", evens)
 
 	// Output:
 	// Sum: 15
@@ -139,7 +147,7 @@ func ExampleSet_Values() {
 
 	// Get all values
 	allFruits := fruits.Values()
-	fmt.Printf("Total fruits: %d\n", len(allFruits))
+	printF("Total fruits: %d\n", len(allFruits))
 
 	// Note: order is not guaranteed
 	found := make(map[string]bool)
@@ -149,7 +157,7 @@ func ExampleSet_Values() {
 
 	// Check specific fruits
 	for _, fruit := range []string{"apple", "banana", "cherry"} {
-		fmt.Printf("Has %s: %v\n", fruit, found[fruit])
+		printF("Has %s: %v\n", fruit, found[fruit])
 	}
 
 	// Output:
@@ -186,11 +194,11 @@ func ExampleSet_Copy() {
 	})
 	core.SliceSortOrdered(names)
 
-	fmt.Print("Even users:")
+	printS("Even users:")
 	for _, name := range names {
-		fmt.Printf(" %s", name)
+		printF(" %s", name)
 	}
-	fmt.Println()
+	printLn()
 
 	// Output:
 	// Even users: Bob Diana
@@ -209,8 +217,8 @@ func ExampleSet_Clone() {
 	// Modify original
 	_, _ = original.Push("yellow")
 
-	fmt.Println("Original has yellow:", original.Contains("yellow"))
-	fmt.Println("Clone has yellow:", clone.Contains("yellow"))
+	printLn("Original has yellow:", original.Contains("yellow"))
+	printLn("Clone has yellow:", clone.Contains("yellow"))
 
 	// Output:
 	// Original has yellow: true

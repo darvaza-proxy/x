@@ -116,6 +116,7 @@ func validateRemoteUNIX(remote string) (skip bool, err error) {
 	case strings.HasSuffix(remote, ".sock"):
 		// path ends with .sock
 		validatePath = true
+	default:
 	}
 
 	if validatePath {

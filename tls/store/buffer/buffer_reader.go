@@ -33,6 +33,7 @@ func (buf *Buffer) onAdd(fSys fs.FS, fileName string, block *pem.Block) bool {
 			// key
 			buf.pushKey(fSys, fileName, key)
 		}
+	default:
 	}
 
 	if err != nil {
@@ -57,6 +58,7 @@ func (buf *Buffer) onAddCert(fSys fs.FS, fileName string, block *pem.Block) bool
 		buf.pushCert(fSys, fileName, cert)
 	case err != nil:
 		buf.pushErr(fSys, fileName, err)
+	default:
 	}
 
 	return buf.ctx.Err() == nil
@@ -77,6 +79,7 @@ func (buf *Buffer) onAddPrivateKeys(fSys fs.FS, fileName string, block *pem.Bloc
 		buf.pushKey(fSys, fileName, key)
 	case err != nil:
 		buf.pushErr(fSys, fileName, err)
+	default:
 	}
 
 	return buf.ctx.Err() == nil

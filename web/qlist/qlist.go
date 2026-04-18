@@ -104,7 +104,7 @@ func isMediaTypePart(s string) bool {
 // identical or at least one of them a "*" wildcard
 func (q QualityValue) Match(t QualityValue) bool {
 	if l := len(q.value); l == len(t.value) {
-		for i := 0; i < l; i++ {
+		for i := range l {
 			a, b := q.value[i], t.value[i]
 			if a != "*" && b != "*" && a != b {
 				return false
@@ -136,7 +136,7 @@ func matchValues(qv, tv []string) int {
 	l := len(qv)
 	w := 10 * l
 
-	for i := 0; i < l; i++ {
+	for i := range l {
 		if qv[i] == tv[i] {
 			fitness += w
 		}

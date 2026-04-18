@@ -61,6 +61,7 @@ func (s *Bundler) unsafeInit() error {
 		s.opts.Intermediates = nil
 	case s.opts.Intermediates == nil:
 		s.opts.Intermediates = s.Inter.Export()
+	default:
 	}
 
 	return nil
@@ -97,6 +98,7 @@ func BundleFn(opt x509.VerifyOptions, less func(a, b []*x509.Certificate) bool, 
 			return nil, err
 		}
 		opt.Roots = pool.Export()
+	default:
 	}
 
 	if less == nil {

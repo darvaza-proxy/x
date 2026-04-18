@@ -632,10 +632,10 @@ func runTestConcurrentIncrementDecrement(t *testing.T) {
 	}
 
 	// Start goroutines that decrement the counter
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		go func() {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
+			for range numOperations {
 				c.Dec()
 			}
 		}()
@@ -730,7 +730,7 @@ func runTestMultipleWaitersAndUpdaters(t *testing.T) {
 	wg.Add(numWaiters + numUpdaters)
 
 	// Start waiter goroutines
-	for i := 0; i < numWaiters; i++ {
+	for i := range numWaiters {
 		go func(id int) {
 			defer wg.Done()
 
@@ -757,11 +757,11 @@ func runTestMultipleWaitersAndUpdaters(t *testing.T) {
 	}
 
 	// Start updater goroutines
-	for i := 0; i < numUpdaters; i++ {
+	for range numUpdaters {
 		go func() {
 			defer wg.Done()
 
-			for j := 0; j < numUpdates; j++ {
+			for range numUpdates {
 				select {
 				case <-ctx.Done():
 					return

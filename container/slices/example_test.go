@@ -6,18 +6,24 @@ import (
 	"darvaza.org/x/container/slices"
 )
 
+// printLn / printF wrap fmt.Println / fmt.Printf to drop the
+// byte-count and error returns that revive's unhandled-error
+// rule would otherwise flag in every Example body.
+func printLn(args ...any)               { _, _ = fmt.Println(args...) }
+func printF(format string, args ...any) { _, _ = fmt.Printf(format, args...) }
+
 func ExampleNewOrderedSet() {
 	// Create a set of integers
 	set := slices.NewOrderedSet(3, 1, 4, 1, 5, 9, 2, 6)
 
 	// The set automatically deduplicates and sorts
-	fmt.Println("Length:", set.Len())
-	fmt.Println("Contains 4:", set.Contains(4))
-	fmt.Println("Contains 7:", set.Contains(7))
+	printLn("Length:", set.Len())
+	printLn("Contains 4:", set.Contains(4))
+	printLn("Contains 7:", set.Contains(7))
 
 	// Export returns a sorted slice
 	values := set.Export()
-	fmt.Println("Values:", values)
+	printLn("Values:", values)
 
 	// Output:
 	// Length: 7
@@ -31,17 +37,17 @@ func ExampleCustomSet_Add() {
 
 	// Add single value
 	added := set.Add(5)
-	fmt.Println("Added 5:", added)
+	printLn("Added 5:", added)
 
 	// Add multiple values
 	added = set.Add(3, 7, 1, 9)
-	fmt.Println("Added 4 values:", added)
+	printLn("Added 4 values:", added)
 
 	// Try to add duplicates
 	added = set.Add(5, 3, 11)
-	fmt.Println("Added with duplicates:", added)
+	printLn("Added with duplicates:", added)
 
-	fmt.Println("Final set:", set.Export())
+	printLn("Final set:", set.Export())
 
 	// Output:
 	// Added 5: 1
@@ -55,17 +61,17 @@ func ExampleCustomSet_Remove() {
 
 	// Remove existing value
 	removed := set.Remove(3)
-	fmt.Println("Removed 3:", removed)
+	printLn("Removed 3:", removed)
 
 	// Remove non-existing value
 	removed = set.Remove(10)
-	fmt.Println("Removed 10:", removed)
+	printLn("Removed 10:", removed)
 
 	// Remove multiple values
 	removed = set.Remove(1, 5)
-	fmt.Println("Removed 1 and 5:", removed)
+	printLn("Removed 1 and 5:", removed)
 
-	fmt.Println("Remaining:", set.Export())
+	printLn("Remaining:", set.Export())
 
 	// Output:
 	// Removed 3: 1
@@ -83,7 +89,7 @@ func ExampleCustomSet_ForEach() {
 		sum += v
 		return true // continue
 	})
-	fmt.Println("Sum:", sum)
+	printLn("Sum:", sum)
 
 	// Find first value > 25
 	var found int
@@ -94,7 +100,7 @@ func ExampleCustomSet_ForEach() {
 		}
 		return true
 	})
-	fmt.Println("First > 25:", found)
+	printLn("First > 25:", found)
 
 	// Output:
 	// Sum: 150
@@ -130,12 +136,12 @@ func ExampleNewCustomSet() {
 		panic(err)
 	}
 
-	fmt.Println("People count:", set.Len())
+	printLn("People count:", set.Len())
 
 	// Export in sorted order (by ID)
 	people := set.Export()
 	for _, p := range people {
-		fmt.Printf("ID=%d: %s\n", p.ID, p.Name)
+		printF("ID=%d: %s\n", p.ID, p.Name)
 	}
 
 	// Output:
@@ -155,8 +161,8 @@ func ExampleCustomSet_Clone() {
 	original.Add(4)
 
 	// Clone is independent
-	fmt.Println("Original:", original.Export())
-	fmt.Println("Clone:", clone.Export())
+	printLn("Original:", original.Export())
+	printLn("Clone:", clone.Export())
 
 	// Output:
 	// Original: [1 2 3 4]
@@ -168,20 +174,20 @@ func ExampleCustomSet_Reserve() {
 
 	// Reserve capacity for 100 elements
 	reserved := set.Reserve(100)
-	fmt.Println("Reserved for 100:", reserved)
+	printLn("Reserved for 100:", reserved)
 
 	available, total := set.Cap()
-	fmt.Printf("Capacity: %d available, %d total\n", available, total)
+	printF("Capacity: %d available, %d total\n", available, total)
 
 	// Add some elements
 	set.Add(1, 2, 3, 4, 5)
 
 	// Trim excess capacity
 	trimmed := set.Trim()
-	fmt.Println("Trimmed:", trimmed)
+	printLn("Trimmed:", trimmed)
 
 	available, total = set.Cap()
-	fmt.Printf("After trim: %d available, %d total\n", available, total)
+	printF("After trim: %d available, %d total\n", available, total)
 
 	// Output:
 	// Reserved for 100: true

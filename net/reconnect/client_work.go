@@ -238,6 +238,7 @@ func (c *Client) handleConnectError(conn net.Conn, err error) error {
 		return nil
 	case context.Canceled:
 		cancelled = true
+	default:
 	}
 
 	err = c.handlePossiblyFatalError(conn, err)

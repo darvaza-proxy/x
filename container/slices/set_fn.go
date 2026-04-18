@@ -3,7 +3,7 @@ package slices
 // This file implements a thread-safe generic set data structure with custom comparison support.
 
 import (
-	"sort"
+	"slices"
 	"sync"
 
 	"darvaza.org/core"
@@ -96,9 +96,7 @@ func dedupeFn[T any](cmp func(T, T) int, s []T) []T {
 	}
 
 	// sort all elements at once
-	sort.Slice(s, func(i, j int) bool {
-		return cmp(s[i], s[j]) < 0
-	})
+	slices.SortFunc(s, cmp)
 
 	// remove duplicates
 	j := 0
@@ -138,11 +136,9 @@ func (set *CustomSet[T]) Contains(v T) bool {
 func (set *CustomSet[T]) search(start int, v T) (int, bool) {
 	view := set.s[start:]
 
-	if l := len(view); l > 0 {
-		i := sort.Search(l, func(i int) bool {
-			return set.cmp(view[i], v) >= 0
-		})
-		return start + i, i < l && set.cmp(view[i], v) == 0
+	if len(view) > 0 {
+		i, found := slices.BinarySearchFunc(view, v, set.cmp)
+		return start + i, found
 	}
 
 	return start, false
