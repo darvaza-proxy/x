@@ -134,8 +134,7 @@ Before starting the release process:
 3. Push all tags at once:
 
    ```bash
-   git push origin cmp/v0.2.2 config/v0.5.1 sync/v0.3.1 \
-     fs/v0.5.3 container/v0.3.2
+   git push origin cmp/v0.2.2 config/v0.5.1 sync/v0.3.1 fs/v0.5.3 container/v0.3.2
    ```
 
 4. Wait for pkg.go.dev to index the new versions (usually 5-10 minutes).

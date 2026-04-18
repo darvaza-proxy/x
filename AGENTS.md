@@ -129,7 +129,7 @@ The build system includes automatic Markdown linting:
 
 - Detects markdownlint-cli via dlx.
 - Configuration in `internal/build/markdownlint.json`.
-- 80-character line limits and strict formatting rules.
+- 80-character prose line limit (120 in code blocks), strict formatting rules.
 - Selective HTML allowlist (comments, br, kbd, etc.).
 - Runs automatically with `make fmt` when available.
 
@@ -285,8 +285,8 @@ When editing markdown files, ensure compliance with:
 - **LanguageTool**: Check for missing articles ("a", "an", "the"), punctuation,
   and proper hyphenation of compound modifiers.
 - **Markdownlint**: Follow standard Markdown formatting rules.
-- **Line Length**: Keep lines at 80 characters or less (enforced by
-  .editorconfig).
+- **Line Length**: Keep prose at 80 characters or less; code blocks
+  may extend to 120 (enforced by markdownlint).
 
 ### Common Documentation Issues to Check
 
@@ -328,7 +328,8 @@ When creating or editing documentation files:
      (e.g., revive.toml).
 
 2. **Formatting Consistency**:
-   - **Line Length**: Wrap lines at 80 characters maximum.
+   - **Line Length**: Wrap prose lines at 80 characters; code blocks
+     may extend to 120.
    - End all bullet points with periods for consistency.
    - Capitalize proper nouns correctly (JavaScript, TypeScript, Markdown).
    - Use consistent punctuation in examples and lists.
