@@ -168,7 +168,7 @@ func doCleanHostLabel(host string) (string, error) {
 	// same Display profile cannot reject what ToUnicode accepted.
 	// core.Must lets a future idna or core drift surface loudly.
 	s := core.Must(idna.Display.ToASCII(host))
-	for _, label := range strings.Split(s, ".") {
+	for label := range strings.SplitSeq(s, ".") {
 		if len(label) > 63 {
 			return "", &net.AddrError{
 				Err:  "label exceeds 63-byte DNS limit",

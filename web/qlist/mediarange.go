@@ -74,7 +74,7 @@ func ParseMediaRangeHeaders(hdrs []string) (out QualityList, err error) {
 // ParseMediaRangeString extracts a [QualityList] from a string representing an
 // Accept header
 func ParseMediaRangeString(ranges string) (out QualityList, err error) {
-	for _, s := range strings.Split(ranges, ",") {
+	for s := range strings.SplitSeq(ranges, ",") {
 		r, err := ParseMediaRange(s)
 		if err != nil {
 			return out, err

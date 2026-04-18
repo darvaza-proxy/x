@@ -15,6 +15,7 @@ linters:
     - ineffassign
     - lll
     - misspell
+    - modernize
     - nakedret
     - prealloc
     - revive
@@ -35,6 +36,10 @@ linters:
         - name: exported
         - name: increment-decrement
         - name: var-naming
+          arguments:
+            - []
+            - []
+            - - skipPackageNameCollisionWithGoStd: true
         - name: var-declaration
         - name: package-comments
         - name: range

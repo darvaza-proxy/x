@@ -190,7 +190,7 @@ func parseQualityHeaders(out QualityList, hdrs []string) (QualityList, error) {
 // ParseQualityString extracts a [QualityList] from a string representing one
 // Header's content
 func ParseQualityString(qlist string) (out QualityList, err error) {
-	for _, s := range strings.Split(qlist, ",") {
+	for s := range strings.SplitSeq(qlist, ",") {
 		q, err := ParseQualityValue(s)
 		if err != nil {
 			return out, err
