@@ -50,17 +50,31 @@ handling, and for this task `darvaza.org/x/web` provides four helpers.
 
 ### Path Cleaning
 
-Two helpers normalise URL paths, distinguished by direction of use:
+Three helpers normalise URL paths and references:
 
 * `CleanPath(path)` validates an inbound `URL.Path`. Returns
   `("", false)` when the path is non-rooted or contains a `/..`
   escape segment; otherwise the cleaned form.
-* `Clean(path)` normalises a URL path, typically destined for
-  an outbound `Location` header. Replaces `\` with `/` (matching
-  WHATWG URL behaviour), reduces via `fs.Clean`, strips leading
-  rooted `/..` escape blocks, and preserves a trailing slash.
-  The input must be a path, not a full URL; the second return
-  is `false` when literal `/..` blocks had to be discarded.
+* `Clean(path)` normalises a URL path. Replaces `\` with `/`
+  (matching WHATWG URL behaviour), reduces via `fs.Clean`,
+  strips leading rooted `/..` escape blocks, and preserves a
+  trailing slash. The second return is `false` when literal
+  `/..` blocks had to be discarded.
+* `CleanURL(s)` normalises a URL reference for an outbound
+  `Location` header. Parses with `url.Parse`, normalises the
+  host through `core.SplitHostPort` (lowercased, IDN labels
+  converted to ASCII punycode, IPv6 canonicalised) and strips
+  the default port when it matches the scheme (`http`/`ws` →
+  80, `https`/`wss` → 443); the scheme passes through verbatim
+  and the path is reduced through `Clean`. Leading rooted
+  `/..` is silently stripped — `CleanURL` mirrors browser URL
+  clamping rather than signalling escape attempts. Returns a
+  non-nil error when `url.Parse`, `core.SplitHostPort`, or a
+  DNS label-length check rejects the input, signalling a
+  malformed composition the caller should surface as 500.
+  `CleanURL` is a composer, not an origin validator — callers
+  passing untrusted input must allowlist scheme or origin
+  themselves.
 
 ### RESTful Handlers
 
