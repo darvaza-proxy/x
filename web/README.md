@@ -47,7 +47,20 @@ handling, and for this task `darvaza.org/x/web` provides four helpers.
 * and a `Resolve()` helper that will use the above and call the specified
   _Resolver_, or take the request's `URL.Path`, and then clean it to make sure
   its safe to use.
-* `CleanPath()` cleans and validates the path for `URL.Path` handling.
+
+### Path Cleaning
+
+Two helpers normalise URL paths, distinguished by direction of use:
+
+* `CleanPath(path)` validates an inbound `URL.Path`. Returns
+  `("", false)` when the path is non-rooted or contains a `/..`
+  escape segment; otherwise the cleaned form.
+* `Clean(path)` normalises a URL path, typically destined for
+  an outbound `Location` header. Replaces `\` with `/` (matching
+  WHATWG URL behaviour), reduces via `fs.Clean`, strips leading
+  rooted `/..` escape blocks, and preserves a trailing slash.
+  The input must be a path, not a full URL; the second return
+  is `false` when literal `/..` blocks had to be discarded.
 
 ### RESTful Handlers
 
