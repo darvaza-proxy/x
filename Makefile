@@ -158,7 +158,6 @@ generate: ; $(info $(M) running go:generate…)
 
 # Prepare for codecov uploading
 codecov: merged-coverage $(COVERAGE_DIR)/codecov.sh
-	$Q $(TOOLSDIR)/make_codecov.sh $(TMPDIR)/index $(COVERAGE_DIR)
 
 # Generate Codecov upload script
 $(COVERAGE_DIR)/codecov.sh: $(TOOLSDIR)/make_codecov.sh $(TMPDIR)/index ; $(info $(M) generating codecov.sh…)
