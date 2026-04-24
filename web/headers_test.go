@@ -237,7 +237,7 @@ func (tc checkIfModifiedSinceTestCase) Name() string {
 func (tc checkIfModifiedSinceTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodGet, "/test", nil)
+	req, err := http.NewRequest(http.MethodGet, "/test", http.NoBody)
 	core.AssertNoError(t, err, "create request")
 
 	if tc.headerValue != "" {
