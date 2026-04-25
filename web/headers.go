@@ -9,6 +9,15 @@ import (
 	"darvaza.org/x/web/consts"
 )
 
+// HasHeader reports whether hdr has any entry under key,
+// including a blank-valued entry. Distinguishes "no header
+// set" from "header set to a blank value", which
+// http.Header.Get collapses to "". An entry with no values
+// ([]string{}) counts as absent.
+func HasHeader(hdr http.Header, key string) bool {
+	return len(hdr.Values(key)) > 0
+}
+
 // SetHeader sets a header value, optionally formatted.
 func SetHeader(hdr http.Header, key, value string, args ...any) {
 	doSetHeader(hdr, key, value, args...)

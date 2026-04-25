@@ -108,6 +108,11 @@ using the `Accept` header, and falling back to `"identity"` as magic type.
 
 Helper functions for manipulating HTTP headers:
 
+* `HasHeader(hdr, key)` — Reports whether `hdr` has any entry under
+  `key`, including a blank-valued entry. Distinguishes "no header
+  set" from "header set to a blank value" (which `http.Header.Get`
+  collapses to `""`); an entry with no values (`[]string{}`) counts
+  as absent.
 * `SetHeader(hdr, key, value, args...)` — Sets a header value, with
   optional `fmt.Sprintf` formatting.
 * `SetHeaderUnlessExists(hdr, key, value, args...)` — Sets a header

@@ -17,7 +17,62 @@ var (
 	_ core.TestCase = setRetryAfterTestCase{}
 	_ core.TestCase = setLastModifiedHeaderTestCase{}
 	_ core.TestCase = checkIfModifiedSinceTestCase{}
+	_ core.TestCase = hasHeaderTestCase{}
 )
+
+type hasHeaderTestCase struct {
+	name    string
+	setKey  string
+	values  []string
+	queryAs string
+	want    bool
+}
+
+func (tc hasHeaderTestCase) Name() string {
+	return tc.name
+}
+
+func (tc hasHeaderTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	hdr := make(http.Header)
+	if tc.setKey != "" {
+		hdr[tc.setKey] = tc.values
+	}
+
+	core.AssertEqual(t, tc.want, HasHeader(hdr, tc.queryAs), "HasHeader")
+}
+
+func newHasHeaderTestCase(name, setKey string, values []string,
+	queryAs string, want bool) hasHeaderTestCase {
+	return hasHeaderTestCase{
+		name:    name,
+		setKey:  setKey,
+		values:  values,
+		queryAs: queryAs,
+		want:    want,
+	}
+}
+
+func TestHasHeader(t *testing.T) {
+	testCases := []hasHeaderTestCase{
+		newHasHeaderTestCase("absent", "", nil, "X-Test", false),
+		newHasHeaderTestCase("blank value", "X-Test",
+			[]string{""}, "X-Test", true),
+		newHasHeaderTestCase("populated", "X-Test",
+			[]string{"value"}, "X-Test", true),
+		newHasHeaderTestCase("multi-valued", "X-Test",
+			[]string{"a", "b"}, "X-Test", true),
+		newHasHeaderTestCase("empty slice", "X-Test",
+			[]string{}, "X-Test", false),
+		newHasHeaderTestCase("non-canonical query", "X-Test",
+			[]string{"value"}, "x-test", true),
+	}
+
+	core.RunTestCases(t, testCases)
+
+	core.AssertFalse(t, HasHeader(nil, "X-Test"), "HasHeader on nil map")
+}
 
 type setHeaderTestCase struct {
 	name     string
