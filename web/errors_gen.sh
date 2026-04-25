@@ -16,13 +16,8 @@ package $GOPACKAGE
 //$TAG $0
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
 	"time"
-
-	"darvaza.org/x/fs"
-	"darvaza.org/x/web/consts"
 )
 EOT
 
@@ -41,24 +36,15 @@ for x in \
 
 	cat <<EOT
 
-// NewStatus$name returns a $code redirect error.
+// NewStatus$name returns a $code redirect error. dest is
+// normalised through [CleanURL]; a composition failure is
+// wrapped as 500 via [NewStatusInternalServerError].
+//
+// Origin is not validated: untrusted dest must have its
+// scheme and origin allowlisted (or be restricted to a
+// relative path) to avoid composing an open redirect.
 func NewStatus$name(dest string, args ...any) *HTTPError {
-	if len(args) > 0 {
-		dest = fmt.Sprintf(dest, args...)
-	}
-
-	trailing := strings.HasSuffix(dest, "/")
-	dest, _ = fs.Clean(dest)
-	if trailing && !strings.HasSuffix(dest, "/") {
-		dest += "/"
-	}
-
-	return &HTTPError{
-		Code: http.Status$name,
-		Hdr: http.Header{
-			consts.Location: []string{dest},
-		},
-	}
+	return newRedirect(http.Status$name, dest, args...)
 }
 EOT
 done

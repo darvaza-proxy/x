@@ -190,13 +190,23 @@ There are also `web.HTTPError` factories to create new errors, from a generic:
 * `NewHTTPError()` and `NewHTTPErrorf()` and a companion `ErrorText(code)`
   helper.
 
-redirect factories (with Location header):
+redirect factories (destination normalised through `CleanURL`;
+a composition failure is wrapped as a 500):
 
-* `NewStatusMovedPermanently(loc, ...)` (301)
-* `NewStatusFound(loc, ...)` (302)
-* `NewStatusSeeOther(loc, ...)` (303)
-* `NewStatusTemporaryRedirect(loc, ...)` (307)
-* `NewStatusPermanentRedirect(loc, ...)` (308)
+* `NewStatusMovedPermanently(dest, ...)` (301)
+* `NewStatusFound(dest, ...)` (302)
+* `NewStatusSeeOther(dest, ...)` (303)
+* `NewStatusTemporaryRedirect(dest, ...)` (307)
+* `NewStatusPermanentRedirect(dest, ...)` (308)
+
+These factories compose `dest` faithfully — a literal URL from
+caller code and a `?next=` value from a client request look
+identical at the call site, and `CleanURL` preserves both
+verbatim. `CleanURL` canonicalises shape, not origin: when `dest`
+is derived from untrusted input, allowlist scheme and origin (or
+restrict to a relative path) before calling. Without that gate
+the factory composes an open redirect (CWE-601) for whatever
+string the attacker supplied.
 
 error wrappers (preserve underlying error):
 
