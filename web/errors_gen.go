@@ -5,113 +5,63 @@ package web
 //go:generate ./errors_gen.sh
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
 	"time"
-
-	"darvaza.org/x/fs"
-	"darvaza.org/x/web/consts"
 )
 
-// NewStatusMovedPermanently returns a 301 redirect error.
+// NewStatusMovedPermanently returns a 301 redirect error. dest is
+// normalised through [CleanURL]; a composition failure is
+// wrapped as 500 via [NewStatusInternalServerError].
+//
+// Origin is not validated: untrusted dest must have its
+// scheme and origin allowlisted (or be restricted to a
+// relative path) to avoid composing an open redirect.
 func NewStatusMovedPermanently(dest string, args ...any) *HTTPError {
-	if len(args) > 0 {
-		dest = fmt.Sprintf(dest, args...)
-	}
-
-	trailing := strings.HasSuffix(dest, "/")
-	dest, _ = fs.Clean(dest)
-	if trailing && !strings.HasSuffix(dest, "/") {
-		dest += "/"
-	}
-
-	return &HTTPError{
-		Code: http.StatusMovedPermanently,
-		Hdr: http.Header{
-			consts.Location: []string{dest},
-		},
-	}
+	return newRedirect(http.StatusMovedPermanently, dest, args...)
 }
 
-// NewStatusFound returns a 302 redirect error.
+// NewStatusFound returns a 302 redirect error. dest is
+// normalised through [CleanURL]; a composition failure is
+// wrapped as 500 via [NewStatusInternalServerError].
+//
+// Origin is not validated: untrusted dest must have its
+// scheme and origin allowlisted (or be restricted to a
+// relative path) to avoid composing an open redirect.
 func NewStatusFound(dest string, args ...any) *HTTPError {
-	if len(args) > 0 {
-		dest = fmt.Sprintf(dest, args...)
-	}
-
-	trailing := strings.HasSuffix(dest, "/")
-	dest, _ = fs.Clean(dest)
-	if trailing && !strings.HasSuffix(dest, "/") {
-		dest += "/"
-	}
-
-	return &HTTPError{
-		Code: http.StatusFound,
-		Hdr: http.Header{
-			consts.Location: []string{dest},
-		},
-	}
+	return newRedirect(http.StatusFound, dest, args...)
 }
 
-// NewStatusSeeOther returns a 303 redirect error.
+// NewStatusSeeOther returns a 303 redirect error. dest is
+// normalised through [CleanURL]; a composition failure is
+// wrapped as 500 via [NewStatusInternalServerError].
+//
+// Origin is not validated: untrusted dest must have its
+// scheme and origin allowlisted (or be restricted to a
+// relative path) to avoid composing an open redirect.
 func NewStatusSeeOther(dest string, args ...any) *HTTPError {
-	if len(args) > 0 {
-		dest = fmt.Sprintf(dest, args...)
-	}
-
-	trailing := strings.HasSuffix(dest, "/")
-	dest, _ = fs.Clean(dest)
-	if trailing && !strings.HasSuffix(dest, "/") {
-		dest += "/"
-	}
-
-	return &HTTPError{
-		Code: http.StatusSeeOther,
-		Hdr: http.Header{
-			consts.Location: []string{dest},
-		},
-	}
+	return newRedirect(http.StatusSeeOther, dest, args...)
 }
 
-// NewStatusTemporaryRedirect returns a 307 redirect error.
+// NewStatusTemporaryRedirect returns a 307 redirect error. dest is
+// normalised through [CleanURL]; a composition failure is
+// wrapped as 500 via [NewStatusInternalServerError].
+//
+// Origin is not validated: untrusted dest must have its
+// scheme and origin allowlisted (or be restricted to a
+// relative path) to avoid composing an open redirect.
 func NewStatusTemporaryRedirect(dest string, args ...any) *HTTPError {
-	if len(args) > 0 {
-		dest = fmt.Sprintf(dest, args...)
-	}
-
-	trailing := strings.HasSuffix(dest, "/")
-	dest, _ = fs.Clean(dest)
-	if trailing && !strings.HasSuffix(dest, "/") {
-		dest += "/"
-	}
-
-	return &HTTPError{
-		Code: http.StatusTemporaryRedirect,
-		Hdr: http.Header{
-			consts.Location: []string{dest},
-		},
-	}
+	return newRedirect(http.StatusTemporaryRedirect, dest, args...)
 }
 
-// NewStatusPermanentRedirect returns a 308 redirect error.
+// NewStatusPermanentRedirect returns a 308 redirect error. dest is
+// normalised through [CleanURL]; a composition failure is
+// wrapped as 500 via [NewStatusInternalServerError].
+//
+// Origin is not validated: untrusted dest must have its
+// scheme and origin allowlisted (or be restricted to a
+// relative path) to avoid composing an open redirect.
 func NewStatusPermanentRedirect(dest string, args ...any) *HTTPError {
-	if len(args) > 0 {
-		dest = fmt.Sprintf(dest, args...)
-	}
-
-	trailing := strings.HasSuffix(dest, "/")
-	dest, _ = fs.Clean(dest)
-	if trailing && !strings.HasSuffix(dest, "/") {
-		dest += "/"
-	}
-
-	return &HTTPError{
-		Code: http.StatusPermanentRedirect,
-		Hdr: http.Header{
-			consts.Location: []string{dest},
-		},
-	}
+	return newRedirect(http.StatusPermanentRedirect, dest, args...)
 }
 
 // NewStatusBadRequest returns a 400 HTTP error,

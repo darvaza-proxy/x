@@ -47,7 +47,34 @@ handling, and for this task `darvaza.org/x/web` provides four helpers.
 * and a `Resolve()` helper that will use the above and call the specified
   _Resolver_, or take the request's `URL.Path`, and then clean it to make sure
   its safe to use.
-* `CleanPath()` cleans and validates the path for `URL.Path` handling.
+
+### Path Cleaning
+
+Three helpers normalise URL paths and references:
+
+* `CleanPath(path)` validates an inbound `URL.Path`. Returns
+  `("", false)` when the path is non-rooted or contains a `/..`
+  escape segment; otherwise the cleaned form.
+* `Clean(path)` normalises a URL path. Replaces `\` with `/`
+  (matching WHATWG URL behaviour), reduces via `fs.Clean`,
+  strips leading rooted `/..` escape blocks, and preserves a
+  trailing slash. The second return is `false` when literal
+  `/..` blocks had to be discarded.
+* `CleanURL(s)` normalises a URL reference for an outbound
+  `Location` header. Parses with `url.Parse`, normalises the
+  host through `core.SplitHostPort` (lowercased, IDN labels
+  converted to ASCII punycode, IPv6 canonicalised) and strips
+  the default port when it matches the scheme (`http`/`ws` →
+  80, `https`/`wss` → 443); the scheme passes through verbatim
+  and the path is reduced through `Clean`. Leading rooted
+  `/..` is silently stripped — `CleanURL` mirrors browser URL
+  clamping rather than signalling escape attempts. Returns a
+  non-nil error when `url.Parse`, `core.SplitHostPort`, or a
+  DNS label-length check rejects the input, signalling a
+  malformed composition the caller should surface as 500.
+  `CleanURL` is a composer, not an origin validator — callers
+  passing untrusted input must allowlist scheme or origin
+  themselves.
 
 ### RESTful Handlers
 
@@ -81,6 +108,11 @@ using the `Accept` header, and falling back to `"identity"` as magic type.
 
 Helper functions for manipulating HTTP headers:
 
+* `HasHeader(hdr, key)` — Reports whether `hdr` has any entry under
+  `key`, including a blank-valued entry. Distinguishes "no header
+  set" from "header set to a blank value" (which `http.Header.Get`
+  collapses to `""`); an entry with no values (`[]string{}`) counts
+  as absent.
 * `SetHeader(hdr, key, value, args...)` — Sets a header value, with
   optional `fmt.Sprintf` formatting.
 * `SetHeaderUnlessExists(hdr, key, value, args...)` — Sets a header
@@ -158,13 +190,23 @@ There are also `web.HTTPError` factories to create new errors, from a generic:
 * `NewHTTPError()` and `NewHTTPErrorf()` and a companion `ErrorText(code)`
   helper.
 
-redirect factories (with Location header):
+redirect factories (destination normalised through `CleanURL`;
+a composition failure is wrapped as a 500):
 
-* `NewStatusMovedPermanently(loc, ...)` (301)
-* `NewStatusFound(loc, ...)` (302)
-* `NewStatusSeeOther(loc, ...)` (303)
-* `NewStatusTemporaryRedirect(loc, ...)` (307)
-* `NewStatusPermanentRedirect(loc, ...)` (308)
+* `NewStatusMovedPermanently(dest, ...)` (301)
+* `NewStatusFound(dest, ...)` (302)
+* `NewStatusSeeOther(dest, ...)` (303)
+* `NewStatusTemporaryRedirect(dest, ...)` (307)
+* `NewStatusPermanentRedirect(dest, ...)` (308)
+
+These factories compose `dest` faithfully — a literal URL from
+caller code and a `?next=` value from a client request look
+identical at the call site, and `CleanURL` preserves both
+verbatim. `CleanURL` canonicalises shape, not origin: when `dest`
+is derived from untrusted input, allowlist scheme and origin (or
+restrict to a relative path) before calling. Without that gate
+the factory composes an open redirect (CWE-601) for whatever
+string the attacker supplied.
 
 error wrappers (preserve underlying error):
 

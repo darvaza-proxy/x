@@ -202,7 +202,7 @@ cfg.WaitReconnect = reconnect.NewDoNotReconnectWaiter(errStop)
 The `Config` structure supports the following fields:
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `Context` | `context.Context` | `context.Background()` | Base context for the client. |
 | `Logger` | `slog.Logger` | Default logger | Logger for structured logging. |
 | `Remote` | `string` | Required | Target address. TCP: `host:port`, Unix: `/path/to/socket` or `unix:/path` |
@@ -508,7 +508,7 @@ The client automatically determines the network type based on the `Remote`
 string:
 
 | Pattern | Network Type | Example |
-|---------|-------------|---------|
+| --- | --- | --- |
 | `unix:` prefix | Unix socket | `unix:/var/run/app.sock` |
 | Absolute path (`/`) | Unix socket | `/tmp/socket` |
 | Ends with `.sock` | Unix socket | `./app.sock`, `run/app.sock` |
