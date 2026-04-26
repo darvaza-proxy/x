@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	darvaza.org/core v0.18.3
-	darvaza.org/x/fs v0.5.2
+	darvaza.org/x/fs v0.5.3
 )
 
 require (

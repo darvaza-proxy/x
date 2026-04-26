@@ -16,13 +16,14 @@ including dependency order and procedures to ensure consistent releases.
 # Check current versions
 git tag --list | grep -E "^(package)/" | sort -V
 
-# Create annotated tag
-git tag -a package/vX.Y.Z -m "Release message"
+# Create signed annotated tag (requires a configured GPG/SSH signing key)
+git tag -s package/vX.Y.Z -m "Release message"
 
 # Push specific tags
 git push origin package/v1.0.0 package2/v2.0.0
 
-# Update dependency
+# Update a single internal dependency (avoid `make up`, which fans out
+# to every external dep)
 go -C package get darvaza.org/x/dependency@vX.Y.Z
 go -C package mod tidy
 ```
@@ -83,10 +84,10 @@ dependencies:
 
 Before starting the release process:
 
-- [ ] Ensure all tests pass: `make test`
-- [ ] Run linting: `make lint`
-- [ ] Update dependencies: `make up && make tidy`
-- [ ] Review and update CHANGELOG.md for each package
+- [ ] Ensure a full build is clean: `make`
+- [ ] Tier 2 internal-dep bumps are targeted (`go -C <pkg> get
+      darvaza.org/x/<dep>@vX.Y.Z`), not blanket `make up`
+- [ ] Review and update CHANGELOG.md for each package (when present)
 - [ ] Ensure all documentation is up to date
 - [ ] Check current versions:
   `git tag --list | grep -E "^(cmp|config|sync|fs|container)/" | sort -V`
@@ -101,11 +102,11 @@ Before starting the release process:
    git tag --list | grep -E "^(cmp|config|sync|fs|container)/" | sort -V
    ```
 
-2. Create annotated tags with comprehensive release notes:
+2. Create signed annotated tags with comprehensive release notes:
 
    ```bash
-   # Create annotated tag with release message
-   git tag -a cmp/v0.3.0 -m "darvaza.org/x/cmp v0.3.0
+   # Create signed tag with release message inline
+   git tag -s cmp/v0.2.2 -m "darvaza.org/x/cmp v0.2.2
 
    Brief description of the release
 
@@ -120,25 +121,21 @@ Before starting the release process:
    - Go 1.23 or later"
    ```
 
-   For multiple packages, consider using message files:
+   For multiple packages, prefer message files in `.tmp/` (gitignored):
 
    ```bash
-   # Create message file
-   cat > tag-cmp.txt <<EOF
-   darvaza.org/x/cmp v0.3.0
+   # Compose the message in a scratch file
+   $EDITOR .tmp/tag-cmp-v0.2.2.txt
 
-   Release description...
-   EOF
-
-   # Create tag using message file
-   git tag -a cmp/v0.3.0 -F tag-cmp.txt
+   # Create the signed tag from the file
+   git tag -s cmp/v0.2.2 -F .tmp/tag-cmp-v0.2.2.txt
    ```
 
 3. Push all tags at once:
 
    ```bash
-   git push origin cmp/v0.3.0 config/v0.5.0 sync/v0.3.0 \
-     fs/v0.5.1 container/v0.3.0
+   git push origin cmp/v0.2.2 config/v0.5.1 sync/v0.3.1 \
+     fs/v0.5.3 container/v0.3.2
    ```
 
 4. Wait for pkg.go.dev to index the new versions (usually 5-10 minutes).
@@ -152,54 +149,46 @@ Before starting the release process:
    The following packages have been released:
 
    \`\`\`bash
-   go get darvaza.org/x/cmp@v0.3.0
-   go get darvaza.org/x/config@v0.5.0
-   go get darvaza.org/x/sync@v0.3.0
-   go get darvaza.org/x/fs@v0.5.1
-   go get darvaza.org/x/container@v0.3.0
+   go get darvaza.org/x/cmp@v0.2.2
+   go get darvaza.org/x/config@v0.5.1
+   go get darvaza.org/x/sync@v0.3.1
+   go get darvaza.org/x/fs@v0.5.3
+   go get darvaza.org/x/container@v0.3.2
    \`\`\`"
    ```
 
 ### 3. Update Tier 2 Dependencies
 
-1. Update go.mod files in Tier 2 packages to use the new versions:
+1. Update go.mod files in Tier 2 packages to use the new versions.
+   Use targeted `go get` commands — avoid `make up`, which blanket-bumps
+   every external dependency:
 
    ```bash
-   # Update without changing directories (avoiding confusion)
-   go -C net get darvaza.org/x/fs@v0.5.1
+   go -C net get darvaza.org/x/fs@v0.5.3
    go -C net mod tidy
 
-   go -C web get darvaza.org/x/fs@v0.5.1
+   go -C web get darvaza.org/x/fs@v0.5.3
    go -C web mod tidy
 
-   go -C tls get darvaza.org/x/container@v0.3.0
+   go -C tls get darvaza.org/x/container@v0.3.2
    go -C tls mod tidy
    ```
 
-   Alternative approach using make:
+2. Run a clean build to confirm compatibility:
 
    ```bash
-   # If the Makefile supports it
-   make -C net up
-   make -C web up
-   make -C tls up
+   make
    ```
 
-2. Run tests to ensure compatibility:
+3. Commit the dependency updates with explicit paths (no `git add -A`):
 
    ```bash
-   make test
-   ```
+   git commit -s -m "build: update internal dependencies for release
 
-3. Commit the dependency updates:
-
-   ```bash
-   git add -A
-   git commit -m "build: update internal dependencies for release
-
-   - net: update fs to v0.5.1
-   - web: update fs to v0.5.1
-   - tls: update container to v0.3.0"
+   - net: update fs to v0.5.3
+   - web: update fs to v0.5.3
+   - tls: update container to v0.3.2" \
+     net/go.mod net/go.sum web/go.mod web/go.sum tls/go.mod tls/go.sum
    ```
 
 ### 4. Tier 2 Release
@@ -210,28 +199,36 @@ Before starting the release process:
    git tag --list | grep -E "^(net|web|tls)/" | sort -V
    ```
 
-2. Create annotated tags for Tier 2 packages following the same pattern as
-   Tier 1:
+2. Create signed annotated tags for Tier 2 packages following the same
+   pattern as Tier 1:
 
    ```bash
-   git tag -a net/v0.3.0 -m "darvaza.org/x/net v0.3.0
+   git tag -s net/v0.6.3 -F .tmp/tag-net-v0.6.3.txt
+   git tag -s web/v0.13.0 -F .tmp/tag-web-v0.13.0.txt
+   git tag -s tls/v0.6.1 -F .tmp/tag-tls-v0.6.1.txt
+   ```
+
+   Each message file should follow the structure:
+
+   ```text
+   darvaza.org/x/net v0.6.3
 
    Release with updated dependencies
 
    Changes since vX.Y.Z:
-   - Update darvaza.org/x/fs to v0.5.1
+   - Update darvaza.org/x/fs to v0.5.3
    - Other changes...
 
    Dependencies:
    - darvaza.org/core vX.Y.Z
-   - darvaza.org/x/fs v0.5.1
-   - Go 1.23 or later"
+   - darvaza.org/x/fs v0.5.3
+   - Go 1.23 or later
    ```
 
 3. Push all Tier 2 tags:
 
    ```bash
-   git push origin net/v0.3.0 web/v0.3.0 tls/v0.3.0
+   git push origin net/v0.6.3 web/v0.13.0 tls/v0.6.1
    ```
 
 4. Document the complete release:
@@ -242,9 +239,9 @@ Before starting the release process:
    Tier 2 packages have been released:
 
    \`\`\`bash
-   go get darvaza.org/x/net@v0.3.0
-   go get darvaza.org/x/web@v0.3.0
-   go get darvaza.org/x/tls@v0.3.0
+   go get darvaza.org/x/net@v0.6.3
+   go get darvaza.org/x/web@v0.13.0
+   go get darvaza.org/x/tls@v0.6.1
    \`\`\`
 
    All packages now require Go 1.23 or later."
