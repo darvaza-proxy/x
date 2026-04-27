@@ -9,29 +9,33 @@ import (
 // Clean reduces a path and tells if it's a valid root
 // for fs.FS operations.
 func Clean(path string) (string, bool) {
-	var hasRootSlash bool
-
-	switch {
-	case path == "", path == ".":
+	switch path {
+	case "", ".":
 		return ".", true
-	case path == "/":
+	case "/":
 		return "/", false
-	case path[0] == '/':
-		hasRootSlash = true
-		path = path[1:]
 	}
-
-	s := doClean(path)
-	if hasRootSlash {
-		switch s {
-		case "", ".":
-			return "/", false
-		default:
-			return "/" + s, false
-		}
+	if path[0] == '/' {
+		return cleanRooted(path[1:])
 	}
+	return cleanRelative(path)
+}
 
-	switch s {
+// cleanRooted classifies a rooted path (one that originally began
+// with '/'), with the leading slash stripped by the caller.
+func cleanRooted(rest string) (string, bool) {
+	switch s := doClean(rest); s {
+	case "", ".":
+		return "/", false
+	default:
+		return "/" + s, false
+	}
+}
+
+// cleanRelative classifies a relative path (one that did not begin
+// with '/').
+func cleanRelative(path string) (string, bool) {
+	switch s := doClean(path); s {
 	case "", ".":
 		return ".", true
 	case "..":

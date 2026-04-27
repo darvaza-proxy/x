@@ -129,17 +129,15 @@ func getFileFromRequest(v httpView, req *http.Request) (http.Handler, httpError)
 }
 
 func newBadRequest(err error) httpError {
-	var code int
-
-	switch e := err.(type) {
-	case httpError:
-		return e
-	case web.Error:
-		code = e.HTTPStatus()
+	if he, ok := err.(httpError); ok {
+		return he
 	}
 
-	if code < 400 {
-		code = http.StatusBadRequest
+	code := http.StatusBadRequest
+	if we, ok := err.(web.Error); ok {
+		if s := we.HTTPStatus(); s >= 400 {
+			code = s
+		}
 	}
 
 	return &web.HTTPError{

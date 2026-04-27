@@ -679,14 +679,14 @@ func TestConfigEqual(t *testing.T) {
 }
 
 func runConcurrentWriter(s *Set[int, int, testItem], done chan bool) {
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		_, _ = s.Push(testItem{ID: i, Name: "item", Value: "value"})
 	}
 	done <- true
 }
 
 func runConcurrentReader(s *Set[int, int, testItem], done chan bool) {
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		s.Contains(i)
 		_, _ = s.Get(i)
 	}
@@ -694,7 +694,7 @@ func runConcurrentReader(s *Set[int, int, testItem], done chan bool) {
 }
 
 func runConcurrentForEach(s *Set[int, int, testItem], done chan bool) {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		s.ForEach(func(testItem) bool { return true })
 	}
 	done <- true
@@ -715,7 +715,7 @@ func doTestThreadSafety(t *testing.T) {
 	go runConcurrentForEach(s, done)
 
 	// Wait for all goroutines
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		<-done
 	}
 }

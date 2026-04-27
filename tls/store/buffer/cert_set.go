@@ -30,6 +30,7 @@ func (cs *CertSet) Copy(dst *CertSet, cond func(*tls.Certificate) bool) *CertSet
 		cs.Set.Copy(&dst.Set, cond)
 	case dst == nil:
 		dst = MustCertSet()
+	default:
 	}
 
 	return dst

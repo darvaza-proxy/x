@@ -76,6 +76,7 @@ func listAllGlobFS(fSys fs.FS) ([]string, error) {
 			return core.IIf(path == ".", err, nil)
 		case d.Type().IsRegular():
 			out = append(out, path)
+		default:
 		}
 		return nil
 	})

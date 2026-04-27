@@ -28,6 +28,7 @@ func RenderTemplate(rw http.ResponseWriter, req *http.Request, code int, tmpl *t
 		code = http.StatusInternalServerError
 	case code == 0:
 		code = http.StatusOK
+	default:
 	}
 
 	if req.Method == consts.HEAD {

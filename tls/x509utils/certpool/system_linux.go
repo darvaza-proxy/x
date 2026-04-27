@@ -52,6 +52,7 @@ func loadCertsFirstFile(pool *CertPool, errs *core.CompoundError, files ...strin
 			_ = errs.AppendError(err)
 		case pool.Count() > initial:
 			return
+		default:
 		}
 	}
 }

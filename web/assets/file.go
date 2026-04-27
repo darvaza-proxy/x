@@ -51,6 +51,7 @@ func setContentType(hdr http.Header, file any, name string) error {
 			return err
 		case cType != "":
 			hdr[consts.ContentType] = []string{cType}
+		default:
 		}
 	}
 	return nil
@@ -115,6 +116,7 @@ func setETag(hdr http.Header, file any) error {
 			return err
 		case len(tags) > 0:
 			hdr[consts.ETag] = tags
+		default:
 		}
 	}
 	return nil

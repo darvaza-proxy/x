@@ -127,9 +127,9 @@ The `internal/build/fix_whitespace.sh` script automatically:
 
 The build system includes automatic Markdown linting:
 
-- Detects markdownlint-cli via pnpx.
+- Detects markdownlint-cli via dlx.
 - Configuration in `internal/build/markdownlint.json`.
-- 80-character line limits and strict formatting rules.
+- 80-character prose line limit (120 in code blocks), strict formatting rules.
 - Selective HTML allowlist (comments, br, kbd, etc.).
 - Runs automatically with `make fmt` when available.
 
@@ -137,7 +137,7 @@ The build system includes automatic Markdown linting:
 
 Spell checking for both Markdown and Go source files:
 
-- Detects cspell via pnpx.
+- Detects cspell via dlx.
 - British English configuration in `internal/build/cspell.json`.
 - New `check-spelling` target.
 - Integrated into `make tidy`.
@@ -148,7 +148,7 @@ Spell checking for both Markdown and Go source files:
 
 Grammar and style checking for Markdown files:
 
-- Detects LanguageTool via pnpx.
+- Detects LanguageTool via dlx.
 - British English configuration in `internal/build/languagetool.cfg`.
 - New `check-grammar` target.
 - Checks for missing articles, punctuation, and proper hyphenation.
@@ -157,7 +157,7 @@ Grammar and style checking for Markdown files:
 
 Shell script analysis for all `.sh` files:
 
-- Detects shellcheck via pnpx.
+- Detects shellcheck via dlx.
 - New `check-shell` target.
 - Integrated into `make tidy`.
 - Uses inline disable directives for SC1007 (empty assignments) and SC3043
@@ -285,8 +285,8 @@ When editing markdown files, ensure compliance with:
 - **LanguageTool**: Check for missing articles ("a", "an", "the"), punctuation,
   and proper hyphenation of compound modifiers.
 - **Markdownlint**: Follow standard Markdown formatting rules.
-- **Line Length**: Keep lines at 80 characters or less (enforced by
-  .editorconfig).
+- **Line Length**: Keep prose at 80 characters or less; code blocks
+  may extend to 120 (enforced by markdownlint).
 
 ### Common Documentation Issues to Check
 
@@ -328,7 +328,8 @@ When creating or editing documentation files:
      (e.g., revive.toml).
 
 2. **Formatting Consistency**:
-   - **Line Length**: Wrap lines at 80 characters maximum.
+   - **Line Length**: Wrap prose lines at 80 characters; code blocks
+     may extend to 120.
    - End all bullet points with periods for consistency.
    - Capitalize proper nouns correctly (JavaScript, TypeScript, Markdown).
    - Use consistent punctuation in examples and lists.
@@ -339,7 +340,7 @@ When creating or editing documentation files:
    - Add blank lines before and after lists, code blocks, and headings.
    - End files with exactly one newline character.
    - Avoid spaces inside emphasis markers (use `_text_` not `_ text _`).
-   - Follow all markdownlint rules (run `pnpx markdownlint-cli *.md`).
+   - Follow all markdownlint rules (run `pnpm dlx markdownlint-cli *.md`).
 
 4. **Clarity and Context**:
    - Provide context for AI agents and developers alike.
@@ -378,7 +379,7 @@ make tidy
 make check-grammar
 ```
 
-LanguageTool is automatically installed via npm (using pnpx) when available.
+LanguageTool is automatically installed via npm (`pnpm dlx`) when available.
 It checks both Markdown documentation and Go source files (comments and
 strings). The following rules are disabled for technical documentation
 compatibility:

@@ -179,6 +179,7 @@ func NewHTTPError(code int, err error, note string) *HTTPError {
 		err = core.Wrap(err, note)
 	case note != "":
 		err = errors.New(note)
+	default:
 	}
 
 	return &HTTPError{Err: err, Code: code}
@@ -210,6 +211,7 @@ func ErrorText(code int) string {
 		text = fmt.Sprintf("Unknown Error %d", code)
 	case code >= 400:
 		text = fmt.Sprintf("%s (Error %d)", text, code)
+	default:
 	}
 
 	return text

@@ -165,6 +165,7 @@ func prepareNewConfig(cfg *Config, options ...OptionFunc) (*Config, error) {
 		cfg = new(Config)
 	case cfg.busy():
 		return nil, ErrConfigBusy
+	default:
 	}
 
 	for _, fn := range options {

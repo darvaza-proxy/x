@@ -537,6 +537,7 @@ func (fm *embedMeta) getContentType(fSys *EmbedFS) string {
 			fm.ct = ct
 			return ct
 		}
+	default:
 	}
 
 	return ""

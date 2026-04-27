@@ -274,22 +274,13 @@ func runTestJSONRenderer(t *testing.T) {
 	core.AssertNotNil(t, r.r, "legacy renderer should be set")
 
 	// Check if any JSON renderer was registered
-	// (the key is normalized without space after semicolon)
-	found := false
-	var actualKey string
-	for key := range r.r {
-		if key == testJSONMediaType {
-			found = true
-			actualKey = key
-			break
-		}
-	}
+	_, found := r.r[testJSONMediaType]
 	core.AssertTrue(t, found, "JSON legacy renderer should be registered")
 
 	// Test that the renderer works
 	rw := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/", nil)
-	err := r.r[actualKey](rw, req, "test")
+	err := r.r[testJSONMediaType](rw, req, "test")
 	core.AssertNoError(t, err, "legacy renderer call")
 	core.AssertEqual(t, "LEGACY: test", rw.Body.String(), "response from legacy renderer")
 }
@@ -307,21 +298,13 @@ func runTestJSONRendererWithCode(t *testing.T) {
 	core.AssertNotNil(t, r.rc, "code-aware renderer map should exist")
 
 	// Check if any JSON renderer was registered in code-aware map
-	found := false
-	var actualKey string
-	for key := range r.rc {
-		if key == testJSONMediaType {
-			found = true
-			actualKey = key
-			break
-		}
-	}
+	_, found := r.rc[testJSONMediaType]
 	core.AssertTrue(t, found, "JSON code-aware renderer should be registered")
 
 	// Test that the renderer works
 	rw := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/", nil)
-	err := r.rc[actualKey](rw, req, http.StatusCreated, "test")
+	err := r.rc[testJSONMediaType](rw, req, http.StatusCreated, "test")
 	core.AssertNoError(t, err, "code-aware renderer call")
 	core.AssertEqual(t, http.StatusCreated, rw.Code, "status code from code-aware renderer")
 	core.AssertEqual(t, "CODE_AWARE: test", rw.Body.String(), "response from code-aware renderer")

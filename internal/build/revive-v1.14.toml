@@ -33,8 +33,10 @@ enableAllRules = true
   disabled = true
 [rule.banned-characters]
   disabled = true
-# This repo intentionally names its sub-modules after Go stdlib
-# packages (net, sync, fs, tls, cmp, container, web, config) as a
-# drop-in extension pattern. The rule is a false positive here.
-[rule.package-naming]
-  disabled = true
+# Config variant for revive v1.14.0 (Go 1.24 tier). The `package-naming`
+# rule (disabled in revive.toml to permit stdlib-shadowing sub-module
+# names) was introduced in v1.15.0. In v1.14.0 the equivalent check
+# lives inside `var-naming` and is controlled via the third argument's
+# `skipPackageNameCollisionWithGoStd` option.
+[rule.var-naming]
+  arguments = [[], [], [{skipPackageNameCollisionWithGoStd = true}]]

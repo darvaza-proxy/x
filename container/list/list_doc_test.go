@@ -6,11 +6,16 @@ import (
 	"darvaza.org/x/container/list"
 )
 
+// printLn wraps fmt.Println to drop the byte-count and error
+// returns that revive's unhandled-error rule would otherwise
+// flag in every Example body.
+func printLn(args ...any) { _, _ = fmt.Println(args...) }
+
 func ExampleNew() {
 	// Create a new list with initial values
 	l := list.New(1, 2, 3)
-	fmt.Println("Length:", l.Len())
-	fmt.Println("Values:", l.Values())
+	printLn("Length:", l.Len())
+	printLn("Values:", l.Values())
 	// Output:
 	// Length: 3
 	// Values: [1 2 3]
@@ -20,7 +25,7 @@ func ExampleList_PushFront() {
 	l := list.New[string]()
 	l.PushBack("world")
 	l.PushFront("hello")
-	fmt.Println(l.Values())
+	printLn(l.Values())
 	// Output: [hello world]
 }
 
@@ -29,14 +34,14 @@ func ExampleList_PushBack() {
 	l.PushBack(1)
 	l.PushBack(2)
 	l.PushBack(3)
-	fmt.Println(l.Values())
+	printLn(l.Values())
 	// Output: [1 2 3]
 }
 
 func ExampleList_Front() {
 	l := list.New("first", "second", "third")
 	if v, ok := l.Front(); ok {
-		fmt.Println("Front:", v)
+		printLn("Front:", v)
 	}
 	// Output: Front: first
 }
@@ -44,7 +49,7 @@ func ExampleList_Front() {
 func ExampleList_Back() {
 	l := list.New("first", "second", "third")
 	if v, ok := l.Back(); ok {
-		fmt.Println("Back:", v)
+		printLn("Back:", v)
 	}
 	// Output: Back: third
 }
@@ -56,7 +61,7 @@ func ExampleList_ForEach() {
 		sum += v
 		return true // continue iteration
 	})
-	fmt.Println("Sum:", sum)
+	printLn("Sum:", sum)
 	// Output: Sum: 15
 }
 
@@ -67,7 +72,7 @@ func ExampleList_ForEach_earlyTermination() {
 		collected = append(collected, v)
 		return v < 3 // stop when v >= 3
 	})
-	fmt.Println("Collected:", collected)
+	printLn("Collected:", collected)
 	// Output: Collected: [1 2 3]
 }
 
@@ -77,7 +82,7 @@ func ExampleList_DeleteMatchFn() {
 	l.DeleteMatchFn(func(v int) bool {
 		return v%2 == 0
 	})
-	fmt.Println("After deletion:", l.Values())
+	printLn("After deletion:", l.Values())
 	// Output: After deletion: [1 3 5]
 }
 
@@ -87,7 +92,7 @@ func ExampleList_FirstMatchFn() {
 	if v, ok := l.FirstMatchFn(func(n int) bool {
 		return n%2 == 0
 	}); ok {
-		fmt.Println("First even:", v)
+		printLn("First even:", v)
 	}
 	// Output: First even: 2
 }
@@ -101,8 +106,8 @@ func ExampleList_Copy() {
 		}
 		return 0, false
 	})
-	fmt.Println("Original:", l.Values())
-	fmt.Println("Copied:", copied.Values())
+	printLn("Original:", l.Values())
+	printLn("Copied:", copied.Values())
 	// Output:
 	// Original: [1 2 3 4 5]
 	// Copied: [4 8]
@@ -112,8 +117,8 @@ func ExampleList_Clone() {
 	l := list.New("a", "b", "c")
 	cloned := l.Clone()
 	cloned.PushBack("d")
-	fmt.Println("Original:", l.Values())
-	fmt.Println("Cloned:", cloned.Values())
+	printLn("Original:", l.Values())
+	printLn("Cloned:", cloned.Values())
 	// Output:
 	// Original: [a b c]
 	// Cloned: [a b c d]

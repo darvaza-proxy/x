@@ -114,6 +114,7 @@ func (o *WrapFS) Open(name string) (fs.File, error) {
 		return out, nil
 	case err == nil:
 		err = fs.ErrNotExist
+	default:
 	}
 
 	return nil, newPathError("open", name, err)
@@ -134,6 +135,7 @@ func (o *WrapFS) Stat(name string) (fs.FileInfo, error) {
 		return out, nil
 	case err == nil:
 		err = fs.ErrNotExist
+	default:
 	}
 
 	return nil, newPathError("stat", name, err)
@@ -158,6 +160,7 @@ func (o *WrapFS) ReadFile(name string) ([]byte, error) {
 		return out, nil
 	case err == nil:
 		err = fs.ErrNotExist
+	default:
 	}
 
 	return nil, newPathError("readfile", name, err)
