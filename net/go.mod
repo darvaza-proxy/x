@@ -6,7 +6,7 @@ require (
 	darvaza.org/core v0.19.0
 	darvaza.org/slog v0.9.0
 	darvaza.org/slog/handlers/discard v0.7.0
-	darvaza.org/x/fs v0.5.3
+	darvaza.org/x/fs v0.6.0
 	github.com/amery/defaults v0.1.0
 )
 
