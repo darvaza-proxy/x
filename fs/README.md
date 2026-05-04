@@ -18,7 +18,13 @@
 
 We use the excellent [github.com/gobwas/glob](https://github.com/gobwas/glob)
 to compile file listing patterns, and `**` is supported to ignore the `/`
-delimiters
+delimiters.
+
+`GlobCompile` adds one adjustment to gobwas: a leading `**/` matches at any
+depth including the root, so `**/foo` matches `foo`, `a/foo` and `a/b/foo`.
+Embedded `/**/` (e.g. `a/**/b`) matches zero or more directory segments.
+The depth-strict `*/foo` form is unaffected — it still requires at least
+one segment ahead.
 
 * `Matcher` a type alias of glob.Glob to keep the import-space clean
 * `GlobCompile` compiles a list of patterns
@@ -96,9 +102,10 @@ include aliases and proxies of commonly used symbols.
 
 * `fs.ErrInvalid`
 * `fs.ErrPermission`
-* `fs.ErrExists`
-* `fs.ErrNotExists`
+* `fs.ErrExist`
+* `fs.ErrNotExist`
 * `fs.ErrClosed`
+* `fs.ErrUnsupported`
 
 ### Functions
 

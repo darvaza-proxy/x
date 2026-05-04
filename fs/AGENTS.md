@@ -14,7 +14,8 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 
 - **Extended FS Interfaces**: Additional filesystem interfaces matching `os`
   package functionality.
-- **Advanced Globbing**: Pattern matching with `**` support via gobwas/glob.
+- **Advanced Globbing**: Pattern matching with `**` support via gobwas/glob;
+  leading `**/X` matches at any depth including the root.
 - **Path Utilities**: Enhanced path cleaning and splitting.
 - **File Locking**: Cross-platform file locking support.
 - **IO Utilities**: Helper functions for common file operations.

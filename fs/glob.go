@@ -2,6 +2,7 @@ package fs
 
 import (
 	"io/fs"
+	"strings"
 
 	"github.com/gobwas/glob"
 
@@ -12,12 +13,18 @@ import (
 type Matcher = glob.Glob
 
 // GlobCompile compiles a list of file globbing patterns using
-// https://github.com/gobwas/glob
+// https://github.com/gobwas/glob with one adjustment: a leading
+// `**/` matches at any depth including the root, so `**/foo`
+// matches `foo`, `a/foo` and `a/b/foo`. Embedded `/**/`
+// (e.g. `a/**/b`) matches zero or more directory segments.
+// The depth-strict `*/foo` form is unaffected — it still
+// requires at least one segment ahead. The bare `**/` form
+// (no tail) is left to gobwas.
 func GlobCompile(patterns ...string) ([]Matcher, error) {
 	out := make([]Matcher, 0, len(patterns))
 
 	for _, pat := range patterns {
-		g, err := glob.Compile(pat, '/')
+		g, err := compileAnyDepth(pat)
 		if err != nil {
 			return nil, err
 		}
@@ -25,6 +32,42 @@ func GlobCompile(patterns ...string) ([]Matcher, error) {
 	}
 
 	return out, nil
+}
+
+// compileAnyDepth compiles a pattern, with leading `**/X` semantics
+// implemented as the OR of the root form `X` and the original
+// `**/X`. Composing two compiled matchers sidesteps a gobwas brace-
+// alternation quirk that drops `**` semantics under `{...}`.
+// Patterns that don't start with `**/`, or whose tail is empty,
+// compile straight through.
+func compileAnyDepth(pat string) (Matcher, error) {
+	rest, ok := strings.CutPrefix(pat, "**/")
+	if !ok || rest == "" {
+		return glob.Compile(pat, '/')
+	}
+	root, err := glob.Compile(rest, '/')
+	if err != nil {
+		return nil, err
+	}
+	deep, err := glob.Compile(pat, '/')
+	if err != nil {
+		return nil, err
+	}
+	return anyMatcher{root, deep}, nil
+}
+
+// anyMatcher composes two or more compiled patterns into a single
+// Matcher that returns true if any constituent matches.
+type anyMatcher []glob.Glob
+
+// Match returns true if any of the wrapped matchers accept s.
+func (am anyMatcher) Match(s string) bool {
+	for _, g := range am {
+		if g.Match(s) {
+			return true
+		}
+	}
+	return false
 }
 
 // Glob returns all entries matching any of the given patterns.
@@ -81,7 +124,7 @@ func MatchFunc(fSys fs.FS, root string, check func(string, fs.DirEntry) bool) ([
 	case GlobFS:
 		return globMatchFunc(x, dir, check)
 	default:
-		return nil, core.ErrNotImplemented
+		return nil, &fs.PathError{Op: "match", Path: dir, Err: ErrUnsupported}
 	}
 }
 
@@ -107,7 +150,7 @@ func globMatchFunc(fSys fs.GlobFS, root string, check func(string, fs.DirEntry) 
 	ss, err := fSys.Glob("**")
 	switch {
 	case err != nil:
-		return nil, core.ErrNotImplemented
+		return nil, err
 	case len(ss) == 0:
 		return ss, nil
 	default:

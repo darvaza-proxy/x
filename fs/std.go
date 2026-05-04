@@ -1,6 +1,9 @@
 package fs
 
-import "io/fs"
+import (
+	"errors"
+	"io/fs"
+)
 
 type (
 	// FileInfo is an alias of the standard [fs.FileInfo] type.
@@ -24,6 +27,11 @@ var (
 	ErrNotExist = fs.ErrNotExist
 	// ErrClosed is an alias of the standard [fs.ErrClosed] constant.
 	ErrClosed = fs.ErrClosed
+	// ErrUnsupported is an alias of the standard [errors.ErrUnsupported]
+	// constant. Use it when a filesystem implementation lacks an optional
+	// capability (e.g. base FS doesn't implement [ReadlinkFS]). Distinct
+	// from [ErrInvalid], which signals a malformed argument.
+	ErrUnsupported = errors.ErrUnsupported
 )
 
 // ValidPath is a proxy to the standard [fs.ValidPath]
