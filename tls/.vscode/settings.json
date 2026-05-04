@@ -1,6 +1,6 @@
 {
-  "cSpell.words": [
-    "certpool",
-    "darvaza"
-  ]
+  "cSpell.import": [
+    "../../internal/build/cspell.json"
+  ],
+  "cSpell.language": "en-GB"
 }
