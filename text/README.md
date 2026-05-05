@@ -16,11 +16,42 @@
 
 ## Overview
 
-`darvaza.org/x/text` hosts shared text-processing primitives. The first
-inhabitant is the [`lexer`](lexer) subpackage; further building blocks land
-here as concrete users surface them.
+`darvaza.org/x/text` hosts shared text-processing primitives. Subpackages
+land here as concrete users surface them.
 
 ## Subpackages
+
+### `buffer`
+
+A chainable wrapper around `strings.Builder` for the "write many,
+export once" pattern used by lexers, parsers, and similar text
+emitters.
+
+* `Buffer` — wrapper type. Chainable helpers (`WriteStrings`,
+  `WriteRunes`, `WriteBytes`, `Print`, `Println`, `Printf`, `Grow`,
+  `Reset`) discard errors and return `*Buffer` for fluent
+  composition.
+* Standard interfaces (`io.Writer`, `io.WriterTo`, `io.StringWriter`,
+  `io.ByteWriter`) keep their stdlib signatures, so the buffer plugs
+  directly into `fmt.Fprintf`, `io.Copy`, and similar.
+* `Bytes()` exposes a non-nil byte view aliasing the internal
+  storage. Read-only — mutating it also mutates every previously
+  returned `String()`. Copy out (`append([]byte(nil), buf.Bytes()...)`)
+  before handing to anything that may mutate.
+* `WriteTo(w)` drains the buffer on success (storage is discarded,
+  ready for reuse). On error it leaves the buffer intact so the
+  caller can retry or inspect the unsent payload.
+* `New(capacity int) *Buffer` — factory with pre-allocated storage.
+
+```go
+var buf buffer.Buffer
+buf.WriteStrings(`{"id":`).Printf("%d", 42).WriteRunes('}')
+fmt.Println(buf.String())
+// {"id":42}
+```
+
+Single-use semantics: build, export, discard. Inherits
+`strings.Builder`'s no-copy contract.
 
 ### `lexer`
 

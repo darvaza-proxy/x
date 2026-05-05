@@ -1,8 +1,9 @@
 package lexer
 
 import (
-	"strings"
 	"unicode/utf8"
+
+	"darvaza.org/x/text/buffer"
 )
 
 // Cursor is a UTF-8-aware read cursor over a string source with an
@@ -12,7 +13,7 @@ import (
 // The zero Cursor is not usable; construct one with [New].
 type Cursor struct {
 	src string
-	out strings.Builder
+	out buffer.Buffer
 	pos int
 }
 
@@ -60,12 +61,12 @@ func (c *Cursor) Consume() (r rune, ok bool) {
 
 // Keep appends s to the emit buffer.
 func (c *Cursor) Keep(s string) {
-	_, _ = c.out.WriteString(s)
+	c.out.WriteStrings(s)
 }
 
 // KeepRune appends r to the emit buffer.
 func (c *Cursor) KeepRune(r rune) {
-	_, _ = c.out.WriteRune(r)
+	c.out.WriteRunes(r)
 }
 
 // EmitRest appends the remaining input to the emit buffer and
