@@ -1,5 +1,6 @@
 {
-  "cSpell.words": [
-    "darvaza"
-  ]
+  "cSpell.import": [
+    "../../internal/build/cspell.json"
+  ],
+  "cSpell.language": "en-GB"
 }

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
   "version": "0.2",
   "name": "x",
   "language": "en-GB",
@@ -42,6 +41,7 @@
     "Errorf",
     "flock",
     "fontawesome",
+    "Fprintf",
     "fssyscall",
     "fsys",
     "gobwas",
@@ -56,6 +56,8 @@
     "ipnet",
     "laddr",
     "languagetool",
+    "lexer",
+    "lexers",
     "lukechampine",
     "matchfunc",
     "mimerange",

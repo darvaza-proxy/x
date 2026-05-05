@@ -61,6 +61,11 @@ bind helpers, and reconnect client.
 [darvaza.org/x/sync][x-sync] provides advanced synchronization primitives
 including mutexes, semaphores, barriers, and workgroups.
 
+### Text
+
+[darvaza.org/x/text][x-text] provides shared text-processing primitives,
+including a state-function lexer toolkit.
+
 ### TLS
 
 [darvaza.org/x/tls][x-tls] provides helpers to work with TLS connections
@@ -99,6 +104,7 @@ graph TB
         sync[x/sync<br/>Sync primitives]
         fs[x/fs<br/>Filesystem utilities]
         container[x/container<br/>Data structures]
+        text[x/text<br/>Text-processing primitives]
     end
 
     subgraph "darvaza.org/x - Tier 2 (Dependent)"
@@ -125,6 +131,7 @@ graph TB
     core --> sync
     core --> fs
     core --> container
+    core --> text
 
     %% x/ Tier 2 dependencies
     fs --> net
@@ -151,7 +158,7 @@ graph TB
     classDef highlevel fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
 
     class core,slog,cache core
-    class cmp,config,sync,fs,container tier1
+    class cmp,config,sync,fs,container,text tier1
     class net,web,tls tier2
     class stdlib,ext external
     class resolver,penne,sidecar highlevel
@@ -191,6 +198,7 @@ graph TB
   * [darvaza.org/x/fs][x-fs]
   * [darvaza.org/x/net][x-net]
   * [darvaza.org/x/sync][x-sync]
+  * [darvaza.org/x/text][x-text]
   * [darvaza.org/x/tls][x-tls]
   * [darvaza.org/x/web][x-web]
 * _darvaza servers_:
@@ -210,5 +218,6 @@ graph TB
 [x-fs]: https://pkg.go.dev/darvaza.org/x/fs
 [x-net]: https://pkg.go.dev/darvaza.org/x/net
 [x-sync]: https://pkg.go.dev/darvaza.org/x/sync
+[x-text]: https://pkg.go.dev/darvaza.org/x/text
 [x-tls]: https://pkg.go.dev/darvaza.org/x/tls
 [x-web]: https://pkg.go.dev/darvaza.org/x/web
