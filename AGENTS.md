@@ -14,7 +14,7 @@ utility libraries that extend Go's standard library capabilities.
 
 Before starting development, ensure you have:
 
-- Go 1.23 or later installed (check with `go version`).
+- Go 1.24 or later installed (check with `go version`).
 - `make` command available (usually pre-installed on Unix systems).
 - `$GOPATH` configured correctly (typically `~/go`).
 - Git configured for proper line endings.
@@ -74,7 +74,7 @@ go mod tidy
 
 - **Minimal dependencies**: Primarily the Go standard library and minimal
   golang.org/x packages.
-- **Generic programming**: Extensive use of Go 1.23+ generics for
+- **Generic programming**: Extensive use of Go 1.24+ generics for
   type-safe utilities.
 - **Interface-driven design**: For extensibility and testability.
 - **Common foundation**: Each package depends on `darvaza.org/core` for
@@ -187,8 +187,8 @@ GitHub Actions workflows split for better performance:
   only.
 - **Test workflow** (`.github/workflows/test.yml`): Dedicated testing
   pipeline.
-  - Race condition detection job with Go 1.23.
-  - Multi-version testing matrix (Go 1.23 and 1.24).
+  - Race condition detection job with Go 1.26.
+  - Multi-version testing matrix (Go 1.24, 1.25 and 1.26).
   - Conditional execution to avoid duplicate runs on PRs.
 - Workflows skip branches ending in `-wip`.
 - Improves parallelism and reduces redundant work.
@@ -269,7 +269,7 @@ configurations for debugging, coverage analysis, or CI/CD pipelines.
 
 ## Important Notes
 
-- Go 1.23 is the minimum required version.
+- Go 1.24 is the minimum required version.
 - Each package maintains its own README.md and AGENTS.md.
 - The Makefile dynamically generates rules for subprojects.
 - Tool versions (golangci-lint, revive) are selected based on Go version.
