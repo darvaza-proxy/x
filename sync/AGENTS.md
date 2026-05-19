@@ -20,6 +20,14 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 
 ### Subpackages
 
+#### atomic Package
+
+- Shadows and re-exports the standard library `sync/atomic` types
+  (`Bool`, `Int32`, `Int64`, `Uint32`, `Uint64`, `Uintptr`, `Value`,
+  `Pointer[T]`).
+- **`BitmaskOr`**: Atomic bit-mask OR returning a per-mask first-writer flag.
+- **`UpdateMax`**: Atomic monotonic max update.
+
 #### cond Package
 
 - **`Barrier`**: Token-based coordination primitive.
