@@ -260,7 +260,7 @@ go tool cover -html=coverage.out
 
 1. The Makefile defines `GOTEST_FLAGS ?=` (empty by default).
 2. The generated rules use it in the test target:
-   `$(GO) test $(GOTEST_FLAGS) ./...`.
+   `$(GO) test -count=1 $(GOTEST_FLAGS) ./...`.
 3. Any flags passed via `GOTEST_FLAGS` are forwarded directly to `go test`.
 
 This provides a clean interface for passing arbitrary test flags without
