@@ -59,6 +59,21 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 
 - **`Group`**: Context-aware task coordination and lifecycle management.
 
+#### internal/synctesting Package (test-only)
+
+Timing-aware Assert* helpers for tests that wait on channels or
+synchronisation primitives. Consumed by sibling test suites in `sync/`
+via the `internal/` visibility boundary; not part of the public API.
+
+- **`WaitForCond`**: pure-primitive predicate polling.
+- **`AssertEventually`/`AssertMustEventually`**: wait for a predicate
+  to become true within a budget.
+- **`AssertClosed`/`AssertMustClosed`**: wait for a channel to become
+  readable (close-to-signal idiom).
+- **`AssertOpen`/`AssertMustOpen`**: assert a channel stays open.
+- **`AssertReadersReady`/`AssertMustReadersReady`**: collect n values
+  from a channel within a shared timeout; close-before-n is failure.
+
 ## Architecture Notes
 
 The package follows several design principles:
@@ -90,6 +105,10 @@ Tests focus on:
 - Context cancellation scenarios.
 - Performance benchmarks (especially for spinlock and count).
 - Edge cases (nil receivers, double initialization).
+
+For tests that wait on channels or synchronisation primitives, use the
+timing-aware helpers in `internal/synctesting` rather than ad-hoc
+`time.After` or polling loops.
 
 ## Common Usage Patterns
 
