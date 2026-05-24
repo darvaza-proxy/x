@@ -2,40 +2,51 @@ package cond
 
 import "darvaza.org/core"
 
-// makeAnyMatch creates a function that returns true if any of the provided
-// functions return true when applied to a value.
-// The returned function evaluates each predicate in sequence and returns early
-// on the first match.
-//
-//revive:disable-next-line:cognitive-complexity
-func makeAnyMatch[T any](funcs []func(T) bool) func(T) bool {
-	// remove nil entries
-	funcs = core.SliceCopyFn(funcs, func(_ []func(T) bool, fn func(T) bool) (func(T) bool, bool) {
-		return fn, fn != nil
-	})
+// sanitiseFuncs returns a copy of funcs with nil entries removed, preserving
+// the order of the surviving predicates.
+func sanitiseFuncs[T any](funcs []func(T) bool) []func(T) bool {
+	return core.SliceCopyFn(funcs,
+		func(_ []func(T) bool, fn func(T) bool) (func(T) bool, bool) {
+			return fn, fn != nil
+		})
+}
 
-	switch len(funcs) {
-	case 0:
-		// unconstrained
-		return func(_ T) bool { return true }
-	case 1:
-		// single case
-		return funcs[0]
-	default:
-		// any of the given conditions
-		return func(v T) bool {
-			for _, fn := range funcs {
-				if fn(v) {
-					return true
-				}
+// makeAnyOf returns a predicate that evaluates funcs in order and returns
+// true on the first match. Caller must ensure funcs has at least one entry
+// and no nil entries; use [makeAnyMatch] for the validating dispatcher.
+func makeAnyOf[T any](funcs []func(T) bool) func(T) bool {
+	return func(v T) bool {
+		for _, fn := range funcs {
+			if fn(v) {
+				return true
 			}
-			return false
 		}
+		return false
 	}
 }
 
-// isCancelled checks if the abort channel has been closed, indicating
-// cancellation. Returns true if the channel is closed, false otherwise.
+// makeAnyMatch returns a predicate that evaluates funcs in order and stops
+// at the first match. Nil entries are stripped first to avoid invoking them.
+// If no non-nil entries remain (empty input or all-nil), the returned
+// predicate always returns true — the "unconstrained" case Count relies on
+// when constructed without broadcast filters.
+func makeAnyMatch[T any](funcs []func(T) bool) func(T) bool {
+	funcs = sanitiseFuncs(funcs)
+
+	switch len(funcs) {
+	case 0:
+		return func(_ T) bool { return true }
+	case 1:
+		return funcs[0]
+	default:
+		return makeAnyOf(funcs)
+	}
+}
+
+// isCancelled reports whether a receive from abort would proceed without
+// blocking — the channel is closed or has a pending value. Nil and
+// open-empty channels report false. cond uses close-only signals at every
+// call site, but the helper itself does not assume that.
 func isCancelled(abort <-chan struct{}) bool {
 	select {
 	case <-abort:
