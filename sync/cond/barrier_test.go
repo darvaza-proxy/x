@@ -1,268 +1,498 @@
-package cond
+package cond_test
 
 import (
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"darvaza.org/core"
+	"darvaza.org/x/sync/cond"
+	"darvaza.org/x/sync/errors"
+	"darvaza.org/x/sync/internal/synctesting"
 )
 
-func TestBarrierIsNil(t *testing.T) {
-	t.Run("nil barrier", func(t *testing.T) {
-		var b *Barrier
-		assert.True(t, b.IsNil(), "nil barrier should return true for IsNil()")
-	})
+// barrierTestTimeout caps each foreground synchronisation step. Generous
+// enough to absorb scheduler jitter on loaded CI workers, tight enough
+// that a hung waiter fails the run instead of stalling.
+//
+// barrierOpenGuard bounds negative-case assertions ("did not signal"):
+// long enough to catch a spurious early close, short enough to keep the
+// test responsive.
+const (
+	barrierTestTimeout = time.Second
 
-	t.Run("uninitialized barrier", func(t *testing.T) {
-		b := &Barrier{}
-		assert.True(t, b.IsNil(), "uninitialized barrier should return true for IsNil()")
-	})
+	barrierOpenGuard = 20 * time.Millisecond
+)
 
-	t.Run("initialized barrier", func(t *testing.T) {
-		b := &Barrier{}
-		err := b.Init()
-		assert.NoError(t, err, "Init() should not return an error")
-		assert.False(t, b.IsNil(), "initialized barrier should return false for IsNil()")
-	})
+// barrierStateTestCase exercises IsNil and IsClosed for the same Barrier
+// state. Both methods read the same lifecycle, so the row carries both
+// expectations to keep the state matrix legible.
+type barrierStateTestCase struct {
+	name string
+
+	setup func() *cond.Barrier
+
+	wantNil    bool
+	wantClosed bool
 }
 
-// TestBarrierIsClosed verifies the behaviour of the IsClosed method
-// under various barrier states.
-func TestBarrierIsClosed(t *testing.T) {
-	t.Run("nil barrier", func(t *testing.T) {
-		var b *Barrier
-		assert.True(t, b.IsClosed(), "nil barrier should return true for IsClosed()")
-	})
-
-	t.Run("uninitialised barrier", func(t *testing.T) {
-		b := &Barrier{}
-		assert.True(t, b.IsClosed(),
-			"uninitialised barrier should return true for IsClosed()")
-	})
-
-	t.Run("initialised barrier", func(t *testing.T) {
-		b := &Barrier{}
-		err := b.Init()
-		assert.NoError(t, err, "Init() should not return an error")
-		assert.False(t, b.IsClosed(),
-			"initialised barrier should return false for IsClosed()")
-	})
-
-	t.Run("closed barrier", func(t *testing.T) {
-		b := NewBarrier()
-		err := b.Close()
-		assert.NoError(t, err, "Close() should not return an error")
-		assert.True(t, b.IsClosed(),
-			"closed barrier should return true for IsClosed()")
-	})
-
-	t.Run("after broadcast", func(t *testing.T) {
-		b := NewBarrier()
-		b.Broadcast()
-		assert.False(t, b.IsClosed(),
-			"barrier should not be closed after Broadcast()")
-	})
-}
-
-func TestBarrierInit(t *testing.T) {
-	b := &Barrier{}
-	err := b.Init()
-	assert.NoError(t, err, "Init() should not return an error")
-
-	// After initialization, we should be able to acquire a token
-	select {
-	case token := <-b.Acquire():
-		b.Release(token)
-		assert.True(t, true, "token was acquired successfully")
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "failed to acquire token after initialization")
+func newBarrierStateTestCase(name string, setup func() *cond.Barrier,
+	wantNil, wantClosed bool) barrierStateTestCase {
+	return barrierStateTestCase{
+		name:       name,
+		setup:      setup,
+		wantNil:    wantNil,
+		wantClosed: wantClosed,
 	}
 }
 
-func TestBarrierAcquireRelease(t *testing.T) {
-	b := &Barrier{}
-	defer b.Close()
+func (tc barrierStateTestCase) Name() string { return tc.name }
 
+func (tc barrierStateTestCase) Test(t *testing.T) {
+	t.Helper()
+	b := tc.setup()
+	core.AssertEqual(t, tc.wantNil, b.IsNil(), "IsNil")
+	core.AssertEqual(t, tc.wantClosed, b.IsClosed(), "IsClosed")
+}
+
+var _ core.TestCase = barrierStateTestCase{}
+
+func barrierStateTestCases() []barrierStateTestCase {
+	return []barrierStateTestCase{
+		newBarrierStateTestCase("nil pointer",
+			func() *cond.Barrier { return nil },
+			true, true),
+		newBarrierStateTestCase("uninitialised",
+			func() *cond.Barrier { return &cond.Barrier{} },
+			true, true),
+		newBarrierStateTestCase("initialised",
+			func() *cond.Barrier { return cond.NewBarrier() },
+			false, false),
+		newBarrierStateTestCase("closed",
+			func() *cond.Barrier {
+				b := cond.NewBarrier()
+				_ = b.Close()
+				return b
+			},
+			false, true),
+		newBarrierStateTestCase("after broadcast",
+			func() *cond.Barrier {
+				b := cond.NewBarrier()
+				b.Broadcast()
+				return b
+			},
+			false, false),
+	}
+}
+
+// TestBarrierState verifies IsNil and IsClosed across every reachable
+// lifecycle state.
+func TestBarrierState(t *testing.T) {
+	core.RunTestCases(t, barrierStateTestCases())
+}
+
+// barrierInitTestCase exercises Init across receiver and prior-state
+// conditions.
+type barrierInitTestCase struct {
+	name string
+
+	setup func() *cond.Barrier
+
+	wantErr error
+}
+
+func newBarrierInitTestCase(name string, setup func() *cond.Barrier,
+	wantErr error) barrierInitTestCase {
+	return barrierInitTestCase{name: name, setup: setup, wantErr: wantErr}
+}
+
+func (tc barrierInitTestCase) Name() string { return tc.name }
+
+func (tc barrierInitTestCase) Test(t *testing.T) {
+	t.Helper()
+	b := tc.setup()
 	err := b.Init()
-	assert.NoError(t, err, "Init() should not return an error")
-
-	// First acquisition should succeed immediately
-	var token Token
-	select {
-	case token = <-b.Acquire():
-		assert.NotNil(t, token, "acquired token should not be nil")
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "failed to acquire token")
+	if tc.wantErr == nil {
+		core.AssertNoError(t, err, "Init")
 		return
 	}
+	core.AssertErrorIs(t, err, tc.wantErr, "Init error")
+}
 
-	// Second acquisition should block (we'll test with a goroutine)
-	var wg sync.WaitGroup
-	wg.Add(1)
+var _ core.TestCase = barrierInitTestCase{}
 
-	secondAcquired := false
-	go func() {
-		defer wg.Done()
-		select {
-		case <-b.Acquire():
-			secondAcquired = true
-		case <-time.After(50 * time.Millisecond):
-			// This should timeout as we haven't released yet
-		}
-	}()
+func barrierInitTestCases() []barrierInitTestCase {
+	return []barrierInitTestCase{
+		newBarrierInitTestCase("nil receiver",
+			func() *cond.Barrier { return nil },
+			errors.ErrNilReceiver),
+		newBarrierInitTestCase("already initialised",
+			func() *cond.Barrier {
+				b := &cond.Barrier{}
+				_ = b.Init()
+				return b
+			},
+			errors.ErrAlreadyInitialised),
+		newBarrierInitTestCase("fresh succeeds",
+			func() *cond.Barrier { return &cond.Barrier{} },
+			nil),
+	}
+}
 
-	// Wait for the goroutine to finish its attempt
-	wg.Wait()
-	assert.False(t, secondAcquired, "second acquire should not succeed while token is held")
+// TestBarrierInit verifies Init's receiver and prior-state error paths
+// alongside the happy path.
+func TestBarrierInit(t *testing.T) {
+	core.RunTestCases(t, barrierInitTestCases())
+}
 
-	// Now release the token
+// barrierCloseTestCase exercises Close across receiver and prior-state
+// conditions.
+type barrierCloseTestCase struct {
+	name string
+
+	setup func() *cond.Barrier
+
+	wantErr error
+}
+
+func newBarrierCloseTestCase(name string, setup func() *cond.Barrier,
+	wantErr error) barrierCloseTestCase {
+	return barrierCloseTestCase{name: name, setup: setup, wantErr: wantErr}
+}
+
+func (tc barrierCloseTestCase) Name() string { return tc.name }
+
+func (tc barrierCloseTestCase) Test(t *testing.T) {
+	t.Helper()
+	b := tc.setup()
+	err := b.Close()
+	if tc.wantErr == nil {
+		core.AssertNoError(t, err, "Close")
+		return
+	}
+	core.AssertErrorIs(t, err, tc.wantErr, "Close error")
+}
+
+var _ core.TestCase = barrierCloseTestCase{}
+
+func barrierCloseTestCases() []barrierCloseTestCase {
+	return []barrierCloseTestCase{
+		newBarrierCloseTestCase("nil receiver",
+			func() *cond.Barrier { return nil },
+			errors.ErrNilReceiver),
+		newBarrierCloseTestCase("uninitialised",
+			func() *cond.Barrier { return &cond.Barrier{} },
+			errors.ErrNotInitialised),
+		newBarrierCloseTestCase("happy path",
+			func() *cond.Barrier { return cond.NewBarrier() },
+			nil),
+		newBarrierCloseTestCase("double close",
+			func() *cond.Barrier {
+				b := cond.NewBarrier()
+				_ = b.Close()
+				return b
+			},
+			errors.ErrClosed),
+	}
+}
+
+// TestBarrierClose verifies Close's receiver and prior-state error paths
+// alongside the happy path. The internal `!ok` branch (channel closed
+// between the closed-flag check and the receive) is the queued-Close
+// handler for two concurrent Closers; driving it under -race trips the
+// pre-existing data race on bs.closed, so its test is deferred to the
+// follow-up commit that makes the field atomic.
+func TestBarrierClose(t *testing.T) {
+	core.RunTestCases(t, barrierCloseTestCases())
+}
+
+// barrierTryAcquireTestCase exercises TryAcquire across the three
+// observable token states: available, held by another acquirer, and
+// already closed. The closed state takes the channel-receive branch with
+// ok=false, distinct from the default branch taken when the channel is
+// open but empty.
+type barrierTryAcquireTestCase struct {
+	name string
+
+	setup func() *cond.Barrier
+
+	wantOk bool
+}
+
+func newBarrierTryAcquireTestCase(name string, setup func() *cond.Barrier,
+	wantOk bool) barrierTryAcquireTestCase {
+	return barrierTryAcquireTestCase{name: name, setup: setup, wantOk: wantOk}
+}
+
+func (tc barrierTryAcquireTestCase) Name() string { return tc.name }
+
+func (tc barrierTryAcquireTestCase) Test(t *testing.T) {
+	t.Helper()
+	b := tc.setup()
+	token, ok := b.TryAcquire()
+	core.AssertEqual(t, tc.wantOk, ok, "ok")
+	if tc.wantOk {
+		core.AssertNotNil(t, token, "token")
+		b.Release(token)
+		return
+	}
+	core.AssertNil(t, token, "token")
+}
+
+var _ core.TestCase = barrierTryAcquireTestCase{}
+
+func barrierTryAcquireTestCases() []barrierTryAcquireTestCase {
+	return []barrierTryAcquireTestCase{
+		newBarrierTryAcquireTestCase("fresh barrier yields token",
+			func() *cond.Barrier { return cond.NewBarrier() },
+			true),
+		// The Barrier returned here is intentionally left in a
+		// permanently-held state: the token is received but never
+		// released, so the Barrier cannot be Close()d cleanly. Acceptable
+		// because each row owns a fresh Barrier that the GC reclaims
+		// after the subtest.
+		newBarrierTryAcquireTestCase("held barrier reports unavailable",
+			func() *cond.Barrier {
+				b := cond.NewBarrier()
+				<-b.Acquire()
+				return b
+			},
+			false),
+		newBarrierTryAcquireTestCase("closed barrier reports unavailable",
+			func() *cond.Barrier {
+				b := cond.NewBarrier()
+				_ = b.Close()
+				return b
+			},
+			false),
+	}
+}
+
+// TestBarrierTryAcquire verifies TryAcquire across every observable
+// state.
+func TestBarrierTryAcquire(t *testing.T) {
+	core.RunTestCases(t, barrierTryAcquireTestCases())
+}
+
+// TestBarrierAcquireRelease verifies that an outstanding acquisition
+// blocks a second acquirer until the first releases.
+func TestBarrierAcquireRelease(t *testing.T) {
+	b := cond.NewBarrier()
+	defer func() { _ = b.Close() }()
+
+	token := <-b.Acquire()
+	core.AssertMustNotNil(t, token, "first acquire")
+
+	synctesting.AssertOpen(t, b.Acquire(), barrierOpenGuard,
+		"second acquire blocked while held")
+
 	b.Release(token)
 
-	// Now we should be able to acquire again
-	select {
-	case token = <-b.Acquire():
-		b.Release(token)
-		assert.NotNil(t, token, "token should be acquirable after release")
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "failed to acquire token after release")
-	}
+	got, ok := b.TryAcquire()
+	core.AssertTrue(t, ok, "TryAcquire after release")
+	core.AssertNotNil(t, got, "TryAcquire token after release")
+	b.Release(got)
 }
 
-func TestBarrierToken(t *testing.T) {
-	b := &Barrier{}
-	err := b.Init()
-	assert.NoError(t, err, "Init() should not return an error")
+// TestBarrierTokenNonConsuming verifies Token returns the live token
+// without draining it from the barrier: acquisition still succeeds
+// afterwards.
+func TestBarrierTokenNonConsuming(t *testing.T) {
+	b := cond.NewBarrier()
+	defer func() { _ = b.Close() }()
 
-	// Get should not remove the token from the barrier
-	token := b.Token()
-	require.NotNil(t, token, "token should not be nil")
+	core.AssertMustNotNil(t, b.Token(), "Token")
 
-	// We should still be able to acquire after Get
-	select {
-	case acquired := <-b.Acquire():
-		b.Release(acquired)
-		assert.NotNil(t, acquired, "token should be acquirable after Get")
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "failed to acquire token after Get")
-	}
+	token, ok := b.TryAcquire()
+	core.AssertTrue(t, ok, "TryAcquire after Token")
+	core.AssertNotNil(t, token, "token after Token")
+	b.Release(token)
 }
 
-func TestBarrierReset(t *testing.T) {
-	b := &Barrier{}
-	_ = b.Init()
+// TestBarrierBroadcast verifies Broadcast closes the current Token and
+// installs a fresh one.
+func TestBarrierBroadcast(t *testing.T) {
+	b := cond.NewBarrier()
+	defer func() { _ = b.Close() }()
 
-	// Get the initial token
-	initialToken := b.Token()
-	require.NotNil(t, initialToken, "initial token should not be nil")
+	original := b.Token()
+	core.AssertMustNotNil(t, original, "original token")
 
-	// Set up a goroutine that waits on the token
-	waitComplete := false
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		initialToken.Wait() // Should block until Reset closes the token
-		waitComplete = true
-	}()
-
-	// Broadcast the barrier to release the goroutine
 	b.Broadcast()
 
-	// Wait for the goroutine to complete
-	wg.Wait()
-	assert.True(t, waitComplete, "Wait() should have completed after Reset()")
+	synctesting.AssertClosed(t, original, barrierTestTimeout,
+		"original token closed after Broadcast")
 
-	// Get the new token and verify it's different
-	newToken := b.Token()
-	require.NotNil(t, newToken, "new token should not be nil")
-	assert.NotEqual(t, initialToken, newToken, "new token should be different from initial token")
-
-	// Verify the behaviour of the new token
-	var newWg sync.WaitGroup
-	newWaitComplete := false
-	newWg.Add(1)
-
-	go func() {
-		defer newWg.Done()
-		select {
-		case <-newToken:
-			newWaitComplete = true
-		case <-time.After(50 * time.Millisecond):
-			// Should timeout as we haven't reset
-		}
-	}()
-
-	newWg.Wait()
-	assert.False(t, newWaitComplete, "Wait on new token should not complete without Reset")
+	replacement := b.Token()
+	core.AssertNotNil(t, replacement, "replacement token")
+	core.AssertNotSame(t, original, replacement,
+		"replacement is a distinct channel")
 }
 
-func TestTokenWait(t *testing.T) {
-	// Create a token
-	token := make(Token)
+// TestBarrierSignaled verifies the Barrier-level Signaled accessor
+// returns the live Token channel, which closes on Broadcast.
+func TestBarrierSignaled(t *testing.T) {
+	b := cond.NewBarrier()
+	defer func() { _ = b.Close() }()
 
-	// Test waiting with timeout using a channel
-	waitComplete := false
-	timeoutCh := make(chan bool, 1)
+	ch := b.Signaled()
+	core.AssertMustNotNil(t, ch, "Signaled channel")
 
+	synctesting.AssertOpen(t, ch, barrierOpenGuard,
+		"Signaled open before Broadcast")
+
+	b.Broadcast()
+
+	synctesting.AssertClosed(t, ch, barrierTestTimeout,
+		"Signaled closed after Broadcast")
+}
+
+// TestBarrierWait verifies the Barrier-level Wait blocks until
+// Broadcast.
+func TestBarrierWait(t *testing.T) {
+	b := cond.NewBarrier()
+	defer func() { _ = b.Close() }()
+
+	done := make(chan struct{})
 	go func() {
-		token.Wait()
-		waitComplete = true
-		timeoutCh <- true
+		b.Wait()
+		close(done)
 	}()
 
-	// The wait should block until we close the token
-	select {
-	case <-timeoutCh:
-		assert.Fail(t, "Wait() should block until token is closed")
-	case <-time.After(50 * time.Millisecond):
-		// Expected timeout
-	}
+	synctesting.AssertOpen(t, done, barrierOpenGuard,
+		"Wait blocks before Broadcast")
 
-	// Close the token and check that Wait() completes
-	close(token)
+	b.Broadcast()
+
+	synctesting.AssertClosed(t, done, barrierTestTimeout,
+		"Wait returns after Broadcast")
+}
+
+// TestBarrierSignal verifies the three observable Signal outcomes:
+// false with no waiter, true once a waiter has parked on the Token
+// receive, and false on a closed Barrier. The polling loop bounds the
+// inherent race between starting the waiter goroutine and the Token
+// receive.
+func TestBarrierSignal(t *testing.T) {
+	b := cond.NewBarrier()
+
+	core.AssertEqual(t, false, b.Signal(), "Signal without waiter")
+
+	waited := make(chan struct{})
+	go func() {
+		b.Wait()
+		close(waited)
+	}()
+
+	signaled := synctesting.WaitForCond(b.Signal, barrierTestTimeout,
+		synctesting.PollStep)
+	core.AssertTrue(t, signaled, "Signal eventually succeeds with waiter")
+
+	synctesting.AssertClosed(t, waited, barrierTestTimeout,
+		"waiter released after Signal")
+
+	_ = b.Close()
+	core.AssertEqual(t, false, b.Signal(), "Signal after Close")
+}
+
+// TestBarrierTokenAfterClose verifies Token returns nil once the
+// underlying channel is closed.
+func TestBarrierTokenAfterClose(t *testing.T) {
+	b := cond.NewBarrier()
+	_ = b.Close()
+
+	core.AssertNil(t, b.Token(), "Token after Close")
+}
+
+// TestBarrierAcquireAfterClose verifies the Acquire channel yields a
+// nil token immediately once the Barrier is closed — the channel-based
+// shutdown signal for any code parked on `<-b.Acquire()`.
+func TestBarrierAcquireAfterClose(t *testing.T) {
+	b := cond.NewBarrier()
+	_ = b.Close()
 
 	select {
-	case <-timeoutCh:
-		assert.True(t, waitComplete, "Wait() should have completed after token was closed")
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "Wait() did not complete after token was closed")
+	case token := <-b.Acquire():
+		core.AssertNil(t, token, "post-close acquire token")
+	case <-time.After(barrierTestTimeout):
+		t.Fatal("Acquire on closed barrier blocked")
 	}
 }
 
-func TestConcurrentBarrierOperations(t *testing.T) {
-	b := &Barrier{}
-	_ = b.Init()
+// TestBarrierBroadcastAfterClose verifies Broadcast is a safe no-op on
+// a closed Barrier. The `ok` check on the channel receive skips the
+// close-and-reseat work without panicking.
+func TestBarrierBroadcastAfterClose(t *testing.T) {
+	b := cond.NewBarrier()
+	_ = b.Close()
 
-	const numGoroutines = 10
-	var wg sync.WaitGroup
-	wg.Add(numGoroutines)
+	b.Broadcast()
 
-	for range numGoroutines {
+	token, ok := b.TryAcquire()
+	core.AssertEqual(t, false, ok, "TryAcquire after Broadcast on closed")
+	core.AssertNil(t, token, "token after Broadcast on closed")
+}
+
+// TestBarrierWaitAfterClose pins the current design: Wait on a closed
+// Barrier blocks indefinitely because Token() returns nil and `<-nil`
+// never unblocks. The waiter goroutine is intentionally leaked for the
+// remainder of the test process — any future change that makes Wait
+// return cleanly on closed Barriers will be visible here.
+func TestBarrierWaitAfterClose(t *testing.T) {
+	b := cond.NewBarrier()
+	_ = b.Close()
+
+	done := make(chan struct{})
+	go func() {
+		b.Wait()
+		close(done)
+	}()
+
+	synctesting.AssertOpen(t, done, barrierOpenGuard,
+		"Wait on closed Barrier blocks (current design)")
+}
+
+// TestBarrierConcurrent verifies the acquire-release cycle survives N
+// concurrent goroutines and leaves the Barrier in a usable state.
+func TestBarrierConcurrent(t *testing.T) {
+	b := cond.NewBarrier()
+	defer func() { _ = b.Close() }()
+
+	const n = 10
+	done := make(chan struct{}, n)
+
+	for range n {
 		go func() {
-			defer wg.Done()
-
-			// Each goroutine will acquire and release the token
 			token := <-b.Acquire()
-
-			// Hold the token briefly
-			time.Sleep(10 * time.Millisecond)
-
-			// Release it
 			b.Release(token)
+			done <- struct{}{}
 		}()
 	}
 
-	wg.Wait()
+	synctesting.AssertReadersReady(t, done, n, barrierTestTimeout,
+		"all goroutines acquire-release")
 
-	// After all goroutines are done, we should still be able to acquire
-	select {
-	case token := <-b.Acquire():
-		assert.NotNil(t, token, "token should be acquirable after concurrent operations")
-		b.Release(token)
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "failed to acquire token after concurrent operations")
-	}
+	token, ok := b.TryAcquire()
+	core.AssertTrue(t, ok, "TryAcquire after concurrent ops")
+	core.AssertNotNil(t, token, "post-concurrent token")
+	b.Release(token)
+}
+
+// TestTokenWait verifies the Token-level Wait blocks until the channel
+// is closed.
+func TestTokenWait(t *testing.T) {
+	token := make(cond.Token)
+	done := make(chan struct{})
+
+	go func() {
+		token.Wait()
+		close(done)
+	}()
+
+	synctesting.AssertOpen(t, done, barrierOpenGuard,
+		"Wait blocks before close")
+
+	close(token)
+
+	synctesting.AssertClosed(t, done, barrierTestTimeout,
+		"Wait returns after close")
 }
