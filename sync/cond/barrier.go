@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/atomic"
 	"darvaza.org/x/sync/errors"
 )
 
@@ -15,7 +16,7 @@ import (
 type Barrier struct {
 	_ sync.Mutex // prevent copies
 
-	closed bool
+	closed atomic.Bool
 
 	b chan Token
 }
@@ -36,7 +37,7 @@ func (bs *Barrier) IsNil() bool {
 
 // IsClosed reports whether the Barrier is no longer usable.
 func (bs *Barrier) IsClosed() bool {
-	return bs == nil || bs.b == nil || bs.closed
+	return bs == nil || bs.b == nil || bs.closed.Load()
 }
 
 // Init initialises the barrier by creating a channel with a capacity
@@ -65,7 +66,7 @@ func (bs *Barrier) Close() error {
 		return errors.ErrNilReceiver
 	case bs.b == nil:
 		return errors.ErrNotInitialised
-	case bs.closed:
+	case bs.closed.Load():
 		return errors.ErrClosed
 	default:
 		// lock
@@ -74,7 +75,7 @@ func (bs *Barrier) Close() error {
 			return errors.ErrClosed
 		}
 
-		bs.closed = true
+		bs.closed.Store(true)
 		close(b)
 		close(bs.b)
 		return nil
@@ -129,8 +130,13 @@ func (bs *Barrier) TryAcquire() (Token, bool) {
 // Release returns the Token to the barrier, allowing other goroutines
 // to acquire it. This should always be called after Acquire to maintain
 // proper barrier operation. It can be safely called with a nil Token.
+//
+// Calling Release with a non-nil Token after the Barrier is closed will
+// panic (send on closed channel). This cannot happen under correct usage:
+// Close drains the token from bs.b before marking it closed, so a
+// legitimate holder of a non-nil Token can never race a closed bs.b.
 func (bs *Barrier) Release(b Token) {
-	if b != nil && !bs.closed {
+	if b != nil {
 		bs.b <- b
 	}
 }

@@ -197,10 +197,8 @@ func barrierCloseTestCases() []barrierCloseTestCase {
 
 // TestBarrierClose verifies Close's receiver and prior-state error paths
 // alongside the happy path. The internal `!ok` branch (channel closed
-// between the closed-flag check and the receive) is the queued-Close
-// handler for two concurrent Closers; driving it under -race trips the
-// pre-existing data race on bs.closed, so its test is deferred to the
-// follow-up commit that makes the field atomic.
+// between the fast-path Load and the receive) is driven by concurrent
+// Close in TestBarrierConcurrentClose.
 func TestBarrierClose(t *testing.T) {
 	core.RunTestCases(t, barrierCloseTestCases())
 }
@@ -451,6 +449,31 @@ func TestBarrierWaitAfterClose(t *testing.T) {
 		"Wait on closed Barrier blocks (current design)")
 }
 
+// TestBarrierReleaseAfterClosePanics pins the holder-partition contract
+// after the closed-state guard was dropped from Release: returning a
+// non-nil Token to a closed Barrier sends on a closed channel and panics.
+// Under correct usage this is unreachable — Close drains the live token
+// before closing bs.b — but a caller that caches a stale Token and Releases
+// it post-close fails loudly rather than silently dropping it.
+func TestBarrierReleaseAfterClosePanics(t *testing.T) {
+	b := cond.NewBarrier()
+
+	// Acquire and return the live token so Close can drain and proceed.
+	token, ok := b.TryAcquire()
+	core.AssertMustTrue(t, ok, "TryAcquire before Close")
+	b.Release(token)
+	core.AssertMustNoError(t, b.Close(), "Close")
+
+	// A caller holding a stale non-nil Token Releases after Close: the
+	// send on the closed channel must panic.
+	stale := make(cond.Token)
+	err := core.Catch(func() error {
+		b.Release(stale)
+		return nil
+	})
+	core.AssertError(t, err, "Release on closed Barrier panics")
+}
+
 // TestBarrierConcurrent verifies the acquire-release cycle survives N
 // concurrent goroutines and leaves the Barrier in a usable state.
 func TestBarrierConcurrent(t *testing.T) {
@@ -475,6 +498,64 @@ func TestBarrierConcurrent(t *testing.T) {
 	core.AssertTrue(t, ok, "TryAcquire after concurrent ops")
 	core.AssertNotNil(t, token, "post-concurrent token")
 	b.Release(token)
+}
+
+// TestBarrierConcurrentClose pins the queued-Close design: when two
+// goroutines call Close concurrently with both parked at <-bs.b,
+// the winner closes bs.b and the loser wakes from its blocked
+// receive with ok=false, returning ErrClosed via the !ok branch
+// rather than the fast-path check.
+//
+// Holding the token across the spawn keeps both Closers past the
+// fast-path Load with no Store possible. The pre-Release sleep
+// gives both goroutines time to park at <-bs.b before the winner
+// is chosen; should one not have parked yet, it loses via the
+// fast-path Load instead and the assertions still hold — that run
+// merely leaves the !ok branch uncovered.
+func TestBarrierConcurrentClose(t *testing.T) {
+	b := cond.NewBarrier()
+
+	token, ok := b.TryAcquire()
+	core.AssertMustTrue(t, ok, "initial TryAcquire")
+
+	const goroutines = 2
+	started := make(chan struct{}, goroutines)
+	results := make(chan error, goroutines)
+
+	for range goroutines {
+		go func() {
+			started <- struct{}{}
+			results <- b.Close()
+		}()
+	}
+
+	synctesting.AssertMustReadersReady(t, started, goroutines,
+		barrierTestTimeout, "Close goroutines started")
+
+	// Both goroutines have signalled started; give them time to
+	// enter Close and park on <-bs.b before we Release the token.
+	time.Sleep(barrierOpenGuard)
+
+	b.Release(token)
+
+	synctesting.AssertMustEventually(t, func() bool {
+		return len(results) == goroutines
+	}, barrierTestTimeout, "both Close goroutines return")
+
+	var nilCount, closedCount int
+	for range goroutines {
+		err := <-results
+		if err == nil {
+			nilCount++
+			continue
+		}
+		core.AssertErrorIs(t, err, errors.ErrClosed,
+			"loser returns ErrClosed")
+		closedCount++
+	}
+
+	core.AssertEqual(t, 1, nilCount, "exactly one winner")
+	core.AssertEqual(t, 1, closedCount, "exactly one loser")
 }
 
 // TestTokenWait verifies the Token-level Wait blocks until the channel
