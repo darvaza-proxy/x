@@ -1,7 +1,9 @@
-package cond
+package cond_test
 
 import (
 	"testing"
+
+	"darvaza.org/x/sync/cond"
 )
 
 // BenchmarkCount provides performance measurements for the Count struct.
@@ -10,7 +12,7 @@ import (
 func BenchmarkCount(b *testing.B) {
 	// Benchmark Add operation
 	b.Run("Add", func(b *testing.B) {
-		c := NewCount(0)
+		c := cond.NewCount(0)
 		defer c.Close()
 
 		b.ResetTimer()
@@ -21,7 +23,7 @@ func BenchmarkCount(b *testing.B) {
 
 	// Benchmark Inc operation
 	b.Run("Inc", func(b *testing.B) {
-		c := NewCount(0)
+		c := cond.NewCount(0)
 		defer c.Close()
 
 		b.ResetTimer()
@@ -32,7 +34,7 @@ func BenchmarkCount(b *testing.B) {
 
 	// Benchmark Value operation
 	b.Run("Value", func(b *testing.B) {
-		c := NewCount(42)
+		c := cond.NewCount(42)
 		defer c.Close()
 
 		b.ResetTimer()
@@ -43,7 +45,7 @@ func BenchmarkCount(b *testing.B) {
 
 	// Benchmark Signal with no waiters
 	b.Run("Signal_NoWaiters", func(b *testing.B) {
-		c := NewCount(0)
+		c := cond.NewCount(0)
 		defer c.Close()
 
 		b.ResetTimer()
@@ -54,7 +56,7 @@ func BenchmarkCount(b *testing.B) {
 
 	// Benchmark Broadcast with no waiters
 	b.Run("Broadcast_NoWaiters", func(b *testing.B) {
-		c := NewCount(0)
+		c := cond.NewCount(0)
 		defer c.Close()
 
 		b.ResetTimer()
@@ -65,7 +67,7 @@ func BenchmarkCount(b *testing.B) {
 
 	// Benchmark condition matching
 	b.Run("Match", func(b *testing.B) {
-		c := NewCount(42)
+		c := cond.NewCount(42)
 		defer c.Close()
 
 		isFortyTwo := func(v int32) bool { return v == 42 }
