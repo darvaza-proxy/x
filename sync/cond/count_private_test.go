@@ -68,6 +68,17 @@ func TestWaitResult(t *testing.T) {
 	core.RunTestCases(t, waitResultTestCases())
 }
 
+// TestCountFinaliserClosesBarrier exercises the finaliser method
+// installed by NewCount via runtime.SetFinalizer. Invoking it
+// directly avoids depending on GC timing while still pinning that
+// the registered closure body closes the underlying Barrier.
+func TestCountFinaliserClosesBarrier(t *testing.T) {
+	c := NewCount(0)
+	core.AssertMustFalse(t, c.IsClosed(), "fresh Count not closed")
+	c.finaliser()
+	core.AssertTrue(t, c.IsClosed(), "Count closed after finaliser")
+}
+
 // TestCountWaitFnAbortDuringAcquire verifies WaitFnAbort returns
 // context.Canceled when the abort channel closes while the waiter is
 // blocked at the barrier Acquire receive. The outer select arm in

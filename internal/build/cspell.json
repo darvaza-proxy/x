@@ -39,6 +39,7 @@
     "EBUSY",
     "ELEC",
     "Errorf",
+    "finaliser",
     "flock",
     "fontawesome",
     "Fprintf",
