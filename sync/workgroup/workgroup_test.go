@@ -383,6 +383,155 @@ func runTestCancelPropagatesCustom(t *testing.T) {
 	core.AssertErrorIs(t, receivedErr, customErr, "task err")
 }
 
+// TestGroup_OnCancel tests the OnCancel handler.
+func TestGroup_OnCancel(t *testing.T) {
+	t.Run("HandlerFiresOnCancel", runTestOnCancelHandlerFires)
+	t.Run("HandlerReceivesGroupContext", runTestOnCancelReceivesContext)
+	t.Run("HandlerSeesCancelledContext", runTestOnCancelSeesCancelledContext)
+	t.Run("HandlerReceivesCustomCause", runTestOnCancelReceivesCause)
+	t.Run("HandlerReceivesContextCanceledForNilCause",
+		runTestOnCancelReceivesContextCanceledForNilCause)
+	t.Run("HandlerNotCalledWithoutCancel", runTestOnCancelNotCalledWithoutCancel)
+	t.Run("HandlerCalledOnceOnRepeatedCancel", runTestOnCancelOnceOnRepeatedCancel)
+	t.Run("HandlerFiresOnClose", runTestOnCancelFiresOnClose)
+}
+
+func runTestOnCancelHandlerFires(t *testing.T) {
+	t.Helper()
+	handlerRan := make(chan struct{})
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(_ context.Context, _ error) {
+		close(handlerRan)
+	}
+
+	wg.Cancel(nil)
+	synctesting.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
+		"handler fired")
+	core.AssertNoError(t, wg.Wait(), "wait")
+}
+
+func runTestOnCancelReceivesContext(t *testing.T) {
+	t.Helper()
+	var received context.Context
+	receivedCh := make(chan struct{})
+
+	wg := workgroup.New(context.Background())
+	expected := wg.Context()
+	wg.OnCancel = func(ctx context.Context, _ error) {
+		received = ctx
+		close(receivedCh)
+	}
+
+	wg.Cancel(nil)
+	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+		"handler ran")
+	core.AssertSame(t, expected, received, "context identity")
+	core.AssertNoError(t, wg.Wait(), "wait")
+}
+
+func runTestOnCancelSeesCancelledContext(t *testing.T) {
+	t.Helper()
+	var observedErr error
+	var observedCause error
+	receivedCh := make(chan struct{})
+
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(ctx context.Context, _ error) {
+		observedErr = ctx.Err()
+		observedCause = context.Cause(ctx)
+		close(receivedCh)
+	}
+
+	wg.Cancel(nil)
+	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+		"handler ran")
+	core.AssertErrorIs(t, observedErr, context.Canceled,
+		"ctx.Err() inside handler")
+	core.AssertErrorIs(t, observedCause, context.Canceled,
+		"context.Cause(ctx) inside handler")
+	core.AssertNoError(t, wg.Wait(), "wait")
+}
+
+func runTestOnCancelReceivesCause(t *testing.T) {
+	t.Helper()
+	customErr := errors.New("custom cancel cause")
+	var received error
+	receivedCh := make(chan struct{})
+
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(_ context.Context, cause error) {
+		received = cause
+		close(receivedCh)
+	}
+
+	wg.Cancel(customErr)
+	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+		"handler ran")
+	core.AssertErrorIs(t, received, customErr, "cause")
+	core.AssertErrorIs(t, wg.Wait(), customErr, "wait err")
+}
+
+func runTestOnCancelReceivesContextCanceledForNilCause(t *testing.T) {
+	t.Helper()
+	var received error
+	receivedCh := make(chan struct{})
+
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(_ context.Context, cause error) {
+		received = cause
+		close(receivedCh)
+	}
+
+	wg.Cancel(nil)
+	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+		"handler ran")
+	core.AssertErrorIs(t, received, context.Canceled, "cause")
+	core.AssertNoError(t, wg.Wait(), "wait")
+}
+
+func runTestOnCancelNotCalledWithoutCancel(t *testing.T) {
+	t.Helper()
+	handlerRan := make(chan struct{})
+
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(_ context.Context, _ error) {
+		close(handlerRan)
+	}
+
+	core.AssertNoError(t, wg.Wait(), "wait")
+	synctesting.AssertOpen(t, handlerRan, 50*time.Millisecond,
+		"handler not called")
+}
+
+func runTestOnCancelOnceOnRepeatedCancel(t *testing.T) {
+	t.Helper()
+	var count atomic.Int32
+
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(_ context.Context, _ error) {
+		count.Add(1)
+	}
+
+	core.AssertTrue(t, wg.Cancel(nil), "first cancel")
+	core.AssertFalse(t, wg.Cancel(nil), "second cancel")
+	core.AssertNoError(t, wg.Wait(), "wait")
+	core.AssertEqual(t, int32(1), count.Load(), "handler call count")
+}
+
+func runTestOnCancelFiresOnClose(t *testing.T) {
+	t.Helper()
+	handlerRan := make(chan struct{})
+
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(_ context.Context, _ error) {
+		close(handlerRan)
+	}
+
+	core.AssertNoError(t, wg.Close(), "close")
+	synctesting.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
+		"handler fired before Close returned")
+}
+
 // TestGroup_Close tests the Close method.
 func TestGroup_Close(t *testing.T) {
 	t.Run("ReturnsErrorOnNilReceiver", runTestCloseNilReceiver)
@@ -649,6 +798,49 @@ func TestGroup_Concurrent(t *testing.T) {
 	t.Run("ConcurrentDoneChannels", runTestConcurrentDoneChannels)
 }
 
+const (
+	concurrentCancelIterations = 200
+	concurrentCancellers       = 8
+)
+
+// TestGroup_ConcurrentCancelOnceOnly fires several Cancel calls at the same
+// Group simultaneously and asserts exactly one wins. doCancel guards the
+// cancelled flag under mu: a caller that loses the race observes the flag
+// already set once it acquires the lock and returns false without spawning
+// a second OnCancel handler or overwriting the cause. Each iteration
+// releases all callers from a shared barrier to maximise the overlap.
+func TestGroup_ConcurrentCancelOnceOnly(t *testing.T) {
+	for i := range concurrentCancelIterations {
+		runOneConcurrentCancelIteration(t, i)
+	}
+}
+
+func runOneConcurrentCancelIteration(t *testing.T, i int) {
+	t.Helper()
+	wg := workgroup.New(context.Background())
+
+	var trueCount atomic.Int32
+	var start, end sync.WaitGroup
+	start.Add(concurrentCancellers)
+	end.Add(concurrentCancellers)
+
+	for range concurrentCancellers {
+		go func() {
+			defer end.Done()
+			start.Done()
+			start.Wait()
+			if wg.Cancel(context.Canceled) {
+				trueCount.Add(1)
+			}
+		}()
+	}
+	end.Wait()
+
+	core.AssertEqual(t, int32(1), trueCount.Load(),
+		"exactly one Cancel wins iter %d", i)
+	core.AssertNoError(t, wg.Close(), "close iter %d", i)
+}
+
 // concurrentCounts groups the atomic counters threaded through the
 // concurrent Go/Cancel stress test.
 type concurrentCounts struct {
@@ -736,6 +928,192 @@ func runTestConcurrentDoneChannels(t *testing.T) {
 	synctesting.AssertMustClosed(t, channels[0], 200*time.Millisecond,
 		"shared Done across %d goroutines", numGoroutines)
 	core.AssertNoError(t, wg.Wait(), "wait")
+}
+
+// TestGroup_DrainRaceRegression stresses the two historical
+// Add-after-drain panic sites. When the inner task counter has just
+// dropped to zero and a Wait is in flight, a concurrent Cancel with
+// OnCancel set (Site 1) or a concurrent Go (Site 2) used to trip
+// sync.WaitGroup's "Add(positive) on zero counter with Wait in
+// flight → panic" rule. Each subtest races the two operations across
+// the drain boundary many times; the bug would surface as a panic on
+// at least one iteration. The OnCancel and task flags also verify the
+// drain-then-fence contract by ensuring no scheduled work is silently
+// dropped.
+func TestGroup_DrainRaceRegression(t *testing.T) {
+	t.Run("CancelRacingWait", runTestDrainRaceCancelVsWait)
+	t.Run("GoRacingWait", runTestDrainRaceGoVsWait)
+}
+
+const drainRaceIterations = 200
+
+func runTestDrainRaceCancelVsWait(t *testing.T) {
+	t.Helper()
+	for i := range drainRaceIterations {
+		var handlerRan atomic.Bool
+		wg := workgroup.New(context.Background())
+		wg.OnCancel = func(_ context.Context, _ error) {
+			handlerRan.Store(true)
+		}
+
+		_ = wg.Go(func(_ context.Context) {})
+
+		var start sync.WaitGroup
+		start.Add(2)
+		done := make(chan struct{}, 2)
+		go func() {
+			start.Done()
+			start.Wait()
+			_ = wg.Wait()
+			done <- struct{}{}
+		}()
+		go func() {
+			start.Done()
+			start.Wait()
+			wg.Cancel(nil)
+			done <- struct{}{}
+		}()
+		<-done
+		<-done
+		core.AssertNoError(t, wg.Close(), "close iter %d", i)
+		core.AssertTrue(t, handlerRan.Load(),
+			"OnCancel must have run by Close return iter %d", i)
+	}
+}
+
+func runTestDrainRaceGoVsWait(t *testing.T) {
+	t.Helper()
+	for i := range drainRaceIterations {
+		runOneGoVsWaitIteration(t, i)
+	}
+}
+
+// runOneGoVsWaitIteration exercises one drain-race between Wait and a
+// concurrent second Go. D2 contract: if Go returned nil, the task is
+// enrolled and must complete before Close returns; if Go returned
+// ErrClosed, no goroutine was spawned. No in-between state.
+func runOneGoVsWaitIteration(t *testing.T, i int) {
+	t.Helper()
+	var secondTaskRan atomic.Bool
+	var goErr atomic.Pointer[error]
+
+	wg := workgroup.New(context.Background())
+	_ = wg.Go(func(_ context.Context) {})
+
+	var start sync.WaitGroup
+	start.Add(2)
+	done := make(chan struct{}, 2)
+	go func() {
+		start.Done()
+		start.Wait()
+		_ = wg.Wait()
+		done <- struct{}{}
+	}()
+	go func() {
+		start.Done()
+		start.Wait()
+		err := wg.Go(func(_ context.Context) {
+			secondTaskRan.Store(true)
+		})
+		goErr.Store(&err)
+		done <- struct{}{}
+	}()
+	<-done
+	<-done
+
+	core.AssertNoError(t, wg.Close(), "close iter %d", i)
+
+	goPtr := goErr.Load()
+	core.AssertMustNotNil(t, goPtr, "Go result recorded iter %d", i)
+	if *goPtr == nil {
+		// Go enrolled the task; Close drained it, so it must have run.
+		core.AssertTrue(t, secondTaskRan.Load(),
+			"task must have run when Go returned nil iter %d", i)
+	} else {
+		// Go refused: no goroutine was spawned, so the task never ran.
+		core.AssertErrorIs(t, *goPtr, errors.ErrClosed,
+			"Go error is ErrClosed iter %d", i)
+		core.AssertFalse(t, secondTaskRan.Load(),
+			"task must not have run when Go returned ErrClosed iter %d", i)
+	}
+}
+
+// TestGroup_FenceSemantics pins the drain-then-fence contract
+// deterministically (no race iteration loops). These tests fail if the
+// fence between Wait/Done watcher and doCancel/doGo is removed.
+func TestGroup_FenceSemantics(t *testing.T) {
+	t.Run("CancelBeforeWait_WaitWaitsForHandler",
+		runTestFenceCancelBeforeWaitWaitsForHandler)
+	t.Run("CancelBeforeWait_DoneWaitsForHandler",
+		runTestFenceCancelBeforeWaitDoneWaitsForHandler)
+	t.Run("GoAfterCancelReturnsErrClosed",
+		runTestFenceGoAfterCancelReturnsErrClosed)
+}
+
+func runTestFenceCancelBeforeWaitWaitsForHandler(t *testing.T) {
+	t.Helper()
+	release := make(chan struct{})
+	handlerEntered := make(chan struct{})
+
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(_ context.Context, _ error) {
+		close(handlerEntered)
+		<-release
+	}
+
+	wg.Cancel(nil)
+	synctesting.AssertMustClosed(t, handlerEntered, 100*time.Millisecond,
+		"handler entered")
+
+	waitDone := make(chan struct{})
+	go func() {
+		_ = wg.Wait()
+		close(waitDone)
+	}()
+
+	// Wait must be blocked while the handler is held in `release`.
+	synctesting.AssertOpen(t, waitDone, 50*time.Millisecond,
+		"wait blocked on handler")
+
+	close(release)
+	synctesting.AssertMustClosed(t, waitDone, 100*time.Millisecond,
+		"wait completed after handler")
+}
+
+func runTestFenceCancelBeforeWaitDoneWaitsForHandler(t *testing.T) {
+	t.Helper()
+	release := make(chan struct{})
+	handlerEntered := make(chan struct{})
+
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(_ context.Context, _ error) {
+		close(handlerEntered)
+		<-release
+	}
+
+	wg.Cancel(nil)
+	synctesting.AssertMustClosed(t, handlerEntered, 100*time.Millisecond,
+		"handler entered")
+
+	doneCh := wg.Done()
+
+	// Done channel must remain open while the handler is held.
+	synctesting.AssertOpen(t, doneCh, 50*time.Millisecond,
+		"done channel blocked on handler")
+
+	close(release)
+	synctesting.AssertMustClosed(t, doneCh, 100*time.Millisecond,
+		"done channel closed after handler")
+}
+
+func runTestFenceGoAfterCancelReturnsErrClosed(t *testing.T) {
+	t.Helper()
+	wg := workgroup.New(context.Background())
+	wg.Cancel(nil)
+	core.AssertNoError(t, wg.Wait(), "wait")
+
+	err := wg.Go(func(_ context.Context) {})
+	core.AssertErrorIs(t, err, errors.ErrClosed, "go after cancel")
 }
 
 // nilReceiverErrorCase asserts a *Group method returns ErrNilReceiver
