@@ -118,7 +118,7 @@ Before starting the release process:
 
    Dependencies:
    - darvaza.org/core vX.Y.Z
-   - Go 1.23 or later"
+   - Go 1.24 or later"
    ```
 
    For multiple packages, prefer message files in `.tmp/` (gitignored):
@@ -221,7 +221,7 @@ Before starting the release process:
    Dependencies:
    - darvaza.org/core vX.Y.Z
    - darvaza.org/x/fs v0.5.3
-   - Go 1.23 or later
+   - Go 1.24 or later
    ```
 
 3. Push all Tier 2 tags:
@@ -243,7 +243,7 @@ Before starting the release process:
    go get darvaza.org/x/tls@v0.6.1
    \`\`\`
 
-   All packages now require Go 1.23 or later."
+   All packages now require Go 1.24 or later."
    ```
 
 ## Version Numbering
@@ -256,7 +256,7 @@ Each package maintains its own semantic version. When releasing:
 
 ### Common Release Scenarios
 
-1. **Updating Go version requirement** (e.g., Go 1.22 → 1.23):
+1. **Updating Go version requirement** (e.g., Go 1.24 → 1.25):
    - This is a breaking change requiring minor version bump
    - Update all packages even if no code changes
    - Document clearly in release notes

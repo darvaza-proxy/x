@@ -119,11 +119,7 @@ func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 
 // Must is like [New] but it panics on errors.
 func Must(cfg *Config, options ...OptionFunc) *Client {
-	c, err := New(cfg, options...)
-	if err != nil {
-		core.Panic(err)
-	}
-	return c
+	return core.Must(New(cfg, options...))
 }
 
 func (c *Client) getRemote() (network, addr string) {

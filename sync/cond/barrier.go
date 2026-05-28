@@ -24,9 +24,7 @@ type Barrier struct {
 // initialisation fails. It returns a fully initialised Barrier ready for use.
 func NewBarrier() *Barrier {
 	c := &Barrier{}
-	if err := c.Init(); err != nil {
-		core.Panic(err)
-	}
+	core.MustNoError(c.Init())
 	return c
 }
 
