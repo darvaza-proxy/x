@@ -56,11 +56,7 @@ func (cfg Config[K, H, T]) Init(set *Set[K, H, T], items ...T) error {
 
 // Must is equivalent to [New] but it panics on error.
 func (cfg Config[K, H, T]) Must(items ...T) *Set[K, H, T] {
-	set, err := cfg.New(items...)
-	if err != nil {
-		core.Panic(err)
-	}
-	return set
+	return core.Must(cfg.New(items...))
 }
 
 // Equal determines if two Config instances use exactly the same callback functions
