@@ -39,9 +39,7 @@ type Count struct {
 // and it's self closing.
 func NewCount(initialValue int, broadcast ...func(int32) bool) *Count {
 	c := new(Count)
-	if err := c.doInit(initialValue, broadcast); err != nil {
-		core.Panic(err)
-	}
+	core.MustNoError(c.doInit(initialValue, broadcast))
 
 	runtime.SetFinalizer(c, func(c *Count) {
 		_ = c.b.Close()
