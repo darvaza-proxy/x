@@ -62,9 +62,5 @@ func NewJSONAssetHandler[T any](d time.Duration, v T) (http.Handler, error) {
 // MustJSONAssetHandler creates an [AssetHandler] serving a constant JSON resource,
 // and panics if marshalling fails.
 func MustJSONAssetHandler[T any](d time.Duration, v T) http.Handler {
-	h, err := NewJSONAssetHandler(d, v)
-	if err != nil {
-		core.Panic(err)
-	}
-	return h
+	return core.Must(NewJSONAssetHandler(d, v))
 }
