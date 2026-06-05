@@ -46,6 +46,10 @@ func (s *Semaphore) lazyInit() error {
 	// RW
 	s.mu.Lock()
 	if s.global != nil {
+		// double-checked re-read: another goroutine initialised
+		// between our RUnlock and Lock. Only that interleaving
+		// reaches here, so the arm stays uncovered rather than be
+		// faked with a probabilistic race test.
 		s.mu.Unlock()
 		return nil
 	}

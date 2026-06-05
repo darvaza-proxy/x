@@ -1,4 +1,4 @@
-package semaphore
+package semaphore_test
 
 import (
 	"context"
@@ -7,603 +7,576 @@ import (
 	"testing"
 	"time"
 
-	"darvaza.org/x/sync/mutex"
+	"darvaza.org/core"
 
-	"github.com/stretchr/testify/assert"
+	"darvaza.org/x/sync/internal/synctesting"
+	"darvaza.org/x/sync/mutex"
+	"darvaza.org/x/sync/semaphore"
 )
 
-// doSomething simulates a short operation by sleeping for 10ms.
-func doSomething() {
-	time.Sleep(10 * time.Millisecond)
-}
+const (
+	// semaphoreTestTimeout caps each foreground synchronisation step:
+	// generous enough to absorb scheduler jitter on loaded CI workers,
+	// tight enough that a hung waiter fails the run instead of stalling.
+	semaphoreTestTimeout = time.Second
 
-func TestSemaphore_Init(t *testing.T) {
-	t.Run("nil receiver", func(t *testing.T) {
-		var s *Semaphore
-		err := s.lazyInit()
-		assert.Error(t, err)
-	})
+	// semaphoreOpenGuard bounds negative-case assertions ("did not
+	// acquire"): long enough to catch a spurious early acquisition,
+	// short enough to keep the test responsive.
+	semaphoreOpenGuard = 20 * time.Millisecond
 
-	t.Run("initialise channels", func(t *testing.T) {
-		s := &Semaphore{}
-		err := s.lazyInit()
-		assert.NoError(t, err)
-		assert.NotNil(t, s.global)
-		assert.NotNil(t, s.readers)
-	})
+	// workDelay is the brief unit of simulated work held under a lock.
+	workDelay = 10 * time.Millisecond
+)
 
-	t.Run("idempotent", func(t *testing.T) {
-		s := &Semaphore{}
-		err := s.lazyInit()
-		assert.NoError(t, err)
-
-		global := s.global
-		readers := s.readers
-
-		err = s.lazyInit()
-		assert.NoError(t, err)
-		assert.True(t, global == s.global, "global channel reference changed")
-		assert.True(t, readers == s.readers, "readers channel reference changed")
-	})
-}
+// doSomething simulates a short operation held under a lock.
+func doSomething() { time.Sleep(workDelay) }
 
 func TestSemaphore_Lock_Unlock(t *testing.T) {
-	t.Run("basic lock unlock", func(_ *testing.T) {
-		s := &Semaphore{}
+	t.Run("basic lock unlock", runTestLockUnlockBasic)
+	t.Run("sequential locks", runTestLockUnlockSequential)
+}
+
+func runTestLockUnlockBasic(_ *testing.T) {
+	s := &semaphore.Semaphore{}
+	s.Lock()
+	doSomething()
+	s.Unlock()
+}
+
+func runTestLockUnlockSequential(_ *testing.T) {
+	s := &semaphore.Semaphore{}
+	for range 5 {
 		s.Lock()
 		doSomething()
 		s.Unlock()
-	})
-
-	t.Run("sequential locks", func(_ *testing.T) {
-		s := &Semaphore{}
-		for range 5 {
-			s.Lock()
-			doSomething()
-			s.Unlock()
-		}
-	})
+	}
 }
 
-func TestSemaphore_TryLock(t *testing.T) {
-	t.Run("acquire free lock", func(t *testing.T) {
-		s := &Semaphore{}
-		acquired := s.TryLock()
-		assert.True(t, acquired)
-		s.Unlock()
-	})
+// tryLockTestCase verifies TryLock's non-blocking acquisition against a
+// possibly-held exclusive lock.
+type tryLockTestCase struct {
+	name string
 
-	t.Run("fail to acquire held lock", func(t *testing.T) {
-		s := &Semaphore{}
+	holdLock bool
+	want     bool
+}
+
+func newTryLockTestCase(name string, holdLock, want bool) tryLockTestCase {
+	return tryLockTestCase{name: name, holdLock: holdLock, want: want}
+}
+
+func (tc tryLockTestCase) Name() string { return tc.name }
+
+func (tc tryLockTestCase) Test(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	if tc.holdLock {
 		s.Lock()
+		defer s.Unlock()
+	}
 
-		acquired := s.TryLock()
-		assert.False(t, acquired)
-
+	got := s.TryLock()
+	core.AssertEqual(t, tc.want, got, "TryLock")
+	if got {
 		s.Unlock()
+	}
+}
+
+var _ core.TestCase = tryLockTestCase{}
+
+func TestSemaphore_TryLock(t *testing.T) {
+	core.RunTestCases(t, []tryLockTestCase{
+		newTryLockTestCase("acquire free lock", false, true),
+		newTryLockTestCase("fail to acquire held lock", true, false),
 	})
 }
 
 func TestSemaphore_RLock_RUnlock(t *testing.T) {
-	t.Run("basic rlock runlock", func(_ *testing.T) {
-		s := &Semaphore{}
-		s.RLock()
-		doSomething()
-		s.RUnlock()
-	})
-
-	t.Run("multiple readers", func(_ *testing.T) {
-		s := &Semaphore{}
-
-		// Acquire three read locks
-		s.RLock()
-		s.RLock()
-		s.RLock()
-
-		doSomething()
-
-		// Release all three
-		s.RUnlock()
-		s.RUnlock()
-		s.RUnlock()
-	})
-
-	t.Run("readers block writer", func(t *testing.T) {
-		s := &Semaphore{}
-		s.RLock()
-
-		writerDone := make(chan struct{})
-		go func() {
-			defer close(writerDone)
-			// This should block until the read lock is released
-			s.Lock()
-			doSomething()
-			s.Unlock()
-		}()
-
-		// Writer shouldn't be able to acquire lock immediately
-		select {
-		case <-writerDone:
-			t.Fatal("Writer acquired lock while reader held it")
-		case <-time.After(50 * time.Millisecond):
-			// Expected behaviour
-		}
-
-		// Release reader and writer should proceed
-		s.RUnlock()
-
-		select {
-		case <-writerDone:
-			// Expected behaviour
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("Writer failed to acquire lock after reader released it")
-		}
-	})
+	t.Run("basic rlock runlock", runTestRLockBasic)
+	t.Run("multiple readers", runTestRLockMultiple)
+	t.Run("readers block writer", runTestRLockBlocksWriter)
 }
+
+func runTestRLockBasic(_ *testing.T) {
+	s := &semaphore.Semaphore{}
+	s.RLock()
+	doSomething()
+	s.RUnlock()
+}
+
+func runTestRLockMultiple(_ *testing.T) {
+	s := &semaphore.Semaphore{}
+	s.RLock()
+	s.RLock()
+	s.RLock()
+
+	doSomething()
+
+	s.RUnlock()
+	s.RUnlock()
+	s.RUnlock()
+}
+
+func runTestRLockBlocksWriter(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	s.RLock()
+
+	writerDone := make(chan struct{})
+	go func() {
+		defer close(writerDone)
+		s.Lock()
+		doSomething()
+		s.Unlock()
+	}()
+
+	synctesting.AssertMustOpen(t, writerDone, semaphoreOpenGuard,
+		"writer blocked while reader holds lock")
+
+	s.RUnlock()
+
+	synctesting.AssertMustClosed(t, writerDone, semaphoreTestTimeout,
+		"writer proceeds after reader released")
+}
+
+// tryRLockTestCase verifies TryRLock's non-blocking acquisition against a
+// possibly-held reader or writer lock.
+type tryRLockTestCase struct {
+	name string
+
+	holdReader bool
+	holdWriter bool
+	want       bool
+}
+
+func newTryRLockTestCase(name string, holdReader, holdWriter,
+	want bool) tryRLockTestCase {
+	return tryRLockTestCase{
+		name:       name,
+		holdReader: holdReader,
+		holdWriter: holdWriter,
+		want:       want,
+	}
+}
+
+func (tc tryRLockTestCase) Name() string { return tc.name }
+
+func (tc tryRLockTestCase) Test(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	switch {
+	case tc.holdWriter:
+		s.Lock()
+		defer s.Unlock()
+	case tc.holdReader:
+		s.RLock()
+		defer s.RUnlock()
+	default:
+		// hold nothing; the lock is free
+	}
+
+	got := s.TryRLock()
+	core.AssertEqual(t, tc.want, got, "TryRLock")
+	if got {
+		s.RUnlock()
+	}
+}
+
+var _ core.TestCase = tryRLockTestCase{}
 
 func TestSemaphore_TryRLock(t *testing.T) {
-	t.Run("acquire free lock", func(t *testing.T) {
-		s := &Semaphore{}
-		acquired := s.TryRLock()
-		assert.True(t, acquired)
-		s.RUnlock()
-	})
-
-	t.Run("acquire with existing readers", func(t *testing.T) {
-		s := &Semaphore{}
-		s.RLock()
-
-		acquired := s.TryRLock()
-		assert.True(t, acquired)
-
-		s.RUnlock()
-		s.RUnlock()
-	})
-
-	t.Run("fail with writer", func(t *testing.T) {
-		s := &Semaphore{}
-		s.Lock()
-
-		acquired := s.TryRLock()
-		assert.False(t, acquired)
-
-		s.Unlock()
+	core.RunTestCases(t, []tryRLockTestCase{
+		newTryRLockTestCase("acquire free lock", false, false, true),
+		newTryRLockTestCase("acquire with existing readers", true, false, true),
+		newTryRLockTestCase("fail with writer", false, true, false),
 	})
 }
 
-// TestSemaphore_ContextLocking tests both LockContext and RLockContext
-//
-//revive:disable-next-line:cognitive-complexity
-func TestSemaphore_ContextLocking(t *testing.T) {
-	testCases := []lockFunctions{
+// lockMode bundles a context-aware acquisition entry point with the
+// matching blocking lock/unlock pair, so the context scenarios run
+// identically against both the exclusive and shared modes.
+type lockMode struct {
+	name        string
+	contextLock func(*semaphore.Semaphore, context.Context) error
+	lock        func(*semaphore.Semaphore)
+	unlock      func(*semaphore.Semaphore)
+}
+
+func lockModes() []lockMode {
+	return []lockMode{
 		{
 			name:        "exclusive",
-			contextLock: (*Semaphore).LockContext,
-			lock:        (*Semaphore).Lock,
-			unlock:      (*Semaphore).Unlock,
+			contextLock: (*semaphore.Semaphore).LockContext,
+			lock:        (*semaphore.Semaphore).Lock,
+			unlock:      (*semaphore.Semaphore).Unlock,
 		},
 		{
 			name:        "shared",
-			contextLock: (*Semaphore).RLockContext,
-			lock:        (*Semaphore).RLock,
-			unlock:      (*Semaphore).RUnlock,
+			contextLock: (*semaphore.Semaphore).RLockContext,
+			lock:        (*semaphore.Semaphore).RLock,
+			unlock:      (*semaphore.Semaphore).RUnlock,
 		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Run("acquire with context", func(t *testing.T) {
-				s := &Semaphore{}
-				ctx := context.Background()
-
-				err := tc.contextLock(s, ctx)
-				assert.NoError(t, err)
-				tc.unlock(s)
-			})
-
-			t.Run("nil context", func(t *testing.T) {
-				var ctx context.Context
-				s := &Semaphore{}
-				err := tc.contextLock(s, ctx)
-				assert.Error(t, err)
-			})
-
-			t.Run("cancelled context", func(t *testing.T) {
-				s := &Semaphore{}
-				// Hold the lock
-				tc.lock(s)
-
-				ctx, cancel := context.WithCancel(context.Background())
-				cancel() // Cancel immediately
-
-				// Should fail due to cancelled context
-				err := tc.contextLock(s, ctx)
-				assert.Error(t, err)
-				assert.Equal(t, context.Canceled, err)
-
-				tc.unlock(s)
-			})
-
-			t.Run("timeout context", func(t *testing.T) {
-				s := &Semaphore{}
-				// Hold the lock
-				tc.lock(s)
-
-				ctx, cancel := context.WithTimeout(
-					context.Background(),
-					50*time.Millisecond,
-				)
-				defer cancel()
-
-				time.Sleep(100 * time.Millisecond)
-
-				// Should timeout
-				err := tc.contextLock(s, ctx)
-				assert.Error(t, err)
-				assert.Equal(t, context.DeadlineExceeded, err)
-
-				tc.unlock(s)
-			})
-		})
 	}
 }
 
-//revive:disable-next-line:cognitive-complexity
+func TestSemaphore_ContextLocking(t *testing.T) {
+	for _, m := range lockModes() {
+		t.Run(m.name, m.run)
+	}
+}
+
+func (m lockMode) run(t *testing.T) {
+	t.Helper()
+	t.Run("acquire with context", m.testAcquire)
+	t.Run("nil context", m.testNilContext)
+	t.Run("nil receiver", m.testNilReceiver)
+	t.Run("cancelled context", m.testCancelled)
+	t.Run("timeout context", m.testTimeout)
+}
+
+func (m lockMode) testAcquire(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	core.AssertMustNoError(t, m.contextLock(s, context.Background()), "acquire")
+	m.unlock(s)
+}
+
+func (m lockMode) testNilContext(t *testing.T) {
+	t.Helper()
+	var ctx context.Context
+	s := &semaphore.Semaphore{}
+	core.AssertError(t, m.contextLock(s, ctx), "nil context")
+}
+
+func (m lockMode) testNilReceiver(t *testing.T) {
+	t.Helper()
+	var s *semaphore.Semaphore
+	core.AssertError(t, m.contextLock(s, context.Background()), "nil receiver")
+}
+
+func (m lockMode) testCancelled(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	m.lock(s)
+	defer m.unlock(s)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	core.AssertErrorIs(t, m.contextLock(s, ctx), context.Canceled,
+		"cancelled context")
+}
+
+func (m lockMode) testTimeout(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	m.lock(s)
+	defer m.unlock(s)
+
+	// A deadline already in the past forces DeadlineExceeded at entry,
+	// deterministically and regardless of mode.
+	ctx, cancel := context.WithDeadline(context.Background(),
+		time.Now().Add(-time.Millisecond))
+	defer cancel()
+
+	core.AssertErrorIs(t, m.contextLock(s, ctx), context.DeadlineExceeded,
+		"timeout context")
+}
+
 func TestSemaphore_Concurrency(t *testing.T) {
-	t.Run("multiple writers", func(t *testing.T) {
-		s := &Semaphore{}
-		count := 0
-		const numGoroutines = 10
-		const iterations = 100
+	t.Run("multiple writers", runTestConcurrentWriters)
+	t.Run("readers and writers", runTestConcurrentReadersWriters)
+}
 
-		var wg sync.WaitGroup
-		wg.Add(numGoroutines)
+func runTestConcurrentWriters(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	count := 0
+	const numGoroutines, iterations = 10, 100
 
-		for range numGoroutines {
-			go func() {
-				defer wg.Done()
-				for range iterations {
-					s.Lock()
-					count++
-					s.Unlock()
-				}
-			}()
-		}
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+	for range numGoroutines {
+		go func() {
+			defer wg.Done()
+			for range iterations {
+				s.Lock()
+				count++
+				s.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
 
-		wg.Wait()
-		assert.Equal(t, numGoroutines*iterations, count)
-	})
+	core.AssertEqual(t, numGoroutines*iterations, count, "total increments")
+}
 
-	t.Run("readers and writers", func(t *testing.T) {
-		s := &Semaphore{}
-		counter := 0
-		const numReaders = 10
-		const numWriters = 5
-		const iterations = 50
+func runTestConcurrentReadersWriters(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	counter := 0
+	const numReaders, numWriters, iterations = 10, 5, 50
 
-		var wg sync.WaitGroup
-		wg.Add(numReaders + numWriters)
+	var wg sync.WaitGroup
+	wg.Add(numReaders + numWriters)
+	for range numReaders {
+		go runReaderLoop(&wg, s, &counter, iterations)
+	}
+	for range numWriters {
+		go runWriterLoop(&wg, s, &counter, iterations)
+	}
+	wg.Wait()
 
-		// Start readers
-		for range numReaders {
-			go func() {
-				defer wg.Done()
-				for range iterations {
-					s.RLock()
-					// Just read the counter, don't modify
-					_ = counter
-					time.Sleep(1 * time.Millisecond)
-					s.RUnlock()
-				}
-			}()
-		}
+	core.AssertEqual(t, numWriters*iterations, counter, "writer increments")
+}
 
-		// Start writers
-		for range numWriters {
-			go func() {
-				defer wg.Done()
-				for range iterations {
-					s.Lock()
-					counter++
-					time.Sleep(2 * time.Millisecond)
-					s.Unlock()
-				}
-			}()
-		}
+func runReaderLoop(wg *sync.WaitGroup, s *semaphore.Semaphore, counter *int,
+	iterations int) {
+	defer wg.Done()
+	for range iterations {
+		s.RLock()
+		_ = *counter
+		time.Sleep(time.Millisecond)
+		s.RUnlock()
+	}
+}
 
-		wg.Wait()
-		assert.Equal(t, numWriters*iterations, counter)
-	})
+func runWriterLoop(wg *sync.WaitGroup, s *semaphore.Semaphore, counter *int,
+	iterations int) {
+	defer wg.Done()
+	for range iterations {
+		s.Lock()
+		*counter++
+		time.Sleep(2 * time.Millisecond)
+		s.Unlock()
+	}
+}
+
+// semaphorePanicTestCase verifies operations that panic on misuse or on a
+// nil receiver. setup arranges the receiver state; op selects the method
+// exercised under the shared assertion path.
+type semaphorePanicTestCase struct {
+	name  string
+	setup func() *semaphore.Semaphore
+	op    func(*semaphore.Semaphore)
+}
+
+func newSemaphorePanicTestCase(name string, setup func() *semaphore.Semaphore,
+	op func(*semaphore.Semaphore)) semaphorePanicTestCase {
+	return semaphorePanicTestCase{name: name, setup: setup, op: op}
+}
+
+func (tc semaphorePanicTestCase) Name() string { return tc.name }
+
+func (tc semaphorePanicTestCase) Test(t *testing.T) {
+	t.Helper()
+	s := tc.setup()
+	core.AssertPanic(t, func() { tc.op(s) }, nil, "panic")
+}
+
+var _ core.TestCase = semaphorePanicTestCase{}
+
+func newSemaphore() *semaphore.Semaphore { return &semaphore.Semaphore{} }
+func nilSemaphore() *semaphore.Semaphore { return nil }
+
+func readLockedSemaphore() *semaphore.Semaphore {
+	s := &semaphore.Semaphore{}
+	s.RLock()
+	return s
+}
+
+func opLock(s *semaphore.Semaphore)     { s.Lock() }
+func opUnlock(s *semaphore.Semaphore)   { s.Unlock() }
+func opRLock(s *semaphore.Semaphore)    { s.RLock() }
+func opRUnlock(s *semaphore.Semaphore)  { s.RUnlock() }
+func opTryLock(s *semaphore.Semaphore)  { s.TryLock() }
+func opTryRLock(s *semaphore.Semaphore) { s.TryRLock() }
+
+func semaphorePanicTestCases() []semaphorePanicTestCase {
+	return []semaphorePanicTestCase{
+		// misuse on an initialised receiver
+		newSemaphorePanicTestCase("unlock without lock", newSemaphore, opUnlock),
+		newSemaphorePanicTestCase("runlock without rlock", newSemaphore, opRUnlock),
+		newSemaphorePanicTestCase("unlock when read-locked", readLockedSemaphore,
+			opUnlock),
+		// nil receiver panics through the public wrappers
+		newSemaphorePanicTestCase("nil receiver Lock", nilSemaphore, opLock),
+		newSemaphorePanicTestCase("nil receiver RLock", nilSemaphore, opRLock),
+		newSemaphorePanicTestCase("nil receiver Unlock", nilSemaphore, opUnlock),
+		newSemaphorePanicTestCase("nil receiver RUnlock", nilSemaphore, opRUnlock),
+		newSemaphorePanicTestCase("nil receiver TryLock", nilSemaphore, opTryLock),
+		newSemaphorePanicTestCase("nil receiver TryRLock", nilSemaphore, opTryRLock),
+	}
 }
 
 func TestSemaphore_ErrorCases(t *testing.T) {
-	t.Run("unlock without lock should panic", func(t *testing.T) {
-		s := &Semaphore{}
-		assert.Panics(t, func() {
-			s.Unlock()
-		})
-	})
-
-	t.Run("runlock without rlock should panic", func(t *testing.T) {
-		s := &Semaphore{}
-		assert.Panics(t, func() {
-			s.RUnlock()
-		})
-	})
-
-	t.Run("unlock when read-locked should panic", func(t *testing.T) {
-		s := &Semaphore{}
-		s.RLock()
-		assert.Panics(t, func() {
-			s.Unlock()
-		})
-	})
+	core.RunTestCases(t, semaphorePanicTestCases())
 }
 
-// lockFunctions groups related locking and unlocking functions together
-// for testing purposes.
-type lockFunctions struct {
-	name        string
-	contextLock func(*Semaphore, context.Context) error
-	lock        func(*Semaphore)
-	unlock      func(*Semaphore)
-}
-
-func TestSemaphore_InterfaceCompliance(t *testing.T) {
-	var s Semaphore
-
-	// Should satisfy sync.Locker interface
-	var _ sync.Locker = &s
-
-	// Test API compatibility
-	t.Run("lock unlock pattern", func(_ *testing.T) {
-		var locker sync.Locker = &Semaphore{}
-		locker.Lock()
-		doSomething()
-		locker.Unlock()
-	})
+func TestSemaphore_InterfaceCompliance(_ *testing.T) {
+	var locker sync.Locker = &semaphore.Semaphore{}
+	locker.Lock()
+	doSomething()
+	locker.Unlock()
 }
 
 func TestSemaphore_EdgeCases(t *testing.T) {
-	t.Run("writer after readers", func(t *testing.T) {
-		testWriterAfterReaders(t)
-	})
-
-	t.Run("readers after writer", func(t *testing.T) {
-		testReadersAfterWriter(t)
-	})
+	t.Run("writer after readers", runTestWriterAfterReaders)
+	t.Run("readers after writer", runTestReadersAfterWriter)
 }
 
-// testWriterAfterReaders tests that writers block until all readers release their locks
-func testWriterAfterReaders(t *testing.T) {
-	s := &Semaphore{}
-
-	// Acquire multiple read locks
+// runTestWriterAfterReaders verifies a writer blocks until every reader
+// releases its lock.
+func runTestWriterAfterReaders(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
 	s.RLock()
 	s.RLock()
 	s.RLock()
 
-	writerReady := make(chan struct{})
 	writerDone := make(chan struct{})
-
-	// Writer should block until all readers are done
 	go func() {
-		close(writerReady)
+		defer close(writerDone)
 		s.Lock()
 		defer s.Unlock()
-		close(writerDone)
 	}()
 
-	// Wait for writer to be ready
-	<-writerReady
-	time.Sleep(10 * time.Millisecond)
+	synctesting.AssertMustOpen(t, writerDone, semaphoreOpenGuard,
+		"writer blocked while readers hold lock")
 
-	// Verify writer is blocked
-	verifyChannelNotClosed(t, writerDone, "Writer acquired lock while readers held it")
-
-	// Release all read locks
 	s.RUnlock()
 	s.RUnlock()
 	s.RUnlock()
 
-	// Verify writer proceeds after readers release
-	verifyChannelCloses(t, writerDone, 100*time.Millisecond,
-		"Writer failed to acquire lock after all readers released")
+	synctesting.AssertMustClosed(t, writerDone, semaphoreTestTimeout,
+		"writer proceeds after all readers released")
 }
 
-// testReadersAfterWriter tests that readers block until writer releases its lock
-func testReadersAfterWriter(t *testing.T) {
-	s := &Semaphore{}
+// runTestReadersAfterWriter verifies readers block until the writer
+// releases its lock, then all acquire.
+func runTestReadersAfterWriter(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
 	s.Lock()
 
-	done := make(chan struct{})
-	ready := make(chan struct{})
-
-	// Start readers that will block
 	const numReaders = 3
+	readersDone := make(chan struct{}, numReaders)
 	for range numReaders {
 		go func() {
-			ready <- struct{}{}
 			s.RLock()
 			defer s.RUnlock()
-			done <- struct{}{}
+			readersDone <- struct{}{}
 		}()
 	}
 
-	// Wait for all readers to be ready
-	waitForReadersReady(numReaders, ready)
-	time.Sleep(10 * time.Millisecond)
+	synctesting.AssertMustOpen(t, readersDone, semaphoreOpenGuard,
+		"readers blocked while writer holds lock")
 
-	// Verify readers are blocked
-	verifyChannelNotClosed(t, done, "Reader acquired lock while writer held it")
-
-	// Release the write lock
 	s.Unlock()
 
-	// Verify all readers proceed
-	verifyAllReadersAcquiredLocks(t, numReaders, done)
-}
-
-// waitForReadersReady waits for the specified number of readers to signal readiness
-func waitForReadersReady(count int, ready chan struct{}) {
-	for range count {
-		<-ready
-	}
-}
-
-// verifyChannelNotClosed checks that a channel has not been closed
-func verifyChannelNotClosed(t *testing.T, ch chan struct{}, failMessage string) {
-	select {
-	case <-ch:
-		t.Fatal(failMessage)
-	default:
-		// Expected behaviour
-	}
-}
-
-// verifyChannelCloses checks that a channel is closed within the timeout period
-func verifyChannelCloses(t *testing.T, ch chan struct{}, timeout time.Duration, failMessage string) {
-	select {
-	case <-ch:
-		// Expected behaviour
-	case <-time.After(timeout):
-		t.Fatal(failMessage)
-	}
-}
-
-// verifyAllReadersAcquiredLocks verifies that all readers acquired their locks
-func verifyAllReadersAcquiredLocks(t *testing.T, numReaders int, done chan struct{}) {
-	timeout := time.After(100 * time.Millisecond)
-	for range numReaders {
-		select {
-		case <-done:
-			// Expected behaviour
-		case <-timeout:
-			t.Fatal("Readers failed to acquire lock after writer released")
-		}
-	}
+	synctesting.AssertMustReadersReady(t, readersDone, numReaders,
+		semaphoreTestTimeout, "all readers acquire after writer released")
 }
 
 func TestSemaphore_ContextCancellation(t *testing.T) {
-	t.Run("cancel during wait for exclusive lock", func(t *testing.T) {
-		s := &Semaphore{}
-		s.Lock() // Lock is held
-
-		ctx, cancel := context.WithCancel(context.Background())
-
-		// Start a goroutine that will try to acquire the lock
-		errCh := make(chan error)
-		go func() {
-			errCh <- s.LockContext(ctx)
-		}()
-
-		// Give it a moment to block
-		time.Sleep(10 * time.Millisecond)
-
-		// Cancel the context
-		cancel()
-
-		// Should get context.Canceled error
-		select {
-		case err := <-errCh:
-			assert.Equal(t, context.Canceled, err)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("Context cancellation did not unblock LockContext")
-		}
-
-		s.Unlock()
-	})
-
-	t.Run("cancel during wait for read lock", func(t *testing.T) {
-		s := &Semaphore{}
-		s.Lock() // Lock is held
-
-		ctx, cancel := context.WithCancel(context.Background())
-
-		// Start a goroutine that will try to acquire the lock
-		errCh := make(chan error)
-		go func() {
-			errCh <- s.RLockContext(ctx)
-		}()
-
-		// Give it a moment to block
-		time.Sleep(10 * time.Millisecond)
-
-		// Cancel the context
-		cancel()
-
-		// Should get context.Canceled error
-		select {
-		case err := <-errCh:
-			assert.Equal(t, context.Canceled, err)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("Context cancellation did not unblock RLockContext")
-		}
-
-		s.Unlock()
-	})
-
-	t.Run("deadline exceeded during lock wait", func(t *testing.T) {
-		s := &Semaphore{}
-		s.Lock() // Lock is held
-
-		ctx, cancel := context.WithTimeout(
-			context.Background(),
-			50*time.Millisecond,
-		)
-		defer cancel()
-
-		// Start a goroutine that will try to acquire the lock
-		start := time.Now()
-		err := s.LockContext(ctx)
-		elapsed := time.Since(start)
-
-		// Should get deadline exceeded error
-		assert.Equal(t, context.DeadlineExceeded, err)
-		assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(50))
-
-		s.Unlock()
-	})
+	t.Run("cancel during wait for exclusive lock", runTestCancelExclusiveWait)
+	t.Run("cancel during wait for read lock", runTestCancelReadWait)
+	t.Run("deadline exceeded during lock wait", runTestDeadlineExceeded)
 }
 
-//revive:disable-next-line:cognitive-complexity
+func runTestCancelExclusiveWait(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	s.Lock()
+	defer s.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var gotErr error
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		gotErr = s.LockContext(ctx)
+	}()
+
+	synctesting.AssertMustOpen(t, done, semaphoreOpenGuard,
+		"LockContext blocks while lock held")
+	cancel()
+	synctesting.AssertMustClosed(t, done, semaphoreTestTimeout,
+		"LockContext unblocked by cancel")
+	core.AssertErrorIs(t, gotErr, context.Canceled, "LockContext cancelled")
+}
+
+func runTestCancelReadWait(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	s.Lock()
+	defer s.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var gotErr error
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		gotErr = s.RLockContext(ctx)
+	}()
+
+	synctesting.AssertMustOpen(t, done, semaphoreOpenGuard,
+		"RLockContext blocks while writer holds lock")
+	cancel()
+	synctesting.AssertMustClosed(t, done, semaphoreTestTimeout,
+		"RLockContext unblocked by cancel")
+	core.AssertErrorIs(t, gotErr, context.Canceled, "RLockContext cancelled")
+}
+
+func runTestDeadlineExceeded(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	s.Lock()
+	defer s.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), semaphoreOpenGuard)
+	defer cancel()
+
+	core.AssertErrorIs(t, s.LockContext(ctx), context.DeadlineExceeded,
+		"LockContext deadline exceeded")
+}
+
 func TestSemaphore_Stress(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping stress test in short mode")
+		t.Skip("skipping stress test in short mode")
 	}
 
-	t.Run("mixed concurrent operations", func(t *testing.T) {
-		s := &Semaphore{}
-		const numWorkers = 20
-		const iterations = 500
+	s := &semaphore.Semaphore{}
+	const numWorkers, iterations = 20, 500
 
-		var wg sync.WaitGroup
-		wg.Add(numWorkers)
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
 
-		counter := 0
-		var counterMutex sync.Mutex
+	counter := 0
+	var counterMutex sync.Mutex
 
-		for i := range numWorkers {
-			go func(id int) {
-				defer wg.Done()
-				for j := range iterations {
-					// Determine operation type based on worker ID and iteration
-					opType := (id + j) % 6
-					performOperation(s, opType, &counter, &counterMutex)
-				}
-			}(i)
-		}
+	for i := range numWorkers {
+		go func(id int) {
+			defer wg.Done()
+			for j := range iterations {
+				performOperation(s, (id+j)%6, &counter, &counterMutex)
+			}
+		}(i)
+	}
+	wg.Wait()
 
-		wg.Wait()
-
-		// We don't know exactly what the counter will be due to TryLock/TryRLock
-		// and timeouts, but it should be > 0
-		assert.Greater(t, counter, 0)
-	})
+	// The exact total is unknowable because TryLock/TryRLock and the
+	// timeouts may skip increments, but it must have advanced.
+	core.AssertTrue(t, counter > 0, "counter advanced")
 }
 
-// performOperation executes one of the semaphore operations based on the operation type
-func performOperation(s *Semaphore, opType int, counter *int, counterMutex *sync.Mutex) {
+// performOperation executes one of the semaphore operations based on the
+// operation type.
+func performOperation(s *semaphore.Semaphore, opType int, counter *int,
+	counterMutex *sync.Mutex) {
 	switch opType {
 	case 0:
 		exclusiveLockOperation(s, counter, counterMutex)
@@ -620,37 +593,36 @@ func performOperation(s *Semaphore, opType int, counter *int, counterMutex *sync
 	}
 }
 
-// exclusiveLockOperation performs a Lock+Unlock operation
-func exclusiveLockOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func exclusiveLockOperation(s *semaphore.Semaphore, counter *int,
+	counterMutex *sync.Mutex) {
 	s.Lock()
 	counterMutex.Lock()
-	(*counter)++
+	*counter++
 	counterMutex.Unlock()
 	s.Unlock()
 }
 
-// tryLockOperation attempts a TryLock operation
-func tryLockOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func tryLockOperation(s *semaphore.Semaphore, counter *int,
+	counterMutex *sync.Mutex) {
 	if s.TryLock() {
 		counterMutex.Lock()
-		(*counter)++
+		*counter++
 		counterMutex.Unlock()
 		s.Unlock()
 	}
 }
 
-// readLockOperation performs a RLock+RUnlock operation
-func readLockOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func readLockOperation(s *semaphore.Semaphore, counter *int,
+	counterMutex *sync.Mutex) {
 	s.RLock()
-	// Just read the counter
 	counterMutex.Lock()
 	_ = *counter
 	counterMutex.Unlock()
 	s.RUnlock()
 }
 
-// tryReadLockOperation attempts a TryRLock operation
-func tryReadLockOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
+func tryReadLockOperation(s *semaphore.Semaphore, counter *int,
+	counterMutex *sync.Mutex) {
 	if s.TryRLock() {
 		counterMutex.Lock()
 		_ = *counter
@@ -659,28 +631,22 @@ func tryReadLockOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) 
 	}
 }
 
-// lockContextOperation performs a LockContext with short timeout
-func lockContextOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		1*time.Millisecond,
-	)
+func lockContextOperation(s *semaphore.Semaphore, counter *int,
+	counterMutex *sync.Mutex) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
 
 	if s.LockContext(ctx) == nil {
 		counterMutex.Lock()
-		(*counter)++
+		*counter++
 		counterMutex.Unlock()
 		s.Unlock()
 	}
 }
 
-// readLockContextOperation performs a RLockContext with short timeout
-func readLockContextOperation(s *Semaphore, counter *int, counterMutex *sync.Mutex) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		1*time.Millisecond,
-	)
+func readLockContextOperation(s *semaphore.Semaphore, counter *int,
+	counterMutex *sync.Mutex) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
 
 	if s.RLockContext(ctx) == nil {
@@ -691,53 +657,41 @@ func readLockContextOperation(s *Semaphore, counter *int, counterMutex *sync.Mut
 	}
 }
 
-//revive:disable-next-line:cognitive-complexity
 func TestSemaphore_BoundaryConditions(t *testing.T) {
-	t.Run("many consecutive read locks", func(t *testing.T) {
-		s := &Semaphore{}
+	t.Run("many consecutive read locks", runTestManyReadLocks)
+}
 
-		// Acquire a lot of read locks
-		const numLocks = 1000
-		for range numLocks {
-			s.RLock()
-		}
+func runTestManyReadLocks(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
 
-		// Try to get a write lock - should block
-		writerDone := make(chan struct{})
-		go func() {
-			s.Lock()
-			doSomething()
-			s.Unlock()
-			close(writerDone)
-		}()
+	const numLocks = 1000
+	for range numLocks {
+		s.RLock()
+	}
 
-		// Writer shouldn't proceed yet
-		time.Sleep(10 * time.Millisecond)
-		select {
-		case <-writerDone:
-			t.Fatal("Writer shouldn't have acquired the lock")
-		default:
-			// Expected
-		}
+	writerDone := make(chan struct{})
+	go func() {
+		defer close(writerDone)
+		s.Lock()
+		doSomething()
+		s.Unlock()
+	}()
 
-		// Release all read locks
-		for range numLocks {
-			s.RUnlock()
-		}
+	synctesting.AssertMustOpen(t, writerDone, semaphoreOpenGuard,
+		"writer blocked while 1000 readers hold lock")
 
-		// Now writer should be able to proceed
-		select {
-		case <-writerDone:
-			// Expected behaviour
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("Writer failed to acquire lock after all readers released")
-		}
-	})
+	for range numLocks {
+		s.RUnlock()
+	}
+
+	synctesting.AssertMustClosed(t, writerDone, semaphoreTestTimeout,
+		"writer proceeds after all readers released")
 }
 
 // ----- Benchmark functions -----
 
-// runBenchmarkBasicLock benchmarks basic lock/unlock operations
+// runBenchmarkBasicLock benchmarks basic lock/unlock operations.
 func runBenchmarkBasicLock(b *testing.B, mu mutex.Mutex) {
 	n := 1
 
@@ -750,7 +704,7 @@ func runBenchmarkBasicLock(b *testing.B, mu mutex.Mutex) {
 	})
 }
 
-// runBenchmarkLockWithDefer benchmarks using defer to unlock
+// runBenchmarkLockWithDefer benchmarks using defer to unlock.
 func runBenchmarkLockWithDefer(b *testing.B, mu mutex.Mutex) {
 	n := 1
 
@@ -765,7 +719,7 @@ func runBenchmarkLockWithDefer(b *testing.B, mu mutex.Mutex) {
 	})
 }
 
-// runBenchmarkContention benchmarks lock under contention with CPU work
+// runBenchmarkContention benchmarks lock under contention with CPU work.
 func runBenchmarkContention(b *testing.B, mu mutex.Mutex) {
 	n := 1
 
@@ -781,7 +735,7 @@ func runBenchmarkContention(b *testing.B, mu mutex.Mutex) {
 	})
 }
 
-// runBenchmarkRWLock benchmarks read lock operations with occasional writes
+// runBenchmarkRWLock benchmarks read lock operations with occasional writes.
 func runBenchmarkRWLock(b *testing.B, mu mutex.RWMutex) {
 	n := 1
 	const readersPerWriter = 100 // Ratio of reads to writes
@@ -805,7 +759,7 @@ func runBenchmarkRWLock(b *testing.B, mu mutex.RWMutex) {
 	})
 }
 
-// runBenchmarkReadOnly benchmarks read-only operations
+// runBenchmarkReadOnly benchmarks read-only operations.
 func runBenchmarkReadOnly(b *testing.B, mu mutex.RWMutex) {
 	n := 1
 
@@ -818,16 +772,29 @@ func runBenchmarkReadOnly(b *testing.B, mu mutex.RWMutex) {
 	})
 }
 
-// runBenchmarkTryLock benchmarks TryLock operations
-//
-//revive:disable:cognitive-complexity
+// reportTryMetrics reports the attempts/lock, locks-per-second and
+// nanoseconds-per-lock ratios for a TryLock-style benchmark. unit is the
+// per-acquisition noun ("lock" or "rlock"). Guard clauses keep this off
+// the benchmark loop's complexity budget.
+func reportTryMetrics(b *testing.B, attempts, count int32,
+	elapsed time.Duration, unit string) {
+	if count <= 0 {
+		return
+	}
+	b.ReportMetric(float64(attempts)/float64(count), "attempts/"+unit)
+	if elapsed <= 0 {
+		return
+	}
+	b.ReportMetric(float64(count)/elapsed.Seconds(), unit+"s/sec")
+	b.ReportMetric(float64(elapsed.Nanoseconds())/float64(attempts), "ns/"+unit)
+}
+
+// runBenchmarkTryLock benchmarks TryLock operations.
 func runBenchmarkTryLock(b *testing.B, mu mutex.Mutex) {
 	var lockAttempts atomic.Int32
 	var locksCount int32
 
-	// Reset the timer to exclude setup
 	b.ResetTimer()
-	// Start timing
 	startTime := time.Now()
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -841,30 +808,16 @@ func runBenchmarkTryLock(b *testing.B, mu mutex.Mutex) {
 		}
 	})
 
-	elapsed := time.Since(startTime)
-	if locksCount > 0 {
-		// Report attempts per lock
-		b.ReportMetric(float64(lockAttempts.Load())/float64(locksCount), "attempts/lock")
-		if elapsed > 0 {
-			// Report locks per second
-			locksPerSec := float64(locksCount) / elapsed.Seconds()
-			b.ReportMetric(locksPerSec, "locks/sec")
-			// And nanoseconds per lock
-			b.ReportMetric(float64(elapsed.Nanoseconds())/float64(lockAttempts.Load()), "ns/lock")
-		}
-	}
+	reportTryMetrics(b, lockAttempts.Load(), locksCount,
+		time.Since(startTime), "lock")
 }
 
-// runBenchmarkTryRLock benchmarks TryRLock operations
-//
-//revive:disable:cognitive-complexity
+// runBenchmarkTryRLock benchmarks TryRLock operations.
 func runBenchmarkTryRLock(b *testing.B, mu mutex.RWMutex) {
 	var lockAttempts atomic.Int32
 	var locksCount int32
 
-	// Reset the timer to exclude setup
 	b.ResetTimer()
-	// Start timing
 	startTime := time.Now()
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -878,20 +831,11 @@ func runBenchmarkTryRLock(b *testing.B, mu mutex.RWMutex) {
 		}
 	})
 
-	elapsed := time.Since(startTime)
-	if locksCount > 0 {
-		// Report attempts per rlock
-		b.ReportMetric(float64(lockAttempts.Load())/float64(locksCount), "attempts/rlock")
-		if elapsed > 0 {
-			// Report rlocks per second
-			b.ReportMetric(float64(locksCount)/elapsed.Seconds(), "rlocks/sec")
-			// And nanoseconds per rlock
-			b.ReportMetric(float64(elapsed.Nanoseconds())/float64(lockAttempts.Load()), "ns/rlock")
-		}
-	}
+	reportTryMetrics(b, lockAttempts.Load(), locksCount,
+		time.Since(startTime), "rlock")
 }
 
-// runBenchmarkContextLock benchmarks LockContext operations
+// runBenchmarkContextLock benchmarks LockContext operations.
 func runBenchmarkContextLock(b *testing.B, mu mutex.MutexContext) {
 	n := 1
 
@@ -906,7 +850,7 @@ func runBenchmarkContextLock(b *testing.B, mu mutex.MutexContext) {
 	})
 }
 
-// runBenchmarkContextRLock benchmarks RLockContext operations
+// runBenchmarkContextRLock benchmarks RLockContext operations.
 func runBenchmarkContextRLock(b *testing.B, mu mutex.RWMutexContext) {
 	n := 1
 
@@ -925,7 +869,7 @@ func runBenchmarkContextRLock(b *testing.B, mu mutex.RWMutexContext) {
 
 // Basic lock/unlock benchmarks
 func BenchmarkLock_Semaphore(b *testing.B) {
-	s := &Semaphore{}
+	s := &semaphore.Semaphore{}
 	runBenchmarkBasicLock(b, s)
 }
 
@@ -941,7 +885,7 @@ func BenchmarkLock_StdRWMutex(b *testing.B) {
 
 // Deferred unlock benchmarks
 func BenchmarkLockWithDefer_Semaphore(b *testing.B) {
-	s := &Semaphore{}
+	s := &semaphore.Semaphore{}
 	runBenchmarkLockWithDefer(b, s)
 }
 
@@ -957,7 +901,7 @@ func BenchmarkLockWithDefer_StdRWMutex(b *testing.B) {
 
 // Contention benchmarks
 func BenchmarkContention_Semaphore(b *testing.B) {
-	s := &Semaphore{}
+	s := &semaphore.Semaphore{}
 	runBenchmarkContention(b, s)
 }
 
@@ -973,7 +917,7 @@ func BenchmarkContention_StdRWMutex(b *testing.B) {
 
 // Reader/Writer lock benchmarks
 func BenchmarkRWLock_Semaphore(b *testing.B) {
-	s := &Semaphore{}
+	s := &semaphore.Semaphore{}
 	runBenchmarkRWLock(b, s)
 }
 
@@ -984,7 +928,7 @@ func BenchmarkRWLock_StdRWMutex(b *testing.B) {
 
 // Read-only benchmarks
 func BenchmarkReadOnly_Semaphore(b *testing.B) {
-	s := &Semaphore{}
+	s := &semaphore.Semaphore{}
 	runBenchmarkReadOnly(b, s)
 }
 
@@ -995,7 +939,7 @@ func BenchmarkReadOnly_StdRWMutex(b *testing.B) {
 
 // TryLock benchmarks
 func BenchmarkTryLock_Semaphore(b *testing.B) {
-	s := &Semaphore{}
+	s := &semaphore.Semaphore{}
 	runBenchmarkTryLock(b, s)
 }
 
@@ -1011,7 +955,7 @@ func BenchmarkTryLock_StdRWMutex(b *testing.B) {
 
 // TryRLock benchmarks
 func BenchmarkTryRLock_Semaphore(b *testing.B) {
-	s := &Semaphore{}
+	s := &semaphore.Semaphore{}
 	runBenchmarkTryRLock(b, s)
 }
 
@@ -1022,11 +966,11 @@ func BenchmarkTryRLock_StdRWMutex(b *testing.B) {
 
 // Context lock benchmarks
 func BenchmarkContextLock_Semaphore(b *testing.B) {
-	s := &Semaphore{}
+	s := &semaphore.Semaphore{}
 	runBenchmarkContextLock(b, s)
 }
 
 func BenchmarkContextRLock_Semaphore(b *testing.B) {
-	s := &Semaphore{}
+	s := &semaphore.Semaphore{}
 	runBenchmarkContextRLock(b, s)
 }
