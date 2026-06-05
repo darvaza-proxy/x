@@ -1,8 +1,6 @@
 package mutex
 
 import (
-	"sync"
-
 	"darvaza.org/core"
 )
 
@@ -200,8 +198,3 @@ func doReverseUnlock[T Mutex](unlock func(T) error, locks []T) error {
 
 	return errs.AsError()
 }
-
-// interface assertions
-var _ Mutex = (*sync.Mutex)(nil)
-var _ Mutex = (*sync.RWMutex)(nil)
-var _ RWMutex = (*sync.RWMutex)(nil)
