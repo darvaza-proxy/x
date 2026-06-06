@@ -158,6 +158,11 @@ func (bs *Barrier) Token() Token {
 // Signaled returns a channel that can be used to wait for the barrier's
 // completion. It provides a select-friendly way to wait for a waiter to be
 // signalled.
+//
+// If the Barrier is closed, Token returns nil and the returned channel is
+// nil; receiving from a nil channel blocks forever. Callers that may race
+// a concurrent Close must select against a separate cancellation channel
+// rather than relying on Signaled alone.
 func (bs *Barrier) Signaled() <-chan struct{} {
 	return bs.Token()
 }
@@ -165,6 +170,10 @@ func (bs *Barrier) Signaled() <-chan struct{} {
 // Wait blocks until the barrier's current condition is signalled.
 // It provides a simple way to wait for the barrier to complete its current
 // state.
+//
+// If the Barrier is closed, Wait blocks forever (receiving from the nil
+// channel returned by Signaled). Callers that may race a concurrent Close
+// should use a select statement on Signaled() rather than Wait().
 func (bs *Barrier) Wait() {
 	<-bs.Signaled()
 }
