@@ -193,6 +193,10 @@ func (s *Semaphore) doUnlock() error {
 			return nil
 		}
 
+		// read-locked, not write-locked: we drained the reader's
+		// global token above. Put it back so concurrent readers can
+		// still release cleanly, then fail loudly.
+		s.global <- exclusive
 		errMsg = "unlock of read-locked mutex"
 	default:
 		errMsg = "unlock of unlocked mutex"

@@ -414,6 +414,34 @@ func TestSemaphore_ErrorCases(t *testing.T) {
 	core.RunTestCases(t, semaphorePanicTestCases())
 }
 
+// TestSemaphore_MisuseStateIntegrity verifies that a recovered misuse panic
+// fails the offending caller without poisoning state for correct callers.
+func TestSemaphore_MisuseStateIntegrity(t *testing.T) {
+	t.Run("reader survives unlock misuse", runTestReaderSurvivesUnlockMisuse)
+}
+
+// runTestReaderSurvivesUnlockMisuse holds a read lock, calls Unlock (misuse)
+// and recovers the panic, then verifies the reader can still RUnlock and the
+// lock returns fully to the unlocked state. Without restoring the drained
+// global token in doUnlock, the recovering RUnlock would itself panic
+// ("unlock of unlocked mutex") and no later writer could acquire.
+func runTestReaderSurvivesUnlockMisuse(t *testing.T) {
+	t.Helper()
+	s := &semaphore.Semaphore{}
+	s.RLock()
+
+	// Misuse: Unlock instead of RUnlock. It must panic but leave the
+	// read lock intact.
+	core.AssertMustPanic(t, func() { s.Unlock() }, nil, "unlock misuse panics")
+
+	// The reader can still release cleanly — state was not poisoned.
+	s.RUnlock()
+
+	// And the lock is fully free again for a writer.
+	core.AssertMustTrue(t, s.TryLock(), "writer acquires after recovery")
+	s.Unlock()
+}
+
 func TestSemaphore_InterfaceCompliance(_ *testing.T) {
 	var locker sync.Locker = &semaphore.Semaphore{}
 	locker.Lock()
