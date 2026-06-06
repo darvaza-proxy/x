@@ -268,8 +268,6 @@ func (wg *Group) Cancel(cause error) bool {
 }
 
 func (wg *Group) doCancel(cause error) bool {
-	var ready chan struct{}
-
 	if cause == nil {
 		cause = context.Canceled
 	}
@@ -298,16 +296,7 @@ func (wg *Group) doCancel(cause error) bool {
 	wg.cancelled.Store(true)
 	wg.cancel(cause)
 
-	// call the OnCancel function if defined
-	if fn := wg.OnCancel; fn != nil {
-		ready = make(chan struct{})
-		wg.tasks.Inc()
-		go func() {
-			defer wg.tasks.Dec()
-			close(ready)
-			fn(wg.ctx, cause)
-		}()
-	}
+	ready := wg.spawnCancelHandler(cause)
 
 	wg.mu.Unlock()
 
@@ -317,6 +306,36 @@ func (wg *Group) doCancel(cause error) bool {
 	}
 
 	return true
+}
+
+// spawnCancelHandler enrols the OnCancel handler as a counted task and runs
+// it detached, returning a channel closed once the handler goroutine has
+// started, or nil when no handler is set. The caller must hold wg.mu.
+func (wg *Group) spawnCancelHandler(cause error) chan struct{} {
+	fn := wg.OnCancel
+	if fn == nil {
+		return nil
+	}
+
+	ready := make(chan struct{})
+	wg.tasks.Inc()
+	go func() {
+		defer wg.tasks.Dec()
+		close(ready)
+		// Contain a panicking handler. Without this, a panic unwinds
+		// the detached goroutine with nothing to recover it: it crashes
+		// the process while Wait blocks forever on the tasks counter.
+		// run() wraps ordinary tasks the same way. The caught error is
+		// deliberately dropped: the group is already cancelled, so
+		// routing it back through Cancel would be a no-op. Surfacing it
+		// instead would require threading a cancellation cause out of
+		// the handler, which the Group does not yet support.
+		_ = core.Catch(func() error {
+			fn(wg.ctx, cause)
+			return nil
+		})
+	}()
+	return ready
 }
 
 // Close cancels the Group and waits for all tasks to complete,

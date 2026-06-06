@@ -393,6 +393,7 @@ func TestGroup_OnCancel(t *testing.T) {
 		runTestOnCancelReceivesContextCanceledForNilCause)
 	t.Run("HandlerNotCalledWithoutCancel", runTestOnCancelNotCalledWithoutCancel)
 	t.Run("HandlerCalledOnceOnRepeatedCancel", runTestOnCancelOnceOnRepeatedCancel)
+	t.Run("HandlerPanicContained", runTestOnCancelHandlerPanicContained)
 	t.Run("HandlerFiresOnClose", runTestOnCancelFiresOnClose)
 }
 
@@ -516,6 +517,27 @@ func runTestOnCancelOnceOnRepeatedCancel(t *testing.T) {
 	core.AssertFalse(t, wg.Cancel(nil), "second cancel")
 	core.AssertNoError(t, wg.Wait(), "wait")
 	core.AssertEqual(t, int32(1), count.Load(), "handler call count")
+}
+
+// runTestOnCancelHandlerPanicContained pins that a panicking OnCancel handler
+// is recovered. The handler runs as a detached, counted task; without
+// containment its panic would crash the whole test binary and leave Wait
+// blocked forever on the tasks counter. The defer'd tasks.Dec still runs, so
+// Wait must return.
+func runTestOnCancelHandlerPanicContained(t *testing.T) {
+	t.Helper()
+	handlerRan := make(chan struct{})
+
+	wg := workgroup.New(context.Background())
+	wg.OnCancel = func(_ context.Context, _ error) {
+		close(handlerRan)
+		panic("boom in OnCancel handler")
+	}
+
+	wg.Cancel(nil)
+	synctesting.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
+		"handler ran")
+	core.AssertNoError(t, wg.Wait(), "wait returns after contained panic")
 }
 
 func runTestOnCancelFiresOnClose(t *testing.T) {
