@@ -820,7 +820,7 @@ func reportTryMetrics(b *testing.B, attempts, count int32,
 // runBenchmarkTryLock benchmarks TryLock operations.
 func runBenchmarkTryLock(b *testing.B, mu mutex.Mutex) {
 	var lockAttempts atomic.Int32
-	var locksCount int32
+	var locksCount atomic.Int32
 
 	b.ResetTimer()
 	startTime := time.Now()
@@ -830,20 +830,20 @@ func runBenchmarkTryLock(b *testing.B, mu mutex.Mutex) {
 			lockAttempts.Add(1)
 
 			if mu.TryLock() {
-				locksCount++
+				locksCount.Add(1)
 				mu.Unlock()
 			}
 		}
 	})
 
-	reportTryMetrics(b, lockAttempts.Load(), locksCount,
+	reportTryMetrics(b, lockAttempts.Load(), locksCount.Load(),
 		time.Since(startTime), "lock")
 }
 
 // runBenchmarkTryRLock benchmarks TryRLock operations.
 func runBenchmarkTryRLock(b *testing.B, mu mutex.RWMutex) {
 	var lockAttempts atomic.Int32
-	var locksCount int32
+	var locksCount atomic.Int32
 
 	b.ResetTimer()
 	startTime := time.Now()
@@ -853,13 +853,13 @@ func runBenchmarkTryRLock(b *testing.B, mu mutex.RWMutex) {
 			lockAttempts.Add(1)
 
 			if mu.TryRLock() {
-				locksCount++
+				locksCount.Add(1)
 				mu.RUnlock()
 			}
 		}
 	})
 
-	reportTryMetrics(b, lockAttempts.Load(), locksCount,
+	reportTryMetrics(b, lockAttempts.Load(), locksCount.Load(),
 		time.Since(startTime), "rlock")
 }
 
