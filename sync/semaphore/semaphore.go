@@ -46,6 +46,10 @@ func (s *Semaphore) lazyInit() error {
 	// RW
 	s.mu.Lock()
 	if s.global != nil {
+		// double-checked re-read: another goroutine initialised
+		// between our RUnlock and Lock. Only that interleaving
+		// reaches here, so the arm stays uncovered rather than be
+		// faked with a probabilistic race test.
 		s.mu.Unlock()
 		return nil
 	}
@@ -189,6 +193,10 @@ func (s *Semaphore) doUnlock() error {
 			return nil
 		}
 
+		// read-locked, not write-locked: we drained the reader's
+		// global token above. Put it back so concurrent readers can
+		// still release cleanly, then fail loudly.
+		s.global <- exclusive
 		errMsg = "unlock of read-locked mutex"
 	default:
 		errMsg = "unlock of unlocked mutex"

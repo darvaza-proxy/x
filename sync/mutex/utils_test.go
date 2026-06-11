@@ -1,4 +1,4 @@
-package mutex
+package mutex_test
 
 import (
 	"context"
@@ -6,472 +6,416 @@ import (
 	"testing"
 
 	"darvaza.org/core"
-	"darvaza.org/x/sync/errors"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"darvaza.org/x/sync/errors"
+	"darvaza.org/x/sync/mutex"
 )
 
-// TestSafeLock verifies the SafeLock function behaves correctly
-func TestSafeLock(t *testing.T) {
-	// Test with normal mutex
+// errKind classifies the error a Safe* operation is expected to return,
+// keeping the test tables free of per-row assertion logic.
+type errKind int
+
+const (
+	errNone       errKind = iota // no error
+	errNilMutex                  // wraps errors.ErrNilMutex
+	errNilContext                // wraps errors.ErrNilContext
+	errCancelled                 // wraps context.Canceled
+	errPanic                     // a caught panic, reported as *core.PanicError
+)
+
+// assertErrKind asserts err matches the expected classification. The errPanic
+// arm also pins the typed-nil contract: a caught nil-pointer dereference is a
+// PanicError, never the ErrNilMutex sentinel reserved for interface nils.
+func assertErrKind(t *testing.T, err error, kind errKind, name string) {
+	t.Helper()
+	switch kind {
+	case errNone:
+		core.AssertNoError(t, err, name)
+	case errNilMutex:
+		core.AssertErrorIs(t, err, errors.ErrNilMutex, name)
+	case errNilContext:
+		core.AssertErrorIs(t, err, errors.ErrNilContext, name)
+	case errCancelled:
+		core.AssertErrorIs(t, err, context.Canceled, name)
+	case errPanic:
+		_, _ = core.AssertTypeIs[*core.PanicError](t, err, name)
+		core.AssertFalse(t, core.IsError(err, errors.ErrNilMutex),
+			name+" not ErrNilMutex")
+	default: // any other non-nil error
+		core.AssertError(t, err, name)
+	}
+}
+
+// ----- mutex fixtures -----
+
+func newStdMutex() mutex.Mutex     { return &sync.Mutex{} }
+func newRWMutex() mutex.Mutex      { return &sync.RWMutex{} }
+func nilMutex() mutex.Mutex        { return nil }
+func typedNilMutex() mutex.Mutex   { return (*sync.Mutex)(nil) }
+func typedNilRWMutex() mutex.Mutex { return (*sync.RWMutex)(nil) }
+
+func newPanicOnLock() mutex.Mutex    { return &panicOnLockMutex{} }
+func newPanicOnTryLock() mutex.Mutex { return &panicOnTryLockMutex{} }
+func newPanicOnUnlock() mutex.Mutex  { return &panicOnUnlockMutex{} }
+
+func lockedStdMutex() mutex.Mutex {
+	m := &sync.Mutex{}
+	m.Lock()
+	return m
+}
+
+func readLockedRWMutex() mutex.Mutex {
+	m := &sync.RWMutex{}
+	m.RLock()
+	return m
+}
+
+// writeLockedRWMutex returns a write-locked RWMutex. It exists only to make
+// SafeTryRLock fail without blocking; the lock is never released, so it must
+// not be handed to a release helper.
+func writeLockedRWMutex() mutex.Mutex {
+	m := &sync.RWMutex{}
+	m.Lock()
+	return m
+}
+
+// ----- Safe acquire -----
+
+func opSafeLock(mu mutex.Mutex) (bool, error)     { return mutex.SafeLock(mu) }
+func opSafeTryLock(mu mutex.Mutex) (bool, error)  { return mutex.SafeTryLock(mu) }
+func opSafeRLock(mu mutex.Mutex) (bool, error)    { return mutex.SafeRLock(mu) }
+func opSafeTryRLock(mu mutex.Mutex) (bool, error) { return mutex.SafeTryRLock(mu) }
+
+// safeAcquireTestCase exercises the (bool, error)-returning Safe acquirers.
+// op selects the operation; newMu builds the receiver in the desired state.
+// wantOK is independent of want: the non-blocking TryLock/TryRLock acquirers
+// return (false, nil) on a contended lock, so a held row pairs wantOK false
+// with want errNone — the blocking acquirers cannot reach that combination.
+type safeAcquireTestCase struct {
+	name string
+
+	op    func(mutex.Mutex) (bool, error)
+	newMu func() mutex.Mutex
+
+	want   errKind
+	wantOK bool
+}
+
+func newSafeAcquireTestCase(name string, op func(mutex.Mutex) (bool, error),
+	newMu func() mutex.Mutex, wantOK bool, want errKind) safeAcquireTestCase {
+	return safeAcquireTestCase{
+		name:   name,
+		op:     op,
+		newMu:  newMu,
+		want:   want,
+		wantOK: wantOK,
+	}
+}
+
+func (tc safeAcquireTestCase) Name() string { return tc.name }
+
+func (tc safeAcquireTestCase) Test(t *testing.T) {
+	t.Helper()
+	ok, err := tc.op(tc.newMu())
+	core.AssertEqual(t, tc.wantOK, ok, "ok")
+	assertErrKind(t, err, tc.want, "err")
+}
+
+var _ core.TestCase = safeAcquireTestCase{}
+
+func safeAcquireTestCases() []safeAcquireTestCase {
+	return []safeAcquireTestCase{
+		newSafeAcquireTestCase("SafeLock free", opSafeLock, newStdMutex, true, errNone),
+		newSafeAcquireTestCase("SafeLock interface-nil", opSafeLock, nilMutex, false, errNilMutex),
+		newSafeAcquireTestCase("SafeLock typed-nil", opSafeLock, typedNilMutex, false, errPanic),
+		newSafeAcquireTestCase("SafeLock panic", opSafeLock, newPanicOnLock, false, errPanic),
+
+		newSafeAcquireTestCase("SafeTryLock free", opSafeTryLock, newStdMutex, true, errNone),
+		newSafeAcquireTestCase("SafeTryLock held", opSafeTryLock, lockedStdMutex, false, errNone),
+		newSafeAcquireTestCase("SafeTryLock interface-nil", opSafeTryLock, nilMutex, false, errNilMutex),
+		newSafeAcquireTestCase("SafeTryLock typed-nil", opSafeTryLock, typedNilMutex, false, errPanic),
+		newSafeAcquireTestCase("SafeTryLock panic", opSafeTryLock, newPanicOnTryLock, false, errPanic),
+
+		newSafeAcquireTestCase("SafeRLock RWMutex", opSafeRLock, newRWMutex, true, errNone),
+		newSafeAcquireTestCase("SafeRLock Mutex", opSafeRLock, newStdMutex, true, errNone),
+		newSafeAcquireTestCase("SafeRLock interface-nil", opSafeRLock, nilMutex, false, errNilMutex),
+		newSafeAcquireTestCase("SafeRLock typed-nil", opSafeRLock, typedNilRWMutex, false, errPanic),
+
+		newSafeAcquireTestCase("SafeTryRLock RWMutex", opSafeTryRLock, newRWMutex, true, errNone),
+		newSafeAcquireTestCase("SafeTryRLock Mutex", opSafeTryRLock, newStdMutex, true, errNone),
+		newSafeAcquireTestCase("SafeTryRLock write-locked", opSafeTryRLock, writeLockedRWMutex, false, errNone),
+		newSafeAcquireTestCase("SafeTryRLock interface-nil", opSafeTryRLock, nilMutex, false, errNilMutex),
+		newSafeAcquireTestCase("SafeTryRLock typed-nil", opSafeTryRLock, typedNilRWMutex, false, errPanic),
+	}
+}
+
+func TestSafeAcquire(t *testing.T) {
+	core.RunTestCases(t, safeAcquireTestCases())
+}
+
+// TestSafeTryLockHeld verifies SafeTryLock's acquisition has real effect:
+// a successful acquire makes a second attempt on the same mutex fail
+// without blocking, and the lock releases cleanly afterwards. The table's
+// "SafeTryLock held" row covers the (false, nil) outcome on a pre-locked
+// mutex; this pins that SafeTryLock itself is what holds it.
+func TestSafeTryLockHeld(t *testing.T) {
 	mu := &sync.Mutex{}
-	ok, err := SafeLock(mu)
-	assert.True(t, ok, "SafeLock should succeed on unlocked mutex")
-	assert.Nil(t, err, "SafeLock should not return error on success")
+	ok, err := mutex.SafeTryLock[mutex.Mutex](mu)
+	core.AssertMustEqual(t, true, ok, "first acquire")
+	core.AssertNoError(t, err, "first acquire")
 
-	// Release the lock
-	err = SafeUnlock(mu)
-	assert.Nil(t, err, "SafeUnlock should not return error")
+	ok, err = mutex.SafeTryLock[mutex.Mutex](mu)
+	core.AssertEqual(t, false, ok, "second acquire blocked")
+	core.AssertNoError(t, err, "second acquire")
 
-	// Test with nil mutex
-	ok, err = SafeLock[Mutex](nil)
-	assert.False(t, ok, "SafeLock should fail on nil mutex")
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeLock should return ErrNilMutex")
-
-	// Test with mutex that panics on Lock
-	panicMu := &panicOnLockMutex{}
-	ok, err = SafeLock(panicMu)
-	assert.False(t, ok, "SafeLock should fail when lock panics")
-	assert.Error(t, err, "SafeLock should return error when lock panics")
+	mu.Unlock()
 }
 
-// TestSafeTryLock verifies the SafeTryLock function behaves correctly
-func TestSafeTryLock(t *testing.T) {
-	// Test with normal mutex
-	mu := &sync.Mutex{}
-	ok, err := SafeTryLock(mu)
-	assert.True(t, ok, "SafeTryLock should succeed on unlocked mutex")
-	assert.Nil(t, err, "SafeTryLock should not return error on success")
+// ----- Safe release -----
 
-	// Mutex should be locked now, so another try should fail
-	ok, err = SafeTryLock(mu)
-	assert.False(t, ok, "SafeTryLock should fail on already locked mutex")
-	assert.Nil(t, err, "SafeTryLock should not return error when unavailable")
+func opSafeUnlock(mu mutex.Mutex) error  { return mutex.SafeUnlock(mu) }
+func opSafeRUnlock(mu mutex.Mutex) error { return mutex.SafeRUnlock(mu) }
 
-	// Release the lock
-	err = SafeUnlock(mu)
-	assert.Nil(t, err, "SafeUnlock should not return error")
+// safeReleaseTestCase exercises the error-returning Safe releasers against a
+// receiver pre-arranged by newMu.
+type safeReleaseTestCase struct {
+	name string
 
-	// Test with nil mutex
-	var nilMu Mutex
-	ok, err = SafeTryLock(nilMu)
-	assert.False(t, ok, "SafeTryLock should fail on nil mutex")
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeTryLock should return ErrNilMutex")
+	op    func(mutex.Mutex) error
+	newMu func() mutex.Mutex
 
-	// Test with mutex that panics on TryLock
-	panicMu := &panicOnTryLockMutex{}
-	ok, err = SafeTryLock(panicMu)
-	assert.False(t, ok, "SafeTryLock should fail when TryLock panics")
-	assert.Error(t, err, "SafeTryLock should return error when TryLock panics")
+	want errKind
 }
 
-// TestSafeUnlock verifies the SafeUnlock function behaves correctly
-func TestSafeUnlock(t *testing.T) {
-	// Test with normal mutex
-	mu := &sync.Mutex{}
-	mu.Lock() // Lock it first
-
-	err := SafeUnlock(mu)
-	assert.Nil(t, err, "SafeUnlock should not return error on success")
-
-	// Test with nil mutex
-	var nilMu Mutex
-	err = SafeUnlock(nilMu)
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeUnlock should return ErrNilMutex")
-	// Test with mutex that panics on Unlock
-	panicMu := &panicOnUnlockMutex{}
-	err = SafeUnlock(panicMu)
-	assert.Error(t, err, "SafeUnlock should return error when Unlock panics")
+func newSafeReleaseTestCase(name string, op func(mutex.Mutex) error,
+	newMu func() mutex.Mutex, want errKind) safeReleaseTestCase {
+	return safeReleaseTestCase{
+		name:  name,
+		op:    op,
+		newMu: newMu,
+		want:  want,
+	}
 }
 
-// TestSafeRLock verifies the SafeRLock function behaves correctly
-func TestSafeRLock(t *testing.T) {
-	// Test with RWMutex - read locks can be acquired multiple times
-	rwMu := &sync.RWMutex{}
-	ok, err := SafeRLock(rwMu)
-	assert.True(t, ok, "SafeRLock should succeed on unlocked RWMutex")
-	assert.Nil(t, err, "SafeRLock should not return error on success")
+func (tc safeReleaseTestCase) Name() string { return tc.name }
 
-	// Should be able to acquire another read lock
-	ok, err = SafeRLock(rwMu)
-	assert.True(t, ok, "SafeRLock should succeed when read lock already held")
-	assert.Nil(t, err, "SafeRLock should not return error for second read lock")
-
-	// Release both locks
-	err = SafeRUnlock(rwMu)
-	assert.Nil(t, err, "SafeRUnlock should not return error")
-	err = SafeRUnlock(rwMu)
-	assert.Nil(t, err, "SafeRUnlock should not return error")
-
-	// Test with regular Mutex (should behave like a regular Lock)
-	regMu := &sync.Mutex{}
-	ok, err = SafeRLock(regMu)
-	assert.True(t, ok, "SafeRLock should succeed on unlocked regular Mutex")
-	assert.Nil(t, err, "SafeRLock should not return error with regular mutex")
-
-	// Release the lock before trying another operation
-	err = SafeRUnlock(regMu)
-	assert.Nil(t, err, "SafeRUnlock should not return error on regular Mutex")
-
-	// Verify SafeRLock behaves like regular lock for normal mutex:
-	// 1. Lock the mutex first
-	regMu.Lock()
-
-	// 2. Try to acquire it using SafeTryRLock (should not block)
-	ok, err = SafeTryRLock(regMu)
-	assert.False(t, ok, "SafeTryRLock should fail on already locked mutex")
-	assert.Nil(t, err, "SafeTryRLock should not return error when unavailable")
-
-	// Unlock for cleanup
-	regMu.Unlock()
-
-	// Test with nil mutex through interface
-	var nilMu RWMutex
-	ok, err = SafeRLock(nilMu)
-	assert.False(t, ok, "SafeRLock should fail on nil mutex")
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeRLock should return ErrNilMutex")
-	// Test with typed nil pointer (should convert panic to error)
-	typedNilMu := (*sync.RWMutex)(nil)
-	ok, err = SafeRLock(typedNilMu)
-	assert.False(t, ok, "SafeRLock should fail on typed nil pointer")
-
-	assert.IsType(t, &core.PanicError{}, err, "SafeRLock should return PanicError")
-	assert.NotErrorIs(t, err, errors.ErrNilMutex, "Error should not be ErrNilMutex")
+func (tc safeReleaseTestCase) Test(t *testing.T) {
+	t.Helper()
+	assertErrKind(t, tc.op(tc.newMu()), tc.want, "err")
 }
 
-// TestSafeTryRLock verifies the SafeTryRLock function behaves correctly
-func TestSafeTryRLock(t *testing.T) {
-	// Test with RWMutex
-	rwMu := &sync.RWMutex{}
-	ok, err := SafeTryRLock(rwMu)
-	assert.True(t, ok, "SafeTryRLock should succeed on unlocked RWMutex")
-	assert.Nil(t, err, "SafeTryRLock should not return error on success")
+var _ core.TestCase = safeReleaseTestCase{}
 
-	// Should be able to acquire another read lock
-	ok, err = SafeTryRLock(rwMu)
-	assert.True(t, ok, "SafeTryRLock should succeed with read lock already held")
-	assert.Nil(t, err, "SafeTryRLock should not return error for second read lock")
+func safeReleaseTestCases() []safeReleaseTestCase {
+	return []safeReleaseTestCase{
+		newSafeReleaseTestCase("SafeUnlock locked", opSafeUnlock, lockedStdMutex, errNone),
+		newSafeReleaseTestCase("SafeUnlock interface-nil", opSafeUnlock, nilMutex, errNilMutex),
+		newSafeReleaseTestCase("SafeUnlock typed-nil", opSafeUnlock, typedNilMutex, errPanic),
+		newSafeReleaseTestCase("SafeUnlock panic", opSafeUnlock, newPanicOnUnlock, errPanic),
 
-	// Write lock should fail (read locks are held)
-	rwMu2 := rwMu // Just to have a different variable
-	ok, _ = SafeTryLock(rwMu2)
-	assert.False(t, ok, "SafeLock should fail when read locks are held")
-
-	// Release both read locks
-	err = SafeRUnlock(rwMu)
-	assert.Nil(t, err, "SafeRUnlock should not return error")
-	err = SafeRUnlock(rwMu)
-	assert.Nil(t, err, "SafeRUnlock should not return error")
-
-	// Test caught panic with typed nil pointer
-	typedNilMu := (*sync.RWMutex)(nil)
-	ok, err = SafeTryRLock(typedNilMu)
-	assert.False(t, ok, "SafeTryRLock should fail on typed nil pointer")
-	assert.IsType(t, &core.PanicError{}, err, "SafeTryRLock should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, errors.ErrNilMutex, "SafeTryRLock should not return ErrNilMutex for typed nil pointer")
+		newSafeReleaseTestCase("SafeRUnlock read-locked RWMutex", opSafeRUnlock, readLockedRWMutex, errNone),
+		newSafeReleaseTestCase("SafeRUnlock locked Mutex", opSafeRUnlock, lockedStdMutex, errNone),
+		newSafeReleaseTestCase("SafeRUnlock interface-nil", opSafeRUnlock, nilMutex, errNilMutex),
+		newSafeReleaseTestCase("SafeRUnlock typed-nil", opSafeRUnlock, typedNilRWMutex, errPanic),
+	}
 }
 
-// TestSafeRUnlock verifies the SafeRUnlock function behaves correctly
-func TestSafeRUnlock(t *testing.T) {
-	// Test with RWMutex
-	rwMu := &sync.RWMutex{}
-	rwMu.RLock() // Lock it first
-
-	err := SafeRUnlock(rwMu)
-	assert.Nil(t, err, "SafeRUnlock should not return error on success")
-
-	// Test with regular Mutex
-	regMu := &sync.Mutex{}
-	regMu.Lock() // Lock it first
-
-	err = SafeRUnlock(regMu)
-	assert.Nil(t, err, "SafeRUnlock should work with regular mutex (Unlock)")
-
-	// Test with typed nil pointer
-	nilMu := (*sync.RWMutex)(nil)
-	err = SafeRUnlock(nilMu)
-	assert.IsType(t, &core.PanicError{}, err, "SafeRUnlock should return PanicError")
-	assert.NotErrorIs(t, err, errors.ErrNilMutex, "Error should not be ErrNilMutex")
+func TestSafeRelease(t *testing.T) {
+	core.RunTestCases(t, safeReleaseTestCases())
 }
 
-// TestSafeLockContext tests the SafeLockContext function
-func TestSafeLockContext(t *testing.T) {
-	// Test with normal mutex and context
-	ctx := context.Background()
-	mu := &testMutexContext{}
+// ----- Safe context acquire -----
 
-	ok, err := SafeLockContext(ctx, mu)
-	assert.True(t, ok, "SafeLockContext should succeed with valid context and mutex")
-	assert.Nil(t, err, "SafeLockContext should not return error on success")
-
-	// Test with canceled context
-	cancelCtx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately
-
-	mu2 := &testMutexContext{}
-	ok, err = SafeLockContext(cancelCtx, mu2)
-	assert.False(t, ok, "SafeLockContext should fail with canceled context")
-	assert.Error(t, err, "SafeLockContext should return error with canceled context")
-
-	// Test with nil context
-	nilCtx := context.Context(nil)
-	ok, err = SafeLockContext(nilCtx, mu)
-	assert.False(t, ok, "SafeLockContext should fail with nil context")
-	assert.ErrorIs(t, err, errors.ErrNilContext, "SafeLockContext should return ErrNilContext for nil context")
-
-	// Test with typed nil mutex (will cause panic)
-	nilMu := (*testMutexContext)(nil)
-	ok, err = SafeLockContext(ctx, nilMu)
-	assert.False(t, ok, "SafeLockContext should fail with typed nil mutex")
-	assert.IsType(t, &core.PanicError{}, err, "SafeLockContext should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, errors.ErrNilMutex, "SafeLockContext should not return ErrNilMutex for typed nil pointer")
-
-	// Test with mutex that panics
-	panicMu := &panicOnLockContextMutex{}
-	ok, err = SafeLockContext(ctx, panicMu)
-	assert.False(t, ok, "SafeLockContext should fail when LockContext panics")
-	assert.Error(t, err, "SafeLockContext should return error when LockContext panics")
+func opSafeLockContext(ctx context.Context, mu mutex.MutexContext) (bool, error) {
+	return mutex.SafeLockContext(ctx, mu)
 }
 
-// TestSafeRLockContext tests the SafeRLockContext function
-func TestSafeRLockContext(t *testing.T) {
-	// Test with RWMutexContext
-	ctx := context.Background()
-	rwMu := &testRWMutexContext{}
-
-	ok, err := SafeRLockContext(ctx, rwMu)
-	assert.True(t, ok, "SafeRLockContext should succeed with valid context and rwmutex")
-	assert.Nil(t, err, "SafeRLockContext should not return error on success")
-
-	// Should be able to acquire another read lock
-	ok, err = SafeRLockContext(ctx, rwMu)
-	assert.True(t, ok, "SafeRLockContext should succeed when read lock already held")
-	assert.Nil(t, err, "SafeRLockContext should not return error when acquiring second read lock")
-
-	// Test with regular MutexContext (fallback to regular lock)
-	regMu := &testMutexContext{}
-	ok, err = SafeRLockContext(ctx, regMu)
-	assert.True(t, ok, "SafeRLockContext should succeed with regular mutex")
-	assert.Nil(t, err, "SafeRLockContext should not return error with regular mutex")
-
-	// Test with nil context
-	nilCtx := context.Context(nil)
-	ok, err = SafeRLockContext(nilCtx, rwMu)
-	assert.False(t, ok, "SafeRLockContext should fail with nil context")
-	assert.ErrorIs(t, err, errors.ErrNilContext, "SafeRLockContext should return ErrNilContext for nil context")
-
-	// Test with typed nil mutex (will cause panic)
-	nilMu := (*testRWMutexContext)(nil)
-	ok, err = SafeRLockContext(ctx, nilMu)
-	assert.False(t, ok, "SafeRLockContext should fail with typed nil mutex")
-	assert.IsType(t, &core.PanicError{}, err, "SafeRLockContext should return core.PanicError for typed nil pointer")
-	assert.NotErrorIs(t, err, errors.ErrNilMutex,
-		"SafeRLockContext should not return ErrNilMutex for typed nil pointer")
-
-	// Test with mutex that panics
-	panicMu := &panicOnRLockContextMutex{}
-	ok, err = SafeRLockContext(ctx, panicMu)
-	assert.False(t, ok, "SafeRLockContext should fail when RLockContext panics")
-	assert.Error(t, err, "SafeRLockContext should return error when RLockContext panics")
+func opSafeRLockContext(ctx context.Context, mu mutex.MutexContext) (bool, error) {
+	return mutex.SafeRLockContext(ctx, mu)
 }
 
-// TestNewSafeLockContext tests the NewSafeLockContext function
+func bgCtx() context.Context  { return context.Background() }
+func nilCtx() context.Context { return nil }
+
+func cancelledCtx() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	return ctx
+}
+
+func newMutexContext() mutex.MutexContext        { return &testMutexContext{} }
+func newRWMutexContext() mutex.MutexContext      { return &testRWMutexContext{} }
+func nilMutexContext() mutex.MutexContext        { return nil }
+func typedNilMutexContext() mutex.MutexContext   { return (*testMutexContext)(nil) }
+func typedNilRWMutexContext() mutex.MutexContext { return (*testRWMutexContext)(nil) }
+func newPanicLockContext() mutex.MutexContext    { return &panicOnLockContextMutex{} }
+func newPanicRLockContext() mutex.MutexContext   { return &panicOnRLockContextMutex{} }
+
+// safeContextTestCase exercises the context-aware Safe acquirers across
+// context and receiver states.
+type safeContextTestCase struct {
+	name string
+
+	op     func(context.Context, mutex.MutexContext) (bool, error)
+	newCtx func() context.Context
+	newMu  func() mutex.MutexContext
+
+	want errKind
+}
+
+func newSafeContextTestCase(name string,
+	op func(context.Context, mutex.MutexContext) (bool, error),
+	newCtx func() context.Context, newMu func() mutex.MutexContext,
+	want errKind) safeContextTestCase {
+	return safeContextTestCase{
+		name:   name,
+		op:     op,
+		newCtx: newCtx,
+		newMu:  newMu,
+		want:   want,
+	}
+}
+
+func (tc safeContextTestCase) Name() string { return tc.name }
+
+func (tc safeContextTestCase) Test(t *testing.T) {
+	t.Helper()
+	ok, err := tc.op(tc.newCtx(), tc.newMu())
+	// The context acquirers have no non-blocking path, so ok is exactly
+	// err == nil. Assert that invariant on the returned values rather than
+	// carrying a wantOK column that would merely restate want.
+	core.AssertEqual(t, err == nil, ok, "ok tracks err")
+	assertErrKind(t, err, tc.want, "err")
+}
+
+var _ core.TestCase = safeContextTestCase{}
+
+func safeContextTestCases() []safeContextTestCase {
+	return []safeContextTestCase{
+		newSafeContextTestCase("SafeLockContext valid", opSafeLockContext,
+			bgCtx, newMutexContext, errNone),
+		newSafeContextTestCase("SafeLockContext cancelled", opSafeLockContext,
+			cancelledCtx, newMutexContext, errCancelled),
+		newSafeContextTestCase("SafeLockContext nil ctx", opSafeLockContext,
+			nilCtx, newMutexContext, errNilContext),
+		newSafeContextTestCase("SafeLockContext nil mu", opSafeLockContext,
+			bgCtx, nilMutexContext, errNilMutex),
+		newSafeContextTestCase("SafeLockContext typed-nil mu", opSafeLockContext,
+			bgCtx, typedNilMutexContext, errPanic),
+		newSafeContextTestCase("SafeLockContext panic", opSafeLockContext,
+			bgCtx, newPanicLockContext, errPanic),
+
+		newSafeContextTestCase("SafeRLockContext RWMutex", opSafeRLockContext,
+			bgCtx, newRWMutexContext, errNone),
+		newSafeContextTestCase("SafeRLockContext Mutex", opSafeRLockContext,
+			bgCtx, newMutexContext, errNone),
+		newSafeContextTestCase("SafeRLockContext nil ctx", opSafeRLockContext,
+			nilCtx, newRWMutexContext, errNilContext),
+		newSafeContextTestCase("SafeRLockContext nil mu", opSafeRLockContext,
+			bgCtx, nilMutexContext, errNilMutex),
+		newSafeContextTestCase("SafeRLockContext typed-nil mu", opSafeRLockContext,
+			bgCtx, typedNilRWMutexContext, errPanic),
+		newSafeContextTestCase("SafeRLockContext panic", opSafeRLockContext,
+			bgCtx, newPanicRLockContext, errPanic),
+	}
+}
+
+func TestSafeContext(t *testing.T) {
+	core.RunTestCases(t, safeContextTestCases())
+}
+
+// TestNewSafeLockContext verifies the context-bound factory yields a working
+// acquirer.
 func TestNewSafeLockContext(t *testing.T) {
-	ctx := context.Background()
-	lockFn := NewSafeLockContext[MutexContext](ctx)
-	require.NotNil(t, lockFn, "NewSafeLockContext should return a non-nil function")
+	fn := mutex.NewSafeLockContext[mutex.MutexContext](context.Background())
+	core.AssertMustNotNil(t, fn, "lock fn")
 
-	mu := &testMutexContext{}
-	ok, err := lockFn(mu)
-	assert.True(t, ok, "Function from NewSafeLockContext should succeed with valid mutex")
-	assert.Nil(t, err, "Function from NewSafeLockContext should not return error on success")
+	ok, err := fn(&testMutexContext{})
+	core.AssertTrue(t, ok, "ok")
+	core.AssertNoError(t, err, "err")
 }
 
-// TestNewSafeRLockContext tests the NewSafeRLockContext function
+// TestNewSafeRLockContext verifies the read-side context-bound factory yields
+// a working acquirer.
 func TestNewSafeRLockContext(t *testing.T) {
-	ctx := context.Background()
-	rlockFn := NewSafeRLockContext[RWMutexContext](ctx)
-	require.NotNil(t, rlockFn, "NewSafeRLockContext should return a non-nil function")
+	fn := mutex.NewSafeRLockContext[mutex.RWMutexContext](context.Background())
+	core.AssertMustNotNil(t, fn, "rlock fn")
 
-	rwMu := &testRWMutexContext{}
-	ok, err := rlockFn(rwMu)
-	assert.True(t, ok, "Function from NewSafeRLockContext should succeed with valid rwmutex")
-	assert.Nil(t, err, "Function from NewSafeRLockContext should not return error on success")
+	ok, err := fn(&testRWMutexContext{})
+	core.AssertTrue(t, ok, "ok")
+	core.AssertNoError(t, err, "err")
 }
 
-// TestReverseUnlock verifies the ReverseUnlock function works correctly
-func TestReverseUnlock(t *testing.T) {
-	// Create mutexes to test with
-	m1 := &sync.Mutex{}
-	m2 := &sync.Mutex{}
-	m3 := &sync.Mutex{}
+// ----- ReverseUnlock -----
 
-	// Lock all three mutexes
+func TestReverseUnlock(t *testing.T) {
+	t.Run("reverse order", runTestReverseUnlockOrder)
+	t.Run("nil function", runTestReverseUnlockNilFn)
+	t.Run("error function", runTestReverseUnlockErrorFn)
+	t.Run("nil mutex in list", runTestReverseUnlockNilMutex)
+	t.Run("empty locks", runTestReverseUnlockEmpty)
+}
+
+func runTestReverseUnlockOrder(t *testing.T) {
+	t.Helper()
+	m1, m2, m3 := &sync.Mutex{}, &sync.Mutex{}, &sync.Mutex{}
 	m1.Lock()
 	m2.Lock()
 	m3.Lock()
 
-	// Record unlock order
-	unlockOrder := make([]int, 0, 3)
-	unlockFn := func(mu Mutex) error {
-		switch mu {
-		case m1:
-			unlockOrder = append(unlockOrder, 1)
-		case m2:
-			unlockOrder = append(unlockOrder, 2)
-		case m3:
-			unlockOrder = append(unlockOrder, 3)
-		default:
-		}
+	order := make([]int, 0, 3)
+	unlockFn := func(mu mutex.Mutex) error {
+		order = append(order, reverseUnlockID(mu, m1, m2, m3))
 		mu.Unlock()
 		return nil
 	}
 
-	// Call ReverseUnlock and check result
-	err := ReverseUnlock[Mutex](unlockFn, m1, m2, m3)
-	assert.Nil(t, err, "ReverseUnlock should not return error with valid mutexes")
+	core.AssertNoError(t, mutex.ReverseUnlock[mutex.Mutex](unlockFn, m1, m2, m3),
+		"reverse unlock")
+	core.AssertSliceEqual(t, core.S(3, 2, 1), order, "reverse order")
+}
 
-	// Verify the unlock order is reversed
-	assert.Equal(t, []int{3, 2, 1}, unlockOrder, "Should unlock in reverse order")
-
-	// Test with nil unlock function
-	err = ReverseUnlock(nil, m1, m2, m3)
-	assert.Error(t, err, "ReverseUnlock should return error with nil function")
-
-	// Test with unlock function that returns errors
-	errorFn := func(_ Mutex) error {
-		return errors.ErrNilMutex // Using this as a convenient error
+func reverseUnlockID(mu, m1, m2, m3 mutex.Mutex) int {
+	switch mu {
+	case m1:
+		return 1
+	case m2:
+		return 2
+	case m3:
+		return 3
+	default:
+		return 0
 	}
-
-	err = ReverseUnlock[Mutex](errorFn, m1, m2, m3)
-	assert.Error(t, err, "ReverseUnlock should return error when function fails")
 }
 
-// TestErrorHandling verifies error cases when locking/unlocking mutexes
-func TestErrorHandling(t *testing.T) {
-	// Test nil mutex with various functions
-	ok, err := SafeLock[Mutex](nil)
-	assert.False(t, ok, "SafeLock should return false with nil mutex")
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeLock should return ErrNilMutex")
-
-	err = SafeUnlock[Mutex](nil)
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeUnlock should return ErrNilMutex")
-
-	ok, err = SafeTryLock[Mutex](nil)
-	assert.False(t, ok, "SafeTryLock should return false with nil mutex")
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeTryLock should return ErrNilMutex")
-
-	// Test SafeRLock with nil mutex
-	ok, err = SafeRLock[Mutex](nil)
-	assert.False(t, ok, "SafeRLock should return false with nil mutex")
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeRLock should return ErrNilMutex with nil mutex")
-
-	// Test SafeTryRLock with nil mutex
-	ok, err = SafeTryRLock[RWMutex](nil)
-	assert.False(t, ok, "SafeTryRLock should return false with nil mutex")
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeTryRLock should return ErrNilMutex with nil mutex")
-
-	// Test SafeRUnlock with nil mutex
-	err = SafeRUnlock[RWMutex](nil)
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeRUnlock should return ErrNilMutex with nil mutex")
-
-	// Test context functions with nil context and mutex
-	ctx := context.Background()
-	var nilMu MutexContext
-	var nilCtx context.Context
-
-	ok, err = SafeLockContext(nilCtx, &testMutexContext{})
-	assert.False(t, ok, "SafeLockContext should return false with nil context")
-	assert.ErrorIs(t, err, errors.ErrNilContext, "SafeLockContext should return ErrNilContext")
-
-	ok, err = SafeLockContext(ctx, nilMu)
-	assert.False(t, ok, "SafeLockContext should return false with nil mutex")
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeLockContext should return ErrNilMutex")
-
-	ok, err = SafeRLockContext(nilCtx, &testRWMutexContext{})
-	assert.False(t, ok, "SafeRLockContext should return false with nil context")
-	assert.ErrorIs(t, err, errors.ErrNilContext, "SafeRLockContext should return ErrNilContext")
-
-	ok, err = SafeRLockContext(ctx, nilMu)
-	assert.False(t, ok, "SafeRLockContext should return false with nil mutex")
-	assert.ErrorIs(t, err, errors.ErrNilMutex, "SafeRLockContext should return ErrNilMutex")
+func runTestReverseUnlockNilFn(t *testing.T) {
+	t.Helper()
+	err := mutex.ReverseUnlock[mutex.Mutex](nil, &sync.Mutex{})
+	core.AssertError(t, err, "nil function")
+	core.AssertContains(t, err.Error(), "unlock function is nil", "message")
 }
 
-// TestOriginalReverseUnlock verifies locks are released in reverse order
-// on failure
-func TestOriginalReverseUnlock(t *testing.T) {
-	// Create a channel to track unlock order
-	unlockOrder := make(chan int, 3)
-
-	// Create custom mutex implementations to track unlock order
-	customM1 := &testMutex{id: 1, unlockOrder: unlockOrder}
-	customM2 := &testMutex{id: 2, unlockOrder: unlockOrder}
-	customM3 := &testMutex{id: 3, unlockOrder: unlockOrder}
-
-	// Set up m3 to fail when TryLock is called
-	customM3.shouldFailTryLock = true
-
-	// Try to lock all three (should fail on m3)
-	assert.False(t, TryLock(customM1, customM2, customM3),
-		"TryLock should fail when one mutex is configured to fail")
-
-	// Check the unlock order (should be 2, 1 - reverse order)
-	// We should have exactly 2 unlocks (not 3, since m3's lock failed)
-	assert.Equal(t, 2, len(unlockOrder), "Expected 2 unlocks")
-
-	order1 := <-unlockOrder
-	assert.Equal(t, 2, order1, "Expected first unlock to be mutex 2")
-
-	order2 := <-unlockOrder
-	assert.Equal(t, 1, order2, "Expected second unlock to be mutex 1")
+func runTestReverseUnlockErrorFn(t *testing.T) {
+	t.Helper()
+	errFn := func(mutex.Mutex) error { return errors.ErrNilMutex }
+	m := &sync.Mutex{}
+	m.Lock()
+	core.AssertError(t, mutex.ReverseUnlock[mutex.Mutex](errFn, m),
+		"error function")
 }
 
-// TestSafeReverseUnlock verifies the behaviour of ReverseUnlock with
-// various error conditions
-func TestSafeReverseUnlock(t *testing.T) {
-	m1 := &sync.Mutex{}
-	m2 := &sync.Mutex{}
-
-	// Lock mutexes before attempting to unlock them
+func runTestReverseUnlockNilMutex(t *testing.T) {
+	t.Helper()
+	m1, m2 := &sync.Mutex{}, &sync.Mutex{}
 	m1.Lock()
 	m2.Lock()
-
-	// Test with valid mutexes
-	err := ReverseUnlock(SafeUnlock, m1, m2)
-	assert.Nil(t, err, "ReverseUnlock should not return error with valid mutexes")
-
-	// Test with nil function - no locking needed as function is nil
-	err = ReverseUnlock(nil, m1, m2)
-	assert.Error(t, err, "ReverseUnlock should return error with nil function")
-	assert.Contains(t, err.Error(), "unlock function is nil",
-		"ReverseUnlock should return specific error message")
-
-	// LOCK THE MUTEXES AGAIN before the third call
-	m1.Lock()
-	m2.Lock()
-
-	// Test with a mix of valid and nil mutexes
-	err = ReverseUnlock(SafeUnlock, m1, nil, m2)
-	assert.Error(t, err, "ReverseUnlock should return error with nil mutex")
-
-	// LOCK THE MUTEXES AGAIN before the fourth call
-	m1.Lock()
-	m2.Lock()
-
-	// Test with a function that always returns errors
-	errFn := func(_ Mutex) error {
-		return errors.ErrNilMutex // Just reusing a convenient error
-	}
-
-	err = ReverseUnlock[Mutex](errFn, m1, m2)
-	assert.Error(t, err,
-		"ReverseUnlock should return error when unlock function returns errors")
+	core.AssertError(t,
+		mutex.ReverseUnlock[mutex.Mutex](mutex.SafeUnlock, m1, nil, m2),
+		"nil mutex in list")
 }
 
-// panicOnUnlockMutex panics when Unlock is called
-type panicOnUnlockMutex struct{}
-
-func (*panicOnUnlockMutex) Lock()         {}
-func (*panicOnUnlockMutex) Unlock()       { panic("intentional panic on unlock") }
-func (*panicOnUnlockMutex) TryLock() bool { return true }
+func runTestReverseUnlockEmpty(t *testing.T) {
+	t.Helper()
+	core.AssertNoError(t, mutex.ReverseUnlock[mutex.Mutex](mutex.SafeUnlock),
+		"empty locks")
+}

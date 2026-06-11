@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/cond"
 	"darvaza.org/x/sync/errors"
 )
 
@@ -50,15 +51,36 @@ type Group struct {
 	// context.Background() will be used as the default parent.
 	Parent context.Context
 
-	// OnCancel is called when the Group is cancelled if defined.
+	// OnCancel is invoked once when Cancel or Close transitions the
+	// Group to the cancelled state. The handler runs in its own
+	// goroutine and is tracked as a task: Wait, Done, and Close all
+	// block until it returns.
+	//
+	// OnCancel fires only on explicit Cancel or Close — parent-context
+	// cancellation alone does not invoke it. To ensure the handler
+	// runs regardless of cancellation source, pair the Group with
+	// defer wg.Close().
+	//
+	// When the handler runs, the Group's context is already
+	// cancelled — ctx.Err() is non-nil and context.Cause(ctx)
+	// returns the cancellation cause. For cleanup work that needs
+	// a live context, derive from wg.Parent or detach via
+	// context.WithoutCancel(ctx); contexts derived from ctx are
+	// born cancelled.
+	//
+	// cause carries the same error passed to Cancel (context.Canceled
+	// for a nil cause). The handler is invoked at most once per
+	// Group lifetime even across repeated Cancel calls.
 	OnCancel func(context.Context, error)
 
-	ctx       context.Context
-	cancel    context.CancelCauseFunc
-	cancelled atomic.Bool
+	ctx    context.Context
+	cancel context.CancelCauseFunc
+	tasks  cond.CountZero
+	doneCh chan struct{}
+
+	// non-pointer fields kept last so the GC pointer scan stops early
 	mu        sync.RWMutex
-	wg        sync.WaitGroup
-	doneCh    chan struct{}
+	cancelled atomic.Bool
 }
 
 // Context returns the context associated with the Group.
@@ -132,8 +154,9 @@ func (wg *Group) Cancelled() <-chan struct{} {
 	return wg.ctx.Done()
 }
 
-// Done returns a channel that is closed when all tasks in the Group have
-// completed. This method will panic if called on a nil Group.
+// Done returns a channel that is closed when all tasks in the Group
+// have completed, including any OnCancel handler. This method will
+// panic if called on a nil Group.
 //
 // The channel is created once and reused until the Group is emptied.
 // If not cancelled, the Group can be reused after being emptied and a new
@@ -179,13 +202,19 @@ func (wg *Group) doDone() <-chan struct{} {
 			wg.mu.Unlock()
 		}()
 
-		wg.wg.Wait()
+		wg.waitTasks()
 	}()
 	return ch
 }
 
 // Wait blocks until all tasks in the Group have completed.
 // If the Group is nil, it returns ErrNilReceiver.
+//
+// "All tasks" includes the OnCancel handler. If a concurrent Cancel
+// returns before Wait returns, the OnCancel handler is guaranteed to
+// have completed by the time Wait returns. A Cancel that begins after
+// Wait has already returned is not awaited; callers that need the
+// handler to drain in that case should use Close().
 //
 // Wait returns an error only if the Group was cancelled with a cause other
 // than context.Canceled. If cancelled with context.Canceled or with Cancel()
@@ -200,7 +229,7 @@ func (wg *Group) Wait() error {
 		return err
 	}
 
-	wg.wg.Wait()
+	wg.waitTasks()
 
 	err := context.Cause(wg.ctx)
 	if err == context.Canceled {
@@ -220,6 +249,11 @@ func (wg *Group) Wait() error {
 //
 // If cause is nil, context.Canceled will be used instead.
 //
+// If OnCancel is set, the handler is enrolled as a task and Cancel
+// blocks only until the handler goroutine has started — it does not
+// wait for the handler to finish. Wait, Done, and Close await the
+// handler's completion.
+//
 // Example:
 //
 //	if someCondition {
@@ -234,8 +268,6 @@ func (wg *Group) Cancel(cause error) bool {
 }
 
 func (wg *Group) doCancel(cause error) bool {
-	var ready chan struct{}
-
 	if cause == nil {
 		cause = context.Canceled
 	}
@@ -247,24 +279,25 @@ func (wg *Group) doCancel(cause error) bool {
 	// RW
 	wg.mu.Lock()
 
+	// Re-check under mu: between the lock-free check above and acquiring
+	// the lock a concurrent Cancel may have won and stored cancelled.
+	// Without this guard a losing caller would store cancelled again,
+	// overwrite the cause, and spawn a second OnCancel handler.
+	// TestGroup_ConcurrentCancelOnceOnly exercises this loser path.
 	if wg.cancelled.Load() {
 		wg.mu.Unlock()
 		return false
 	}
 
-	// call the OnCancel function if defined
-	if fn := wg.OnCancel; fn != nil {
-		ready = make(chan struct{})
-		wg.wg.Add(1)
-		go func() {
-			defer wg.wg.Done()
-			close(ready)
-			fn(wg.ctx, cause)
-		}()
-	}
-
+	// Propagate cancellation before spawning the OnCancel handler so
+	// the handler observes wg.ctx in its cancelled state. doGo's
+	// cancelled-check + Inc fence is unaffected — both stores
+	// complete before this Lock releases.
 	wg.cancelled.Store(true)
 	wg.cancel(cause)
+
+	ready := wg.spawnCancelHandler(cause)
+
 	wg.mu.Unlock()
 
 	if ready != nil {
@@ -275,8 +308,39 @@ func (wg *Group) doCancel(cause error) bool {
 	return true
 }
 
-// Close cancels the Group and waits for all tasks to complete.
-// It returns an error if called on a nil Group.
+// spawnCancelHandler enrols the OnCancel handler as a counted task and runs
+// it detached, returning a channel closed once the handler goroutine has
+// started, or nil when no handler is set. The caller must hold wg.mu.
+func (wg *Group) spawnCancelHandler(cause error) chan struct{} {
+	fn := wg.OnCancel
+	if fn == nil {
+		return nil
+	}
+
+	ready := make(chan struct{})
+	wg.tasks.Inc()
+	go func() {
+		defer wg.tasks.Dec()
+		close(ready)
+		// Contain a panicking handler. Without this, a panic unwinds
+		// the detached goroutine with nothing to recover it: it crashes
+		// the process while Wait blocks forever on the tasks counter.
+		// run() wraps ordinary tasks the same way. The caught error is
+		// deliberately dropped: the group is already cancelled, so
+		// routing it back through Cancel would be a no-op. Surfacing it
+		// instead would require threading a cancellation cause out of
+		// the handler, which the Group does not yet support.
+		_ = core.Catch(func() error {
+			fn(wg.ctx, cause)
+			return nil
+		})
+	}()
+	return ready
+}
+
+// Close cancels the Group and waits for all tasks to complete,
+// including any OnCancel handler. It returns an error if called on
+// a nil Group.
 //
 // Close ensures all resources are freed by first cancelling any
 // running tasks and then waiting for their completion. This is useful
@@ -294,8 +358,16 @@ func (wg *Group) Close() error {
 		return err
 	}
 
+	// doCancel has set cancelled before returning, so doGo can no longer
+	// enrol new tasks: a plain drain suffices here and the waitTasks fence
+	// (which guards against a concurrent enrol) is unnecessary.
 	wg.doCancel(context.Canceled)
-	wg.wg.Wait()
+	// tasks.Wait returns context.Canceled if a prior Close already closed
+	// the counter; the count is 0 either way, so the discard is safe.
+	_ = wg.tasks.Wait()
+	// tasks.Close returns ErrClosed on the second and later calls; that is
+	// expected and safe to ignore.
+	_ = wg.tasks.Close()
 	return nil
 }
 
@@ -305,11 +377,13 @@ func (wg *Group) Close() error {
 // when the Group is cancelled. This allows the function to respond to
 // cancellation appropriately.
 //
-// If fn is nil, no goroutine is started.
+// If fn is nil, no goroutine is started and Go returns nil.
 //
-// The Group automatically tracks the lifetime of the spawned goroutine
-// and will wait for its completion in Wait(), Close(), or through the
-// Done() channel.
+// Go is decisive against concurrent cancellation: if it returns nil,
+// the goroutine has been tracked and will be awaited by Wait/Close/Done;
+// if it returns ErrClosed, no goroutine was started. There is no
+// in-between state where Go spawns a goroutine that subsequent waits
+// fail to observe.
 //
 // Tasks should monitor the provided context for cancellation:
 //
@@ -332,20 +406,27 @@ func (wg *Group) Go(fn func(context.Context)) error {
 }
 
 func (wg *Group) doGo(fn func(context.Context)) error {
-	switch {
-	case fn == nil:
-		return nil
-	case wg.cancelled.Load():
-		return errors.ErrClosed
-	default:
-		wg.wg.Add(1)
-		go func() {
-			defer wg.wg.Done()
-
-			fn(wg.ctx)
-		}()
+	if fn == nil {
 		return nil
 	}
+
+	// RO: serialise the cancelled-check + Inc against doCancel's Lock so
+	// the bump establishes a happens-before relationship with any
+	// concurrent Wait fence. doGo calls remain mutually concurrent.
+	wg.mu.RLock()
+	if wg.cancelled.Load() {
+		wg.mu.RUnlock()
+		return errors.ErrClosed
+	}
+	wg.tasks.Inc()
+	wg.mu.RUnlock()
+
+	go func() {
+		defer wg.tasks.Dec()
+
+		fn(wg.ctx)
+	}()
+	return nil
 }
 
 // GoCatch spawns a new goroutine with error handling and supervision.
@@ -413,6 +494,30 @@ func (wg *Group) run(fn func(context.Context) error, catch func(context.Context,
 	}
 }
 
+// waitTasks blocks until the tasks counter has stably reached zero across
+// a serialisation point. doCancel and doGo call tasks.Inc while holding
+// wg.mu (Lock and RLock respectively); the Lock acquired here therefore
+// observes any in-flight Inc. If a concurrent doCancel or doGo bumped
+// the counter while we were draining, the post-Lock Value read is
+// non-zero and we loop back to drain again. Without this fence, Wait
+// could return after the counter momentarily hit zero but before a
+// concurrent Cancel scheduled OnCancel or a concurrent Go enrolled a
+// new task.
+func (wg *Group) waitTasks() {
+	for {
+		// tasks.Wait returns context.Canceled only once the underlying
+		// Barrier is closed, which happens solely via tasks.Close in
+		// Close; the subsequent Value read is 0 and the loop exits.
+		_ = wg.tasks.Wait()
+		wg.mu.Lock()
+		v := wg.tasks.Value()
+		wg.mu.Unlock()
+		if v == 0 {
+			return
+		}
+	}
+}
+
 // init initialises the Group with a context and cancel function.
 // If Parent is nil, it uses context.Background() as the default parent.
 func (wg *Group) init() {
@@ -421,6 +526,7 @@ func (wg *Group) init() {
 	}
 
 	wg.ctx, wg.cancel = context.WithCancelCause(wg.Parent)
+	core.MustNoError(wg.tasks.Init(0))
 }
 
 // lazyInit ensures the Group is properly initialised before use.

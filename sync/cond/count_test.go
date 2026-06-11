@@ -1,721 +1,1000 @@
-package cond
-
-//revive:disable:cognitive-complexity
+package cond_test
 
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"darvaza.org/core"
+	"darvaza.org/x/sync/atomic"
+	"darvaza.org/x/sync/cond"
+	"darvaza.org/x/sync/errors"
+	"darvaza.org/x/sync/internal/synctesting"
 )
 
-// TestCountInitialisation tests the various ways to initialise a Count.
-func TestCountInitialisation(t *testing.T) {
-	t.Run("NewCount", runTestNewCount)
-	t.Run("Init", runTestInit)
-	t.Run("Nil receiver", runTestNilReceiver)
+// countTestTimeout caps each foreground synchronisation step. Generous
+// enough to absorb scheduler jitter on loaded CI workers, tight enough
+// that a hung waiter fails the run instead of stalling.
+//
+// countOpenGuard bounds negative-case assertions ("did not signal"):
+// long enough to catch a spurious early wake, short enough to keep the
+// test responsive.
+const (
+	countTestTimeout = time.Second
+
+	countOpenGuard = 20 * time.Millisecond
+)
+
+// countStateTestCase exercises IsNil and IsClosed for the same Count
+// state. Both methods read the same lifecycle, so the row carries both
+// expectations to keep the state matrix legible.
+type countStateTestCase struct {
+	name string
+
+	setup func() *cond.Count
+
+	wantNil    bool
+	wantClosed bool
 }
 
-func runTestNewCount(t *testing.T) {
-	c := NewCount(42)
-	require.NotNil(t, c)
-	assert.Equal(t, 42, c.Value())
-	assert.False(t, c.IsNil())
-	require.NoError(t, c.Close())
+func newCountStateTestCase(name string, setup func() *cond.Count,
+	wantNil, wantClosed bool) countStateTestCase {
+	return countStateTestCase{
+		name:       name,
+		setup:      setup,
+		wantNil:    wantNil,
+		wantClosed: wantClosed,
+	}
 }
 
-func runTestInit(t *testing.T) {
-	c := new(Count)
-	err := c.Init(21)
-	require.NoError(t, err)
-	assert.Equal(t, 21, c.Value())
-	assert.False(t, c.IsNil())
-	require.NoError(t, c.Close())
+func (tc countStateTestCase) Name() string { return tc.name }
+
+func (tc countStateTestCase) Test(t *testing.T) {
+	t.Helper()
+	c := tc.setup()
+	core.AssertEqual(t, tc.wantNil, c.IsNil(), "IsNil")
+	core.AssertEqual(t, tc.wantClosed, c.IsClosed(), "IsClosed")
 }
 
-func runTestNilReceiver(t *testing.T) {
-	var c *Count
-	assert.True(t, c.IsNil())
-	assert.Error(t, c.Init(0))
-	assert.Error(t, c.Close())
+var _ core.TestCase = countStateTestCase{}
+
+func countStateTestCases() []countStateTestCase {
+	return []countStateTestCase{
+		newCountStateTestCase("nil pointer",
+			func() *cond.Count { return nil },
+			true, true),
+		newCountStateTestCase("uninitialised",
+			func() *cond.Count { return new(cond.Count) },
+			true, true),
+		newCountStateTestCase("initialised",
+			func() *cond.Count { return cond.NewCount(42) },
+			false, false),
+		newCountStateTestCase("closed",
+			func() *cond.Count {
+				c := cond.NewCount(42)
+				_ = c.Close()
+				return c
+			},
+			false, true),
+	}
 }
 
-// TestCountOperations tests the basic operations on the counter.
-func TestCountOperations(t *testing.T) {
-	t.Run("Add", runTestAdd)
-	t.Run("Inc", runTestInc)
-	t.Run("Dec", runTestDec)
-	t.Run("Value", runTestValue)
+// TestCountState verifies IsNil and IsClosed across every reachable
+// lifecycle state.
+func TestCountState(t *testing.T) {
+	core.RunTestCases(t, countStateTestCases())
 }
 
-func runTestAdd(t *testing.T) {
-	c := NewCount(10)
-	defer c.Close()
+// countInitTestCase exercises Init across receiver and prior-state
+// conditions. The happy-path row also verifies the initial value is
+// honoured.
+type countInitTestCase struct {
+	name string
 
-	assert.Equal(t, 15, c.Add(5))
-	assert.Equal(t, 15, c.Value())
-	assert.Equal(t, 8, c.Add(-7))
-	assert.Equal(t, 8, c.Value())
+	setup func() *cond.Count
 
-	// Add with zero doesn't broadcast
-	assert.Equal(t, 8, c.Add(0))
+	initial int
+
+	wantErr error
 }
 
-func runTestInc(t *testing.T) {
-	c := NewCount(41)
-	defer c.Close()
-
-	assert.Equal(t, 42, c.Inc())
-	assert.Equal(t, 42, c.Value())
+func newCountInitTestCase(name string, setup func() *cond.Count,
+	initial int, wantErr error) countInitTestCase {
+	return countInitTestCase{
+		name:    name,
+		setup:   setup,
+		initial: initial,
+		wantErr: wantErr,
+	}
 }
 
-func runTestDec(t *testing.T) {
-	c := NewCount(43)
-	defer c.Close()
+func (tc countInitTestCase) Name() string { return tc.name }
 
-	assert.Equal(t, 42, c.Dec())
-	assert.Equal(t, 42, c.Value())
+func (tc countInitTestCase) Test(t *testing.T) {
+	t.Helper()
+	c := tc.setup()
+	err := c.Init(tc.initial)
+	if tc.wantErr == nil {
+		core.AssertNoError(t, err, "Init")
+		core.AssertEqual(t, tc.initial, c.Value(), "Value after Init")
+		_ = c.Close()
+		return
+	}
+	core.AssertErrorIs(t, err, tc.wantErr, "Init error")
 }
 
-func runTestValue(t *testing.T) {
-	c := NewCount(42)
-	defer c.Close()
+var _ core.TestCase = countInitTestCase{}
 
-	assert.Equal(t, 42, c.Value())
+func countInitTestCases() []countInitTestCase {
+	return []countInitTestCase{
+		newCountInitTestCase("nil receiver",
+			func() *cond.Count { return nil },
+			0, errors.ErrNilReceiver),
+		newCountInitTestCase("already initialised",
+			func() *cond.Count {
+				c := new(cond.Count)
+				_ = c.Init(0)
+				return c
+			},
+			0, errors.ErrAlreadyInitialised),
+		newCountInitTestCase("fresh succeeds",
+			func() *cond.Count { return new(cond.Count) },
+			21, nil),
+	}
+}
+
+// TestCountInit verifies Init's receiver and prior-state error paths
+// alongside the happy path.
+func TestCountInit(t *testing.T) {
+	core.RunTestCases(t, countInitTestCases())
+}
+
+// countCloseTestCase exercises Close across receiver and prior-state
+// conditions.
+type countCloseTestCase struct {
+	name string
+
+	setup func() *cond.Count
+
+	wantErr error
+}
+
+func newCountCloseTestCase(name string, setup func() *cond.Count,
+	wantErr error) countCloseTestCase {
+	return countCloseTestCase{name: name, setup: setup, wantErr: wantErr}
+}
+
+func (tc countCloseTestCase) Name() string { return tc.name }
+
+func (tc countCloseTestCase) Test(t *testing.T) {
+	t.Helper()
+	c := tc.setup()
+	err := c.Close()
+	if tc.wantErr == nil {
+		core.AssertNoError(t, err, "Close")
+		return
+	}
+	core.AssertErrorIs(t, err, tc.wantErr, "Close error")
+}
+
+var _ core.TestCase = countCloseTestCase{}
+
+func countCloseTestCases() []countCloseTestCase {
+	return []countCloseTestCase{
+		newCountCloseTestCase("nil receiver",
+			func() *cond.Count { return nil },
+			errors.ErrNilReceiver),
+		newCountCloseTestCase("uninitialised",
+			func() *cond.Count { return new(cond.Count) },
+			errors.ErrNotInitialised),
+		newCountCloseTestCase("happy path",
+			func() *cond.Count { return cond.NewCount(0) },
+			nil),
+		newCountCloseTestCase("double close",
+			func() *cond.Count {
+				c := cond.NewCount(0)
+				_ = c.Close()
+				return c
+			},
+			errors.ErrClosed),
+	}
+}
+
+// TestCountClose verifies Close's receiver and prior-state error paths
+// alongside the happy path.
+func TestCountClose(t *testing.T) {
+	core.RunTestCases(t, countCloseTestCases())
+}
+
+// countResetTestCase exercises Reset across receiver, prior-state, and
+// happy-path conditions. The waiter-wake path is exercised by
+// TestCountResetWithWaiters.
+type countResetTestCase struct {
+	name string
+
+	setup func() *cond.Count
+
+	value int
+
+	wantErr error
+}
+
+func newCountResetTestCase(name string, setup func() *cond.Count, value int,
+	wantErr error) countResetTestCase {
+	return countResetTestCase{
+		name:    name,
+		setup:   setup,
+		value:   value,
+		wantErr: wantErr,
+	}
+}
+
+func (tc countResetTestCase) Name() string { return tc.name }
+
+func (tc countResetTestCase) Test(t *testing.T) {
+	t.Helper()
+	c := tc.setup()
+	err := c.Reset(tc.value)
+	if tc.wantErr == nil {
+		core.AssertNoError(t, err, "Reset")
+		core.AssertEqual(t, tc.value, c.Value(), "Value after Reset")
+		_ = c.Close()
+		return
+	}
+	core.AssertErrorIs(t, err, tc.wantErr, "Reset error")
+}
+
+var _ core.TestCase = countResetTestCase{}
+
+func countResetTestCases() []countResetTestCase {
+	return []countResetTestCase{
+		newCountResetTestCase("nil receiver",
+			func() *cond.Count { return nil },
+			0, errors.ErrNilReceiver),
+		newCountResetTestCase("uninitialised",
+			func() *cond.Count { return new(cond.Count) },
+			1, errors.ErrNotInitialised),
+		newCountResetTestCase("closed",
+			func() *cond.Count {
+				c := cond.NewCount(10)
+				_ = c.Close()
+				return c
+			},
+			2, errors.ErrClosed),
+		newCountResetTestCase("happy path",
+			func() *cond.Count { return cond.NewCount(10) },
+			42, nil),
+	}
+}
+
+// TestCountReset verifies Reset's receiver, prior-state, and happy-path
+// outcomes.
+func TestCountReset(t *testing.T) {
+	core.RunTestCases(t, countResetTestCases())
+}
+
+// countErrorOpTestCase exercises error-returning operations that share
+// the same nil-receiver and not-initialised handling. WaitFnContext
+// also has a nil-context fast-path.
+type countErrorOpTestCase struct {
+	name string
+
+	setup func() *cond.Count
+
+	op func(*cond.Count) error
+
+	wantErr error
+}
+
+func newCountErrorOpTestCase(name string, setup func() *cond.Count,
+	op func(*cond.Count) error, wantErr error) countErrorOpTestCase {
+	return countErrorOpTestCase{
+		name:    name,
+		setup:   setup,
+		op:      op,
+		wantErr: wantErr,
+	}
+}
+
+func (tc countErrorOpTestCase) Name() string { return tc.name }
+
+func (tc countErrorOpTestCase) Test(t *testing.T) {
+	t.Helper()
+	c := tc.setup()
+	err := tc.op(c)
+	core.AssertErrorIs(t, err, tc.wantErr, "op error")
+}
+
+var _ core.TestCase = countErrorOpTestCase{}
+
+func opCtxBG(c *cond.Count) error {
+	return c.WaitFnContext(context.Background(), nil)
+}
+
+func opCtxNil(c *cond.Count) error {
+	var nilCtx context.Context
+	return c.WaitFnContext(nilCtx, nil)
+}
+
+func opAbortOpen(c *cond.Count) error {
+	return c.WaitFnAbort(make(chan struct{}), nil)
+}
+
+func countErrorOpTestCases() []countErrorOpTestCase {
+	nilC := func() *cond.Count { return nil }
+	uninitialisedC := func() *cond.Count { return new(cond.Count) }
+	zeroC := func() *cond.Count { return cond.NewCount(0) }
+
+	return []countErrorOpTestCase{
+		newCountErrorOpTestCase("WaitFnContext/nil receiver",
+			nilC, opCtxBG, errors.ErrNilReceiver),
+		newCountErrorOpTestCase("WaitFnContext/uninitialised",
+			uninitialisedC, opCtxBG, errors.ErrNotInitialised),
+		newCountErrorOpTestCase("WaitFnContext/nil context",
+			zeroC, opCtxNil, errors.ErrNilContext),
+		newCountErrorOpTestCase("WaitFnAbort/nil receiver",
+			nilC, opAbortOpen, errors.ErrNilReceiver),
+		newCountErrorOpTestCase("WaitFnAbort/uninitialised",
+			uninitialisedC, opAbortOpen, errors.ErrNotInitialised),
+	}
+}
+
+// TestCountErrorOps verifies error-returning wait operations across
+// receiver, prior-state, and nil-context conditions.
+func TestCountErrorOps(t *testing.T) {
+	core.RunTestCases(t, countErrorOpTestCases())
+}
+
+// countPanicTestCase exercises methods that panic via the check() guard
+// when called on a nil or uninitialised Count. Each row pins both the
+// trigger state and the expected wrapped error so a future change that
+// silently returns or panics with a different error fails loudly.
+type countPanicTestCase struct {
+	name string
+
+	setup func() *cond.Count
+
+	op func(*cond.Count)
+
+	wantErr error
+}
+
+func newCountPanicTestCase(name string, setup func() *cond.Count,
+	op func(*cond.Count), wantErr error) countPanicTestCase {
+	return countPanicTestCase{
+		name:    name,
+		setup:   setup,
+		op:      op,
+		wantErr: wantErr,
+	}
+}
+
+func (tc countPanicTestCase) Name() string { return tc.name }
+
+func (tc countPanicTestCase) Test(t *testing.T) {
+	t.Helper()
+	c := tc.setup()
+	core.AssertPanic(t, func() { tc.op(c) }, tc.wantErr, "panic error")
+}
+
+var _ core.TestCase = countPanicTestCase{}
+
+func opWait(c *cond.Count)      { c.Wait() }
+func opWaitFn(c *cond.Count)    { c.WaitFn(nil) }
+func opIsZero(c *cond.Count)    { _ = c.IsZero() }
+func opMatch(c *cond.Count)     { _ = c.Match(nil) }
+func opSignal(c *cond.Count)    { _ = c.Signal() }
+func opBroadcast(c *cond.Count) { c.Broadcast() }
+
+func countPanicTestCases() []countPanicTestCase {
+	nilC := func() *cond.Count { return nil }
+	uninitialisedC := func() *cond.Count { return new(cond.Count) }
+
+	return []countPanicTestCase{
+		newCountPanicTestCase("Wait/nil",
+			nilC, opWait, errors.ErrNilReceiver),
+		newCountPanicTestCase("Wait/uninitialised",
+			uninitialisedC, opWait, errors.ErrNotInitialised),
+		newCountPanicTestCase("WaitFn/nil",
+			nilC, opWaitFn, errors.ErrNilReceiver),
+		newCountPanicTestCase("WaitFn/uninitialised",
+			uninitialisedC, opWaitFn, errors.ErrNotInitialised),
+		newCountPanicTestCase("IsZero/nil",
+			nilC, opIsZero, errors.ErrNilReceiver),
+		newCountPanicTestCase("IsZero/uninitialised",
+			uninitialisedC, opIsZero, errors.ErrNotInitialised),
+		newCountPanicTestCase("Match/nil",
+			nilC, opMatch, errors.ErrNilReceiver),
+		newCountPanicTestCase("Match/uninitialised",
+			uninitialisedC, opMatch, errors.ErrNotInitialised),
+		newCountPanicTestCase("Signal/nil",
+			nilC, opSignal, errors.ErrNilReceiver),
+		newCountPanicTestCase("Signal/uninitialised",
+			uninitialisedC, opSignal, errors.ErrNotInitialised),
+		newCountPanicTestCase("Broadcast/nil",
+			nilC, opBroadcast, errors.ErrNilReceiver),
+		newCountPanicTestCase("Broadcast/uninitialised",
+			uninitialisedC, opBroadcast, errors.ErrNotInitialised),
+	}
+}
+
+// TestCountPanics verifies every method that panics via check() does so
+// for both nil and uninitialised receivers.
+func TestCountPanics(t *testing.T) {
+	core.RunTestCases(t, countPanicTestCases())
+}
+
+// TestCountNewCount verifies the initial value and live state of a
+// freshly-constructed Count.
+func TestCountNewCount(t *testing.T) {
+	c := cond.NewCount(42)
+	defer func() { _ = c.Close() }()
+
+	core.AssertMustNotNil(t, c, "NewCount returned non-nil")
+	core.AssertEqual(t, 42, c.Value(), "initial value")
+	core.AssertFalse(t, c.IsNil(), "IsNil after NewCount")
+	core.AssertFalse(t, c.IsClosed(), "IsClosed after NewCount")
+}
+
+// TestCountAdd verifies Add applies positive, negative, and zero
+// increments. Add(0) takes the special-cased early-return path that
+// skips the broadcast machinery.
+func TestCountAdd(t *testing.T) {
+	c := cond.NewCount(10)
+	defer func() { _ = c.Close() }()
+
+	core.AssertEqual(t, 15, c.Add(5), "Add(5) returns new value")
+	core.AssertEqual(t, 15, c.Value(), "Value after Add(5)")
+	core.AssertEqual(t, 8, c.Add(-7), "Add(-7) returns new value")
+	core.AssertEqual(t, 8, c.Value(), "Value after Add(-7)")
+	core.AssertEqual(t, 8, c.Add(0), "Add(0) returns current value")
+}
+
+// TestCountIncDec verifies Inc and Dec each return the new value and
+// move the counter by one.
+func TestCountIncDec(t *testing.T) {
+	c := cond.NewCount(41)
+	defer func() { _ = c.Close() }()
+
+	core.AssertEqual(t, 42, c.Inc(), "Inc returns new value")
+	core.AssertEqual(t, 42, c.Value(), "Value after Inc")
+	core.AssertEqual(t, 41, c.Dec(), "Dec returns new value")
+	core.AssertEqual(t, 41, c.Value(), "Value after Dec")
+}
+
+// TestCountIsZero verifies IsZero across Inc/Dec transitions.
+func TestCountIsZero(t *testing.T) {
+	c := cond.NewCount(0)
+	defer func() { _ = c.Close() }()
+
+	core.AssertTrue(t, c.IsZero(), "IsZero at zero")
 	c.Inc()
-	assert.Equal(t, 43, c.Value())
-}
-
-// TestCountConditions tests the condition matching functionality.
-func TestCountConditions(t *testing.T) {
-	t.Run("IsZero", runTestIsZero)
-	t.Run("Match", runTestMatch)
-	t.Run("BroadcastCondition", runTestBroadcastCondition)
-}
-
-func runTestIsZero(t *testing.T) {
-	c := NewCount(0)
-	defer c.Close()
-
-	assert.True(t, c.IsZero())
-	c.Inc()
-	assert.False(t, c.IsZero())
+	core.AssertFalse(t, c.IsZero(), "IsZero after Inc")
 	c.Dec()
-	assert.True(t, c.IsZero())
+	core.AssertTrue(t, c.IsZero(), "IsZero after Dec")
 }
 
-func runTestMatch(t *testing.T) {
-	c := NewCount(42)
-	defer c.Close()
+// TestCountMatch verifies Match with explicit and nil predicates. A nil
+// predicate is equivalent to IsZero.
+func TestCountMatch(t *testing.T) {
+	c := cond.NewCount(42)
+	defer func() { _ = c.Close() }()
 
-	// Test with explicit function
 	isFortyTwo := func(v int32) bool { return v == 42 }
-	assert.True(t, c.Match(isFortyTwo))
+	core.AssertTrue(t, c.Match(isFortyTwo), "Match isFortyTwo at 42")
 
-	// Test after modifying value
 	c.Inc()
-	assert.False(t, c.Match(isFortyTwo))
+	core.AssertFalse(t, c.Match(isFortyTwo), "Match isFortyTwo at 43")
 
-	// Test with nil function (equivalent to IsZero)
-	_ = c.Reset(0)
-	assert.True(t, c.Match(nil))
+	core.AssertMustNoError(t, c.Reset(0), "Reset to zero")
+	core.AssertTrue(t, c.Match(nil), "Match nil at zero")
 }
 
-func runTestBroadcastCondition(t *testing.T) {
-	// Only broadcast when value is divisible by 10
-	broadcastOn10 := func(v int32) bool { return v%10 == 0 }
-	c := NewCount(0, broadcastOn10)
-	defer c.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// The waiter will only be woken when counter becomes 10
-	ready := make(chan struct{})
-	go func() {
-		defer wg.Done()
-		close(ready)
-		c.WaitFn(func(v int32) bool { return v >= 5 })
-	}()
-
-	// Give time for goroutine to start waiting
-	<-ready
-	time.Sleep(10 * time.Millisecond)
-
-	// This increment shouldn't wake up the waiter
-	c.Inc() // 1
-	time.Sleep(10 * time.Millisecond)
-
-	// Continue incrementing to reach the broadcast condition (10)
-	c.Add(9) // 10
-
-	// Wait with timeout to ensure the goroutine completes
-	waitDone := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(waitDone)
-	}()
-
-	select {
-	case <-waitDone:
-		// Success
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "Waiter was not notified when broadcast condition was met")
-	}
-}
-
-// TestCountWait tests the basic Wait functionality.
+// TestCountWait verifies Wait blocks until the counter reaches zero.
 func TestCountWait(t *testing.T) {
-	t.Run("Wait", runTestWait)
-}
+	c := cond.NewCount(1)
+	defer func() { _ = c.Close() }()
 
-func runTestWait(t *testing.T) {
-	c := NewCount(1)
-	defer c.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Start a goroutine that waits until counter becomes zero
-	go func() {
-		defer wg.Done()
-		c.Wait() // Will block until value becomes 0
-	}()
-
-	// Allow time for goroutine to start waiting
-	time.Sleep(10 * time.Millisecond)
-
-	// Decrement counter to trigger Wait completion
-	c.Dec()
-
-	// Ensure the Wait function completes
-	waitDone := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(waitDone)
-	}()
-
-	select {
-	case <-waitDone:
-		// Success
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "Wait did not complete after counter became zero")
-	}
-}
-
-// TestCountWaitFn tests the WaitFn functionality.
-func TestCountWaitFn(t *testing.T) {
-	t.Run("WaitFn", runTestWaitFn)
-}
-
-func runTestWaitFn(t *testing.T) {
-	c := NewCount(5)
-	defer c.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Start a goroutine that waits for a specific condition
-	go func() {
-		defer wg.Done()
-		c.WaitFn(func(v int32) bool { return v >= 10 })
-	}()
-
-	// Allow time for goroutine to start waiting
-	time.Sleep(10 * time.Millisecond)
-
-	// Update counter to satisfy condition
-	c.Add(5) // Not enough to satisfy condition
-	time.Sleep(10 * time.Millisecond)
-	c.Add(5) // Now the condition is satisfied
-
-	// Ensure the WaitFn function completes
-	waitDone := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(waitDone)
-	}()
-
-	select {
-	case <-waitDone:
-		// Success
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "WaitFn did not complete when condition was met")
-	}
-}
-
-// TestCountWaitFnContext tests the WaitFnContext functionality.
-func TestCountWaitFnContext(t *testing.T) {
-	t.Run("WaitFnContext", runTestWaitFnContextEmpty)
-	t.Run("WaitFnContext_Success", runTestWaitFnContextSuccess)
-	t.Run("WaitFnContext_Cancelled", runTestWaitFnContextCancelled)
-}
-
-func runTestWaitFnContextEmpty(t *testing.T) {
-	c := NewCount(1)
-	defer c.Close()
-
-	// Create a context that won't time out during our test
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	// Use a condition that's immediately satisfied (the count is already 1)
-	err := c.WaitFnContext(ctx, func(v int32) bool { return v == 1 })
-
-	// Since the condition is immediately satisfied, this should return without error
-	assert.NoError(t, err, "WaitFnContext should not error when condition is immediately satisfied")
-
-	// Test with nil condition function (should check for zero)
-	err = c.Reset(0)
-	require.NoError(t, err)
-
-	// This should also return immediately without error since counter is 0
-	err = c.WaitFnContext(ctx, nil)
-	assert.NoError(t, err, "WaitFnContext with nil function should not error when count is zero")
-}
-
-func runTestWaitFnContextSuccess(t *testing.T) {
-	c := NewCount(1)
-	defer c.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	errCh := make(chan error, 1)
-
-	go func() {
-		defer wg.Done()
-		errCh <- c.WaitFnContext(ctx, func(v int32) bool { return v == 0 })
-	}()
-
-	// Allow time for goroutine to start waiting
-	time.Sleep(10 * time.Millisecond)
-
-	// Decrement to satisfy the condition
-	c.Dec()
-
-	// Ensure the WaitFnContext completes
-	wg.Wait()
-
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err)
-	default:
-		assert.Fail(t, "No result from WaitFnContext")
-	}
-}
-
-func runTestWaitFnContextCancelled(t *testing.T) {
-	c := NewCount(1)
-	defer c.Close()
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	errCh := make(chan error, 1)
-
-	go func() {
-		defer wg.Done()
-		errCh <- c.WaitFnContext(ctx, nil) // Wait for zero
-	}()
-
-	// Allow time for goroutine to start waiting
-	time.Sleep(10 * time.Millisecond)
-
-	// Cancel the context
-	cancel()
-
-	// Ensure the WaitFnContext completes with cancellation error
-	wg.Wait()
-
-	select {
-	case err := <-errCh:
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "canceled")
-	default:
-		assert.Fail(t, "No result from WaitFnContext")
-	}
-}
-
-// TestCountWaitFnAbort tests the WaitFnAbort functionality.
-func TestCountWaitFnAbort(t *testing.T) {
-	t.Run("WaitFnAbort_Success", runTestWaitFnAbortSuccess)
-	t.Run("WaitFnAbort_Aborted", runTestWaitFnAbortAborted)
-}
-
-func runTestWaitFnAbortSuccess(t *testing.T) {
-	c := NewCount(1)
-	defer c.Close()
-
-	abortCh := make(chan struct{})
-	defer close(abortCh)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	errCh := make(chan error, 1)
-
-	go func() {
-		defer wg.Done()
-		errCh <- c.WaitFnAbort(abortCh, func(v int32) bool { return v == 0 })
-	}()
-
-	// Allow time for goroutine to start waiting
-	time.Sleep(10 * time.Millisecond)
-
-	// Decrement to satisfy the condition
-	c.Dec()
-
-	// Ensure the WaitFnAbort completes
-	wg.Wait()
-
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err)
-	default:
-		assert.Fail(t, "No result from WaitFnAbort")
-	}
-}
-
-func runTestWaitFnAbortAborted(t *testing.T) {
-	c := NewCount(1)
-	defer c.Close()
-
-	abortCh := make(chan struct{})
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	errCh := make(chan error, 1)
-
-	go func() {
-		defer wg.Done()
-		errCh <- c.WaitFnAbort(abortCh, nil) // Wait for zero
-	}()
-
-	// Allow time for goroutine to start waiting
-	time.Sleep(10 * time.Millisecond)
-
-	// Close the abort channel
-	close(abortCh)
-
-	// Ensure the WaitFnAbort completes with cancellation error
-	wg.Wait()
-
-	select {
-	case err := <-errCh:
-		assert.Error(t, err)
-		assert.Equal(t, context.Canceled, err)
-	default:
-		assert.Fail(t, "No result from WaitFnAbort")
-	}
-}
-
-// TestCountSignalBroadcast tests the Signal and Broadcast methods.
-func TestCountSignalBroadcast(t *testing.T) {
-	t.Run("Signal", runTestSignal)
-	t.Run("Broadcast", runTestBroadcast)
-}
-
-func runTestSignal(t *testing.T) {
-	c := NewCount(1)
-	defer c.Close()
-
-	// No waiters, signal should return false
-	assert.False(t, c.Signal())
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	ready := make(chan struct{})
 	done := make(chan struct{})
-	var doneClosed sync.Once
-
-	// Start a waiter goroutine
 	go func() {
-		defer wg.Done()
+		c.Wait()
+		close(done)
+	}()
 
-		// Signal that the goroutine is about to wait
-		close(ready)
+	synctesting.AssertMustOpen(t, done, countOpenGuard,
+		"Wait blocks while value is non-zero")
 
-		// This condition won't be matched, but the signal will wake it up
-		c.WaitFn(func(_ int32) bool {
-			doneClosed.Do(func() { close(done) })
-			return false // Will keep waiting after being signaled
+	c.Dec()
+
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"Wait returns after counter reaches zero")
+}
+
+// TestCountWaitFn verifies WaitFn blocks until the supplied predicate
+// is satisfied.
+func TestCountWaitFn(t *testing.T) {
+	c := cond.NewCount(5)
+	defer func() { _ = c.Close() }()
+
+	done := make(chan struct{})
+	go func() {
+		c.WaitFn(func(v int32) bool { return v >= 10 })
+		close(done)
+	}()
+
+	c.Add(3) // 8 — predicate still false
+	synctesting.AssertMustOpen(t, done, countOpenGuard,
+		"WaitFn blocks while predicate is false")
+
+	c.Add(2) // 10 — predicate now true
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"WaitFn returns once predicate holds")
+}
+
+// TestCountWaitFnContextImmediate verifies WaitFnContext returns
+// without error when the predicate is already satisfied at entry.
+func TestCountWaitFnContextImmediate(t *testing.T) {
+	c := cond.NewCount(1)
+	defer func() { _ = c.Close() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(),
+		countTestTimeout)
+	defer cancel()
+
+	err := c.WaitFnContext(ctx, func(v int32) bool { return v == 1 })
+	core.AssertNoError(t, err,
+		"WaitFnContext, predicate already true")
+
+	core.AssertMustNoError(t, c.Reset(0), "Reset to zero")
+
+	err = c.WaitFnContext(ctx, nil)
+	core.AssertNoError(t, err,
+		"WaitFnContext nil predicate at zero")
+}
+
+// TestCountWaitFnContextSuccess verifies WaitFnContext unblocks once
+// the predicate becomes true.
+func TestCountWaitFnContextSuccess(t *testing.T) {
+	c := cond.NewCount(1)
+	defer func() { _ = c.Close() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(),
+		countTestTimeout)
+	defer cancel()
+
+	done := make(chan struct{})
+	var gotErr error
+	go func() {
+		defer close(done)
+		gotErr = c.WaitFnContext(ctx, func(v int32) bool {
+			return v == 0
 		})
 	}()
 
-	// Wait for goroutine to signal it's ready
-	<-ready
+	c.Dec()
 
-	// Give time for goroutine to enter wait state
-	time.Sleep(10 * time.Millisecond)
-
-	// Signal should wake up the goroutine
-	assert.True(t, c.Signal())
-
-	// Wait for the goroutine to handle the signal
-	select {
-	case <-done:
-		// Success - our waiter's condition function was called
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "Waiter was not woken up by Signal")
-	}
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"WaitFnContext returned")
+	core.AssertNoError(t, gotErr, "WaitFnContext result")
 }
 
-func runTestBroadcast(t *testing.T) {
-	c := NewCount(1)
-	defer c.Close()
+// TestCountWaitFnContextCancelled verifies WaitFnContext returns the
+// context error once the context is cancelled.
+func TestCountWaitFnContextCancelled(t *testing.T) {
+	c := cond.NewCount(1)
+	defer func() { _ = c.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan struct{})
+	var gotErr error
+	go func() {
+		defer close(done)
+		gotErr = c.WaitFnContext(ctx, nil)
+	}()
+
+	cancel()
+
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"WaitFnContext returned after cancel")
+	core.AssertErrorIs(t, gotErr, context.Canceled,
+		"WaitFnContext returns ctx.Err()")
+}
+
+// TestCountWaitFnContextTimeout verifies WaitFnContext returns the
+// deadline-exceeded error when the context expires before the
+// predicate is satisfied.
+func TestCountWaitFnContextTimeout(t *testing.T) {
+	c := cond.NewCount(1)
+	defer func() { _ = c.Close() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), countOpenGuard)
+	defer cancel()
+
+	err := c.WaitFnContext(ctx, func(v int32) bool { return v == 0 })
+	core.AssertErrorIs(t, err, context.DeadlineExceeded,
+		"WaitFnContext returns DeadlineExceeded")
+}
+
+// TestCountWaitFnAbortSuccess verifies WaitFnAbort returns nil once the
+// predicate becomes true.
+func TestCountWaitFnAbortSuccess(t *testing.T) {
+	c := cond.NewCount(1)
+	defer func() { _ = c.Close() }()
+
+	abort := make(chan struct{})
+	defer close(abort)
+
+	done := make(chan struct{})
+	var gotErr error
+	go func() {
+		defer close(done)
+		gotErr = c.WaitFnAbort(abort, func(v int32) bool {
+			return v == 0
+		})
+	}()
+
+	c.Dec()
+
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"WaitFnAbort returned")
+	core.AssertNoError(t, gotErr, "WaitFnAbort result")
+}
+
+// TestCountWaitFnAbortAborted verifies WaitFnAbort returns
+// context.Canceled when the abort channel closes before the predicate
+// is satisfied.
+func TestCountWaitFnAbortAborted(t *testing.T) {
+	c := cond.NewCount(1)
+	defer func() { _ = c.Close() }()
+
+	abort := make(chan struct{})
+
+	done := make(chan struct{})
+	var gotErr error
+	go func() {
+		defer close(done)
+		gotErr = c.WaitFnAbort(abort, nil)
+	}()
+
+	close(abort)
+
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"WaitFnAbort returned after abort")
+	core.AssertErrorIs(t, gotErr, context.Canceled,
+		"WaitFnAbort returns context.Canceled on abort")
+}
+
+// TestCountSignal verifies Signal returns false when no waiter is
+// parked, wakes a single waiter when one is parked, and returns false
+// again once the Count is closed.
+func TestCountSignal(t *testing.T) {
+	c := cond.NewCount(1)
+
+	core.AssertFalse(t, c.Signal(), "Signal without waiter")
+
+	var doneClosed sync.Once
+	done := make(chan struct{})
+
+	go func() {
+		c.WaitFn(func(_ int32) bool {
+			doneClosed.Do(func() { close(done) })
+			return false
+		})
+	}()
+
+	signaled := synctesting.WaitForCond(c.Signal, countTestTimeout,
+		synctesting.PollStep)
+	core.AssertTrue(t, signaled,
+		"Signal eventually wakes the parked waiter")
+
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"predicate ran after Signal")
+
+	_ = c.Close()
+	core.AssertFalse(t, c.Signal(), "Signal after Close")
+}
+
+// broadcastWaiter is one waiter goroutine for TestCountBroadcast. It
+// parks inside WaitFn and, on each wake-up, sets its assigned bit in
+// the shared mask; the goroutine that completes the all-bits-set
+// transition closes allNotified.
+//
+//revive:disable-next-line:argument-limit
+func broadcastWaiter(c *cond.Count, bit uint32, allMask uint32,
+	notified *atomic.Uint32, ready chan<- struct{},
+	allNotified chan struct{}) {
+	ready <- struct{}{}
+	c.WaitFn(func(_ int32) bool {
+		next, changed := atomic.BitmaskOr(notified, bit)
+		if changed && next == allMask {
+			close(allNotified)
+		}
+		return false
+	})
+}
+
+// TestCountBroadcast verifies Broadcast wakes every parked waiter.
+// Each waiter sets its own bit in a shared mask; the test waits for
+// the all-bits-set transition rather than polling counts.
+func TestCountBroadcast(t *testing.T) {
+	c := cond.NewCount(1)
+	defer func() { _ = c.Close() }()
 
 	const numWaiters = 3
-	// Create a bitmask with 'numWaiters' bits
-	const allNotifiedMask = (1 << numWaiters) - 1
+	const allMask uint32 = (1 << numWaiters) - 1
 
-	// Use atomic value to track which waiters were notified via bitmask
-	var notifiedMask atomic.Uint32
-
-	// Use a channel to signal when all waiters have been notified
+	var notified atomic.Uint32
 	allNotified := make(chan struct{})
-
-	// Use a channel to ensure all waiters are ready before broadcast
-	ready := make(chan struct{})
-
-	// Start multiple waiter goroutines
-	var wg sync.WaitGroup
-	wg.Add(numWaiters)
+	ready := make(chan struct{}, numWaiters)
 
 	for i := range numWaiters {
-		go func(waiterID int) {
-			defer wg.Done()
-
-			// Signal this waiter is ready
-			ready <- struct{}{}
-
-			c.WaitFn(func(_ int32) bool {
-				// Set this waiter's bit in the bitmask
-				if newMask, changed := atomicMaskOr(&notifiedMask, 1<<waiterID); changed {
-					if newMask == allNotifiedMask {
-						close(allNotified)
-					}
-				}
-
-				return false // Continue waiting
-			})
-		}(i)
+		bit := uint32(1) << i
+		go broadcastWaiter(c, bit, allMask, &notified, ready, allNotified)
 	}
 
-	// Wait for all goroutines to enter wait state
-	for range numWaiters {
-		<-ready
-	}
+	synctesting.AssertMustReadersReady(t, ready, numWaiters,
+		countTestTimeout, "all waiters ready")
 
-	// Small delay to ensure all goroutines are waiting
-	time.Sleep(10 * time.Millisecond)
+	// Let the waiters park inside WaitFn before broadcasting; the
+	// ready signal fires before the receive on the barrier.
+	time.Sleep(countOpenGuard)
 
-	// Broadcast should wake up all waiters
 	c.Broadcast()
 
-	// Wait for all waiters to be notified with timeout
-	select {
-	case <-allNotified:
-		// Success - all waiters were notified
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "Not all waiters were notified by Broadcast")
+	synctesting.AssertMustClosed(t, allNotified, countTestTimeout,
+		"all waiters notified")
+	core.AssertEqual(t, allMask, notified.Load(),
+		"all bits set in notified mask")
+}
+
+// TestCountBroadcastCondition verifies that custom broadcast conditions
+// gate when waiters wake: an Inc that does not match the condition
+// leaves the waiter parked, while one that does match wakes it.
+func TestCountBroadcastCondition(t *testing.T) {
+	broadcastOn10 := func(v int32) bool { return v%10 == 0 }
+	c := cond.NewCount(0, broadcastOn10)
+	defer func() { _ = c.Close() }()
+
+	done := make(chan struct{})
+	go func() {
+		c.WaitFn(func(v int32) bool { return v >= 5 })
+		close(done)
+	}()
+
+	c.Inc() // 1 — 1 % 10 != 0, no broadcast
+	synctesting.AssertMustOpen(t, done, countOpenGuard,
+		"waiter not woken by non-broadcast Inc")
+
+	c.Add(9) // 10 — 10 % 10 == 0, broadcast
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"waiter woken by broadcast condition")
+}
+
+// broadcastConditionStep names a value transition expected to fire a
+// broadcast under the multi-condition setup.
+type broadcastConditionStep struct {
+	name string
+	op   func(*cond.Count)
+}
+
+// TestCountMultipleBroadcastConditions verifies a Count constructed
+// with several broadcast predicates fires on each matching transition.
+// The waiter's predicate always returns false to keep it re-arming
+// across broadcasts; notified counts wake-ups via an atomic counter.
+func TestCountMultipleBroadcastConditions(t *testing.T) {
+	isZero := func(v int32) bool { return v == 0 }
+	isPositive := func(v int32) bool { return v > 0 }
+	isNegative := func(v int32) bool { return v < 0 }
+
+	c := cond.NewCount(0, isZero, isPositive, isNegative)
+
+	var notified atomic.Uint32
+
+	var ready sync.Once
+	readyCh := make(chan struct{})
+	waiter := make(chan struct{})
+	go func() {
+		defer close(waiter)
+		c.WaitFn(func(_ int32) bool {
+			ready.Do(func() { close(readyCh) })
+			notified.Add(1)
+			return false
+		})
+	}()
+
+	synctesting.AssertMustClosed(t, readyCh, countTestTimeout,
+		"waiter entered predicate")
+	// Let the waiter park at the barrier receive between predicate
+	// re-runs before firing the first transition.
+	time.Sleep(countOpenGuard)
+
+	steps := []broadcastConditionStep{
+		{"Add(-1) → -1 (isNegative)", func(c *cond.Count) { c.Add(-1) }},
+		{"Inc → 0 (isZero)", func(c *cond.Count) { c.Inc() }},
+		{"Inc → 1 (isPositive)", func(c *cond.Count) { c.Inc() }},
+		{"Add(-2) → -1 (isNegative)", func(c *cond.Count) { c.Add(-2) }},
+	}
+	for _, step := range steps {
+		prev := notified.Load()
+		step.op(c)
+		synctesting.AssertMustEventually(t, func() bool {
+			return notified.Load() > prev
+		}, countTestTimeout, "notified incremented after "+step.name)
 	}
 
-	// Verify the bitmask has all bits set
-	assert.Equal(t, uint32(allNotifiedMask), notifiedMask.Load(),
-		"Bitmask should have all waiters' bits set")
+	_ = c.Close()
+	synctesting.AssertMustClosed(t, waiter, countTestTimeout,
+		"waiter exited on Close")
 }
 
-// TestCountErrorHandling tests error handling and edge cases.
-func TestCountErrorHandling(t *testing.T) {
-	t.Run("DoubleInit", runTestDoubleInit)
-	t.Run("NilContext", runTestNilContext)
-	t.Run("Uninitialised", runTestUninitialised)
-	t.Run("PanicRecovery", runTestPanicRecovery)
+// TestCountNoBroadcastConditions verifies that a Count constructed with
+// an empty broadcast-conditions slice falls back to the default
+// "broadcast on every change" behaviour.
+func TestCountNoBroadcastConditions(t *testing.T) {
+	c := cond.NewCount(0, []func(int32) bool{}...)
+
+	var notified atomic.Uint32
+
+	var ready sync.Once
+	readyCh := make(chan struct{})
+	waiter := make(chan struct{})
+	go func() {
+		defer close(waiter)
+		c.WaitFn(func(_ int32) bool {
+			ready.Do(func() { close(readyCh) })
+			notified.Add(1)
+			return false
+		})
+	}()
+
+	synctesting.AssertMustClosed(t, readyCh, countTestTimeout,
+		"waiter entered predicate")
+	time.Sleep(countOpenGuard)
+
+	prev := notified.Load()
+	c.Inc()
+	synctesting.AssertMustEventually(t, func() bool {
+		return notified.Load() > prev
+	}, countTestTimeout,
+		"notified incremented after Inc with no broadcast conditions")
+
+	_ = c.Close()
+	synctesting.AssertMustClosed(t, waiter, countTestTimeout,
+		"waiter exited on Close")
 }
 
-func runTestDoubleInit(t *testing.T) {
-	c := new(Count)
+// TestCountResetWithWaiters verifies Reset wakes any parked waiter
+// whose predicate is satisfied by the new value.
+func TestCountResetWithWaiters(t *testing.T) {
+	c := cond.NewCount(5)
+	defer func() { _ = c.Close() }()
 
-	err := c.Init(0)
-	require.NoError(t, err)
-	defer c.Close()
+	done := make(chan struct{})
+	go func() {
+		c.WaitFn(func(v int32) bool { return v == 0 })
+		close(done)
+	}()
 
-	// Second Init should fail
-	err = c.Init(0)
-	assert.Error(t, err)
+	synctesting.AssertMustOpen(t, done, countOpenGuard,
+		"WaitFn blocks before Reset")
+
+	core.AssertMustNoError(t, c.Reset(0), "Reset to zero")
+
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"waiter woken after Reset to zero")
 }
 
-func runTestNilContext(t *testing.T) {
-	var nilCtx context.Context
-
-	c := NewCount(0)
-	defer c.Close()
-
-	err := c.WaitFnContext(nilCtx, nil)
-	assert.Error(t, err)
+func incLoop(c *cond.Count, n int, done chan<- struct{}) {
+	for range n {
+		c.Inc()
+	}
+	done <- struct{}{}
 }
 
-func runTestUninitialised(t *testing.T) {
-	c := new(Count)
-
-	// Ensure operations on uninitialised Count return errors
-	assert.Error(t, c.check())
-	assert.True(t, c.IsNil())
-
-	// These should be safe to call but return errors
-	assert.Error(t, c.Close())
-
-	// Context-based waits should return errors
-	ctx := context.Background()
-	assert.Error(t, c.WaitFnContext(ctx, nil))
-
-	abortCh := make(chan struct{})
-	assert.Error(t, c.WaitFnAbort(abortCh, nil))
+func decLoop(c *cond.Count, n int, done chan<- struct{}) {
+	for range n {
+		c.Dec()
+	}
+	done <- struct{}{}
 }
 
-func runTestPanicRecovery(t *testing.T) {
-	var c *Count
-
-	// These methods should panic for nil receiver
-	assert.Panics(t, func() { c.Wait() })
-	assert.Panics(t, func() { c.WaitFn(nil) })
-	assert.Panics(t, func() { c.IsZero() })
-	assert.Panics(t, func() { c.Match(nil) })
-	assert.Panics(t, func() { c.Signal() })
-	assert.Panics(t, func() { c.Broadcast() })
-
-	// These don't panic but return errors
-	assert.Error(t, c.Init(0))
-	assert.Error(t, c.Close())
-
-	// For an initialised Count, these methods also panic if uninitialised
-	c = new(Count)
-	assert.Panics(t, func() { c.Wait() })
-	assert.Panics(t, func() { c.WaitFn(nil) })
-}
-
-// TestConcurrentAccess tests concurrent access to Count.
-func TestConcurrentAccess(t *testing.T) {
-	t.Run("ConcurrentIncrementDecrement", runTestConcurrentIncrementDecrement)
-}
-
-func runTestConcurrentIncrementDecrement(t *testing.T) {
-	c := NewCount(0)
-	defer c.Close()
+// TestCountConcurrentIncDec verifies the counter survives concurrent
+// Inc/Dec from many goroutines and lands back at zero when the
+// increments balance the decrements.
+func TestCountConcurrentIncDec(t *testing.T) {
+	c := cond.NewCount(0)
+	defer func() { _ = c.Close() }()
 
 	const numGoroutines = 10
 	const numOperations = 100
 
-	var wg sync.WaitGroup
-	wg.Add(numGoroutines * 2) // Half incrementing, half decrementing
+	done := make(chan struct{}, numGoroutines*2)
 
-	// Start goroutines that increment the counter
 	for range numGoroutines {
-		go func() {
-			defer wg.Done()
-			for range numOperations {
-				c.Inc()
-			}
-		}()
+		go incLoop(c, numOperations, done)
+	}
+	for range numGoroutines {
+		go decLoop(c, numOperations, done)
 	}
 
-	// Start goroutines that decrement the counter
-	for range numGoroutines {
-		go func() {
-			defer wg.Done()
-			for range numOperations {
-				c.Dec()
-			}
-		}()
-	}
+	synctesting.AssertMustReadersReady(t, done, numGoroutines*2,
+		countTestTimeout, "all goroutines finished")
 
-	// Wait for all operations to complete
-	wg.Wait()
-
-	// Counter should be back to 0
-	assert.Equal(t, 0, c.Value(),
-		"Counter should return to 0 after equal increments and decrements")
+	core.AssertEqual(t, 0, c.Value(),
+		"value returns to zero after balanced Inc/Dec")
 }
 
-// TestCountWithTimeout tests using Count with various timeout patterns.
-func TestCountWithTimeout(t *testing.T) {
-	t.Run("TimeoutContext", runTestTimeoutContext)
-	t.Run("EnsureNoRace", runTestEnsureNoRace)
-}
-
-func runTestTimeoutContext(t *testing.T) {
-	c := NewCount(1)
-	defer c.Close()
-
-	// Create a context with a short timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-
-	// Wait for a condition that won't be satisfied within the timeout
-	start := time.Now()
-	err := c.WaitFnContext(ctx, func(v int32) bool { return v == 0 })
-	elapsed := time.Since(start)
-
-	// Should fail with timeout error
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "deadline")
-
-	// Elapsed time should be approximately the timeout duration
-	assert.True(t, elapsed >= 45*time.Millisecond,
-		"Should wait at least most of the timeout period")
-}
-
-func runTestEnsureNoRace(_ *testing.T) {
-	c := NewCount(0)
-	defer c.Close()
+// TestCountConcurrentReadWriteSignal verifies that interleaved
+// reader, writer, matcher, and signaller operations do not trigger
+// the race detector.
+func TestCountConcurrentReadWriteSignal(t *testing.T) {
+	c := cond.NewCount(0)
+	defer func() { _ = c.Close() }()
 
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-
-		// Repeatedly access the counter
 		for range 100 {
 			c.Inc()
-			c.Value()
+			_ = c.Value()
 			c.Dec()
 		}
 	}()
 
-	// Simultaneously access from this goroutine
 	for range 100 {
-		c.Value()
-		c.Match(func(v int32) bool { return v >= 0 })
-		c.Signal()
+		_ = c.Value()
+		_ = c.Match(func(v int32) bool { return v >= 0 })
+		_ = c.Signal()
 	}
 
-	<-done
-	// If we reach here without the race detector triggering, success
+	synctesting.AssertMustClosed(t, done, countTestTimeout,
+		"concurrent writer completed")
 }
 
-// TestCountStress performs stress testing on the Count implementation.
+// stressUpdater runs numUpdates Inc operations or exits when ctx is
+// cancelled. Split out from the stress test body to keep the
+// orchestration loop within the cognitive-complexity budget.
+func stressUpdater(ctx context.Context, c *cond.Count, numUpdates int,
+	done chan<- struct{}) {
+	defer func() { done <- struct{}{} }()
+	for range numUpdates {
+		if ctx.Err() != nil {
+			return
+		}
+		c.Inc()
+		time.Sleep(time.Microsecond)
+	}
+}
+
+// stressWaiter watches for the counter to cross successive 100-step
+// targets until ctx is cancelled. Targets re-arm to a higher value
+// each pass so the waiter keeps engaging the barrier.
+func stressWaiter(ctx context.Context, c *cond.Count, target int32,
+	done chan<- struct{}) {
+	defer func() { done <- struct{}{} }()
+	for ctx.Err() == nil {
+		err := c.WaitFnContext(ctx, func(v int32) bool {
+			return v >= target
+		})
+		if err != nil {
+			return
+		}
+		target += 100
+	}
+}
+
+// TestCountStress runs many waiters and updaters against the same
+// Count for a bounded time and verifies the final value matches the
+// total number of Inc operations performed. Skipped under -short.
 func TestCountStress(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping stress tests in short mode")
+		t.Skip("skipping stress test in short mode")
 	}
 
-	t.Run("MultipleWaitersAndUpdaters", runTestMultipleWaitersAndUpdaters)
-}
-
-func runTestMultipleWaitersAndUpdaters(t *testing.T) {
-	c := NewCount(0)
-	defer c.Close()
+	c := cond.NewCount(0)
+	defer func() { _ = c.Close() }()
 
 	const (
 		numWaiters  = 20
@@ -726,363 +1005,19 @@ func runTestMultipleWaitersAndUpdaters(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var wg sync.WaitGroup
-	wg.Add(numWaiters + numUpdaters)
+	done := make(chan struct{}, numWaiters+numUpdaters)
 
-	// Start waiter goroutines
 	for i := range numWaiters {
-		go func(id int) {
-			defer wg.Done()
-
-			// Each waiter watches for a different condition
-			target := int32((id % 10) * 100)
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					// Wait until counter reaches or exceeds target
-					err := c.WaitFnContext(ctx, func(v int32) bool {
-						return v >= target
-					})
-					if err != nil {
-						return // Context cancelled
-					}
-
-					// Reset target to a higher value for next wait
-					target += 100
-				}
-			}
-		}(i)
+		target := int32((i % 10) * 100)
+		go stressWaiter(ctx, c, target, done)
 	}
-
-	// Start updater goroutines
 	for range numUpdaters {
-		go func() {
-			defer wg.Done()
-
-			for range numUpdates {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					c.Inc()
-					time.Sleep(time.Microsecond) // Small delay to reduce contention
-				}
-			}
-		}()
+		go stressUpdater(ctx, c, numUpdates, done)
 	}
 
-	// Wait for all goroutines to complete
-	wg.Wait()
+	synctesting.AssertMustReadersReady(t, done, numWaiters+numUpdaters,
+		6*time.Second, "all goroutines finished")
 
-	// Final value should be numUpdaters * numUpdates
-	finalValue := c.Value()
-	expectedValue := numUpdaters * numUpdates
-	assert.Equal(t, expectedValue, finalValue,
-		"Expected final value %d, got %d", expectedValue, finalValue)
-}
-
-// TestCountReset tests the Reset functionality.
-func TestCountReset(t *testing.T) {
-	t.Run("BasicReset", runTestBasicReset)
-	t.Run("ResetUninitialized", runTestResetUninitialized)
-	t.Run("ResetNil", runTestResetNil)
-	t.Run("ResetWithWaiters", runTestResetWithWaiters)
-	t.Run("ResetClosed", runTestResetClosed)
-}
-
-func runTestBasicReset(t *testing.T) {
-	c := NewCount(10)
-	defer c.Close()
-
-	assert.Equal(t, 10, c.Value())
-
-	err := c.Reset(42)
-	require.NoError(t, err)
-
-	assert.Equal(t, 42, c.Value())
-}
-
-func runTestResetUninitialized(t *testing.T) {
-	c := new(Count)
-
-	err := c.Reset(42)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not initialised")
-}
-
-func runTestResetNil(t *testing.T) {
-	var c *Count
-
-	err := c.Reset(42)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "nil receiver")
-}
-
-func runTestResetWithWaiters(t *testing.T) {
-	c := NewCount(5)
-	defer c.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Start a goroutine that waits for value to be zero
-	go func() {
-		defer wg.Done()
-		c.WaitFn(func(v int32) bool { return v == 0 })
-	}()
-
-	// Give time for goroutine to start waiting
-	time.Sleep(10 * time.Millisecond)
-
-	// Reset to 0, which should wake up the waiter
-	err := c.Reset(0)
-	require.NoError(t, err)
-
-	// Ensure the waiter completes
-	waitDone := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(waitDone)
-	}()
-
-	select {
-	case <-waitDone:
-		// Success - waiter was notified
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "Waiter was not notified when Reset was called")
-	}
-}
-
-func runTestResetClosed(t *testing.T) {
-	c := NewCount(10)
-
-	// Close the count
-	require.NoError(t, c.Close())
-
-	// Reset after close should fail
-	err := c.Reset(42)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "closed")
-}
-
-// TestCountCustomInitialisation tests initialising Count with various
-// custom broadcast conditions.
-func TestCountCustomInitialisation(t *testing.T) {
-	// Test with multiple broadcast conditions
-	t.Run("MultipleBroadcastConditions", runTestMultipleBroadcastConditions)
-
-	// Test with no broadcast conditions (special case)
-	t.Run("NoBroadcastConditions", runTestNoBroadcastConditions)
-}
-
-func runTestMultipleBroadcastConditions(t *testing.T) {
-	isZero := func(v int32) bool { return v == 0 }
-	isPositive := func(v int32) bool { return v > 0 }
-	isNegative := func(v int32) bool { return v < 0 }
-
-	c := NewCount(0, isZero, isPositive, isNegative)
-
-	var notified atomic.Uint32
-
-	signalCounter := func() {
-		notified.Add(1)
-	}
-
-	// Test each condition triggers broadcast
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		c.WaitFn(func(_ int32) bool {
-			signalCounter()
-			return false // Keep waiting
-		})
-	}()
-	time.Sleep(10 * time.Millisecond)
-
-	// Value is zero - should broadcast
-	prevCount := notified.Load()
-	c.Add(-1) // Should broadcast due to isZero
-	time.Sleep(10 * time.Millisecond)
-	assert.Greater(t, notified.Load(), prevCount,
-		"Notification count should increase when zero broadcast condition is met")
-
-	// Change to positive - should broadcast
-	prevCount = notified.Load()
-	c.Inc() // Now 1
-	assert.Eventually(t, func() bool {
-		return notified.Load() > prevCount
-	}, 20*time.Millisecond, 1*time.Millisecond,
-		"Notification count should increase when positive broadcast condition is met")
-
-	// Change to negative - should broadcast
-	prevCount = notified.Load()
-	c.Add(-2) // Now -1
-	assert.Eventually(t, func() bool {
-		return notified.Load() > prevCount
-	}, 20*time.Millisecond, 1*time.Millisecond,
-		"Notification count should increase when negative broadcast condition is met")
-
-	// Back to zero - should broadcast
-	prevCount = notified.Load()
-	c.Inc() // Now 0
-	assert.Eventually(t, func() bool {
-		return notified.Load() > prevCount
-	}, 20*time.Millisecond, 1*time.Millisecond,
-		"Notification count should increase when zero broadcast condition is met again")
-
-	// Clean up goroutine
-	_ = c.Close()
-	wg.Wait()
-}
-
-func runTestNoBroadcastConditions(t *testing.T) {
-	// Create a Count with an explicit empty broadcast condition list
-	c := NewCount(0, []func(int32) bool{}...)
-
-	// Every value change should broadcast
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var notified int
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		c.WaitFn(func(_ int32) bool {
-			mu.Lock()
-			notified++
-			mu.Unlock()
-			return false // Keep waiting
-		})
-	}()
-
-	// Wait for goroutine to start waiting
-	time.Sleep(10 * time.Millisecond)
-
-	// Every operation should broadcast
-	mu.Lock()
-	prevCount := notified
-	mu.Unlock()
-	c.Inc()
-	time.Sleep(10 * time.Millisecond)
-	mu.Lock()
-	currentCount := notified
-	mu.Unlock()
-	assert.Greater(t, currentCount, prevCount,
-		"Notification count should increase after Inc() with no broadcast conditions")
-
-	// Similar pattern for all other checks
-	// (add mutex protection for all accesses to notified)
-
-	// Clean up goroutine
-	_ = c.Close()
-	wg.Wait()
-}
-
-// TestWaitResult tests the waitResult type functionality.
-func TestWaitResult(t *testing.T) {
-	// Test IsCancelled method
-	t.Run("IsCancelled", func(t *testing.T) {
-		assert.False(t, waitContinue.IsCancelled())
-		assert.False(t, waitSuccess.IsCancelled())
-		assert.True(t, waitCancelled.IsCancelled())
-	})
-
-	// Test IsContinue method
-	t.Run("IsContinue", func(t *testing.T) {
-		assert.True(t, waitContinue.IsContinue())
-		assert.False(t, waitSuccess.IsContinue())
-		assert.False(t, waitCancelled.IsContinue())
-	})
-}
-
-// TestCountClosed tests the IsClosed functionality.
-func TestCountClosed(t *testing.T) {
-	t.Run("BeforeClose", runTestBeforeClose)
-	t.Run("AfterClose", runTestAfterClose)
-	t.Run("NilCount", runTestNilCountIsClosed)
-	t.Run("UninitialisedCount", runTestUninitialisedCountIsClosed)
-}
-
-func runTestBeforeClose(t *testing.T) {
-	c := NewCount(42)
-	require.NotNil(t, c)
-
-	// A newly created Count should not be closed
-	assert.False(t, c.IsClosed())
-
-	// Performing operations should not affect closed state
-	c.Inc()
-	assert.False(t, c.IsClosed())
-
-	c.Dec()
-	assert.False(t, c.IsClosed())
-
-	c.Add(10)
-	assert.False(t, c.IsClosed())
-
-	// Clean up
-	require.NoError(t, c.Close())
-}
-
-func runTestAfterClose(t *testing.T) {
-	c := NewCount(42)
-	require.NotNil(t, c)
-
-	// Close the Count
-	require.NoError(t, c.Close())
-
-	// After closing, IsClosed should return true
-	assert.True(t, c.IsClosed())
-
-	// Operations on a closed Count should return errors
-	assert.Error(t, c.Reset(0))
-
-	// IsClosed should remain true
-	assert.True(t, c.IsClosed())
-}
-
-func runTestNilCountIsClosed(t *testing.T) {
-	var c *Count
-
-	// A nil Count should report as closed
-	assert.True(t, c.IsClosed())
-}
-
-func runTestUninitialisedCountIsClosed(t *testing.T) {
-	c := new(Count)
-
-	// An uninitialised Count should report as closed
-	assert.True(t, c.IsClosed())
-
-	// After initialisation, it should no longer be closed
-	err := c.Init(0)
-	require.NoError(t, err)
-	assert.False(t, c.IsClosed())
-
-	// Clean up
-	require.NoError(t, c.Close())
-
-	// After closing, it should report as closed again
-	assert.True(t, c.IsClosed())
-}
-
-// atomicMaskOr performs a bitwise OR operation on an atomic uint32 value
-// using a compare-and-swap loop.
-// It attempts to set the specified mask bits atomically and returns
-// the new mask value.
-// The second return value indicates whether the mask was modified (true)
-// or was already set (false).
-func atomicMaskOr(ptr *atomic.Uint32, mask uint32) (uint32, bool) {
-	for {
-		oldMask := ptr.Load()
-		newMask := oldMask | mask
-		if oldMask == newMask {
-			return newMask, false
-		} else if ptr.CompareAndSwap(oldMask, newMask) {
-			return newMask, true
-		}
-	}
+	core.AssertEqual(t, numUpdaters*numUpdates, c.Value(),
+		"final value matches total updates")
 }

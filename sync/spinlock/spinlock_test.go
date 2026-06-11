@@ -1,59 +1,159 @@
-package spinlock
+package spinlock_test
 
 import (
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
+	"darvaza.org/core"
+	"darvaza.org/x/sync/atomic"
+	"darvaza.org/x/sync/internal/synctesting"
 	"darvaza.org/x/sync/mutex"
-
-	"github.com/stretchr/testify/assert"
+	"darvaza.org/x/sync/spinlock"
 )
 
+// spinlockTestTimeout caps each foreground synchronisation step. Generous
+// enough to absorb scheduler jitter on loaded CI workers, tight enough
+// that a hung waiter fails the run instead of stalling.
+//
+// spinlockOpenGuard bounds negative-case assertions ("still blocked"):
+// long enough to catch a spurious early acquisition, short enough to keep
+// the test responsive.
+const (
+	spinlockTestTimeout = time.Second
+
+	spinlockOpenGuard = 20 * time.Millisecond
+)
+
+// spinlockPanicTestCase verifies operations that panic on misuse or on a
+// nil receiver. setup arranges the receiver state; op selects the method
+// exercised; wantPanic pins the panic — an error matches the chain via
+// errors.Is, a string by substring.
+type spinlockPanicTestCase struct {
+	name string
+
+	setup func() *spinlock.SpinLock
+	op    func(*spinlock.SpinLock)
+
+	wantPanic any
+}
+
+func newSpinlockPanicTestCase(name string, setup func() *spinlock.SpinLock,
+	op func(*spinlock.SpinLock), wantPanic any) spinlockPanicTestCase {
+	return spinlockPanicTestCase{
+		name:      name,
+		setup:     setup,
+		op:        op,
+		wantPanic: wantPanic,
+	}
+}
+
+func (tc spinlockPanicTestCase) Name() string { return tc.name }
+
+func (tc spinlockPanicTestCase) Test(t *testing.T) {
+	t.Helper()
+	sl := tc.setup()
+	core.AssertPanic(t, func() { tc.op(sl) }, tc.wantPanic, "panic")
+}
+
+var _ core.TestCase = spinlockPanicTestCase{}
+
+func newSpinLock() *spinlock.SpinLock { return new(spinlock.SpinLock) }
+func nilSpinLock() *spinlock.SpinLock { return nil }
+
+func opLock(sl *spinlock.SpinLock)    { sl.Lock() }
+func opTryLock(sl *spinlock.SpinLock) { sl.TryLock() }
+func opUnlock(sl *spinlock.SpinLock)  { sl.Unlock() }
+
+func spinlockPanicTestCases() []spinlockPanicTestCase {
+	return []spinlockPanicTestCase{
+		newSpinlockPanicTestCase("nil receiver Lock", nilSpinLock, opLock,
+			core.ErrNilReceiver),
+		newSpinlockPanicTestCase("nil receiver TryLock", nilSpinLock, opTryLock,
+			core.ErrNilReceiver),
+		newSpinlockPanicTestCase("nil receiver Unlock", nilSpinLock, opUnlock,
+			core.ErrNilReceiver),
+		newSpinlockPanicTestCase("unlock of unlocked", newSpinLock, opUnlock,
+			"unlock of unlocked spinlock"),
+	}
+}
+
+// TestSpinLock_Panics verifies every nil-receiver path and the
+// unlock-of-unlocked misuse panic, pinning the wrapped error identity.
+func TestSpinLock_Panics(t *testing.T) {
+	core.RunTestCases(t, spinlockPanicTestCases())
+}
+
+// TestSpinLock_Basic verifies the zero value starts unlocked and a
+// Lock/Unlock cycle returns the spinlock to an acquirable state. State is
+// observed through TryLock rather than the internal representation.
 func TestSpinLock_Basic(t *testing.T) {
-	var sl SpinLock
+	var sl spinlock.SpinLock
 
-	// At creation, spinlock should be unlocked
-	assert.Equal(t, uint32(0), atomic.LoadUint32((*uint32)(&sl)))
+	core.AssertMustTrue(t, sl.TryLock(), "TryLock on zero value")
+	sl.Unlock()
 
-	// Lock acquisition
 	sl.Lock()
-	assert.Equal(t, uint32(1), atomic.LoadUint32((*uint32)(&sl)))
-
-	// Lock release
+	core.AssertFalse(t, sl.TryLock(), "TryLock while Lock held")
 	sl.Unlock()
-	assert.Equal(t, uint32(0), atomic.LoadUint32((*uint32)(&sl)))
+
+	core.AssertMustTrue(t, sl.TryLock(), "TryLock after Unlock")
+	sl.Unlock()
 }
 
+// TestSpinLock_TryLock verifies a TryLock acquisition excludes a second
+// TryLock until released.
 func TestSpinLock_TryLock(t *testing.T) {
-	var sl SpinLock
+	var sl spinlock.SpinLock
 
-	// TryLock should succeed when spinlock is free
-	assert.True(t, sl.TryLock())
-	assert.Equal(t, uint32(1), atomic.LoadUint32((*uint32)(&sl)))
+	core.AssertMustTrue(t, sl.TryLock(), "TryLock when free")
+	core.AssertFalse(t, sl.TryLock(), "TryLock while TryLock held")
 
-	// TryLock should fail when spinlock is already held
-	assert.False(t, sl.TryLock())
-
-	// After releasing, TryLock should succeed again
 	sl.Unlock()
-	assert.True(t, sl.TryLock())
+	core.AssertMustTrue(t, sl.TryLock(), "TryLock after Unlock")
 	sl.Unlock()
 }
 
-func TestSpinLock_Concurrent(t *testing.T) {
-	var sl SpinLock
-	var counter int32
+// TestSpinLock_LockBlocks pins the spin-wait contract deterministically:
+// Lock against a held spinlock parks the caller until Unlock, then
+// acquires.
+func TestSpinLock_LockBlocks(t *testing.T) {
+	var sl spinlock.SpinLock
 
-	// Test with multiple concurrent goroutines
-	const numGoroutines = 100
+	core.AssertMustTrue(t, sl.TryLock(), "initial TryLock")
+
+	done := make(chan struct{})
+	go func() {
+		sl.Lock()
+		close(done)
+	}()
+
+	synctesting.AssertMustOpen(t, done, spinlockOpenGuard,
+		"Lock blocks while the spinlock is held")
+
+	sl.Unlock()
+
+	synctesting.AssertMustClosed(t, done, spinlockTestTimeout,
+		"Lock acquires once the spinlock is released")
+
+	// release the goroutine's acquisition
+	sl.Unlock()
+}
+
+// TestSpinLock_Concurrent verifies mutual exclusion under contention: a
+// counter incremented only inside the critical section ends at exactly
+// goroutines × iterations.
+func TestSpinLock_Concurrent(t *testing.T) {
+	var sl spinlock.SpinLock
+	var counter int
+
+	const goroutines = 100
 	const iterations = 1000
 
 	var wg sync.WaitGroup
-	wg.Add(numGoroutines)
+	wg.Add(goroutines)
 
-	for range numGoroutines {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
 
@@ -67,99 +167,78 @@ func TestSpinLock_Concurrent(t *testing.T) {
 
 	wg.Wait()
 
-	// Verify counter matches expected value
-	assert.Equal(t, int32(numGoroutines*iterations), counter)
+	core.AssertEqual(t, goroutines*iterations, counter, "counter")
 }
 
-//revive:disable-next-line:cognitive-complexity
+// tryLockStats aggregates the shared state of the TryLock contention
+// test: attempted and successful acquisitions, the live count of worker
+// goroutines, and the highest concurrency level observed.
+type tryLockStats struct {
+	sl spinlock.SpinLock
+
+	attempts atomic.Int32
+	counter  int
+
+	current atomic.Int32
+	peak    atomic.Int32
+}
+
+// run attempts iterations TryLock acquisitions, incrementing the
+// lock-protected counter on each success and tracking peak worker
+// concurrency via atomic.UpdateMax.
+func (s *tryLockStats) run(iterations int) {
+	atomic.UpdateMax(&s.peak, s.current.Add(1))
+	defer s.current.Add(-1)
+
+	for range iterations {
+		s.attempts.Add(1)
+		if s.sl.TryLock() {
+			s.counter++
+			s.sl.Unlock()
+		}
+	}
+}
+
+// TestSpinLock_TryLockConcurrent verifies TryLock never blocks and never
+// double-admits under contention. When the workers genuinely overlapped,
+// some attempts must fail; when the scheduler serialised them, every
+// attempt must succeed.
 func TestSpinLock_TryLockConcurrent(t *testing.T) {
-	var sl SpinLock
-	var counter int32
-	var attempts int32
+	var stats tryLockStats
 
-	// Track goroutines currently in critical section and maximum seen
-	var currentGoroutines atomic.Int32
-	var maxGoroutines int32
-
-	const numGoroutines = 100
+	const goroutines = 100
 	const iterations = 200
 
 	var wg sync.WaitGroup
-	wg.Add(numGoroutines)
+	wg.Add(goroutines)
 
-	for range numGoroutines {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
-
-			// Increment count of goroutines, and update maximum if needed
-			goroutinesNow := currentGoroutines.Add(1)
-			atomicUpdateMax(&maxGoroutines, goroutinesNow)
-			defer currentGoroutines.Add(-1)
-
-			for range iterations {
-				atomic.AddInt32(&attempts, 1)
-				if sl.TryLock() {
-					counter++
-					sl.Unlock()
-				}
-			}
+			stats.run(iterations)
 		}()
 	}
 
 	wg.Wait()
 
-	t.Logf("Max goroutines in critical section: %d", maxGoroutines)
-	t.Logf("Counter: %d, Attempts: %d", counter, attempts)
+	attempts, counter := stats.attempts.Load(), int32(stats.counter)
+	t.Logf("peak workers: %d, counter: %d, attempts: %d",
+		stats.peak.Load(), counter, attempts)
 
-	// If maxGoroutines never exceeded 1, then counter should equal attempts
-	if maxGoroutines <= 1 {
-		assert.Equal(t, attempts, counter, "Only one goroutine happened at the time, all attempts should succeed")
-	} else {
-		// Due to contention, successful locks should be fewer than attempts
-		assert.Less(t, counter, attempts, "With contention, successful locks should be fewer than attempts")
-		// Some attempts should succeed
-		assert.Greater(t, counter, int32(0), "Some lock attempts should succeed")
+	if stats.peak.Load() <= 1 {
+		core.AssertEqual(t, attempts, counter,
+			"workers never overlapped: every attempt succeeds")
+		return
 	}
+	core.AssertTrue(t, counter > 0, "some attempts succeed")
+	core.AssertTrue(t, counter < attempts,
+		"under contention some attempts fail")
 }
 
-// atomicUpdateMax atomically updates *ptr with val if val is greater than the current value
-func atomicUpdateMax(ptr *int32, val int32) {
-	for {
-		currentMax := atomic.LoadInt32(ptr)
-		if val <= currentMax || atomic.CompareAndSwapInt32(ptr, currentMax, val) {
-			break
-		}
-	}
-}
-
-func TestSpinLock_NilReceiver(t *testing.T) {
-	var sl *SpinLock
-
-	// All operations on nil receiver should panic
-	assert.Panics(t, func() {
-		sl.Lock()
-	})
-
-	assert.Panics(t, func() {
-		sl.TryLock()
-	})
-
-	assert.Panics(t, func() {
-		sl.Unlock()
-	})
-}
-
-func TestSpinLock_UnlockUnlockedSpinLock(t *testing.T) {
-	var sl SpinLock
-
-	// Unlocking an already unlocked spinlock should panic
-	assert.Panics(t, func() {
-		sl.Unlock()
-	})
-}
-
+// TestSpinLock_LockDefer verifies the Lock + deferred Unlock idiom leaves
+// the spinlock acquirable.
 func TestSpinLock_LockDefer(t *testing.T) {
-	var sl SpinLock
+	var sl spinlock.SpinLock
 	var executed bool
 
 	func() {
@@ -169,26 +248,23 @@ func TestSpinLock_LockDefer(t *testing.T) {
 		executed = true
 	}()
 
-	// Spinlock should be released after deferred Unlock
-	assert.True(t, executed)
-	assert.Equal(t, uint32(0), atomic.LoadUint32((*uint32)(&sl)))
-
-	// Lock should be acquirable again
-	assert.True(t, sl.TryLock())
+	core.AssertTrue(t, executed, "critical section ran")
+	core.AssertMustTrue(t, sl.TryLock(), "acquirable after deferred Unlock")
 	sl.Unlock()
 }
 
-func TestSpinLock_Interfaces(t *testing.T) {
-	// Verify SpinLock implements sync.Locker interface
-	var sl SpinLock
-
+// TestSpinLock_Locker exercises SpinLock through the sync.Locker view;
+// the compile-time interface assertions live next to the type.
+func TestSpinLock_Locker(t *testing.T) {
+	var sl spinlock.SpinLock
 	var locker sync.Locker = &sl
 
-	// Use through the sync.Locker interface
 	locker.Lock()
-	assert.Equal(t, uint32(1), atomic.LoadUint32((*uint32)(&sl)))
+	core.AssertFalse(t, sl.TryLock(), "held via sync.Locker")
 	locker.Unlock()
-	assert.Equal(t, uint32(0), atomic.LoadUint32((*uint32)(&sl)))
+
+	core.AssertMustTrue(t, sl.TryLock(), "released via sync.Locker")
+	sl.Unlock()
 }
 
 // ----- Shared benchmark functions -----
@@ -253,16 +329,12 @@ func runBenchmarkRetryLock(b *testing.B, mu mutex.Mutex) {
 	})
 }
 
-// runBenchmarkTryLock benchmarks TryLock success
-//
-//revive:disable:cognitive-complexity
+// runBenchmarkTryLock benchmarks TryLock operations.
 func runBenchmarkTryLock(b *testing.B, mu mutex.Mutex) {
 	var lockAttempts atomic.Int32
-	var locksCount int32
+	var locksCount atomic.Int32
 
-	// Reset the timer to exclude setup
 	b.ResetTimer()
-	// Start timing
 	startTime := time.Now()
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -270,32 +342,21 @@ func runBenchmarkTryLock(b *testing.B, mu mutex.Mutex) {
 			lockAttempts.Add(1)
 
 			if mu.TryLock() {
-				locksCount++
+				locksCount.Add(1)
 				mu.Unlock()
 			}
 		}
 	})
 
-	elapsed := time.Since(startTime)
-	if locksCount > 0 {
-		// Report attempts per lock
-		b.ReportMetric(float64(lockAttempts.Load())/float64(locksCount), "attempts/lock")
-
-		if elapsed > 0 {
-			// Report locks per second
-			locksPerSec := float64(locksCount) / elapsed.Seconds()
-			b.ReportMetric(locksPerSec, "locks/sec")
-			// And nanoseconds per lock
-			b.ReportMetric(float64(elapsed.Nanoseconds())/float64(lockAttempts.Load()), "ns/lock")
-		}
-	}
+	synctesting.ReportTryMetrics(b, lockAttempts.Load(), locksCount.Load(),
+		time.Since(startTime), "lock")
 }
 
 // ----- Benchmark implementations -----
 
 // Basic lock benchmarks
 func BenchmarkLock_SpinLock(b *testing.B) {
-	var sl SpinLock
+	var sl spinlock.SpinLock
 	runBenchmarkBasicLock(b, &sl)
 }
 
@@ -306,7 +367,7 @@ func BenchmarkLock_StdMutex(b *testing.B) {
 
 // Deferred unlock benchmarks
 func BenchmarkLockWithDefer_SpinLock(b *testing.B) {
-	var sl SpinLock
+	var sl spinlock.SpinLock
 	runBenchmarkLockWithDefer(b, &sl)
 }
 
@@ -317,7 +378,7 @@ func BenchmarkLockWithDefer_StdMutex(b *testing.B) {
 
 // Contention benchmarks
 func BenchmarkContention_SpinLock(b *testing.B) {
-	var sl SpinLock
+	var sl spinlock.SpinLock
 	runBenchmarkContention(b, &sl)
 }
 
@@ -328,7 +389,7 @@ func BenchmarkContention_StdMutex(b *testing.B) {
 
 // TryLock benchmark with retry
 func BenchmarkRetryLock_SpinLock(b *testing.B) {
-	var sl SpinLock
+	var sl spinlock.SpinLock
 	runBenchmarkRetryLock(b, &sl)
 }
 
@@ -339,7 +400,7 @@ func BenchmarkRetryLock_StdMutex(b *testing.B) {
 
 // TryLock benchmark with target counter
 func BenchmarkTryLock_SpinLock(b *testing.B) {
-	var sl SpinLock
+	var sl spinlock.SpinLock
 	runBenchmarkTryLock(b, &sl)
 }
 

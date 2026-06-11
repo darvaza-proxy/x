@@ -40,12 +40,17 @@ type Count struct {
 func NewCount(initialValue int, broadcast ...func(int32) bool) *Count {
 	c := new(Count)
 	core.MustNoError(c.doInit(initialValue, broadcast))
-
-	runtime.SetFinalizer(c, func(c *Count) {
-		_ = c.b.Close()
-	})
-
+	runtime.SetFinalizer(c, (*Count).finaliser)
 	return c
+}
+
+// finaliser is invoked by runtime.SetFinalizer once the Count
+// becomes unreachable. Closes the underlying Barrier so any latent
+// waiters observe ErrClosed rather than hanging on a leaked
+// channel. Exposed as a named method so the path is directly
+// testable without depending on GC timing.
+func (c *Count) finaliser() {
+	_ = c.b.Close()
 }
 
 // IsNil reports whether the Count is nil or its underlying Barrier is nil or

@@ -38,10 +38,14 @@ leaked, even during panic scenarios.
 * Lightweight spinlock implementation for low-contention scenarios.
 * Semaphore implementation supporting both exclusive and shared access patterns.
 * Condition-based synchronisation primitives for goroutine coordination.
+* Atomic helpers shadowing `sync/atomic` for bit-mask OR and max-value
+  updates.
 
 ## Package Structure
 
 * [`darvaza.org/x/sync`][sync-link]: The main package namespace.
+  * [`atomic`][sync-atomic-link]: Shadows the standard library `sync/atomic`
+    package and adds helpers for bit-mask OR and monotonic max updates.
   * [`cond`][sync-cond-link]: Contains condition-based synchronisation
     primitives for coordinating goroutines.
   * [`errors`][sync-errors-link]: Contains error types and helpers for
@@ -56,6 +60,7 @@ leaked, even during panic scenarios.
     synchronisation within a shared lifecycle.
 
 [sync-link]: https://pkg.go.dev/darvaza.org/x/sync
+[sync-atomic-link]: https://pkg.go.dev/darvaza.org/x/sync/atomic
 [sync-cond-link]: https://pkg.go.dev/darvaza.org/x/sync/cond
 [sync-errors-link]: https://pkg.go.dev/darvaza.org/x/sync/errors
 [sync-mutex-link]: https://pkg.go.dev/darvaza.org/x/sync/mutex
@@ -519,6 +524,62 @@ if err := wg.Wait(); err != nil {
 * Safe for concurrent use from multiple goroutines.
 * Supports reuse after completion if not cancelled.
 * Error tracking distinguishes between normal cancellation and error causes.
+
+## Atomic
+
+The `atomic` package shadows the standard library `sync/atomic` package and
+adds helpers for patterns recurring in synchronisation primitives.
+
+The standard-library atomic types (`Bool`, `Int32`, `Int64`, `Uint32`,
+`Uint64`, `Uintptr`, `Value`, `Pointer[T]`) are re-exported as aliases so
+callers using the type-based API can reach both the stdlib types and the
+extension helpers through a single import of `darvaza.org/x/sync/atomic`.
+
+The legacy free-function API (`AddInt32`, `LoadInt32`, ...) is intentionally
+omitted; new code should use the type-based methods that supersede it since
+Go 1.19. Callers that still need those functions should keep their
+`sync/atomic` import alongside this one.
+
+### Atomic Helpers
+
+* `BitmaskOr(p *Uint32, mask uint32) (uint32, bool)`: Atomically applies a
+  bitwise OR of `mask` to `*p`, returning the resulting value and whether
+  any bits actually changed. The boolean signals first-writer semantics for
+  the supplied mask; callers wanting a one-shot "target reached"
+  notification gate on `changed && result == target`.
+* `UpdateMax(p *Int32, val int32) int32`: Atomically raises `*p` to `val`
+  when `val` is greater than the current value; no-op otherwise. Returns
+  the value the caller raised `*p` to, or the value observed when no update
+  was performed. `*p` is guaranteed to be at least the returned value after
+  the call, but may already be higher under contention.
+
+### Atomic Example usage
+
+First-writer notification per bit:
+
+```go
+import "darvaza.org/x/sync/atomic"
+
+var bits atomic.Uint32
+if _, changed := atomic.BitmaskOr(&bits, 0x01); changed {
+    // first writer to set this bit
+}
+```
+
+One-shot "target reached" notification when the last expected bit lands:
+
+```go
+import "darvaza.org/x/sync/atomic"
+
+var bits atomic.Uint32
+const target = uint32(0b111) // all three bits expected
+
+myBit := uint32(0b010) // the bit this caller is responsible for
+result, changed := atomic.BitmaskOr(&bits, myBit)
+if changed && result == target {
+    // exactly one writer reaches here: the one whose OR completed target
+}
+```
 
 ## Utility Functions
 
