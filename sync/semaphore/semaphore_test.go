@@ -800,23 +800,6 @@ func runBenchmarkReadOnly(b *testing.B, mu mutex.RWMutex) {
 	})
 }
 
-// reportTryMetrics reports the attempts/lock, locks-per-second and
-// nanoseconds-per-lock ratios for a TryLock-style benchmark. unit is the
-// per-acquisition noun ("lock" or "rlock"). Guard clauses keep this off
-// the benchmark loop's complexity budget.
-func reportTryMetrics(b *testing.B, attempts, count int32,
-	elapsed time.Duration, unit string) {
-	if count <= 0 {
-		return
-	}
-	b.ReportMetric(float64(attempts)/float64(count), "attempts/"+unit)
-	if elapsed <= 0 {
-		return
-	}
-	b.ReportMetric(float64(count)/elapsed.Seconds(), unit+"s/sec")
-	b.ReportMetric(float64(elapsed.Nanoseconds())/float64(attempts), "ns/"+unit)
-}
-
 // runBenchmarkTryLock benchmarks TryLock operations.
 func runBenchmarkTryLock(b *testing.B, mu mutex.Mutex) {
 	var lockAttempts atomic.Int32
@@ -836,7 +819,7 @@ func runBenchmarkTryLock(b *testing.B, mu mutex.Mutex) {
 		}
 	})
 
-	reportTryMetrics(b, lockAttempts.Load(), locksCount.Load(),
+	synctesting.ReportTryMetrics(b, lockAttempts.Load(), locksCount.Load(),
 		time.Since(startTime), "lock")
 }
 
@@ -859,7 +842,7 @@ func runBenchmarkTryRLock(b *testing.B, mu mutex.RWMutex) {
 		}
 	})
 
-	reportTryMetrics(b, lockAttempts.Load(), locksCount.Load(),
+	synctesting.ReportTryMetrics(b, lockAttempts.Load(), locksCount.Load(),
 		time.Since(startTime), "rlock")
 }
 
