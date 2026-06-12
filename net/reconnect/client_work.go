@@ -231,22 +231,38 @@ func (c *Client) handlePossiblyFatalError(conn net.Conn, err error) error {
 }
 
 func (c *Client) handleConnectError(conn net.Conn, err error) error {
-	var cancelled bool
-
-	switch err {
-	case nil:
+	if err == nil {
 		return nil
-	case context.Canceled:
-		cancelled = true
-	default:
 	}
 
-	err = c.handlePossiblyFatalError(conn, err)
-	switch {
-	case err != nil:
+	// remember context terminations before the non-fatal
+	// handling swallows the error.
+	cancellation := checkCancellation(err)
+
+	if err = c.handlePossiblyFatalError(conn, err); err != nil {
 		return err
-	case cancelled:
+	}
+
+	switch {
+	case cancellation != nil:
+		return cancellation
+	case c.ctx.Err() != nil:
+		// the [Client]'s context is done; stop instead of
+		// spinning on doomed reconnection attempts.
+		return c.ctx.Err()
+	default:
+		return nil
+	}
+}
+
+// checkCancellation extracts a context termination from the
+// error chain, if any.
+func checkCancellation(err error) error {
+	switch {
+	case core.IsError(err, context.Canceled):
 		return context.Canceled
+	case core.IsError(err, context.DeadlineExceeded):
+		return context.DeadlineExceeded
 	default:
 		return nil
 	}
