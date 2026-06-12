@@ -1,13 +1,13 @@
 module darvaza.org/x/config
 
-go 1.24.0
+go 1.25.0
 
 require darvaza.org/core v0.19.1
 
 require (
 	github.com/amery/defaults v0.1.0
 	github.com/go-playground/validator/v10 v10.27.0
-	mvdan.cc/sh/v3 v3.12.0
+	mvdan.cc/sh/v3 v3.13.1
 )
 
 require (
@@ -18,6 +18,6 @@ require (
 	github.com/stretchr/testify v1.10.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/net v0.50.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 )
