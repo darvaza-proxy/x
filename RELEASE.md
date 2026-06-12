@@ -7,8 +7,8 @@ including dependency order and procedures to ensure consistent releases.
 
 ### Release Order
 
-1. **Tier 1** (independent): cmp, config, sync, fs, container
-2. **Tier 2** (dependent): net (→fs), web (→fs), tls (→container)
+1. **Tier 1** (independent): cmp, config, sync, fs, container, text
+2. **Tier 2** (dependent): net (→fs, sync), web (→fs), tls (→container)
 
 ### Essential Commands
 
@@ -33,24 +33,22 @@ go -C package mod tidy
 The following diagram shows the internal dependencies between packages:
 
 ```text
-                Tier 1 - Independent packages:
-┌─────────────┐ ┌──────────────┐ ┌─────────────┐
-│     cmp     │ │    config    │ │     sync    │
-│  (no deps)  │ │  (no deps)   │ │  (no deps)  │
-└─────────────┘ └──────────────┘ └─────────────┘
+        Tier 1 - Independent packages:
+┌─────────┐ ┌─────────┐ ┌───────────┐
+│   cmp   │ │ config  │ │   text    │
+└─────────┘ └─────────┘ └───────────┘
 
-┌─────────────┐                  ┌─────────────┐
-│     fs      │                  │  container  │
-│  (no deps)  │                  │  (no deps)  │
-└──────┬──────┘                  └──────┬──────┘
-       │                                │
-       ├─────────────┐                  │
-       ▼             ▼                  ▼
-┌─────────┐   ┌─────────┐       ┌─────────────┐
-│   net   │   │   web   │       │     tls     │
-└─────────┘   └─────────┘       └─────────────┘
-
-                Tier 2 - Dependent packages
+┌─────────┐ ┌─────────┐ ┌───────────┐
+│   fs    │ │  sync   │ │ container │
+└────┬────┘ └────┬────┘ └─────┬─────┘
+     │           │            │
+     ├───────┐   │            │
+     │       │   │            │
+     ▼       ▼   ▼            ▼
+┌───────┐ ┌─────────┐  ┌───────────┐
+│  web  │ │   net   │  │    tls    │
+└───────┘ └─────────┘  └───────────┘
+        Tier 2 - Dependent packages
 ```
 
 ## Release Tiers
@@ -68,13 +66,14 @@ be released in any order or simultaneously:
 - **darvaza.org/x/sync**
 - **darvaza.org/x/fs**
 - **darvaza.org/x/container**
+- **darvaza.org/x/text**
 
 ### Tier 2 - Dependent Packages
 
 These packages depend on Tier 1 packages and must be released after their
 dependencies:
 
-- **darvaza.org/x/net** (depends on fs)
+- **darvaza.org/x/net** (depends on fs and sync)
 - **darvaza.org/x/web** (depends on fs)
 - **darvaza.org/x/tls** (depends on container)
 
@@ -90,7 +89,7 @@ Before starting the release process:
 - [ ] Review and update CHANGELOG.md for each package (when present)
 - [ ] Ensure all documentation is up to date
 - [ ] Check current versions:
-  `git tag --list | grep -E "^(cmp|config|sync|fs|container)/" | sort -V`
+  `git tag --list | grep -E "^(cmp|config|sync|fs|container|text)/" | sort -V`
 - [ ] Verify no uncommitted changes: `git status`
 
 ### 2. Tier 1 Release
@@ -99,7 +98,7 @@ Before starting the release process:
 
    ```bash
    # List current tags
-   git tag --list | grep -E "^(cmp|config|sync|fs|container)/" | sort -V
+   git tag --list | grep -E "^(cmp|config|sync|fs|container|text)/" | sort -V
    ```
 
 2. Create signed annotated tags with comprehensive release notes:
@@ -134,7 +133,7 @@ Before starting the release process:
 3. Push all tags at once:
 
    ```bash
-   git push origin cmp/v0.2.2 config/v0.5.1 sync/v0.3.1 fs/v0.5.3 container/v0.3.2
+   git push origin cmp/v0.2.2 config/v0.5.1 sync/v0.3.1 fs/v0.5.3 container/v0.3.2 text/v0.1.0
    ```
 
 4. Wait for pkg.go.dev to index the new versions (usually 5-10 minutes).
@@ -153,6 +152,7 @@ Before starting the release process:
    go get darvaza.org/x/sync@v0.3.1
    go get darvaza.org/x/fs@v0.5.3
    go get darvaza.org/x/container@v0.3.2
+   go get darvaza.org/x/text@v0.1.0
    \`\`\`"
    ```
 
