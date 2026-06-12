@@ -155,8 +155,8 @@ func (c *Client) runSession(conn net.Conn) error {
 	if fn := c.getOnSession(); fn != nil {
 		var catch core.Catcher
 
-		// hand over
-		return catch.Try(func() error {
+		// hand over, surfacing recovered panics as errors
+		return catch.Do(func() error {
 			return fn(c.ctx)
 		})
 	}
