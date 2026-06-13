@@ -43,7 +43,7 @@ type Client struct {
 	conn net.Conn
 }
 
-// Config returns the [Config] object used when [Reload] is called.
+// Config returns the [Config] object used when [Client.Reload] is called.
 func (c *Client) Config() *Config {
 	return c.cfg
 }
@@ -58,7 +58,11 @@ func (c *Client) Reload() error {
 	return core.ErrTODO
 }
 
-// Connect launches the [Client].
+// Connect launches the [Client], failing with [ErrRunning] when
+// called more than once. A nil return means the reconnection loop
+// has started, not that a connection is established — a failed
+// first dial is retried in the background like any other
+// disconnection.
 func (c *Client) Connect() error {
 	// once
 	if !c.started.CompareAndSwap(false, true) {

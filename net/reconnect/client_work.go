@@ -9,7 +9,8 @@ import (
 )
 
 // Wait blocks until the [Client] workers have finished,
-// and returns the cancellation reason.
+// and returns the cancellation reason, nil if the shutdown
+// was user-initiated.
 func (c *Client) Wait() error {
 	c.wg.Wait()
 	return c.Err()
@@ -26,8 +27,9 @@ func (c *Client) Err() error {
 	return filterNonError(err)
 }
 
-// Done returns a channel that watches the [Client] workers,
-// and provides the cancellation reason.
+// Done returns a channel that is closed once the [Client]
+// workers have finished. Use [Client.Err] to learn the
+// cancellation reason.
 func (c *Client) Done() <-chan struct{} {
 	barrier := make(chan struct{})
 
