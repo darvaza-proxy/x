@@ -17,6 +17,9 @@ var (
 
 // StreamSession provides an asynchronous stream session
 // using message types for receiving and sending.
+// Exported fields are configured before calling
+// [StreamSession.Spawn] and must not be modified afterwards.
+// The session must be spawned before using any other method.
 type StreamSession[Input, Output any] struct {
 	in  chan Input
 	out chan Output
@@ -27,26 +30,26 @@ type StreamSession[Input, Output any] struct {
 	Context context.Context
 
 	// Split identifies the next encoded [Input] type in the inbound stream.
-	// If not set, [bufio.SplitLine] will be used.
+	// If not set, [bufio.ScanLines] will be used.
 	Split bufio.SplitFunc
 	// Marshal is used, if MarshalTo isn't set, to encode an [Output] type.
-	// If neither is set, [StreamSession.Go] will fail.
+	// If neither is set, [StreamSession.Spawn] will fail.
 	Marshal func(Output) ([]byte, error)
 	// MarshalTo, if set, is used to write the encoded representation of
-	// and [Output] type.
+	// an [Output] type.
 	MarshalTo func(Output, io.Writer) error
 	// Unmarshal is used to decode an [Input] type previously identified
 	// by [StreamSession.Split].
-	// If not net, [StreamSession.Go] will fail.
+	// If not set, [StreamSession.Spawn] will fail.
 	Unmarshal func([]byte) (Input, error)
 
-	// SetReadDeadline is an optional hook called before reading the a message
+	// SetReadDeadline is an optional hook called before reading a message
 	SetReadDeadline func() error
 	// SetWriteDeadline is an optional hook called before writing a message
 	SetWriteDeadline func() error
 	// UnsetReadDeadline is an optional hook called after having read a message
 	UnsetReadDeadline func() error
-	// UnsetWriteDeadline is an optional hook called after having wrote a message
+	// UnsetWriteDeadline is an optional hook called after having written a message
 	UnsetWriteDeadline func() error
 
 	// OnError is optionally called when an error occurs
@@ -146,7 +149,9 @@ func doMarshalTo[T any](v T, w io.Writer, fn func(T) ([]byte, error)) error {
 	return nil
 }
 
-// Spawn starts the [StreamSession].
+// Spawn starts the [StreamSession]'s workers. It fails if the
+// session has already been started, or if Conn, Unmarshal, or
+// a marshalling function is missing.
 func (s *StreamSession[_, _]) Spawn() error {
 	if err := s.init(); err != nil {
 		return err
@@ -291,7 +296,9 @@ func (s *StreamSession[Input, Output]) Err() error {
 	return s.wg.Err()
 }
 
-// Send sends a message asynchronously, unless the queue is full.
+// Send queues a message for asynchronous delivery, blocking
+// while the queue is full. It fails with [fs.ErrClosed] once
+// the session has been shut down.
 func (s *StreamSession[_, Output]) Send(m Output) error {
 	// TODO: implement TrySend() non-blocking variant via counter.
 	var err error
@@ -309,14 +316,16 @@ func (s *StreamSession[_, Output]) trySend(m Output, err *error) {
 	s.out <- m
 }
 
-// Recv returns a channel where inbound messages can be received.
+// Recv returns the channel where inbound messages are delivered.
+// The channel is closed when the inbound stream ends.
 func (s *StreamSession[Input, _]) Recv() <-chan Input {
 	mustStarted(s)
 
 	return s.in
 }
 
-// Next blocks until a new message is received.
+// Next blocks until a new message is received, returning false
+// once the inbound stream has ended.
 func (s *StreamSession[Input, _]) Next() (Input, bool) {
 	mustStarted(s)
 

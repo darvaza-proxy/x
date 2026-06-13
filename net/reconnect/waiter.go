@@ -6,20 +6,21 @@ import (
 )
 
 const (
-	// DefaultWaitReconnect specifies how long we will wait for
-	// to reconnect by default
+	// DefaultWaitReconnect specifies how long [NewConstantWaiter]
+	// waits between reconnection attempts by default.
 	DefaultWaitReconnect = 5 * time.Second
 )
 
-// A Waiter is a function that blocks and returns an
-// error when cancelled or nil when we are good to continue.
+// A Waiter is a function that blocks between reconnection
+// attempts. It returns nil when the [Client] is good to try
+// again, or an error to stop reconnecting.
 type Waiter func(context.Context) error
 
 // NewConstantWaiter blocks for a given amount of time, or until
 // the context is cancelled.
-// If the given duration is negative, the [Waiter] won't wait, but
-// it will still check for context terminations.
-// If zero, the [Waiter] will wait the default amount.
+// If the given duration is zero, [DefaultWaitReconnect] is used.
+// If negative, reconnecting is disabled, failing with
+// [ErrDoNotReconnect].
 func NewConstantWaiter(d time.Duration) func(context.Context) error {
 	if d < 0 {
 		return NewImmediateErrorWaiter(ErrDoNotReconnect)
@@ -39,9 +40,10 @@ func NewConstantWaiter(d time.Duration) func(context.Context) error {
 	}
 }
 
-// NewImmediateErrorWaiter returns a Waiter that will return the
-// context cancellation cause or the specified error, if any.
-// There is no actual waiting.
+// NewImmediateErrorWaiter returns a [Waiter] that doesn't wait.
+// It returns the context's error if the context has already
+// terminated, or the given error otherwise. A nil error allows
+// an immediate reconnection attempt.
 func NewImmediateErrorWaiter(err error) func(context.Context) error {
 	return func(ctx context.Context) error {
 		select {
@@ -53,8 +55,10 @@ func NewImmediateErrorWaiter(err error) func(context.Context) error {
 	}
 }
 
-// NewDoNotReconnectWaiter returns a Waiter that will return the
-// context cancellation cause, the specified error, or ErrDoNotReconnect.
+// NewDoNotReconnectWaiter returns a [Waiter] that stops
+// reconnection attempts, failing with the given error, or
+// [ErrDoNotReconnect] when nil. The context's error takes
+// precedence if the context has already terminated.
 func NewDoNotReconnectWaiter(err error) func(context.Context) error {
 	if err == nil {
 		err = ErrDoNotReconnect
