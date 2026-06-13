@@ -89,7 +89,7 @@ func (c *Client) ResetReadDeadline() error {
 	return c.SetReadDeadline(c.readTimeout)
 }
 
-// SetReadDeadline sets the connections' read deadline to
+// SetReadDeadline sets the connection's read deadline to
 // the specified duration. Use zero or negative to disable it.
 func (c *Client) SetReadDeadline(d time.Duration) error {
 	now := time.Now()
@@ -108,7 +108,7 @@ func (c *Client) ResetWriteDeadline() error {
 	return c.SetWriteDeadline(c.writeTimeout)
 }
 
-// SetWriteDeadline sets the connections' write deadline to
+// SetWriteDeadline sets the connection's write deadline to
 // the specified duration. Use zero or negative to disable it.
 func (c *Client) SetWriteDeadline(d time.Duration) error {
 	now := time.Now()
@@ -121,10 +121,10 @@ func (c *Client) SetWriteDeadline(d time.Duration) error {
 	return conn.SetWriteDeadline(t)
 }
 
-// SetDeadline sets the connections's read and write deadlines.
-// if write is zero but read is positive, write is set using the same
+// SetDeadline sets the connection's read and write deadlines.
+// If write is zero but read is positive, write is set using the same
 // value as read.
-// zero or negative can be used to disable the deadline.
+// Zero or negative can be used to disable the deadline.
 func (c *Client) SetDeadline(read, write time.Duration) error {
 	if read > 0 && write == 0 {
 		write = read
@@ -145,7 +145,7 @@ func (c *Client) SetDeadline(read, write time.Duration) error {
 	return conn.SetWriteDeadline(t)
 }
 
-// Read reads from the TCP connection, if connected.
+// Read reads from the current connection, if connected.
 func (c *Client) Read(p []byte) (int, error) {
 	conn, err := c.getConn()
 	if err != nil {
@@ -155,7 +155,7 @@ func (c *Client) Read(p []byte) (int, error) {
 	return conn.Read(p)
 }
 
-// Write writes to the TCP connection, if connected.
+// Write writes to the current connection, if connected.
 func (c *Client) Write(p []byte) (int, error) {
 	conn, err := c.getConn()
 	if err != nil {
@@ -165,7 +165,9 @@ func (c *Client) Write(p []byte) (int, error) {
 	return conn.Write(p)
 }
 
-// Close terminates the current connection
+// Close terminates the current connection, if any. The [Client]
+// keeps running and will reconnect; use [Client.Shutdown] to
+// stop it.
 func (c *Client) Close() error {
 	if conn, _ := c.getConn(); conn != nil {
 		return conn.Close()
