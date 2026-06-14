@@ -1,4 +1,4 @@
-package certpool
+package certpool_test
 
 import (
 	"bytes"
@@ -7,10 +7,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"testing"
+
+	"darvaza.org/x/tls/x509utils/certpool"
 )
 
 func TestSystemCertPool(t *testing.T) {
-	pool, err := SystemCertPool()
+	pool, err := certpool.SystemCertPool()
 	if err != nil {
 		t.Fatal(err)
 	}
