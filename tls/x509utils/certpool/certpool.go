@@ -24,6 +24,11 @@ type CertPool struct {
 	entries  map[*x509.Certificate]*certPoolEntry
 	names    map[string]*list.List[*certPoolEntry]
 	patterns map[string]*list.List[*certPoolEntry]
+
+	// bySubject indexes entries by the blake3 hash of their RawSubject,
+	// so a child's candidate issuers can be found natively from its
+	// RawIssuer without exporting to a [x509.CertPool]. See GetBySubjectHash.
+	bySubject map[Hash]*list.List[*certPoolEntry]
 }
 
 // IsZero tells if the non-nil store is empty.
@@ -108,15 +113,17 @@ func (s *CertPool) unsafeReset() error {
 	s.entries = make(map[*x509.Certificate]*certPoolEntry)
 	s.names = make(map[string]*list.List[*certPoolEntry])
 	s.patterns = make(map[string]*list.List[*certPoolEntry])
+	s.bySubject = make(map[Hash]*list.List[*certPoolEntry])
 	return nil
 }
 
 // New creates a blank [CertPool] store.
 func New() *CertPool {
 	return &CertPool{
-		certs:    MustCertSet(),
-		entries:  make(map[*x509.Certificate]*certPoolEntry),
-		names:    make(map[string]*list.List[*certPoolEntry]),
-		patterns: make(map[string]*list.List[*certPoolEntry]),
+		certs:     MustCertSet(),
+		entries:   make(map[*x509.Certificate]*certPoolEntry),
+		names:     make(map[string]*list.List[*certPoolEntry]),
+		patterns:  make(map[string]*list.List[*certPoolEntry]),
+		bySubject: make(map[Hash]*list.List[*certPoolEntry]),
 	}
 }

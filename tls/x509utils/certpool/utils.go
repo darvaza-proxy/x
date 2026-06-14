@@ -15,7 +15,7 @@ func validCert(cert *x509.Certificate) bool {
 	switch {
 	case cert == nil, cert.PublicKey == nil:
 		return false
-	case len(cert.Raw) == 0, len(cert.RawSubject) == 0:
+	case len(cert.Raw) == 0, len(cert.RawSubject) == 0, len(cert.RawIssuer) == 0:
 		return false
 	default:
 		return true

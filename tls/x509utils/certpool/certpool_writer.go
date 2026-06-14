@@ -126,6 +126,9 @@ func (s *CertPool) unsafeDeleteCertEntry(ce *certPoolEntry) {
 
 	deleteMapListMatchFn(s.names, ce.names, eq)
 	deleteMapListMatchFn(s.patterns, ce.patterns, eq)
+	if h, ok := HashSubject(ce.cert); ok {
+		deleteMapListMatchFn(s.bySubject, []Hash{h}, eq)
+	}
 }
 
 // Import certificates from another CertPool.
@@ -272,4 +275,5 @@ func (s *CertPool) unsafeAddCertEntry(ce *certPoolEntry) {
 	for _, pattern := range ce.patterns {
 		appendMapList(s.patterns, pattern, ce)
 	}
+	s.unsafeIndexSubject(ce)
 }

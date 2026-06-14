@@ -3,6 +3,7 @@ package certpool
 import (
 	"crypto/x509"
 
+	"darvaza.org/x/container/list"
 	"darvaza.org/x/tls/x509utils"
 )
 
@@ -118,14 +119,18 @@ func (s *CertPool) doClone(cond func(*certPoolEntry) bool) *CertPool {
 	defer s.mu.RUnlock()
 
 	out := &CertPool{
-		certs:    MustCertSet(),
-		entries:  copyMap(s.entries, fn),
-		names:    copyMapList(s.names, fn),
-		patterns: copyMapList(s.patterns, fn),
+		certs:     MustCertSet(),
+		entries:   copyMap(s.entries, fn),
+		names:     copyMapList(s.names, fn),
+		patterns:  copyMapList(s.patterns, fn),
+		bySubject: make(map[Hash]*list.List[*certPoolEntry]),
 	}
 
-	for k := range out.entries {
+	// bySubject is keyed by a hash derived from each entry, so it can't be
+	// cloned by copyMapList; rebuild it from the cloned entries.
+	for k, ce := range out.entries {
 		_, _ = out.certs.Push(k)
+		out.unsafeIndexSubject(ce)
 	}
 
 	return out
