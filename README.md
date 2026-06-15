@@ -136,6 +136,7 @@ graph TB
     %% x/ Tier 2 dependencies
     fs --> net
     fs --> web
+    sync --> net
     container --> tls
     slog --> net
     slog --> tls
@@ -176,7 +177,8 @@ graph TB
   * Depend only on core libraries and standard library
 
 * **Tier 2 Packages**: Depend on Tier 1 packages
-  * `net` and `web` depend on `fs`
+  * `net` depends on `fs` and `sync`
+  * `web` depends on `fs`
   * `tls` depends on `container`
   * Must be released after their dependencies
 

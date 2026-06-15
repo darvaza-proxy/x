@@ -2,12 +2,12 @@ package reconnect
 
 import (
 	"context"
-	"errors"
 	"io/fs"
 	"os"
 	"syscall"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/errors"
 )
 
 var (
@@ -20,10 +20,16 @@ var (
 	ErrDoNotReconnect = errors.New("don't reconnect")
 
 	// ErrNotConnected indicates the [Client] isn't currently connected.
-	ErrNotConnected = core.QuietWrap(fs.ErrClosed, "not connected")
+	ErrNotConnected = core.QuietWrap(errors.ErrClosed, "not connected")
 
 	// ErrRunning indicates the [Client] has already been started.
 	ErrRunning = core.QuietWrap(syscall.EBUSY, "client already running")
+
+	// ErrClosed indicates the [Client] has already been shut down
+	// and can no longer be started. It wraps the workgroup's
+	// sentinel so the shutdown signal still matches the one the
+	// group returns across the lifecycle stack.
+	ErrClosed = core.QuietWrap(errors.ErrClosed, "client closed")
 
 	// ErrNameEmpty indicates a name is empty
 	ErrNameEmpty = errors.New("name missing")

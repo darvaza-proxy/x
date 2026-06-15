@@ -10,6 +10,7 @@ import (
 	"darvaza.org/core"
 	"darvaza.org/slog"
 	"darvaza.org/x/net"
+	"darvaza.org/x/sync/workgroup"
 )
 
 var (
@@ -19,8 +20,6 @@ var (
 // Client is a reconnecting network client.
 type Client struct {
 	ctx    context.Context
-	cancel context.CancelCauseFunc
-	err    error
 	conn   net.Conn
 	logger slog.Logger
 	cfg    *Config
@@ -35,8 +34,8 @@ type Client struct {
 	network string
 	address string
 
+	wg workgroup.Group
 	mu sync.Mutex
-	wg sync.WaitGroup
 
 	readTimeout  time.Duration
 	writeTimeout time.Duration
@@ -63,7 +62,8 @@ func (c *Client) Reload() error {
 // called more than once. A nil return means the reconnection loop
 // has started, not that a connection is established — a failed
 // first dial is retried in the background like any other
-// disconnection.
+// disconnection. Calling it on a [Client] that has already been
+// shut down fails with [ErrClosed].
 func (c *Client) Connect() error {
 	// once
 	if !c.started.CompareAndSwap(false, true) {
@@ -76,12 +76,16 @@ func (c *Client) Connect() error {
 		return err
 	}
 
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
-
+	if err := c.wg.Go(func(context.Context) {
 		c.run(conn)
-	}()
+	}); err != nil {
+		// a concurrent Shutdown/terminate cancelled the group between
+		// the dial and the spawn; don't leak the freshly dialled
+		// connection, and report the client is shut down rather than
+		// leaking the workgroup's internal error.
+		unsafeClose(conn)
+		return ErrClosed
+	}
 
 	return nil
 }
@@ -93,12 +97,10 @@ func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancelCause(cfg.Context)
-
 	c := &Client{
-		ctx:    ctx,
-		cancel: cancel,
-
+		wg: workgroup.Group{
+			Parent: cfg.Context,
+		},
 		cfg:    cfg,
 		dialer: cfg.ExportDialer(),
 		logger: cfg.Logger,
@@ -112,6 +114,7 @@ func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 		onDisconnect:  cfg.OnDisconnect,
 		onError:       cfg.OnError,
 	}
+	c.ctx = c.wg.Context()
 
 	c.network, c.address, err = ParseRemote(cfg.Remote)
 	if err != nil {
