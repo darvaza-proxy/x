@@ -29,8 +29,15 @@ func newDialer(keepalive, timeout time.Duration) *stdnet.Dialer {
 	}
 }
 
-func unsafeClose(f io.Closer) {
-	_ = f.Close()
+// unsafeClose closes each closer ignoring any error. A nil closer is
+// skipped, so callers can close a resource that may never have been
+// established without guarding the call site.
+func unsafeClose(ff ...io.Closer) {
+	for _, f := range ff {
+		if f != nil {
+			_ = f.Close()
+		}
+	}
 }
 
 // TimeoutToAbsoluteTime adds the given [time.Duration] to a
