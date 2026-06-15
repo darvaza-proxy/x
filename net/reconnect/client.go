@@ -10,6 +10,7 @@ import (
 	"darvaza.org/core"
 	"darvaza.org/slog"
 	"darvaza.org/x/net"
+	"darvaza.org/x/sync/workgroup"
 )
 
 var (
@@ -19,11 +20,9 @@ var (
 // Client is a reconnecting network client.
 type Client struct {
 	mu      sync.Mutex
-	wg      sync.WaitGroup
+	wg      *workgroup.Group
 	ctx     context.Context
-	cancel  context.CancelCauseFunc
 	started atomic.Bool
-	err     error
 
 	cfg     *Config
 	dialer  net.Dialer
@@ -75,12 +74,15 @@ func (c *Client) Connect() error {
 		return err
 	}
 
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
-
+	if err := c.wg.Go(func(context.Context) {
 		c.run(conn)
-	}()
+	}); err != nil {
+		// a concurrent Shutdown/terminate cancelled the group between
+		// the dial and the spawn; don't leak the freshly dialled
+		// connection.
+		unsafeClose(conn)
+		return err
+	}
 
 	return nil
 }
@@ -92,11 +94,11 @@ func New(cfg *Config, options ...OptionFunc) (*Client, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancelCause(cfg.Context)
+	wg := workgroup.New(cfg.Context)
 
 	c := &Client{
-		ctx:    ctx,
-		cancel: cancel,
+		wg:  wg,
+		ctx: wg.Context(),
 
 		cfg:    cfg,
 		dialer: cfg.ExportDialer(),

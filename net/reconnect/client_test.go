@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -154,4 +155,68 @@ func runTestClientDeadlineStopsReconnecting(t *testing.T) {
 func TestClientContextDeadline(t *testing.T) {
 	t.Run("expired at Connect", runTestClientConnectExpiredContext)
 	t.Run("expires during session", runTestClientDeadlineStopsReconnecting)
+}
+
+// TestClientWaiterErrorStops verifies a Waiter error stops the
+// client instead of busy-looping. Per the Waiter contract any error
+// means "stop reconnecting", even a non-fatal one that IsFatal would
+// otherwise let the connection retry. Regression test for the 100%
+// CPU spin where a custom non-fatal waiter error skipped the dial
+// yet never terminated the client.
+func TestClientWaiterErrorStops(t *testing.T) {
+	errStopWaiting := errors.New("waiter stop sentinel")
+
+	var waiterCalls atomic.Int32
+	waiter := func(ctx context.Context) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			waiterCalls.Add(1)
+			return errStopWaiting
+		}
+	}
+
+	// unreachable: bind a port then release it, so the first dial
+	// fails non-fatally (ECONNREFUSED) and the run loop reaches the
+	// waiter.
+	lsn, err := net.Listen("tcp", "127.0.0.1:0")
+	core.AssertMustNoError(t, err, "listen")
+	addr := lsn.Addr().String()
+	core.AssertMustNoError(t, lsn.Close(), "close listener")
+
+	collector := new(errCollector)
+
+	cfg := &reconnect.Config{
+		Context:       context.Background(),
+		Remote:        addr,
+		WaitReconnect: waiter,
+		OnError:       collector.OnError,
+	}
+
+	c, err := reconnect.New(cfg)
+	core.AssertMustNoError(t, err, "New")
+	core.AssertMustNoError(t, c.Connect(), "Connect")
+
+	var stopped bool
+	select {
+	case <-c.Done():
+		stopped = true
+	case <-time.After(2 * time.Second):
+	}
+
+	core.AssertMustTrue(t, stopped, "stopped after waiter error")
+
+	// the waiter is consulted exactly once and its error ends the
+	// client; a regression would spin it without bound.
+	core.AssertEqual(t, 1, int(waiterCalls.Load()), "waiter calls")
+	core.AssertErrorIs(t, c.Wait(), errStopWaiting, "Wait")
+
+	var sawWaiterErr bool
+	for _, e := range collector.Errors() {
+		if errors.Is(e, errStopWaiting) {
+			sawWaiterErr = true
+		}
+	}
+	core.AssertTrue(t, sawWaiterErr, "OnError observed the waiter error")
 }
