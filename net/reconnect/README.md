@@ -314,25 +314,15 @@ The client distinguishes between recoverable and non-recoverable errors.
 
 ### Error Types
 
-```go
-var (
-    // ErrConfigBusy indicates the Config is already in use.
-    ErrConfigBusy = core.QuietWrap(fs.ErrPermission,
-        "config already in use")
+- `ErrConfigBusy`: the Config is already in use by another client.
+- `ErrRunning`: the client has already been started.
+- `ErrDoNotReconnect`: instructs the client to stop reconnecting.
+- `ErrClosed`: the client has already been shut down. It wraps
+  `darvaza.org/x/sync/errors.ErrClosed`, the workgroup's sentinel.
+- `ErrNotConnected`: the client isn't currently connected. It wraps
+  `ErrClosed`, so one `errors.Is` target covers both.
 
-    // ErrRunning indicates the client has already been started.
-    ErrRunning = core.QuietWrap(syscall.EBUSY,
-        "client already running")
-
-    // ErrDoNotReconnect tells the client to stop reconnecting.
-    ErrDoNotReconnect = errors.New("don't reconnect")
-
-    // ErrNotConnected indicates the client isn't currently connected.
-    ErrNotConnected = core.QuietWrap(fs.ErrClosed, "not connected")
-
-    // Additional errors defined in the errors.go file.
-)
-```
+See `errors.go` for the full list.
 
 ### Error Classification
 

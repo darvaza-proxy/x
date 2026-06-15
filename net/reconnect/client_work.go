@@ -12,39 +12,27 @@ import (
 // and returns the cancellation reason, nil if the shutdown
 // was user-initiated.
 func (c *Client) Wait() error {
-	c.wg.Wait()
-	return c.Err()
+	return filterNonError(c.wg.Wait())
 }
 
 // Err returns the cancellation reason.
 // It will return nil if the cause was initiated
 // by the user.
 func (c *Client) Err() error {
-	c.mu.Lock()
-	err := c.err
-	c.mu.Unlock()
-
-	return filterNonError(err)
+	return filterNonError(c.wg.Err())
 }
 
 // Done returns a channel that is closed once the [Client]
 // workers have finished. Use [Client.Err] to learn the
 // cancellation reason.
 func (c *Client) Done() <-chan struct{} {
-	barrier := make(chan struct{})
-
-	go func() {
-		defer close(barrier)
-		c.wg.Wait()
-	}()
-
-	return barrier
+	return c.wg.Done()
 }
 
 // Shutdown initiates a shutdown and waits until the workers
 // are done, or the given context times out.
 func (c *Client) Shutdown(ctx context.Context) error {
-	_ = c.terminate(nil)
+	c.terminate(nil)
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -53,30 +41,26 @@ func (c *Client) Shutdown(ctx context.Context) error {
 	}
 }
 
-func (c *Client) terminate(cause error) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if err := c.err; err != nil {
-		// already cancelled
-		return filterNonError(err)
-	}
-
+// terminate cancels the [Client] with the given cause, defaulting
+// to [context.Canceled]. It is idempotent: only the first call
+// records a cause and logs the termination.
+func (c *Client) terminate(cause error) {
 	if cause == nil {
 		cause = context.Canceled
 	}
 
-	if l, ok := c.WithDebug(nil); ok {
-		l = l.WithField(slog.ErrorFieldName, cause)
-		l.Print("client terminated")
+	if c.wg.Cancel(cause) {
+		// first cancellation
+		if l, ok := c.WithDebug(nil); ok {
+			l = l.WithField(slog.ErrorFieldName, cause)
+			l.Print("client terminated")
+		}
 	}
-
-	c.err = cause
-	c.cancel(cause)
-	return filterNonError(cause)
 }
 
-// Go spawns a goroutine within the [Client]'s context.
+// Go spawns a goroutine within the [Client]'s context. Submissions
+// after shutdown are no-ops: the worker is dropped rather than run
+// with an already-cancelled context.
 func (c *Client) Go(funcs ...WorkerFunc) {
 	for _, fn := range funcs {
 		if fn != nil {
@@ -87,6 +71,7 @@ func (c *Client) Go(funcs ...WorkerFunc) {
 
 // GoCatch spawns a goroutine within the [Client]'s context,
 // optionally allowing filtering the error to stop cascading.
+// Submissions after shutdown are no-ops, as with [Client.Go].
 func (c *Client) GoCatch(run WorkerFunc, catch CatcherFunc) {
 	if run != nil {
 		c.spawnOne(run, catch)
@@ -94,23 +79,28 @@ func (c *Client) GoCatch(run WorkerFunc, catch CatcherFunc) {
 }
 
 func (c *Client) spawnOne(run WorkerFunc, catch CatcherFunc) {
-	c.wg.Add(1)
-
-	go func() {
+	err := c.wg.Go(func(ctx context.Context) {
 		var catcher core.Catcher
 
-		defer c.wg.Done()
-
 		err := catcher.Do(func() error {
-			return run(c.ctx)
+			return run(ctx)
 		})
 
 		if err != nil && catch != nil {
-			err = catch(c.ctx, err)
+			err = catch(ctx, err)
 		}
 
 		_ = c.handlePossiblyFatalError(nil, err)
-	}()
+	})
+	if err != nil {
+		// the group is already shutting down; the worker is dropped
+		// rather than run with a cancelled context. Surface it at
+		// debug so a late submission isn't lost silently.
+		if l, ok := c.WithDebug(nil); ok {
+			l = l.WithField(slog.ErrorFieldName, err)
+			l.Print("worker submitted after shutdown; dropped")
+		}
+	}
 }
 
 // run implements the main loop.
@@ -122,7 +112,7 @@ func (c *Client) run(conn net.Conn) {
 		if err := core.AsRecovered(recover()); err != nil {
 			// report and terminate
 			_ = c.doOnError(nil, err, "reconnect.Client")
-			_ = c.terminate(err)
+			c.terminate(err)
 		}
 	}()
 
@@ -172,15 +162,24 @@ func (c *Client) runSession(conn net.Conn) error {
 }
 
 func (c *Client) tryReconnect() (net.Conn, bool) {
+	if fn := c.getWaitReconnect(); fn != nil {
+		if err := fn(c.ctx); err != nil {
+			// Per the [Waiter] contract any error means "stop
+			// reconnecting". Unlike a dial failure it is terminal
+			// regardless of [IsFatal], which classifies connection
+			// errors, not the waiter's stop decision.
+			return nil, c.handleWaiterError(err)
+		}
+	}
+
 	network, address := c.getRemote()
-	conn, err := c.reconnect(network, address)
+	conn, err := c.dial(network, address)
 	if conn != nil {
 		// ready
 		return conn, false
 	}
 
-	abort := c.handleReconnectError(err)
-	return nil, abort
+	return nil, c.handleReconnectError(err)
 }
 
 func (c *Client) doOnDisconnect() error {
@@ -224,7 +223,7 @@ func (c *Client) handlePossiblyFatalError(conn net.Conn, err error) error {
 	if err != nil {
 		err = c.doOnError(conn, err, "")
 		if IsFatal(err) {
-			_ = c.terminate(err)
+			c.terminate(err)
 			return err // unfiltered
 		}
 	}
@@ -273,4 +272,14 @@ func checkCancellation(err error) error {
 func (c *Client) handleReconnectError(err error) bool {
 	err = c.handleConnectError(nil, err)
 	return err != nil
+}
+
+// handleWaiterError stops the [Client] after a [Waiter] declined to
+// continue. The waiter is the reconnection-policy authority, so any
+// error terminates unconditionally; [Config.OnError] still observes
+// it and may rewrite the recorded cause.
+func (c *Client) handleWaiterError(err error) bool {
+	err = c.doOnError(nil, err, "reconnect waiter")
+	c.terminate(err)
+	return true
 }

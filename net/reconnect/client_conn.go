@@ -40,17 +40,6 @@ func (c *Client) dial(network, addr string) (net.Conn, error) {
 	return conn, nil
 }
 
-// reconnect waits before dialling.
-func (c *Client) reconnect(network, addr string) (net.Conn, error) {
-	if fn := c.getWaitReconnect(); fn != nil {
-		if err := fn(c.ctx); err != nil {
-			return nil, err
-		}
-	}
-
-	return c.dial(network, addr)
-}
-
 // setConn prepares the Client to use the new net.Conn
 // and returns the previous, if any.
 func (c *Client) setConn(conn net.Conn) net.Conn {

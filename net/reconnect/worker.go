@@ -7,13 +7,14 @@ import (
 	"darvaza.org/core"
 )
 
-// WorkerFunc is a run function for core.ErrGroup's GoCatch.
+// WorkerFunc is a run function for [WorkGroup.GoCatch].
 type WorkerFunc func(context.Context) error
 
-// CatcherFunc is a catch function for core.ErrGroup's GoCatch.
+// CatcherFunc is a catch function for [WorkGroup.GoCatch].
 type CatcherFunc func(context.Context, error) error
 
-// A WorkGroup is an error group interface.
+// A WorkGroup is an error group interface. Submissions through Go and
+// GoCatch after shutdown are no-ops.
 type WorkGroup interface {
 	Go(...WorkerFunc)
 	GoCatch(WorkerFunc, CatcherFunc)
