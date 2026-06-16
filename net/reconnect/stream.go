@@ -8,6 +8,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/x/fs"
+	"darvaza.org/x/sync/workgroup"
 )
 
 var (
@@ -55,7 +56,7 @@ type StreamSession[Input, Output any] struct {
 	// OnError is optionally called when an error occurs
 	OnError func(error)
 
-	wg core.ErrGroup
+	wg workgroup.Group
 
 	// QueueSize specifies how many [Output] type entries can be buffered
 	// for delivery before [StreamSession.Send] blocks.
@@ -74,54 +75,42 @@ func (s *StreamSession[Input, Output]) init() error {
 		return core.QuietWrap(fs.ErrInvalid, "missing Marshal/MarshalTo")
 	}
 
-	if err := s.setDefaults(); err != nil {
-		return err
-	}
+	s.setDefaults()
 
-	s.wg = core.ErrGroup{
-		Parent: s.Context,
+	if fn := s.OnError; fn != nil {
+		// the former core.ErrGroup delivered the cancellation cause
+		// to OnError; OnCancel is its workgroup.Group equivalent.
+		s.wg.OnCancel = func(_ context.Context, cause error) {
+			fn(cause)
+		}
 	}
-
-	s.wg.OnError(s.OnError)
-	s.wg.SetDefaults()
 
 	s.in = make(chan Input)
 	s.out = make(chan Output, s.QueueSize)
 	return nil
 }
 
-// revive:disable:cognitive-complexity
-func (s *StreamSession[_, _]) setDefaults() error {
-	// revive:enable:cognitive-complexity
-	if s.Context == nil {
-		s.Context = context.Background()
-	}
+// noopHook is the default for the optional read/write deadline hooks.
+var noopHook = func() error { return nil }
 
-	if s.Split == nil {
-		s.Split = bufio.ScanLines
+func (s *StreamSession[_, _]) setDefaults() {
+	s.Context = core.Coalesce(s.Context, context.Background())
+	if s.wg.Parent == nil {
+		s.wg.Parent = s.Context
 	}
+	_ = s.wg.Context() // ensure the context is initialised
 
+	s.Split = core.Coalesce(s.Split, bufio.ScanLines)
 	if s.MarshalTo == nil {
+		// keep the branch: newMarshalTo panics on a nil Marshal, so it
+		// must not be evaluated when MarshalTo is already set.
 		s.MarshalTo = newMarshalTo(s.Marshal)
 	}
 
-	if s.SetReadDeadline == nil {
-		s.SetReadDeadline = func() error { return nil }
-	}
-
-	if s.SetWriteDeadline == nil {
-		s.SetWriteDeadline = func() error { return nil }
-	}
-
-	if s.UnsetReadDeadline == nil {
-		s.UnsetReadDeadline = func() error { return nil }
-	}
-
-	if s.UnsetWriteDeadline == nil {
-		s.UnsetWriteDeadline = func() error { return nil }
-	}
-
-	return nil
+	s.SetReadDeadline = core.Coalesce(s.SetReadDeadline, noopHook)
+	s.SetWriteDeadline = core.Coalesce(s.SetWriteDeadline, noopHook)
+	s.UnsetReadDeadline = core.Coalesce(s.UnsetReadDeadline, noopHook)
+	s.UnsetWriteDeadline = core.Coalesce(s.UnsetWriteDeadline, noopHook)
 }
 
 func newMarshalTo[T any](fn func(T) ([]byte, error)) func(T, io.Writer) error {
@@ -157,9 +146,20 @@ func (s *StreamSession[_, _]) Spawn() error {
 		return err
 	}
 
-	s.wg.Go(s.runReader, s.killReader)
-	s.wg.Go(s.runWriter, s.killWriter)
+	s.goWithKill(s.runReader, s.killReader)
+	s.goWithKill(s.runWriter, s.killWriter)
 	return nil
+}
+
+// goWithKill runs run as a supervised worker and, replacing the
+// shutdown argument of the former core.ErrGroup.Go, invokes kill
+// once the group's context is cancelled so a blocked run can unwind.
+func (s *StreamSession[_, _]) goWithKill(run WorkerFunc, kill func() error) {
+	_ = s.wg.GoCatch(run, nil)
+	_ = s.wg.Go(func(ctx context.Context) {
+		<-ctx.Done()
+		_ = kill()
+	})
 }
 
 func (s *StreamSession[_, _]) runReader(_ context.Context) error {
@@ -238,7 +238,7 @@ func (s *StreamSession[_, _]) Go(funcs ...WorkerFunc) {
 
 	for _, fn := range funcs {
 		if fn != nil {
-			s.wg.Go(fn, nil)
+			_ = s.wg.GoCatch(fn, nil)
 		}
 	}
 }
@@ -249,7 +249,7 @@ func (s *StreamSession[_, _]) GoCatch(run WorkerFunc, catch CatcherFunc) {
 	mustStarted(s)
 
 	if run != nil {
-		s.wg.GoCatch(run, catch)
+		_ = s.wg.GoCatch(run, catch)
 	}
 }
 
