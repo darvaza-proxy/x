@@ -122,9 +122,8 @@ func TestStreamSessionSpawn(t *testing.T) {
 }
 
 // TestStreamSessionBeforeSpawn verifies every guarded method panics
-// via mustStarted rather than dereferencing the nil work group when
-// called before Spawn. Send is intentionally excluded: it is not
-// guarded (a known bug) and would block on a nil channel.
+// via mustStarted rather than dereferencing the nil work group or
+// blocking on a nil channel when called before Spawn.
 func TestStreamSessionBeforeSpawn(t *testing.T) {
 	fresh := func() *reconnect.StreamSession[string, string] {
 		return &reconnect.StreamSession[string, string]{}
@@ -138,6 +137,7 @@ func TestStreamSessionBeforeSpawn(t *testing.T) {
 	core.AssertPanic(t, func() { _ = fresh().Wait() }, fs.ErrInvalid, "Wait")
 	core.AssertPanic(t, func() { _ = fresh().Done() }, fs.ErrInvalid, "Done")
 	core.AssertPanic(t, func() { _ = fresh().Err() }, fs.ErrInvalid, "Err")
+	core.AssertPanic(t, func() { _ = fresh().Send("x") }, fs.ErrInvalid, "Send")
 	core.AssertPanic(t, func() { _ = fresh().Recv() }, fs.ErrInvalid, "Recv")
 	core.AssertPanic(t, func() { fresh().Next() }, fs.ErrInvalid, "Next")
 }
@@ -179,4 +179,73 @@ func TestStreamSessionEcho(t *testing.T) {
 	// the inbound channel is closed once the reader stops.
 	_, ok = s.Next()
 	core.AssertFalse(t, ok, "Next after shutdown")
+}
+
+// assertWaitReturns fails if the session does not finish winding down
+// within a short deadline, turning a regression that would otherwise
+// hang the suite into a clean failure.
+func assertWaitReturns(t *testing.T, s *reconnect.StreamSession[string, string],
+	name string) {
+	t.Helper()
+
+	done := make(chan error, 1)
+	go func() { done <- s.Wait() }()
+
+	select {
+	case err := <-done:
+		core.AssertNoError(t, err, name)
+	case <-time.After(2 * time.Second):
+		t.Fatalf("%s: did not return", name)
+	}
+}
+
+// TestStreamSessionReaderEOF verifies a clean remote EOF ends the
+// session: the reader winds the group down so Wait returns and Recv
+// closes, instead of leaving the writer and kill watchers parked.
+func TestStreamSessionReaderEOF(t *testing.T) {
+	c1, c2 := net.Pipe()
+	s := newStringSession(c1)
+	core.AssertMustNoError(t, s.Spawn(), "Spawn")
+
+	// the peer disconnects; the reader observes a clean EOF.
+	core.AssertMustNoError(t, c2.Close(), "peer Close")
+
+	// the inbound channel closes...
+	_, ok := s.Next()
+	core.AssertFalse(t, ok, "Next after EOF")
+
+	// ...and the session winds down without hanging.
+	assertWaitReturns(t, s, "Wait after EOF")
+}
+
+// TestStreamSessionShutdownUnblocksReader verifies a shutdown frees a
+// reader parked on the unbuffered inbound channel. The peer sends a
+// frame the consumer never drains; closing the connection alone would
+// not release the pending send, so the reader must also observe the
+// cancelled context.
+func TestStreamSessionShutdownUnblocksReader(t *testing.T) {
+	c1, c2 := net.Pipe()
+	defer func() { _ = c2.Close() }()
+
+	// UnsetReadDeadline fires after a frame is scanned and before it is
+	// delivered, so it signals that the reader is about to block on the
+	// undrained channel.
+	reading := make(chan struct{}, 1)
+	s := newStringSession(c1)
+	s.UnsetReadDeadline = func() error {
+		select {
+		case reading <- struct{}{}:
+		default:
+		}
+		return nil
+	}
+	core.AssertMustNoError(t, s.Spawn(), "Spawn")
+
+	go func() { _, _ = c2.Write([]byte("stuck\n")) }()
+	<-reading
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	core.AssertErrorIs(t, s.Shutdown(ctx), context.Canceled, "Shutdown")
+	assertWaitReturns(t, s, "Wait after shutdown")
 }
