@@ -317,8 +317,9 @@ The client distinguishes between recoverable and non-recoverable errors.
 - `ErrConfigBusy`: the Config is already in use by another client.
 - `ErrRunning`: the client has already been started.
 - `ErrDoNotReconnect`: instructs the client to stop reconnecting.
-- `ErrClosed`: the client has already been shut down. It wraps
-  `darvaza.org/x/sync/errors.ErrClosed`, the workgroup's sentinel.
+- `ErrClosed`: the client or stream session has already been shut
+  down. It wraps `darvaza.org/x/sync/errors.ErrClosed`, the
+  workgroup's sentinel.
 - `ErrNotConnected`: the client isn't currently connected. It wraps
   `ErrClosed`, so one `errors.Is` target covers both.
 

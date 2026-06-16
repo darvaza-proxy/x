@@ -27,10 +27,10 @@ var (
 	// ErrRunning indicates the [Client] has already been started.
 	ErrRunning = core.QuietWrap(syscall.EBUSY, "client already running")
 
-	// ErrClosed indicates the [Client] has already been shut down
-	// and can no longer be started. It wraps the workgroup's
-	// sentinel so the shutdown signal still matches the one the
-	// group returns across the lifecycle stack.
+	// ErrClosed indicates the [Client] or [StreamSession] has
+	// already been shut down. It wraps the workgroup's sentinel so
+	// the shutdown signal still matches the one the group returns
+	// across the lifecycle stack.
 	ErrClosed = core.QuietWrap(errors.ErrClosed, "already closed")
 
 	// ErrNameEmpty indicates a name is empty
