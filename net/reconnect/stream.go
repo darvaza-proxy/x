@@ -8,6 +8,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/x/fs"
+	"darvaza.org/x/sync/workgroup"
 )
 
 var (
@@ -21,7 +22,7 @@ var (
 // [StreamSession.Spawn] and must not be modified afterwards.
 // The session must be spawned before using any other method.
 type StreamSession[Input, Output any] struct {
-	wg  core.ErrGroup
+	wg  *workgroup.Group
 	in  chan Input
 	out chan Output
 
@@ -76,12 +77,15 @@ func (s *StreamSession[Input, Output]) init() error {
 		return err
 	}
 
-	s.wg = core.ErrGroup{
-		Parent: s.Context,
-	}
+	s.wg = workgroup.New(s.Context)
 
-	s.wg.OnError(s.OnError)
-	s.wg.SetDefaults()
+	if fn := s.OnError; fn != nil {
+		// the former core.ErrGroup delivered the cancellation cause
+		// to OnError; OnCancel is its workgroup.Group equivalent.
+		s.wg.OnCancel = func(_ context.Context, cause error) {
+			fn(cause)
+		}
+	}
 
 	s.in = make(chan Input)
 	s.out = make(chan Output, s.QueueSize)
@@ -155,9 +159,20 @@ func (s *StreamSession[_, _]) Spawn() error {
 		return err
 	}
 
-	s.wg.Go(s.runReader, s.killReader)
-	s.wg.Go(s.runWriter, s.killWriter)
+	s.goWithKill(s.runReader, s.killReader)
+	s.goWithKill(s.runWriter, s.killWriter)
 	return nil
+}
+
+// goWithKill runs run as a supervised worker and, replacing the
+// shutdown argument of the former core.ErrGroup.Go, invokes kill
+// once the group's context is cancelled so a blocked run can unwind.
+func (s *StreamSession[_, _]) goWithKill(run WorkerFunc, kill func() error) {
+	_ = s.wg.GoCatch(run, nil)
+	_ = s.wg.Go(func(ctx context.Context) {
+		<-ctx.Done()
+		_ = kill()
+	})
 }
 
 func (s *StreamSession[_, _]) runReader(_ context.Context) error {
@@ -236,7 +251,7 @@ func (s *StreamSession[_, _]) Go(funcs ...WorkerFunc) {
 
 	for _, fn := range funcs {
 		if fn != nil {
-			s.wg.Go(fn, nil)
+			_ = s.wg.GoCatch(fn, nil)
 		}
 	}
 }
@@ -247,7 +262,7 @@ func (s *StreamSession[_, _]) GoCatch(run WorkerFunc, catch CatcherFunc) {
 	mustStarted(s)
 
 	if run != nil {
-		s.wg.GoCatch(run, catch)
+		_ = s.wg.GoCatch(run, catch)
 	}
 }
 
