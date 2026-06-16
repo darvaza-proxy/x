@@ -151,18 +151,28 @@ func (s *StreamSession[_, _]) Spawn() error {
 	return nil
 }
 
-// goWithKill runs run as a supervised worker and, replacing the
-// shutdown argument of the former core.ErrGroup.Go, invokes kill
-// once the group's context is cancelled so a blocked run can unwind.
+// goWithKill supervises run and fires kill once the group's context is
+// cancelled, replacing the shutdown argument of the former
+// core.ErrGroup.Go so a worker blocked on I/O can unwind.
+//
+// The kill watcher is enrolled before run so an early cancellation —
+// the reader reaching EOF and winding the group down before the writer
+// is wired up — cannot drop it. If the group is already cancelled the
+// watcher cannot be enrolled, so run is never started and kill closes
+// the resource directly.
 func (s *StreamSession[_, _]) goWithKill(run WorkerFunc, kill func() error) {
-	_ = s.wg.GoCatch(run, nil)
-	_ = s.wg.Go(func(ctx context.Context) {
+	if err := s.wg.Go(func(ctx context.Context) {
 		<-ctx.Done()
 		_ = kill()
-	})
+	}); err != nil {
+		_ = kill()
+		return
+	}
+
+	_ = s.wg.GoCatch(run, nil)
 }
 
-func (s *StreamSession[_, _]) runReader(_ context.Context) error {
+func (s *StreamSession[_, _]) runReader(ctx context.Context) error {
 	r := bufio.NewScanner(s.Conn)
 	r.Split(s.Split)
 
@@ -173,15 +183,23 @@ func (s *StreamSession[_, _]) runReader(_ context.Context) error {
 	}
 
 	for r.Scan() {
-		if err := s.readerStep(r.Bytes()); err != nil {
+		if err := s.readerStep(ctx, r.Bytes()); err != nil {
 			return err
 		}
 	}
 
-	return r.Err()
+	if err := r.Err(); err != nil {
+		return err
+	}
+
+	// A clean EOF ends the inbound stream but does not cancel the group
+	// on its own; do it here so the writer and the kill watchers unwind
+	// instead of parking forever and leaving Wait to block.
+	s.wg.Cancel(nil)
+	return nil
 }
 
-func (s *StreamSession[_, _]) readerStep(raw []byte) error {
+func (s *StreamSession[_, _]) readerStep(ctx context.Context, raw []byte) error {
 	if err := s.UnsetReadDeadline(); err != nil {
 		return err
 	}
@@ -191,7 +209,14 @@ func (s *StreamSession[_, _]) readerStep(raw []byte) error {
 		return err
 	}
 
-	s.in <- msg
+	select {
+	case s.in <- msg:
+	case <-ctx.Done():
+		// A shutdown raced the delivery. Stop reading rather than
+		// parking on the unbuffered channel, which closing the
+		// connection would not unblock.
+		return context.Cause(ctx)
+	}
 
 	return s.SetReadDeadline()
 }
@@ -300,6 +325,8 @@ func (s *StreamSession[Input, Output]) Err() error {
 // while the queue is full. It fails with [fs.ErrClosed] once
 // the session has been shut down.
 func (s *StreamSession[_, Output]) Send(m Output) error {
+	mustStarted(s)
+
 	// TODO: implement TrySend() non-blocking variant via counter.
 	var err error
 	s.trySend(m, &err)
