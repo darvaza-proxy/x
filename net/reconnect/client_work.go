@@ -138,11 +138,31 @@ func (c *Client) runError(conn net.Conn, e1, e2 error) bool {
 	return e1 != nil || e2 != nil
 }
 
+// runSessionBeforeSetConn, when non-nil, is invoked at the top of
+// runSession before the dialled connection is stored, receiving the
+// Client's context. It is a white-box test seam for the cancel-before-
+// setConn window (see client_work_private_test.go) and stays nil in
+// production.
+var runSessionBeforeSetConn func(context.Context)
+
 func (c *Client) runSession(conn net.Conn) error {
 	defer unsafeClose(conn)
 
+	if hook := runSessionBeforeSetConn; hook != nil {
+		hook(c.ctx)
+	}
+
 	// initialize
 	c.setConn(conn)
+
+	// A cancellation that landed in the window between the dial and here
+	// was consumed by the cancel watcher against a not-yet-stored conn, so
+	// it will not close this one. Don't hand a cancelled context to
+	// OnSession only for it to park on a read nothing will unblock; wind
+	// down instead.
+	if c.ctx.Err() != nil {
+		return context.Cause(c.ctx)
+	}
 
 	if fn := c.getOnSession(); fn != nil {
 		var catch core.Catcher
