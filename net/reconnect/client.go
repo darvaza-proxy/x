@@ -74,6 +74,21 @@ func (c *Client) Connect() error {
 		return err
 	}
 
+	// Enrol the connection-closing watcher before the run loop so a
+	// Shutdown (or a cancelled parent context) can unblock an OnSession
+	// parked on a deadline-less Read: cancelling the context does not
+	// interrupt the read, but closing the live connection does. Like
+	// the run spawn below, a failed enrolment means a concurrent
+	// cancellation won the race, so close the freshly dialled
+	// connection rather than leak it.
+	if err := c.wg.Go(func(ctx context.Context) {
+		<-ctx.Done()
+		c.closeConn()
+	}); err != nil {
+		unsafeClose(conn)
+		return err
+	}
+
 	if err := c.wg.Go(func(context.Context) {
 		c.run(conn)
 	}); err != nil {
@@ -85,6 +100,16 @@ func (c *Client) Connect() error {
 	}
 
 	return nil
+}
+
+// closeConn closes the live connection, if any, ignoring the error.
+// It is how the cancellation watcher unblocks a session parked on a
+// blocking Read; the run loop still owns closing the connection on a
+// clean disconnection.
+func (c *Client) closeConn() {
+	if conn, _ := c.getConn(); conn != nil {
+		unsafeClose(conn)
+	}
 }
 
 // New creates a new [Client] using the given [Config] and options.
