@@ -1,4 +1,4 @@
-package reconnect
+package reconnect_test
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"darvaza.org/core"
+
+	"darvaza.org/x/net/reconnect"
 )
 
 // Compile-time verification that test case types implement TestCase interface
@@ -33,7 +35,7 @@ func (tc validateRemoteTestCase) Name() string {
 func (tc validateRemoteTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	err := ValidateRemote(tc.input)
+	err := reconnect.ValidateRemote(tc.input)
 	if tc.wantErr {
 		core.AssertError(t, err, "ValidateRemote")
 	} else {
@@ -80,7 +82,7 @@ func TestValidateRemote(t *testing.T) {
 
 func runTestConfigValidValidConfig(t *testing.T) {
 	t.Helper()
-	cfg := &Config{
+	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  "example.com:8080",
 	}
@@ -93,7 +95,7 @@ func runTestConfigValidValidConfig(t *testing.T) {
 
 func runTestConfigValidInvalidRemote(t *testing.T) {
 	t.Helper()
-	cfg := &Config{
+	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  "invalid-remote",
 	}
@@ -106,7 +108,7 @@ func runTestConfigValidInvalidRemote(t *testing.T) {
 
 func runTestConfigValidMissingContext(t *testing.T) {
 	t.Helper()
-	cfg := &Config{
+	cfg := &reconnect.Config{
 		Remote: "example.com:8080",
 	}
 	err := cfg.SetDefaults()
@@ -120,7 +122,7 @@ func runTestConfigValidMissingContext(t *testing.T) {
 
 func runTestConfigValidMissingLogger(t *testing.T) {
 	t.Helper()
-	cfg := &Config{
+	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  "example.com:8080",
 	}
@@ -135,7 +137,7 @@ func runTestConfigValidMissingLogger(t *testing.T) {
 
 func runTestConfigValidMissingWaitReconnect(t *testing.T) {
 	t.Helper()
-	cfg := &Config{
+	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  "example.com:8080",
 	}
@@ -158,36 +160,36 @@ func TestConfigValid(t *testing.T) {
 
 func runTestNewValidConfig(t *testing.T) {
 	t.Helper()
-	cfg := &Config{
+	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  "example.com:8080",
 	}
 
-	client, err := New(cfg)
+	client, err := reconnect.New(cfg)
 	core.AssertNoError(t, err, "new client")
 	core.AssertNotNil(t, client, "client")
 }
 
 func runTestNewUnixSocketConfig(t *testing.T) {
 	t.Helper()
-	cfg := &Config{
+	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  "/var/run/app.sock",
 	}
 
-	client, err := New(cfg)
+	client, err := reconnect.New(cfg)
 	core.AssertNoError(t, err, "new unix client")
 	core.AssertNotNil(t, client, "client")
 }
 
 func runTestNewInvalidConfig(t *testing.T) {
 	t.Helper()
-	cfg := &Config{
+	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  "invalid-remote",
 	}
 
-	client, err := New(cfg)
+	client, err := reconnect.New(cfg)
 	core.AssertError(t, err, "new client with invalid config")
 	core.AssertNil(t, client, "client should be nil")
 }
