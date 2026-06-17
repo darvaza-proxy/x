@@ -520,7 +520,8 @@ if err := wg.Wait(); err != nil {
 ### Group Implementation details
 
 * Propagates cancellation signals from parent contexts to all tasks.
-* Provides hooks for cancellation via `OnCancel` field.
+* Provides an `OnCancel` hook that fires on cancellation from any source —
+  an explicit `Cancel`/`Close` or the parent context.
 * Safe for concurrent use from multiple goroutines.
 * Supports reuse after completion if not cancelled.
 * Error tracking distinguishes between normal cancellation and error causes.

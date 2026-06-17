@@ -395,6 +395,10 @@ func TestGroup_OnCancel(t *testing.T) {
 	t.Run("HandlerCalledOnceOnRepeatedCancel", runTestOnCancelOnceOnRepeatedCancel)
 	t.Run("HandlerPanicContained", runTestOnCancelHandlerPanicContained)
 	t.Run("HandlerFiresOnClose", runTestOnCancelFiresOnClose)
+	t.Run("HandlerFiresOnParentCancel", runTestOnCancelFiresOnParentCancel)
+	t.Run("HandlerReceivesParentCancelCause", runTestOnCancelReceivesParentCancelCause)
+	t.Run("HandlerFiresOnceAcrossParentAndCancel",
+		runTestOnCancelOnceAcrossParentAndCancel)
 }
 
 func runTestOnCancelHandlerFires(t *testing.T) {
@@ -552,6 +556,69 @@ func runTestOnCancelFiresOnClose(t *testing.T) {
 	core.AssertNoError(t, wg.Close(), "close")
 	synctesting.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
 		"handler fired before Close returned")
+}
+
+// runTestOnCancelFiresOnParentCancel pins that cancelling the parent
+// context — with no explicit Cancel or Close — still drives the handler.
+func runTestOnCancelFiresOnParentCancel(t *testing.T) {
+	t.Helper()
+	var received error
+	receivedCh := make(chan struct{})
+
+	parentCtx, cancel := context.WithCancel(context.Background())
+	wg := workgroup.New(parentCtx)
+	wg.OnCancel = func(_ context.Context, cause error) {
+		received = cause
+		close(receivedCh)
+	}
+
+	cancel()
+	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+		"handler ran on parent cancel")
+	core.AssertErrorIs(t, received, context.Canceled, "cause")
+	core.AssertNoError(t, wg.Wait(), "wait")
+}
+
+// runTestOnCancelReceivesParentCancelCause pins that the handler receives
+// the parent's cancellation cause, not a flattened context.Canceled.
+func runTestOnCancelReceivesParentCancelCause(t *testing.T) {
+	t.Helper()
+	customErr := errors.New("parent cancel cause")
+	var received error
+	receivedCh := make(chan struct{})
+
+	parentCtx, cancel := context.WithCancelCause(context.Background())
+	wg := workgroup.New(parentCtx)
+	wg.OnCancel = func(_ context.Context, cause error) {
+		received = cause
+		close(receivedCh)
+	}
+
+	cancel(customErr)
+	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+		"handler ran on parent cancel")
+	core.AssertErrorIs(t, received, customErr, "cause")
+	core.AssertErrorIs(t, wg.Wait(), customErr, "wait err")
+}
+
+// runTestOnCancelOnceAcrossParentAndCancel pins that a parent cancellation
+// racing an explicit Cancel still fires the handler exactly once: whichever
+// path wins the transition, the loser is deduped by the cancelled flag.
+func runTestOnCancelOnceAcrossParentAndCancel(t *testing.T) {
+	t.Helper()
+	var count atomic.Int32
+
+	parentCtx, cancel := context.WithCancel(context.Background())
+	wg := workgroup.New(parentCtx)
+	wg.OnCancel = func(_ context.Context, _ error) {
+		count.Add(1)
+	}
+
+	go cancel()
+	wg.Cancel(nil)
+
+	core.AssertNoError(t, wg.Wait(), "wait")
+	core.AssertEqual(t, int32(1), count.Load(), "handler call count")
 }
 
 // TestGroup_Close tests the Close method.

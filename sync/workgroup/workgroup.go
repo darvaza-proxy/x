@@ -51,15 +51,16 @@ type Group struct {
 	// context.Background() will be used as the default parent.
 	Parent context.Context
 
-	// OnCancel is invoked once when Cancel or Close transitions the
-	// Group to the cancelled state. The handler runs in its own
-	// goroutine and is tracked as a task: Wait, Done, and Close all
-	// block until it returns.
+	// OnCancel is invoked once when the Group transitions to the
+	// cancelled state, whether through an explicit Cancel or Close or
+	// through cancellation of the parent context. The handler runs in
+	// its own goroutine and is tracked as a task: Wait, Done, and Close
+	// all block until it returns.
 	//
-	// OnCancel fires only on explicit Cancel or Close — parent-context
-	// cancellation alone does not invoke it. To ensure the handler
-	// runs regardless of cancellation source, pair the Group with
-	// defer wg.Close().
+	// Assign OnCancel before the Group can be cancelled — typically
+	// right after New and before launching tasks. A handler installed
+	// after the Group's context is already done is not guaranteed to
+	// run, as the cancellation watcher may have fired already.
 	//
 	// When the handler runs, the Group's context is already
 	// cancelled — ctx.Err() is non-nil and context.Cause(ctx)
@@ -68,9 +69,10 @@ type Group struct {
 	// context.WithoutCancel(ctx); contexts derived from ctx are
 	// born cancelled.
 	//
-	// cause carries the same error passed to Cancel (context.Canceled
-	// for a nil cause). The handler is invoked at most once per
-	// Group lifetime even across repeated Cancel calls.
+	// cause carries the error passed to Cancel (context.Canceled for a
+	// nil cause), or context.Cause(parent) when the parent context is
+	// cancelled. The handler is invoked at most once per Group lifetime
+	// regardless of how many cancellation signals arrive.
 	OnCancel func(context.Context, error)
 
 	ctx    context.Context
@@ -210,9 +212,10 @@ func (wg *Group) doDone() <-chan struct{} {
 // Wait blocks until all tasks in the Group have completed.
 // If the Group is nil, it returns ErrNilReceiver.
 //
-// "All tasks" includes the OnCancel handler. If a concurrent Cancel
-// returns before Wait returns, the OnCancel handler is guaranteed to
-// have completed by the time Wait returns. A Cancel that begins after
+// "All tasks" includes the OnCancel handler. If a concurrent
+// cancellation — an explicit Cancel or the parent context — returns
+// before Wait returns, the OnCancel handler is guaranteed to have
+// completed by the time Wait returns. A cancellation that begins after
 // Wait has already returned is not awaited; callers that need the
 // handler to drain in that case should use Close().
 //
@@ -272,6 +275,25 @@ func (wg *Group) doCancel(cause error) bool {
 		cause = context.Canceled
 	}
 
+	return wg.markCancelled(cause)
+}
+
+// onContextDone is registered via context.AfterFunc and fires once the
+// Group's context is done by any cause. For an explicit Cancel or Close the
+// transition has already happened and this is a no-op; for a parent-context
+// cancellation it performs the same transition so the OnCancel handler runs
+// regardless of the cancellation source. The cause is read from the
+// now-cancelled context.
+func (wg *Group) onContextDone() {
+	wg.markCancelled(context.Cause(wg.ctx))
+}
+
+// markCancelled performs the one-shot transition to the cancelled state: it
+// records the cancellation, cancels the context (a no-op once a parent
+// cancellation already closed it), and spawns the OnCancel handler, blocking
+// until that handler's goroutine has started. It returns true only for the
+// caller that won the transition.
+func (wg *Group) markCancelled(cause error) bool {
 	if wg.cancelled.Load() {
 		return false
 	}
@@ -280,7 +302,8 @@ func (wg *Group) doCancel(cause error) bool {
 	wg.mu.Lock()
 
 	// Re-check under mu: between the lock-free check above and acquiring
-	// the lock a concurrent Cancel may have won and stored cancelled.
+	// the lock a concurrent Cancel — or the AfterFunc watcher reacting to
+	// the same context cancellation — may have won and stored cancelled.
 	// Without this guard a losing caller would store cancelled again,
 	// overwrite the cause, and spawn a second OnCancel handler.
 	// TestGroup_ConcurrentCancelOnceOnly exercises this loser path.
@@ -296,7 +319,14 @@ func (wg *Group) doCancel(cause error) bool {
 	wg.cancelled.Store(true)
 	wg.cancel(cause)
 
-	ready := wg.spawnCancelHandler(cause)
+	// Spawn the handler with the context's authoritative cause rather
+	// than the requested one. When a parent cancellation already closed
+	// the context, wg.cancel above was a no-op and the requested cause
+	// never took effect; reading it back keeps the handler's cause
+	// consistent with context.Cause(wg.ctx) regardless of which path —
+	// this caller or a task cancelling on its own error — won the
+	// transition.
+	ready := wg.spawnCancelHandler(context.Cause(wg.ctx))
 
 	wg.mu.Unlock()
 
@@ -527,6 +557,12 @@ func (wg *Group) init() {
 
 	wg.ctx, wg.cancel = context.WithCancelCause(wg.Parent)
 	core.MustNoError(wg.tasks.Init(0))
+
+	// Drive the OnCancel transition on any context cancellation, the
+	// parent's included, not only an explicit Cancel or Close. The stop
+	// func is unneeded: the watcher fires at most once and deregisters
+	// itself once the context is done.
+	context.AfterFunc(wg.ctx, wg.onContextDone)
 }
 
 // lazyInit ensures the Group is properly initialised before use.
