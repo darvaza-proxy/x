@@ -1,4 +1,3 @@
-// Package cond provides synchronisation primitives for coordinating goroutines.
 package cond
 
 import (
