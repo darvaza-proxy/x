@@ -105,6 +105,64 @@ func TestClientOnSessionPanic(t *testing.T) {
 	core.AssertNotNil(t, found, "OnSession panic reported via OnError")
 }
 
+// TestClientShutdownUnblocksSession verifies Shutdown closes the live
+// connection so an OnSession parked on a blocking Read unwinds. Without
+// it, cancelling the context leaves the read parked, the run loop never
+// returns, and Shutdown blocks until its own deadline instead of
+// completing cleanly.
+func TestClientShutdownUnblocksSession(t *testing.T) {
+	lsn, err := net.Listen("tcp", addrLoopbackAny)
+	core.AssertMustNoError(t, err, "listen")
+	defer func() { _ = lsn.Close() }()
+
+	// accept and hold the peer open without ever writing, so the
+	// client's Read blocks until the connection is closed.
+	peerDone := make(chan struct{})
+	defer close(peerDone)
+	go func() {
+		conn, err := lsn.Accept()
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		<-peerDone
+	}()
+
+	var c *reconnect.Client
+	var once sync.Once
+	reading := make(chan struct{})
+
+	cfg := &reconnect.Config{
+		Context: context.Background(),
+		Remote:  lsn.Addr().String(),
+
+		// stop after the session ends rather than redialling.
+		WaitReconnect: reconnect.NewDoNotReconnectWaiter(nil),
+
+		OnSession: func(context.Context) error {
+			once.Do(func() { close(reading) })
+			var buf [1]byte
+			_, err := c.Read(buf[:])
+			return err
+		},
+	}
+
+	c, err = reconnect.New(cfg)
+	core.AssertMustNoError(t, err, "New")
+	core.AssertMustNoError(t, c.Connect(), "Connect")
+
+	// the session is established and about to block on Read.
+	<-reading
+
+	// Shutdown's own deadline bounds the wait and, on success, only
+	// returns once the workers are done — so it both proves the parked
+	// Read was released and fails cleanly (DeadlineExceeded) on a
+	// regression rather than hanging the suite on an unbounded Wait.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
+}
+
 // runTestClientConnectExpiredContext verifies Connect refuses to
 // start when the context deadline has already expired.
 func runTestClientConnectExpiredContext(t *testing.T) {

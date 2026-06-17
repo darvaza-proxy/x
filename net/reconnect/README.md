@@ -418,8 +418,8 @@ The `OnSession` callback should:
 - Handle all protocol-specific logic.
 - Return `nil` or a non-fatal error to trigger reconnection.
 - Return `ErrDoNotReconnect`, possibly wrapped, to stop the client.
-- Respect context cancellation — shutdown doesn't close the connection
-  on its own.
+- Respect context cancellation for a graceful wind-down; a session left
+  blocked on a read is unblocked by shutdown closing the connection.
 
 ## Integration with darvaza.org/x/net
 
