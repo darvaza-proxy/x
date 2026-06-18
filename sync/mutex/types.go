@@ -51,9 +51,11 @@ type RWMutex interface {
 // allowing lock acquisition to respect context cancellation and timeouts.
 // Useful for systems requiring bounded waiting times or cancellable operations.
 //
-//revive:disable:exported
+// The Mutex prefix is deliberate: it pairs with RWMutexContext and reads
+// better than a bare mutex.Context, so the exported-stutter rule is waived.
+//
+//revive:disable-next-line:exported
 type MutexContext interface {
-	//revive:enable:exported
 	Mutex
 
 	// LockContext acquires the mutex with context awareness.
