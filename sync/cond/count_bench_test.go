@@ -7,74 +7,67 @@ import (
 )
 
 // BenchmarkCount provides performance measurements for the Count struct.
-//
-//revive:disable-next-line:cognitive-complexity
 func BenchmarkCount(b *testing.B) {
-	// Benchmark Add operation
-	b.Run("Add", func(b *testing.B) {
-		c := cond.NewCount(0)
-		defer c.Close()
+	b.Run("Add", runBenchmarkCountAdd)
+	b.Run("Inc", runBenchmarkCountInc)
+	b.Run("Value", runBenchmarkCountValue)
+	b.Run("Signal_NoWaiters", runBenchmarkCountSignalNoWaiters)
+	b.Run("Broadcast_NoWaiters", runBenchmarkCountBroadcastNoWaiters)
+	b.Run("Match", runBenchmarkCountMatch)
+}
 
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			c.Add(1)
-		}
-	})
+func runBenchmarkCountAdd(b *testing.B) {
+	c := cond.NewCount(0)
+	defer c.Close()
 
-	// Benchmark Inc operation
-	b.Run("Inc", func(b *testing.B) {
-		c := cond.NewCount(0)
-		defer c.Close()
+	for b.Loop() {
+		c.Add(1)
+	}
+}
 
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			c.Inc()
-		}
-	})
+func runBenchmarkCountInc(b *testing.B) {
+	c := cond.NewCount(0)
+	defer c.Close()
 
-	// Benchmark Value operation
-	b.Run("Value", func(b *testing.B) {
-		c := cond.NewCount(42)
-		defer c.Close()
+	for b.Loop() {
+		c.Inc()
+	}
+}
 
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_ = c.Value()
-		}
-	})
+func runBenchmarkCountValue(b *testing.B) {
+	c := cond.NewCount(42)
+	defer c.Close()
 
-	// Benchmark Signal with no waiters
-	b.Run("Signal_NoWaiters", func(b *testing.B) {
-		c := cond.NewCount(0)
-		defer c.Close()
+	for b.Loop() {
+		_ = c.Value()
+	}
+}
 
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			c.Signal()
-		}
-	})
+func runBenchmarkCountSignalNoWaiters(b *testing.B) {
+	c := cond.NewCount(0)
+	defer c.Close()
 
-	// Benchmark Broadcast with no waiters
-	b.Run("Broadcast_NoWaiters", func(b *testing.B) {
-		c := cond.NewCount(0)
-		defer c.Close()
+	for b.Loop() {
+		c.Signal()
+	}
+}
 
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			c.Broadcast()
-		}
-	})
+func runBenchmarkCountBroadcastNoWaiters(b *testing.B) {
+	c := cond.NewCount(0)
+	defer c.Close()
 
-	// Benchmark condition matching
-	b.Run("Match", func(b *testing.B) {
-		c := cond.NewCount(42)
-		defer c.Close()
+	for b.Loop() {
+		c.Broadcast()
+	}
+}
 
-		isFortyTwo := func(v int32) bool { return v == 42 }
+func runBenchmarkCountMatch(b *testing.B) {
+	c := cond.NewCount(42)
+	defer c.Close()
 
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			c.Match(isFortyTwo)
-		}
-	})
+	isFortyTwo := func(v int32) bool { return v == 42 }
+
+	for b.Loop() {
+		c.Match(isFortyTwo)
+	}
 }
