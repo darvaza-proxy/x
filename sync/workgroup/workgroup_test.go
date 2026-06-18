@@ -1019,6 +1019,141 @@ func runTestConcurrentDoneChannels(t *testing.T) {
 	core.AssertNoError(t, wg.Wait(), "wait")
 }
 
+const (
+	doneGenCycles   = 20
+	doneGenFetchers = 6
+)
+
+// TestGroup_DoneGenerations pins the full Done() generation lifecycle on a
+// reused Group. Each cycle enrols a gated task so the watcher generation
+// stays observable, then asserts the four invariants of doDone: a fresh
+// generation hands back a new channel (the prior watcher reset wg.doneCh to
+// nil before closing), the channel is open while the task runs, concurrent
+// Done() callers all share that one channel, and it closes once the task
+// drains. Carrying the previous cycle's channel forward is what catches a
+// watcher that closes but fails to reset — it would hand back the cached,
+// already-closed channel, tripping AssertNotSame. AssertMustClosed on the
+// generation channel is the synchronisation point: close is the watcher's
+// outermost defer, so it cannot fire until the reset defer already has,
+// which makes the next cycle's freshness assertion deterministic.
+func TestGroup_DoneGenerations(t *testing.T) {
+	wg := workgroup.New(context.Background())
+
+	var prev <-chan struct{}
+	for i := range doneGenCycles {
+		prev = runOneDoneGeneration(t, wg, i, prev)
+	}
+
+	core.AssertNoError(t, wg.Close(), "close")
+}
+
+func runOneDoneGeneration(t *testing.T, wg *workgroup.Group, i int,
+	prev <-chan struct{}) <-chan struct{} {
+	t.Helper()
+
+	release := make(chan struct{})
+	core.AssertNoError(t, wg.Go(func(_ context.Context) {
+		<-release
+	}), "go iter %d", i)
+
+	ch := wg.Done()
+	if prev != nil {
+		core.AssertNotSame(t, prev, ch, "fresh generation iter %d", i)
+	}
+	synctesting.AssertMustOpen(t, ch, 10*time.Millisecond,
+		"open while task runs iter %d", i)
+
+	for k, got := range concurrentFetchDone(wg, doneGenFetchers) {
+		core.AssertSame(t, ch, got, "shared channel iter %d.%d", i, k)
+	}
+
+	close(release)
+	synctesting.AssertMustClosed(t, ch, 100*time.Millisecond,
+		"closed on drain iter %d", i)
+	core.AssertNoError(t, wg.Wait(), "wait iter %d", i)
+	return ch
+}
+
+// concurrentFetchDone fetches wg.Done() from n goroutines released together,
+// returning the channels they observed so the caller can assert the
+// generation is shared. The start barrier maximises overlap on the read path.
+func concurrentFetchDone(wg *workgroup.Group, n int) []<-chan struct{} {
+	got := make([]<-chan struct{}, n)
+	var start, end sync.WaitGroup
+	start.Add(n)
+	end.Add(n)
+
+	for k := range n {
+		go func(k int) {
+			defer end.Done()
+			start.Done()
+			start.Wait()
+			got[k] = wg.Done()
+		}(k)
+	}
+
+	end.Wait()
+	return got
+}
+
+const (
+	doneReuseCycles   = 300
+	doneReuseFetchers = 6
+)
+
+// TestGroup_DoneReuseRaceStress overlaps the Done() drain/close/reset/recreate
+// boundary under concurrency, the one window TestGroup_DoneGenerations
+// serialises away with its gate. Each cycle enrols a task, takes a census
+// fetch of the current generation, then races several fetchers against the
+// task's drain so the watcher's reset of wg.doneCh runs alongside their fresh
+// Done() calls. Run under -race this guards the lock around wg.doneCh and
+// catches a double-close (the watcher would panic). Because the boundary is
+// racy, the only assertions it can make are liveness — every Wait returns —
+// and a census: across many cycles the watcher must recreate the channel, so
+// more than one distinct instance is observed. A watcher that never reset
+// would yield exactly one, failing the census.
+func TestGroup_DoneReuseRaceStress(t *testing.T) {
+	wg := workgroup.New(context.Background())
+
+	seen := make(map[<-chan struct{}]struct{})
+	for i := range doneReuseCycles {
+		seen[runOneDoneReuseCycle(t, wg, i)] = struct{}{}
+	}
+
+	core.AssertTrue(t, len(seen) > 1,
+		"watcher recreated the channel across %d cycles", doneReuseCycles)
+	core.AssertNoError(t, wg.Close(), "close")
+}
+
+func runOneDoneReuseCycle(t *testing.T, wg *workgroup.Group, i int) <-chan struct{} {
+	t.Helper()
+
+	release := make(chan struct{})
+	core.AssertNoError(t, wg.Go(func(_ context.Context) {
+		<-release
+	}), "go iter %d", i)
+
+	// Census fetch while the task is still blocked: the generation this cycle
+	// opened, distinct each time the watcher reset and recreated.
+	census := wg.Done()
+
+	var end sync.WaitGroup
+	end.Add(doneReuseFetchers)
+	for range doneReuseFetchers {
+		go func() {
+			defer end.Done()
+			<-wg.Done()
+		}()
+	}
+
+	// Release after the fetchers are in flight so the watcher's
+	// drain/close/reset overlaps their concurrent Done() calls.
+	close(release)
+	end.Wait()
+	core.AssertNoError(t, wg.Wait(), "wait iter %d", i)
+	return census
+}
+
 // TestGroup_DrainRaceRegression stresses the two historical
 // Add-after-drain panic sites. When the inner task counter has just
 // dropped to zero and a Wait is in flight, a concurrent Cancel with
