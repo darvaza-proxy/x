@@ -14,9 +14,9 @@ import (
 // CountZero state. Both methods read the same lifecycle, so the row
 // carries both expectations to keep the state matrix legible.
 type countZeroStateTestCase struct {
-	name string
-
 	setup func() *cond.CountZero
+
+	name string
 
 	wantNil    bool
 	wantClosed bool
@@ -74,13 +74,13 @@ func TestCountZeroState(t *testing.T) {
 // conditions. The happy-path row also verifies the initial value is
 // honoured and that the isZero broadcast condition is wired in.
 type countZeroInitTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.CountZero
 
-	initial int
+	name string
 
-	wantErr error
+	initial int
 }
 
 func newCountZeroInitTestCase(name string, setup func() *cond.CountZero,
@@ -137,11 +137,11 @@ func TestCountZeroInit(t *testing.T) {
 // countZeroCloseTestCase exercises Close across receiver and
 // prior-state conditions.
 type countZeroCloseTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.CountZero
 
-	wantErr error
+	name string
 }
 
 func newCountZeroCloseTestCase(name string, setup func() *cond.CountZero,
@@ -196,13 +196,13 @@ func TestCountZeroClose(t *testing.T) {
 // countZeroResetTestCase exercises Reset across receiver,
 // prior-state, and happy-path conditions.
 type countZeroResetTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.CountZero
 
-	value int
+	name string
 
-	wantErr error
+	value int
 }
 
 func newCountZeroResetTestCase(name string, setup func() *cond.CountZero,
@@ -263,13 +263,13 @@ func TestCountZeroReset(t *testing.T) {
 // across receiver, prior-state, and nil-context conditions. All three
 // methods return errors rather than panicking.
 type countZeroErrorOpTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.CountZero
 
 	op func(*cond.CountZero) error
 
-	wantErr error
+	name string
 }
 
 func newCountZeroErrorOpTestCase(name string,

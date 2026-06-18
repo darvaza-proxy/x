@@ -24,8 +24,10 @@ const (
 )
 
 // assertErrKind asserts err matches the expected classification. The errPanic
-// arm also pins the typed-nil contract: a caught nil-pointer dereference is a
-// PanicError, never the ErrNilMutex sentinel reserved for interface nils.
+// arm also guards against a genuine panic from the underlying mutex being
+// mislabelled as the ErrNilMutex sentinel. Safe* operations never propagate a
+// panic: every nil — interface or typed — is reported as ErrNilMutex, and any
+// panic from the wrapped lock surfaces as a PanicError.
 func assertErrKind(t *testing.T, err error, kind errKind, name string) {
 	t.Helper()
 	switch kind {
@@ -92,10 +94,10 @@ func opSafeTryRLock(mu mutex.Mutex) (bool, error) { return mutex.SafeTryRLock(mu
 // return (false, nil) on a contended lock, so a held row pairs wantOK false
 // with want errNone — the blocking acquirers cannot reach that combination.
 type safeAcquireTestCase struct {
-	name string
-
 	op    func(mutex.Mutex) (bool, error)
 	newMu func() mutex.Mutex
+
+	name string
 
 	want   errKind
 	wantOK bool
@@ -127,25 +129,25 @@ func safeAcquireTestCases() []safeAcquireTestCase {
 	return []safeAcquireTestCase{
 		newSafeAcquireTestCase("SafeLock free", opSafeLock, newStdMutex, true, errNone),
 		newSafeAcquireTestCase("SafeLock interface-nil", opSafeLock, nilMutex, false, errNilMutex),
-		newSafeAcquireTestCase("SafeLock typed-nil", opSafeLock, typedNilMutex, false, errPanic),
+		newSafeAcquireTestCase("SafeLock typed-nil", opSafeLock, typedNilMutex, false, errNilMutex),
 		newSafeAcquireTestCase("SafeLock panic", opSafeLock, newPanicOnLock, false, errPanic),
 
 		newSafeAcquireTestCase("SafeTryLock free", opSafeTryLock, newStdMutex, true, errNone),
 		newSafeAcquireTestCase("SafeTryLock held", opSafeTryLock, lockedStdMutex, false, errNone),
 		newSafeAcquireTestCase("SafeTryLock interface-nil", opSafeTryLock, nilMutex, false, errNilMutex),
-		newSafeAcquireTestCase("SafeTryLock typed-nil", opSafeTryLock, typedNilMutex, false, errPanic),
+		newSafeAcquireTestCase("SafeTryLock typed-nil", opSafeTryLock, typedNilMutex, false, errNilMutex),
 		newSafeAcquireTestCase("SafeTryLock panic", opSafeTryLock, newPanicOnTryLock, false, errPanic),
 
 		newSafeAcquireTestCase("SafeRLock RWMutex", opSafeRLock, newRWMutex, true, errNone),
 		newSafeAcquireTestCase("SafeRLock Mutex", opSafeRLock, newStdMutex, true, errNone),
 		newSafeAcquireTestCase("SafeRLock interface-nil", opSafeRLock, nilMutex, false, errNilMutex),
-		newSafeAcquireTestCase("SafeRLock typed-nil", opSafeRLock, typedNilRWMutex, false, errPanic),
+		newSafeAcquireTestCase("SafeRLock typed-nil", opSafeRLock, typedNilRWMutex, false, errNilMutex),
 
 		newSafeAcquireTestCase("SafeTryRLock RWMutex", opSafeTryRLock, newRWMutex, true, errNone),
 		newSafeAcquireTestCase("SafeTryRLock Mutex", opSafeTryRLock, newStdMutex, true, errNone),
 		newSafeAcquireTestCase("SafeTryRLock write-locked", opSafeTryRLock, writeLockedRWMutex, false, errNone),
 		newSafeAcquireTestCase("SafeTryRLock interface-nil", opSafeTryRLock, nilMutex, false, errNilMutex),
-		newSafeAcquireTestCase("SafeTryRLock typed-nil", opSafeTryRLock, typedNilRWMutex, false, errPanic),
+		newSafeAcquireTestCase("SafeTryRLock typed-nil", opSafeTryRLock, typedNilRWMutex, false, errNilMutex),
 	}
 }
 
@@ -179,10 +181,10 @@ func opSafeRUnlock(mu mutex.Mutex) error { return mutex.SafeRUnlock(mu) }
 // safeReleaseTestCase exercises the error-returning Safe releasers against a
 // receiver pre-arranged by newMu.
 type safeReleaseTestCase struct {
-	name string
-
 	op    func(mutex.Mutex) error
 	newMu func() mutex.Mutex
+
+	name string
 
 	want errKind
 }
@@ -210,13 +212,13 @@ func safeReleaseTestCases() []safeReleaseTestCase {
 	return []safeReleaseTestCase{
 		newSafeReleaseTestCase("SafeUnlock locked", opSafeUnlock, lockedStdMutex, errNone),
 		newSafeReleaseTestCase("SafeUnlock interface-nil", opSafeUnlock, nilMutex, errNilMutex),
-		newSafeReleaseTestCase("SafeUnlock typed-nil", opSafeUnlock, typedNilMutex, errPanic),
+		newSafeReleaseTestCase("SafeUnlock typed-nil", opSafeUnlock, typedNilMutex, errNilMutex),
 		newSafeReleaseTestCase("SafeUnlock panic", opSafeUnlock, newPanicOnUnlock, errPanic),
 
 		newSafeReleaseTestCase("SafeRUnlock read-locked RWMutex", opSafeRUnlock, readLockedRWMutex, errNone),
 		newSafeReleaseTestCase("SafeRUnlock locked Mutex", opSafeRUnlock, lockedStdMutex, errNone),
 		newSafeReleaseTestCase("SafeRUnlock interface-nil", opSafeRUnlock, nilMutex, errNilMutex),
-		newSafeReleaseTestCase("SafeRUnlock typed-nil", opSafeRUnlock, typedNilRWMutex, errPanic),
+		newSafeReleaseTestCase("SafeRUnlock typed-nil", opSafeRUnlock, typedNilRWMutex, errNilMutex),
 	}
 }
 
@@ -254,11 +256,11 @@ func newPanicRLockContext() mutex.MutexContext   { return &panicOnRLockContextMu
 // safeContextTestCase exercises the context-aware Safe acquirers across
 // context and receiver states.
 type safeContextTestCase struct {
-	name string
-
 	op     func(context.Context, mutex.MutexContext) (bool, error)
 	newCtx func() context.Context
 	newMu  func() mutex.MutexContext
+
+	name string
 
 	want errKind
 }
@@ -301,7 +303,7 @@ func safeContextTestCases() []safeContextTestCase {
 		newSafeContextTestCase("SafeLockContext nil mu", opSafeLockContext,
 			bgCtx, nilMutexContext, errNilMutex),
 		newSafeContextTestCase("SafeLockContext typed-nil mu", opSafeLockContext,
-			bgCtx, typedNilMutexContext, errPanic),
+			bgCtx, typedNilMutexContext, errNilMutex),
 		newSafeContextTestCase("SafeLockContext panic", opSafeLockContext,
 			bgCtx, newPanicLockContext, errPanic),
 
@@ -314,7 +316,7 @@ func safeContextTestCases() []safeContextTestCase {
 		newSafeContextTestCase("SafeRLockContext nil mu", opSafeRLockContext,
 			bgCtx, nilMutexContext, errNilMutex),
 		newSafeContextTestCase("SafeRLockContext typed-nil mu", opSafeRLockContext,
-			bgCtx, typedNilRWMutexContext, errPanic),
+			bgCtx, typedNilRWMutexContext, errNilMutex),
 		newSafeContextTestCase("SafeRLockContext panic", opSafeRLockContext,
 			bgCtx, newPanicRLockContext, errPanic),
 	}

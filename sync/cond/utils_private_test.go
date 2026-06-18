@@ -152,8 +152,8 @@ func TestMakeAnyMatchString(t *testing.T) {
 // The setup closure builds the channel inside Test to keep the table rows
 // free of side-effects at declaration time.
 type isCancelledTestCase struct {
-	name  string
 	setup func() <-chan struct{}
+	name  string
 	want  bool
 }
 

@@ -16,17 +16,16 @@ import (
 //   - (false, ErrNilMutex) if the mutex is nil
 //   - (false, err) if a panic occurred during locking
 func SafeLock[T sync.Locker](mu T) (bool, error) {
-	switch any(mu).(type) {
-	case nil:
+	if core.IsNil(mu) {
 		return false, errors.ErrNilMutex
-	default:
-		err := core.Catch(func() error {
-			mu.Lock()
-			return nil
-		})
-
-		return err == nil, err
 	}
+
+	err := core.Catch(func() error {
+		mu.Lock()
+		return nil
+	})
+
+	return err == nil, err
 }
 
 // SafeTryLock attempts to acquire a lock without blocking.
@@ -38,18 +37,17 @@ func SafeLock[T sync.Locker](mu T) (bool, error) {
 //   - (false, ErrNilMutex) if the mutex is nil
 //   - (false, err) if a panic occurred during the attempt
 func SafeTryLock[T Mutex](mu T) (bool, error) {
-	switch any(mu).(type) {
-	case nil:
+	if core.IsNil(mu) {
 		return false, errors.ErrNilMutex
-	default:
-		var ok bool
-
-		err := core.Catch(func() error {
-			ok = mu.TryLock()
-			return nil
-		})
-		return ok, err
 	}
+
+	var ok bool
+
+	err := core.Catch(func() error {
+		ok = mu.TryLock()
+		return nil
+	})
+	return ok, err
 }
 
 // SafeUnlock releases a lock safely.
@@ -62,15 +60,14 @@ func SafeTryLock[T Mutex](mu T) (bool, error) {
 //   - ErrNilMutex if the mutex is nil
 //   - err if a panic occurred during unlocking
 func SafeUnlock[T sync.Locker](mu T) error {
-	switch any(mu).(type) {
-	case nil:
+	if core.IsNil(mu) {
 		return errors.ErrNilMutex
-	default:
-		return core.Catch(func() error {
-			mu.Unlock()
-			return nil
-		})
 	}
+
+	return core.Catch(func() error {
+		mu.Unlock()
+		return nil
+	})
 }
 
 // SafeRLock acquires a read lock safely.
@@ -82,11 +79,13 @@ func SafeUnlock[T sync.Locker](mu T) error {
 //   - (false, ErrNilMutex) if the mutex is nil
 //   - (false, err) if a panic occurred during locking
 func SafeRLock[T sync.Locker](mu T) (bool, error) {
+	if core.IsNil(mu) {
+		return false, errors.ErrNilMutex
+	}
+
 	var lock func() error
 
 	switch r := any(mu).(type) {
-	case nil:
-		return false, errors.ErrNilMutex
 	case RWMutex:
 		lock = func() error {
 			r.RLock()
@@ -113,12 +112,14 @@ func SafeRLock[T sync.Locker](mu T) (bool, error) {
 //   - (false, ErrNilMutex) if the mutex is nil
 //   - (false, err) if a panic occurred during the attempt
 func SafeTryRLock[T Mutex](mu T) (bool, error) {
+	if core.IsNil(mu) {
+		return false, errors.ErrNilMutex
+	}
+
 	var lock func() error
 	var ok bool
 
 	switch r := any(mu).(type) {
-	case nil:
-		return false, errors.ErrNilMutex
 	case RWMutex:
 		lock = func() error {
 			ok = r.TryRLock()
@@ -146,11 +147,13 @@ func SafeTryRLock[T Mutex](mu T) (bool, error) {
 //   - ErrNilMutex if the mutex is nil
 //   - err if a panic occurred during unlocking
 func SafeRUnlock[T sync.Locker](mu T) error {
+	if core.IsNil(mu) {
+		return errors.ErrNilMutex
+	}
+
 	var unlock func() error
 
 	switch r := any(mu).(type) {
-	case nil:
-		return errors.ErrNilMutex
 	case RWMutex:
 		unlock = func() error {
 			r.RUnlock()
@@ -205,19 +208,17 @@ func NewSafeRLockContext[T MutexContext](ctx context.Context) func(mu T) (bool, 
 //   - (false, ErrNilMutex) if the mutex is nil
 //   - (false, err) if a panic occurred or the context expired during locking
 func SafeLockContext[T MutexContext](ctx context.Context, mu T) (bool, error) {
-	if ctx == nil {
+	switch {
+	case ctx == nil:
 		return false, errors.ErrNilContext
+	case core.IsNil(mu):
+		return false, errors.ErrNilMutex
 	}
 
-	switch any(mu).(type) {
-	case nil:
-		return false, errors.ErrNilMutex
-	default:
-		err := core.Catch(func() error {
-			return mu.LockContext(ctx)
-		})
-		return err == nil, err
-	}
+	err := core.Catch(func() error {
+		return mu.LockContext(ctx)
+	})
+	return err == nil, err
 }
 
 // SafeRLockContext implements context-aware read locking with error handling.
@@ -230,15 +231,16 @@ func SafeLockContext[T MutexContext](ctx context.Context, mu T) (bool, error) {
 //   - (false, ErrNilMutex) if the mutex is nil
 //   - (false, err) if a panic occurred or the context expired during locking
 func SafeRLockContext[T MutexContext](ctx context.Context, mu T) (bool, error) {
-	var lock func() error
-
-	if ctx == nil {
+	switch {
+	case ctx == nil:
 		return false, errors.ErrNilContext
+	case core.IsNil(mu):
+		return false, errors.ErrNilMutex
 	}
 
+	var lock func() error
+
 	switch r := any(mu).(type) {
-	case nil:
-		return false, errors.ErrNilMutex
 	case RWMutexContext:
 		lock = func() error {
 			return r.RLockContext(ctx)

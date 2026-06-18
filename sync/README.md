@@ -520,7 +520,8 @@ if err := wg.Wait(); err != nil {
 ### Group Implementation details
 
 * Propagates cancellation signals from parent contexts to all tasks.
-* Provides hooks for cancellation via `OnCancel` field.
+* Provides an `OnCancel` hook that fires on cancellation from any source —
+  an explicit `Cancel`/`Close` or the parent context.
 * Safe for concurrent use from multiple goroutines.
 * Supports reuse after completion if not cancelled.
 * Error tracking distinguishes between normal cancellation and error causes.
@@ -652,10 +653,16 @@ synchronisation issues:
 * `ErrNilMutex`: Returned when a Mutex was expected but none was provided.
 * `ErrNilReceiver`: Returned when methods are called on a nil receiver.
 
-The package uses `core.CompoundError` to collect and combine multiple errors
-that may occur during operations on multiple mutexes. This allows for
-unlocking all mutexes even when some operations fail, while still providing
-comprehensive error reporting.
+The package provides `CompoundError`, a concurrency-safe counterpart of
+`core.CompoundError` that accumulates errors reported from several goroutines
+and presents them as a single error. `Errors` and `Unwrap` return snapshot
+copies so callers can iterate without holding the lock, while `AsError`
+returns the receiver itself; the zero value is ready to use.
+
+Internally the package uses `core.CompoundError` to collect and combine
+multiple errors that may occur during operations on multiple mutexes. This
+allows for unlocking all mutexes even when some operations fail, while still
+providing comprehensive error reporting.
 
 `core.Catch()` and `core.PanicError` convert panics into regular errors with
 stack traces.

@@ -75,7 +75,7 @@ func (sl *SpinLock) doLock() error {
 
 // TryLock attempts to acquire the spinlock without blocking.
 // Returns true if the lock was successfully acquired, false otherwise.
-// If the receiver is nil, it will panic with core.ErrNilReceiver.
+// If the receiver is nil, it will panic with errors.ErrNilReceiver.
 //
 // Useful in non-blocking scenarios where the caller can perform
 // alternative actions if the lock isn't immediately available.
@@ -91,7 +91,7 @@ func (sl *SpinLock) doTryLock() (bool, error) {
 	ptr := sl.ptr()
 	switch {
 	case ptr == nil:
-		return false, core.ErrNilReceiver
+		return false, errors.ErrNilReceiver
 	case atomic.CompareAndSwapUint32(ptr, 0, 1):
 		return true, nil
 	default:
@@ -100,7 +100,7 @@ func (sl *SpinLock) doTryLock() (bool, error) {
 }
 
 // Unlock releases the spinlock.
-// If the receiver is nil, it will panic with core.ErrNilReceiver.
+// If the receiver is nil, it will panic with errors.ErrNilReceiver.
 // If the spinlock is not currently locked, it will panic with
 // an "unlock of unlocked spinlock" error.
 func (sl *SpinLock) Unlock() {
