@@ -20,14 +20,14 @@ const (
 // shared resources using a spinlock mechanism. It supports both exclusive and
 // read locks with context-aware and blocking acquisition methods.
 type Semaphore struct {
-	mu sync.RWMutex
-
 	// global holds the state of the semaphore.
 	// true if an exclusive lock is held,
 	// false if a reader lock is held.
 	global chan bool
 	// readers holds the count of readers unless it's the first
 	readers chan int
+
+	mu sync.RWMutex
 }
 
 func (s *Semaphore) lazyInit() error {

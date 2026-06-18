@@ -51,6 +51,8 @@ type Group struct {
 	// context.Background() will be used as the default parent.
 	Parent context.Context
 
+	ctx context.Context
+
 	// OnCancel is invoked once when the Group transitions to the
 	// cancelled state, whether through an explicit Cancel or Close or
 	// through cancellation of the parent context. The handler runs in
@@ -75,10 +77,9 @@ type Group struct {
 	// regardless of how many cancellation signals arrive.
 	OnCancel func(context.Context, error)
 
-	ctx    context.Context
 	cancel context.CancelCauseFunc
-	tasks  cond.CountZero
 	doneCh chan struct{}
+	tasks  cond.CountZero
 
 	// non-pointer fields kept last so the GC pointer scan stops early
 	mu        sync.RWMutex

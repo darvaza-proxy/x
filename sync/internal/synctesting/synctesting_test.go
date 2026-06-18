@@ -159,8 +159,8 @@ func checkNameForwarded(t *testing.T, mock *core.MockT) {
 
 // waitForCondTestCase exercises the pure WaitForCond primitive.
 type waitForCondTestCase struct {
-	name      string
 	predicate func() func() bool
+	name      string
 	budgetMS  int
 	want      bool
 }
@@ -202,8 +202,8 @@ func TestWaitForCond(t *testing.T) {
 
 // assertEventuallyTestCase exercises the bare AssertEventually helper.
 type assertEventuallyTestCase struct {
-	name      string
 	predicate func() func() bool
+	name      string
 	budgetMS  int
 	wantOK    bool
 }
@@ -240,8 +240,8 @@ func TestAssertEventually(t *testing.T) {
 
 // assertMustEventuallyTestCase exercises AssertMustEventually via MockT.Run.
 type assertMustEventuallyTestCase struct {
-	name      string
 	predicate func() func() bool
+	name      string
 	budgetMS  int
 	wantOK    bool
 }
@@ -281,8 +281,8 @@ func TestAssertMustEventually(t *testing.T) {
 
 // assertClosedTestCase exercises the bare AssertClosed helper.
 type assertClosedTestCase struct {
-	name     string
 	setup    func(chan struct{})
+	name     string
 	budgetMS int
 	wantOK   bool
 }
@@ -321,8 +321,8 @@ func TestAssertClosed(t *testing.T) {
 
 // assertMustClosedTestCase exercises AssertMustClosed via MockT.Run.
 type assertMustClosedTestCase struct {
-	name     string
 	setup    func(chan struct{})
+	name     string
 	budgetMS int
 	wantOK   bool
 }
@@ -362,8 +362,8 @@ func TestAssertMustClosed(t *testing.T) {
 
 // assertOpenTestCase exercises the bare AssertOpen helper.
 type assertOpenTestCase struct {
-	name     string
 	setup    func(chan struct{})
+	name     string
 	budgetMS int
 	wantOK   bool
 }
@@ -402,8 +402,8 @@ func TestAssertOpen(t *testing.T) {
 
 // assertMustOpenTestCase exercises AssertMustOpen via MockT.Run.
 type assertMustOpenTestCase struct {
-	name     string
 	setup    func(chan struct{})
+	name     string
 	budgetMS int
 	wantOK   bool
 }
@@ -443,8 +443,8 @@ func TestAssertMustOpen(t *testing.T) {
 
 // assertReadersReadyTestCase exercises the bare AssertReadersReady helper.
 type assertReadersReadyTestCase struct {
-	name     string
 	setup    func() <-chan struct{}
+	name     string
 	expectN  int
 	budgetMS int
 	wantOK   bool
@@ -494,8 +494,8 @@ func TestAssertReadersReady(t *testing.T) {
 // assertMustReadersReadyTestCase exercises AssertMustReadersReady via
 // MockT.Run.
 type assertMustReadersReadyTestCase struct {
-	name     string
 	setup    func() <-chan struct{}
+	name     string
 	expectN  int
 	budgetMS int
 	wantOK   bool
@@ -546,8 +546,8 @@ func TestAssertMustReadersReady(t *testing.T) {
 // guarantees failure (so a message is recorded); the case verifies the
 // formatted prefix landed in the recorded message.
 type argsPropagationTestCase struct {
-	name   string
 	invoke func(core.T) bool
+	name   string
 }
 
 func newArgsPropagationTestCase(name string,
@@ -598,8 +598,8 @@ func TestAssertArgsPropagation(t *testing.T) {
 // configuration; the case drives the abort through MockT.Run and verifies
 // the formatted prefix landed in the recorded message.
 type argsPropagationMustTestCase struct {
-	name   string
 	invoke func(core.T)
+	name   string
 }
 
 func newArgsPropagationMustTestCase(name string,
@@ -659,13 +659,14 @@ var _ synctesting.MetricReporter = metricRecorder{}
 // concatenation, never a branch. want lists every metric the call must
 // emit; absent keys must not be emitted at all.
 type reportTryMetricsTestCase struct {
+	want map[string]float64
+
 	name string
 
-	attempts  int32
-	count     int32
 	elapsedMS int
 
-	want map[string]float64
+	attempts int32
+	count    int32
 }
 
 func newReportTryMetricsTestCase(name string, attempts, count int32,

@@ -30,12 +30,12 @@ const (
 // exercised; wantPanic pins the panic — an error matches the chain via
 // errors.Is, a string by substring.
 type spinlockPanicTestCase struct {
-	name string
+	wantPanic any
 
 	setup func() *spinlock.SpinLock
 	op    func(*spinlock.SpinLock)
 
-	wantPanic any
+	name string
 }
 
 func newSpinlockPanicTestCase(name string, setup func() *spinlock.SpinLock,

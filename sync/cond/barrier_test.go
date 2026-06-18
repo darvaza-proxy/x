@@ -27,9 +27,9 @@ const (
 // state. Both methods read the same lifecycle, so the row carries both
 // expectations to keep the state matrix legible.
 type barrierStateTestCase struct {
-	name string
-
 	setup func() *cond.Barrier
+
+	name string
 
 	wantNil    bool
 	wantClosed bool
@@ -93,11 +93,11 @@ func TestBarrierState(t *testing.T) {
 // barrierInitTestCase exercises Init across receiver and prior-state
 // conditions.
 type barrierInitTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.Barrier
 
-	wantErr error
+	name string
 }
 
 func newBarrierInitTestCase(name string, setup func() *cond.Barrier,
@@ -147,11 +147,11 @@ func TestBarrierInit(t *testing.T) {
 // barrierCloseTestCase exercises Close across receiver and prior-state
 // conditions.
 type barrierCloseTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.Barrier
 
-	wantErr error
+	name string
 }
 
 func newBarrierCloseTestCase(name string, setup func() *cond.Barrier,
@@ -209,9 +209,9 @@ func TestBarrierClose(t *testing.T) {
 // ok=false, distinct from the default branch taken when the channel is
 // open but empty.
 type barrierTryAcquireTestCase struct {
-	name string
-
 	setup func() *cond.Barrier
+
+	name string
 
 	wantOk bool
 }

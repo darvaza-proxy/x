@@ -24,10 +24,11 @@ import (
 //
 // [advanced concurrency patterns]: https://blogtitle.github.io/go-advanced-concurrency-patterns-part-3-channels/
 type Count struct {
-	v int32
+	m func(int32) bool
+
 	b Barrier
 
-	m func(int32) bool
+	v int32
 }
 
 // NewCount creates a new Count with an initial value and optional broadcast

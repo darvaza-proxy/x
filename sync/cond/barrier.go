@@ -14,11 +14,11 @@ import (
 // Barrier is primarily designed to be used by other synchronisation
 // primitives internally.
 type Barrier struct {
+	b chan Token
+
 	_ sync.Mutex // prevent copies
 
 	closed atomic.Bool
-
-	b chan Token
 }
 
 // NewBarrier creates and initialises a new Barrier, panicking if

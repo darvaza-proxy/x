@@ -30,9 +30,9 @@ const (
 // state. Both methods read the same lifecycle, so the row carries both
 // expectations to keep the state matrix legible.
 type countStateTestCase struct {
-	name string
-
 	setup func() *cond.Count
+
+	name string
 
 	wantNil    bool
 	wantClosed bool
@@ -90,13 +90,13 @@ func TestCountState(t *testing.T) {
 // conditions. The happy-path row also verifies the initial value is
 // honoured.
 type countInitTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.Count
 
-	initial int
+	name string
 
-	wantErr error
+	initial int
 }
 
 func newCountInitTestCase(name string, setup func() *cond.Count,
@@ -153,11 +153,11 @@ func TestCountInit(t *testing.T) {
 // countCloseTestCase exercises Close across receiver and prior-state
 // conditions.
 type countCloseTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.Count
 
-	wantErr error
+	name string
 }
 
 func newCountCloseTestCase(name string, setup func() *cond.Count,
@@ -211,13 +211,13 @@ func TestCountClose(t *testing.T) {
 // happy-path conditions. The waiter-wake path is exercised by
 // TestCountResetWithWaiters.
 type countResetTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.Count
 
-	value int
+	name string
 
-	wantErr error
+	value int
 }
 
 func newCountResetTestCase(name string, setup func() *cond.Count, value int,
@@ -278,13 +278,13 @@ func TestCountReset(t *testing.T) {
 // the same nil-receiver and not-initialised handling. WaitFnContext
 // also has a nil-context fast-path.
 type countErrorOpTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.Count
 
 	op func(*cond.Count) error
 
-	wantErr error
+	name string
 }
 
 func newCountErrorOpTestCase(name string, setup func() *cond.Count,
@@ -351,13 +351,13 @@ func TestCountErrorOps(t *testing.T) {
 // trigger state and the expected wrapped error so a future change that
 // silently returns or panics with a different error fails loudly.
 type countPanicTestCase struct {
-	name string
+	wantErr error
 
 	setup func() *cond.Count
 
 	op func(*cond.Count)
 
-	wantErr error
+	name string
 }
 
 func newCountPanicTestCase(name string, setup func() *cond.Count,
@@ -775,8 +775,13 @@ func TestCountBroadcastCondition(t *testing.T) {
 // broadcastConditionStep names a value transition expected to fire a
 // broadcast under the multi-condition setup.
 type broadcastConditionStep struct {
-	name string
 	op   func(*cond.Count)
+	name string
+}
+
+func newBroadcastConditionStep(name string,
+	op func(*cond.Count)) broadcastConditionStep {
+	return broadcastConditionStep{name: name, op: op}
 }
 
 // TestCountMultipleBroadcastConditions verifies a Count constructed
@@ -811,10 +816,14 @@ func TestCountMultipleBroadcastConditions(t *testing.T) {
 	time.Sleep(countOpenGuard)
 
 	steps := []broadcastConditionStep{
-		{"Add(-1) → -1 (isNegative)", func(c *cond.Count) { c.Add(-1) }},
-		{"Inc → 0 (isZero)", func(c *cond.Count) { c.Inc() }},
-		{"Inc → 1 (isPositive)", func(c *cond.Count) { c.Inc() }},
-		{"Add(-2) → -1 (isNegative)", func(c *cond.Count) { c.Add(-2) }},
+		newBroadcastConditionStep("Add(-1) → -1 (isNegative)",
+			func(c *cond.Count) { c.Add(-1) }),
+		newBroadcastConditionStep("Inc → 0 (isZero)",
+			func(c *cond.Count) { c.Inc() }),
+		newBroadcastConditionStep("Inc → 1 (isPositive)",
+			func(c *cond.Count) { c.Inc() }),
+		newBroadcastConditionStep("Add(-2) → -1 (isNegative)",
+			func(c *cond.Count) { c.Add(-2) }),
 	}
 	for _, step := range steps {
 		prev := notified.Load()

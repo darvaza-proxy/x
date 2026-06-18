@@ -92,10 +92,10 @@ func opSafeTryRLock(mu mutex.Mutex) (bool, error) { return mutex.SafeTryRLock(mu
 // return (false, nil) on a contended lock, so a held row pairs wantOK false
 // with want errNone — the blocking acquirers cannot reach that combination.
 type safeAcquireTestCase struct {
-	name string
-
 	op    func(mutex.Mutex) (bool, error)
 	newMu func() mutex.Mutex
+
+	name string
 
 	want   errKind
 	wantOK bool
@@ -179,10 +179,10 @@ func opSafeRUnlock(mu mutex.Mutex) error { return mutex.SafeRUnlock(mu) }
 // safeReleaseTestCase exercises the error-returning Safe releasers against a
 // receiver pre-arranged by newMu.
 type safeReleaseTestCase struct {
-	name string
-
 	op    func(mutex.Mutex) error
 	newMu func() mutex.Mutex
+
+	name string
 
 	want errKind
 }
@@ -254,11 +254,11 @@ func newPanicRLockContext() mutex.MutexContext   { return &panicOnRLockContextMu
 // safeContextTestCase exercises the context-aware Safe acquirers across
 // context and receiver states.
 type safeContextTestCase struct {
-	name string
-
 	op     func(context.Context, mutex.MutexContext) (bool, error)
 	newCtx func() context.Context
 	newMu  func() mutex.MutexContext
+
+	name string
 
 	want errKind
 }

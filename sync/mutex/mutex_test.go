@@ -270,8 +270,8 @@ func TestMultiLockEmpty(t *testing.T) {
 // multiLockPanicTestCase verifies the variadic entry points panic when handed
 // a nil mutex. op selects the entry point under the shared assertion path.
 type multiLockPanicTestCase struct {
-	name string
 	op   func()
+	name string
 }
 
 func newMultiLockPanicTestCase(name string, op func()) multiLockPanicTestCase {

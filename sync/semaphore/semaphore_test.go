@@ -197,10 +197,10 @@ func TestSemaphore_TryRLock(t *testing.T) {
 // matching blocking lock/unlock pair, so the context scenarios run
 // identically against both the exclusive and shared modes.
 type lockMode struct {
-	name        string
 	contextLock func(*semaphore.Semaphore, context.Context) error
 	lock        func(*semaphore.Semaphore)
 	unlock      func(*semaphore.Semaphore)
+	name        string
 }
 
 func lockModes() []lockMode {
@@ -357,9 +357,9 @@ func runWriterLoop(wg *sync.WaitGroup, s *semaphore.Semaphore, counter *int,
 // nil receiver. setup arranges the receiver state; op selects the method
 // exercised under the shared assertion path.
 type semaphorePanicTestCase struct {
-	name  string
 	setup func() *semaphore.Semaphore
 	op    func(*semaphore.Semaphore)
+	name  string
 }
 
 func newSemaphorePanicTestCase(name string, setup func() *semaphore.Semaphore,
