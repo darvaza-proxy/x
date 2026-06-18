@@ -1,10 +1,12 @@
-package reconnect
+package reconnect_test
 
 import (
 	"testing"
 	"time"
 
 	"darvaza.org/core"
+
+	"darvaza.org/x/net/reconnect"
 )
 
 // Compile-time verification that test case types implement TestCase interface
@@ -37,7 +39,7 @@ func (tc parseRemoteTestCase) Name() string {
 func (tc parseRemoteTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	network, address, err := ParseRemote(tc.input)
+	network, address, err := reconnect.ParseRemote(tc.input)
 	if tc.wantErr {
 		core.AssertError(t, err, "ParseRemote")
 		return
@@ -119,7 +121,7 @@ func (tc timeoutToAbsoluteTimeTestCase) Name() string {
 func (tc timeoutToAbsoluteTimeTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	result := TimeoutToAbsoluteTime(tc.base, tc.duration)
+	result := reconnect.TimeoutToAbsoluteTime(tc.base, tc.duration)
 	core.AssertEqual(t, tc.expected, result, "timeout")
 }
 
@@ -144,7 +146,7 @@ func makeTimeoutToAbsoluteTimeTestCases() []core.TestCase {
 func runTestTimeoutToAbsoluteTimePositiveDurationWithZeroBase(t *testing.T) {
 	t.Helper()
 	before := time.Now()
-	result := TimeoutToAbsoluteTime(time.Time{}, 5*time.Second)
+	result := reconnect.TimeoutToAbsoluteTime(time.Time{}, 5*time.Second)
 	after := time.Now()
 
 	// Result should be between before+5s and after+5s

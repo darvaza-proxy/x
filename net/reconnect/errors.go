@@ -22,7 +22,7 @@ var (
 	// ErrNotConnected indicates the [Client] isn't currently connected.
 	ErrNotConnected = core.QuietWrap(fs.ErrClosed, "not connected")
 
-	// ErrRunning indicates the [Client] has already being started.
+	// ErrRunning indicates the [Client] has already been started.
 	ErrRunning = core.QuietWrap(syscall.EBUSY, "client already running")
 
 	// ErrNameEmpty indicates a name is empty
@@ -34,6 +34,8 @@ var (
 
 // IsFatal tells if the error means the connection
 // should be closed and not retried.
+// Only [ErrDoNotReconnect], possibly wrapped, is considered
+// fatal; anything else is treated as recoverable.
 func IsFatal(err error) bool {
 	if err != nil {
 		is, _ := core.IsErrorFn2(checkIsFatal, err)
@@ -89,8 +91,8 @@ func filterNonError(err error) error {
 	return err
 }
 
-// IsNonError checks if the error is an actual error instead of
-// a manual shutdown.
+// IsNonError reports whether the error represents a
+// user-initiated shutdown instead of an actual failure.
 func IsNonError(err error) bool {
 	if err == nil {
 		return true

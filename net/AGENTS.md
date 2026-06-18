@@ -46,7 +46,9 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 - `bind/listen.go`: TCP/UDP listener creation.
 - `reconnect/client.go`: Reconnecting client implementation.
 - `reconnect/config.go`: Client configuration.
+- `reconnect/stream.go`: Generic message-based stream sessions.
 - `reconnect/utils.go`: Network address parsing and validation utilities.
+- `reconnect/waiter.go`: Reconnection wait strategies.
 - `reconnect/worker.go`: Background worker management.
 
 ## Architecture Notes
@@ -103,20 +105,21 @@ for _, l := range listeners {
 
 ```go
 cfg := &reconnect.Config{
-    Address: "server:9000",
-    DialTimeout: 5 * time.Second,
-    RetryWait: 1 * time.Second,
-    RetryBackoff: true,
+    Remote:         "server:9000",
+    Logger:         logger,
+    DialTimeout:    5 * time.Second,
+    ReconnectDelay: time.Second,
 }
 
-client := reconnect.NewClient(cfg,
-    reconnect.WithLogger(logger),
-    reconnect.WithOnConnect(onConnect),
-    reconnect.WithOnError(onError),
-)
+client, err := reconnect.New(cfg)
+if err != nil {
+    return err
+}
 
-// Start client with automatic reconnection
-err := client.Spawn(ctx)
+// Start the reconnection loop.
+if err := client.Connect(); err != nil {
+    return err
+}
 ```
 
 ### Socket Control
@@ -134,26 +137,31 @@ ln, err := bind.ListenTCP("tcp", addr, control)
 ### Connection Lifecycle
 
 ```go
-client := reconnect.NewClient(cfg,
-    reconnect.WithOnConnect(func(ctx context.Context, conn net.Conn) error {
-        // Initialize connection
+cfg := &reconnect.Config{
+    Remote: "server:9000",
+
+    OnConnect: func(ctx context.Context, conn net.Conn) error {
+        // Initialise the connection.
         return nil
-    }),
-    reconnect.WithOnSession(func(ctx context.Context) error {
-        // Handle active session
+    },
+    OnSession: func(ctx context.Context) error {
+        // Handle the active session; block until done.
         return nil
-    }),
-    reconnect.WithOnDisconnect(func(ctx context.Context, conn net.Conn) error {
-        // Cleanup on disconnect
+    },
+    OnDisconnect: func(ctx context.Context, conn net.Conn) error {
+        // Clean up after the connection has been closed.
         return nil
-    }),
-)
+    },
+}
+
+client, err := reconnect.New(cfg)
 ```
 
 ## Performance Characteristics
 
 - **Bind**: O(n) for n interfaces/addresses.
-- **Reconnect**: Exponential backoff available for retry delays.
+- **Reconnect**: Constant retry delay by default; custom `Waiter`
+  functions for other strategies.
 - **Socket Control**: Minimal overhead on socket creation.
 
 ## Dependencies
