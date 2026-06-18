@@ -226,8 +226,19 @@ func (wg *Group) doDone() <-chan struct{} {
 //
 // This method provides a synchronous alternative to using the Done channel.
 //
-// Note that Wait() only reports errors from cancellation, not from the tasks
-// themselves. For error collection from tasks, implement your own mechanism.
+// Wait surfaces the cancellation cause — the one error that stopped the
+// Group — and deliberately does not aggregate per-task errors. Once a
+// failure cancels the Group, the errors its other tasks return are usually
+// fallout from that cancellation (context.Canceled, interrupted I/O) rather
+// than independent causes, so collecting them would add noise, not signal —
+// the same judgement that maps a context.Canceled cause to nil.
+//
+// To act on an individual task's error, use the [Group.GoCatch] catch
+// handler, which receives each error as it occurs: return it to make it the
+// cancellation cause, or return nil to treat it as noise (logging it there
+// if it is worth recording). A caller that genuinely needs every task error
+// can accumulate them in that handler with a concurrency-safe
+// [errors.CompoundError].
 func (wg *Group) Wait() error {
 	if err := wg.lazyInit(); err != nil {
 		return err
