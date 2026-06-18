@@ -17,9 +17,14 @@
 ## Overview
 
 The `tls` package provides advanced TLS/SSL certificate handling utilities
-that extend Go's standard crypto/tls package. It includes certificate stores,
-SNI inspection, certificate bundling, and enhanced x509 utilities with a focus
-on dynamic certificate management.
+that extend Go's standard crypto/tls package: the `Store` abstraction, SNI
+inspection, certificate bundling, and enhanced x509 utilities.
+
+Unlike the standard library's static configuration, a `Store` is a living
+source of certificates and trust — material is added, renewed and removed while
+in use. The `Store` interfaces are designed to be layered, so higher-level
+systems can compose behaviour (on-demand issuance, replication) over a simple
+local store while keeping it both flexible and consistent.
 
 ## Features
 
@@ -32,22 +37,20 @@ on dynamic certificate management.
 
 ### Certificate Store
 
-Dynamic certificate storage with multiple backend implementations.
+The `Store` interfaces describe a dynamic source of certificates and trust. A
+read/write store adds lookup, iteration and the building-block writers
+(`AddCACerts`, `AddPrivateKey`, `AddCert`, `AddCertPair`) on top of the base
+`Store`. Any implementation wires straight into a `tls.Config`:
 
 ```go
-// Create a store
-store := &basic.Store{}
-ctx := context.Background()
+// store is any tls.Store implementation.
+config, err := tls.NewConfig(store)
 
-// Add certificates
-err := store.AddCertPair(ctx, privateKey, cert, intermediates)
-
-// Configure TLS
-config := &tls.Config{
-    GetCertificate: store.GetCertificate,
-    RootCAs: store.GetCAPool(),
-}
+// or bind one to an existing config:
+err = tls.WithStore(config, store)
 ```
+
+`WithStore` sets `GetCertificate`, `RootCAs` and `ClientCAs` from the store.
 
 ### Certificate Bundling
 
@@ -78,10 +81,19 @@ if info != nil {
     fmt.Printf("SNI: %s\n", info.ServerName)
 }
 
-// SNI-based routing
-dispatcher := sni.NewDispatcher()
-dispatcher.Add("example.com", exampleHandler)
-dispatcher.Add("*.api.com", apiHandler)
+// SNI-based routing: GetHandler claims a connection for a dedicated
+// Handler, or returns nil to let it fall through to the TLS listener.
+dispatcher := &sni.Dispatcher{
+    GetHandler: func(chi *tls.ClientHelloInfo) sni.Handler {
+        if chi.ServerName == "example.com" {
+            return exampleHandler
+        }
+        return nil
+    },
+}
+
+go dispatcher.Serve(rawListener)  // feed it the raw net.Listener
+tlsListener := tls.NewListener(dispatcher, cfg)  // unclaimed ones land here
 ```
 
 ## Packages
@@ -96,11 +108,10 @@ Server Name Indication parsing and routing.
 
 ### `store`
 
-Certificate storage implementations.
+Loading and population for a `Store`.
 
-* `basic`: Simple in-memory store.
-* `buffer`: Buffered certificate operations.
-* `config`: Configuration-based loading.
+* `buffer`: collect certificates and keys, then flush them into a `Store`.
+* `config`: load certificates and keys from configuration and PEM sources.
 
 ### `x509utils`
 
@@ -129,23 +140,24 @@ customPool.AddCert(internalCA)
 ### PEM Operations
 
 ```go
-// Read PEM files
-certs, err := x509utils.ReadCertificates(pemData)
-key, err := x509utils.ReadPrivateKey(keyData)
+// Decode certificates from PEM via a per-block callback
+err := x509utils.ReadPEM(pemData, func(_ fs.FS, _ string, block *pem.Block) bool {
+    if cert, err := x509utils.BlockToCertificate(block); err == nil {
+        certs = append(certs, cert)
+    }
+    return true // keep reading
+})
 
-// Write PEM
-pemData := x509utils.EncodeCertificates(certs...)
-keyData := x509utils.EncodePrivateKey(key)
+// Encode a certificate (DER) back to PEM
+pemBytes := x509utils.EncodeCertificate(cert.Raw)
 ```
 
-### Custom Verification
+### Certificate Verification
 
 ```go
-err := tls.Verify(cert, &tls.VerifyOptions{
-    DNSName: "example.com",
-    Roots: customRoots,
-    Intermediates: customInter,
-})
+// Verify a tls.Certificate. Pass a roots pool to also verify the chain;
+// nil checks only the certificate's own validity.
+err := tls.Verify(cert, customRoots)
 ```
 
 ## Installation
