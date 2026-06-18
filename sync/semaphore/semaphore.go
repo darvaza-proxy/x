@@ -82,7 +82,7 @@ func (s *Semaphore) LockContext(ctx context.Context) error {
 
 // Lock acquires an exclusive lock.
 // Blocks until the lock is acquired and cannot be cancelled.
-// Panics if the lock cannot be acquired.
+// Panics if the semaphore is nil.
 func (s *Semaphore) Lock() {
 	if err := s.doLock(); err != nil {
 		core.Panic(err)
