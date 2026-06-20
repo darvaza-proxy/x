@@ -1,51 +1,47 @@
-package set
+package set_test
 
 import (
 	"fmt"
 	"sync"
 	"testing"
+
+	"darvaza.org/core"
+
+	"darvaza.org/x/container/set"
 )
 
-func doTestPush(t *testing.T, s *Set[int, int, testItem]) {
-	item := testItem{ID: 1, Name: "test"}
-	if _, err := s.Push(item); err != nil {
-		t.Fatalf("Push failed: %v", err)
-	}
+func doTestPush(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
+	_, err := s.Push(testItem{ID: 1, Name: "test"})
+	core.AssertMustNoError(t, err, "push")
 }
 
-func doTestContains(t *testing.T, s *Set[int, int, testItem]) {
-	if !s.Contains(1) {
-		t.Error("Contains should return true")
-	}
+func doTestContains(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
+	core.AssertTrue(t, s.Contains(1), "contains")
 }
 
-func doTestGet(t *testing.T, s *Set[int, int, testItem]) {
-	if v, err := s.Get(1); err != nil {
-		t.Errorf("Get failed: %v", err)
-	} else if v.ID != 1 {
-		t.Errorf("Get returned wrong item: %+v", v)
-	}
+func doTestGet(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
+	v, err := s.Get(1)
+	core.AssertNoError(t, err, "get")
+	core.AssertEqual(t, 1, v.ID, "id")
 }
 
-func doTestPop(t *testing.T, s *Set[int, int, testItem]) {
-	if _, err := s.Pop(1); err != nil {
-		t.Errorf("Pop failed: %v", err)
-	}
+func doTestPop(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
+	_, err := s.Pop(1)
+	core.AssertNoError(t, err, "pop")
 }
 
-func doTestVerifyRemoved(t *testing.T, s *Set[int, int, testItem]) {
-	if s.Contains(1) {
-		t.Error("Item should be removed")
-	}
+func doTestVerifyRemoved(t *testing.T, s *set.Set[int, int, testItem]) {
+	t.Helper()
+	core.AssertFalse(t, s.Contains(1), "removed")
 }
 
-// Simple test to ensure basic functionality works
+// TestSetBasicOperations exercises the push/contains/get/pop lifecycle.
 func TestSetBasicOperations(t *testing.T) {
-	cfg := testConfig()
-	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	s := testConfig().Must()
 
 	doTestPush(t, s)
 	doTestContains(t, s)
@@ -54,20 +50,15 @@ func TestSetBasicOperations(t *testing.T) {
 	doTestVerifyRemoved(t, s)
 }
 
-func runConcurrentAdds(s *Set[int, int, testItem], wg *sync.WaitGroup, base, itemsPerGoroutine int) {
+func runConcurrentAdds(s *set.Set[int, int, testItem], wg *sync.WaitGroup, base, itemsPerGoroutine int) {
 	defer wg.Done()
 	for j := range itemsPerGoroutine {
 		id := base*itemsPerGoroutine + j
-		item := testItem{
-			ID:    id,
-			Name:  "test",
-			Value: "value",
-		}
-		_, _ = s.Push(item)
+		_, _ = s.Push(testItem{ID: id, Name: "test", Value: "value"})
 	}
 }
 
-func runConcurrentRemoves(s *Set[int, int, testItem], wg *sync.WaitGroup, base, itemsPerGoroutine int) {
+func runConcurrentRemoves(s *set.Set[int, int, testItem], wg *sync.WaitGroup, base, itemsPerGoroutine int) {
 	defer wg.Done()
 	for j := range itemsPerGoroutine {
 		id := base*itemsPerGoroutine + j
@@ -77,48 +68,33 @@ func runConcurrentRemoves(s *Set[int, int, testItem], wg *sync.WaitGroup, base, 
 	}
 }
 
-// TestSetConcurrency tests thread safety of set operations
+// TestSetConcurrency tests thread safety of set operations.
 func TestSetConcurrency(t *testing.T) {
-	cfg := testConfig()
-	s, err := cfg.New()
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
+	s := testConfig().Must()
 
 	const numGoroutines = 10
 	const itemsPerGoroutine = 100
 
 	var wg sync.WaitGroup
-	wg.Add(numGoroutines * 2) // Half adding, half removing
+	wg.Add(numGoroutines * 2) // half adding, half removing
 
-	// Start goroutines that add items
 	for i := range numGoroutines {
 		go runConcurrentAdds(s, &wg, i, itemsPerGoroutine)
 	}
-
-	// Start goroutines that remove items
 	for i := range numGoroutines {
 		go runConcurrentRemoves(s, &wg, i, itemsPerGoroutine)
 	}
 
 	wg.Wait()
 
-	// Verify the set is in a consistent state
-	// Just check that we can iterate without panic
-	count := 0
-	s.ForEach(func(_ testItem) bool {
-		count++
-		return false
-	})
-	t.Logf("Set contains %d items after concurrent operations", count)
+	// the set must remain iterable without panicking.
+	core.AssertNoPanic(t, func() { s.ForEach(func(testItem) bool { return true }) }, "iterable")
 }
 
-func makeFilledSet(b *testing.B, size int) *Set[int, int, testItem] {
-	cfg := testConfig()
-	s, _ := cfg.New()
+func makeFilledSet(b *testing.B, size int) *set.Set[int, int, testItem] {
+	s := testConfig().Must()
 	for i := range size {
-		_, err := s.Push(testItem{ID: i})
-		if err != nil {
+		if _, err := s.Push(testItem{ID: i}); err != nil {
 			b.Fatalf("Failed to populate set: %v", err)
 		}
 	}
@@ -129,12 +105,11 @@ func doBenchmarkSetPush(b *testing.B, size int) {
 	s := makeFilledSet(b, size)
 	b.ResetTimer()
 	for i := range b.N {
-		item := testItem{ID: size + i}
-		_, err := s.Push(item)
-		if err != nil && err != ErrExist {
+		_, err := s.Push(testItem{ID: size + i})
+		if err != nil && err != set.ErrExist {
 			b.Fatalf("Push failed: %v", err)
 		}
-		_, _ = s.Pop(size + i) // Clean up to maintain size
+		_, _ = s.Pop(size + i) // clean up to maintain size
 	}
 }
 
@@ -144,8 +119,7 @@ func doBenchmarkSetPop(b *testing.B, size int) {
 	for i := range b.N {
 		id := i % size
 		_, _ = s.Pop(id)
-		_, err := s.Push(testItem{ID: id}) // Re-add to maintain set
-		if err != nil {
+		if _, err := s.Push(testItem{ID: id}); err != nil { // re-add to maintain set
 			b.Fatalf("Re-add failed: %v", err)
 		}
 	}
@@ -162,8 +136,7 @@ func doBenchmarkSetContains(b *testing.B, size int) {
 // Benchmarks
 
 func BenchmarkSetPush(b *testing.B) {
-	sizes := []int{10, 1000, 10000}
-	for _, size := range sizes {
+	for _, size := range core.S(10, 1000, 10000) {
 		b.Run(fmt.Sprintf("size=%d", size), func(b *testing.B) {
 			doBenchmarkSetPush(b, size)
 		})
@@ -171,8 +144,7 @@ func BenchmarkSetPush(b *testing.B) {
 }
 
 func BenchmarkSetPop(b *testing.B) {
-	sizes := []int{10, 1000, 10000}
-	for _, size := range sizes {
+	for _, size := range core.S(10, 1000, 10000) {
 		b.Run(fmt.Sprintf("size=%d", size), func(b *testing.B) {
 			doBenchmarkSetPop(b, size)
 		})
@@ -180,8 +152,7 @@ func BenchmarkSetPop(b *testing.B) {
 }
 
 func BenchmarkSetContains(b *testing.B) {
-	sizes := []int{10, 1000, 10000}
-	for _, size := range sizes {
+	for _, size := range core.S(10, 1000, 10000) {
 		b.Run(fmt.Sprintf("size=%d", size), func(b *testing.B) {
 			doBenchmarkSetContains(b, size)
 		})
