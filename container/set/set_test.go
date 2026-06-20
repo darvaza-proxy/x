@@ -362,3 +362,81 @@ func TestHashCollisions(t *testing.T) {
 	assertGetAll(t, s, items)
 	assertHasIDs(t, s, 1, 11, 21, 31)
 }
+
+// errKeyConfig is a valid Config whose ItemKey rejects negative IDs, used to
+// drive the error paths of Push and the initial bulk insert.
+func errKeyConfig() set.Config[int, int, testItem] {
+	cfg := testConfig()
+	cfg.ItemKey = func(v testItem) (int, error) {
+		if v.ID < 0 {
+			return 0, core.ErrInvalid
+		}
+		return v.ID, nil
+	}
+	return cfg
+}
+
+func TestInitItemKeyError(t *testing.T) {
+	cfg := errKeyConfig()
+	_, err := cfg.New(testItem{ID: -1, Name: "negative"})
+	core.AssertErrorIs(t, err, core.ErrInvalid, "New with failing ItemKey")
+}
+
+func testResetNilReceiver(t *testing.T) {
+	var s *set.Set[int, int, testItem]
+	core.AssertErrorIs(t, s.Reset(), core.ErrNilReceiver, "reset nil receiver")
+}
+
+func testResetUninitialised(t *testing.T) {
+	s := &set.Set[int, int, testItem]{}
+	core.AssertErrorIs(t, s.Reset(), core.ErrInvalid, "reset uninitialised")
+}
+
+func TestResetErrors(t *testing.T) {
+	t.Run("nil receiver", testResetNilReceiver)
+	t.Run("uninitialised", testResetUninitialised)
+}
+
+func testPopNilReceiver(t *testing.T) {
+	var s *set.Set[int, int, testItem]
+	_, err := s.Pop(1)
+	core.AssertErrorIs(t, err, core.ErrNilReceiver, "pop nil receiver")
+}
+
+func testPopHashCollisionMiss(t *testing.T) {
+	// ID 1 and 11 share hash 1; popping 11 finds the bucket but no match.
+	s := testConfig().Must(testItem{ID: 1, Name: "one"})
+
+	_, err := s.Pop(11)
+
+	core.AssertErrorIs(t, err, set.ErrNotExist, "pop absent key in existing bucket")
+	core.AssertTrue(t, s.Contains(1), "original entry retained")
+}
+
+func TestPopErrors(t *testing.T) {
+	t.Run("nil receiver", testPopNilReceiver)
+	t.Run("hash collision miss", testPopHashCollisionMiss)
+}
+
+func testGetUninitialised(t *testing.T) {
+	s := &set.Set[int, int, testItem]{}
+	_, err := s.Get(1)
+	core.AssertErrorIs(t, err, core.ErrNotImplemented, "get on uninitialised")
+}
+
+func testContainsUninitialised(t *testing.T) {
+	s := &set.Set[int, int, testItem]{}
+	core.AssertFalse(t, s.Contains(1), "contains on uninitialised")
+}
+
+func testPushUninitialised(t *testing.T) {
+	s := &set.Set[int, int, testItem]{}
+	_, err := s.Push(testItem{ID: 1, Name: "one"})
+	core.AssertErrorIs(t, err, core.ErrNotImplemented, "push on uninitialised")
+}
+
+func TestUninitialisedAccess(t *testing.T) {
+	t.Run("get", testGetUninitialised)
+	t.Run("contains", testContainsUninitialised)
+	t.Run("push", testPushUninitialised)
+}
