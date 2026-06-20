@@ -1,5 +1,22 @@
 package set
 
+// Len returns the number of values in the [Set].
+func (set *Set[K, H, T]) Len() int {
+	if set == nil {
+		return 0
+	}
+
+	// RO
+	set.mu.RLock()
+	defer set.mu.RUnlock()
+
+	var count int
+	for _, l := range set.buckets {
+		count += l.Len()
+	}
+	return count
+}
+
 // Values returns all values in the [Set].
 func (set *Set[K, H, T]) Values() []T {
 	if set == nil {
