@@ -360,8 +360,8 @@ func TestMustCustomSet_Panic(t *testing.T) {
 func TestCustomSet_Complex(t *testing.T) {
 	// Test with a custom type
 	type Person struct {
-		ID   int
 		Name string
+		ID   int
 	}
 
 	cmpPerson := func(a, b Person) int {

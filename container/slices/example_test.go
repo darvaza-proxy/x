@@ -110,8 +110,8 @@ func ExampleCustomSet_ForEach() {
 func ExampleNewCustomSet() {
 	// Custom type with comparison function
 	type Person struct {
-		ID   int
 		Name string
+		ID   int
 	}
 
 	// Compare by ID

@@ -252,8 +252,8 @@ func TestZero(t *testing.T) {
 	}
 
 	type custom struct {
-		a int
 		b string
+		a int
 	}
 	lc := New[custom]()
 	z := lc.Zero()

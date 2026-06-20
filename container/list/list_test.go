@@ -115,8 +115,8 @@ func TestEmptyList(t *testing.T) {
 }
 
 type TestStruct struct {
-	ID   int
 	Name string
+	ID   int
 }
 
 func makeTestList() (list *List[*TestStruct], first, second *TestStruct) {

@@ -92,8 +92,8 @@ var _ core.TestCase = containsTestCase{}
 
 // containsTestCase checks Set.Contains against a shared populated set.
 type containsTestCase struct {
-	name string
 	set  *set.Set[int, int, testItem]
+	name string
 	key  int
 	want bool
 }

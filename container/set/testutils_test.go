@@ -10,9 +10,9 @@ import (
 
 // testItem is the element type shared across the set tests.
 type testItem struct {
-	ID    int
 	Name  string
 	Value string
+	ID    int
 }
 
 // testConfig returns a valid Config keyed by ID with a modulo-10 hash, so

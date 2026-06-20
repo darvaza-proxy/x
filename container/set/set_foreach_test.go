@@ -52,8 +52,8 @@ var _ core.TestCase = lenTestCase{}
 
 // lenTestCase verifies Set.Len across receiver states and bucket layouts.
 type lenTestCase struct {
-	name string
 	set  *set.Set[int, int, testItem]
+	name string
 	want int
 }
 

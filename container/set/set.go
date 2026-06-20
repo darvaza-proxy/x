@@ -21,8 +21,8 @@ var (
 // Set implements a simple set using generics.
 type Set[K, H comparable, T any] struct {
 	cfg     Config[K, H, T]
-	mu      sync.RWMutex
 	buckets map[H]*list.List[T]
+	mu      sync.RWMutex
 }
 
 func (set *Set[K, H, T]) init(cfg Config[K, H, T], items ...T) error {

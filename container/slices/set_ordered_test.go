@@ -49,8 +49,8 @@ func TestSortedSet_Add(t *testing.T) {
 		name     string
 		initial  []int
 		add      []int
-		expected int
 		result   []int
+		expected int
 	}{
 		{
 			name:     "add to empty set",
@@ -175,8 +175,8 @@ func TestSortedSet_Remove(t *testing.T) {
 //revive:disable-next-line:cognitive-complexity
 func TestSortedSet_TrimN(t *testing.T) {
 	tests := []struct {
-		name        string
 		set         *CustomSet[int]
+		name        string
 		minCapacity int
 		want        bool
 	}{
