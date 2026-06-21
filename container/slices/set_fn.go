@@ -55,8 +55,8 @@ func NewCustomSet[T any](cmp func(T, T) int, initial ...T) (*CustomSet[T], error
 
 // MustCustomSet creates a new CustomSet, panicking if initialization fails.
 // This is a convenience function for when error handling is not needed.
-func MustCustomSet[T any](cmd func(T, T) int, initial ...T) *CustomSet[T] {
-	return core.Must(NewCustomSet(cmd, initial...))
+func MustCustomSet[T any](cmp func(T, T) int, initial ...T) *CustomSet[T] {
+	return core.Must(NewCustomSet(cmp, initial...))
 }
 
 // InitCustomSet initializes a pre-allocated CustomSet with thread-safe semantics.
