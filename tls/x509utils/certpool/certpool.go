@@ -17,8 +17,6 @@ var (
 
 // CertPool is a collection of x.509 Certificates.
 type CertPool struct {
-	mu sync.RWMutex
-
 	cache    *x509.CertPool
 	certs    *CertSet
 	entries  map[*x509.Certificate]*certPoolEntry
@@ -29,6 +27,8 @@ type CertPool struct {
 	// so a child's candidate issuers can be found natively from its
 	// RawIssuer without exporting to a [x509.CertPool]. See GetBySubjectHash.
 	bySubject map[Hash]*list.List[*certPoolEntry]
+
+	mu sync.RWMutex
 }
 
 // IsZero tells if the non-nil store is empty.

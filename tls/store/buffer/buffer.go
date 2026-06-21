@@ -13,13 +13,14 @@ import (
 
 // Buffer is a PEM decoding buffer to populate a [tls.StoreWriter].
 type Buffer struct {
-	mu     sync.Mutex
 	ctx    context.Context
 	logger slog.Logger // TODO: use
 
 	keySet  *KeySet
 	certSet *certpool.CertSet
 	sources map[SourceName]*Source
+
+	mu sync.Mutex
 }
 
 // New creates a PEM decoding Buffer to populate a [tls.StoreWriter].
