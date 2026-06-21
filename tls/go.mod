@@ -4,8 +4,8 @@ go 1.24.0
 
 require (
 	darvaza.org/core v0.19.1
-	darvaza.org/slog v0.9.0
-	darvaza.org/x/container v0.4.0
+	darvaza.org/slog v0.9.1
+	darvaza.org/x/container v0.4.1
 )
 
 require (
