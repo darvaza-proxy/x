@@ -31,16 +31,13 @@ type Handler func(context.Context, net.Conn) error
 // conf := &tls.Config{...}
 // lsn, err := tls.NewListener(dispatcher, config)
 type Dispatcher struct {
-	mu sync.Mutex
-	wg core.WaitGroup
 	ch chan accept
 
-	ctx       context.Context
-	cancel    context.CancelFunc
-	cancelled atomic.Bool
-	ln        net.Listener
-	log       slog.Logger
-	err       error
+	ctx    context.Context
+	cancel context.CancelFunc
+	ln     net.Listener
+	log    slog.Logger
+	err    error
 
 	// Logger to report errors
 	Logger slog.Logger
@@ -58,6 +55,11 @@ type Dispatcher struct {
 	// OnError let's the use decide if we shut down on critical errors or not
 	// it also allows the user to act accordingly
 	OnError func(err error) bool
+
+	wg core.WaitGroup
+
+	mu        sync.Mutex
+	cancelled atomic.Bool
 }
 
 type accept struct {
