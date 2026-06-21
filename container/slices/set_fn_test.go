@@ -1,7 +1,10 @@
-package slices
+package slices_test
 
 import (
 	"testing"
+
+	"darvaza.org/core"
+	"darvaza.org/x/container/slices"
 )
 
 func cmpInt(a, b int) int {
@@ -14,61 +17,28 @@ func cmpInt(a, b int) int {
 	return 0
 }
 
-// Assert helpers
-func assertNoError(t *testing.T, err error, msg string) {
-	t.Helper()
-	if err != nil {
-		t.Errorf("%s: unexpected error: %v", msg, err)
-	}
-}
-
-//revive:disable-next-line:flag-parameter
-func assertFalse(t *testing.T, v bool, msg string) {
-	t.Helper()
-	if v {
-		t.Errorf("%s: expected false, got true", msg)
-	}
-}
-
 func TestCustomSet_New(t *testing.T) {
-	set, err := NewCustomSet(cmpInt)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
+	set, err := slices.NewCustomSet(cmpInt)
+	core.AssertMustNoError(t, err, "NewCustomSet")
+
 	other := set.New()
-
-	if other == nil {
-		t.Fatal("New() returned nil")
-	}
-
-	// Verify it's empty
-	if other.Len() != 0 {
-		t.Errorf("New() created set with %d elements, expected 0", other.Len())
-	}
+	core.AssertMustNotNil(t, other, "New")
+	core.AssertEqual(t, 0, other.Len(), "len")
 }
 
 func TestCustomSet_InitCustomSet(t *testing.T) {
-	var set CustomSet[int]
+	var set slices.CustomSet[int]
 
-	if err := InitCustomSet(&set, cmpInt, 1, 2, 3); err != nil {
-		t.Fatalf("InitCustomSet failed: %v", err)
-	}
-
-	if set.Len() != 3 {
-		t.Errorf("InitCustomSet created set with %d elements, expected 3", set.Len())
-	}
+	core.AssertMustNoError(t, slices.InitCustomSet(&set, cmpInt, 1, 2, 3), "InitCustomSet")
+	core.AssertEqual(t, 3, set.Len(), "len")
 
 	// Test init on already initialized set
-	if err := InitCustomSet(&set, cmpInt); err == nil {
-		t.Error("InitCustomSet should fail on already initialized set")
-	}
+	core.AssertError(t, slices.InitCustomSet(&set, cmpInt), "re-init")
 }
 
 func TestCustomSet_Contains(t *testing.T) {
-	set, err := NewCustomSet(cmpInt, 1, 3, 5, 7, 9)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
+	set, err := slices.NewCustomSet(cmpInt, 1, 3, 5, 7, 9)
+	core.AssertMustNoError(t, err, "NewCustomSet")
 
 	tests := []struct {
 		value  int
@@ -85,104 +55,59 @@ func TestCustomSet_Contains(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if got := set.Contains(tc.value); got != tc.expect {
-			t.Errorf("Contains(%d) = %v, expected %v", tc.value, got, tc.expect)
-		}
+		core.AssertEqual(t, tc.expect, set.Contains(tc.value), "Contains(%d)", tc.value)
 	}
 }
 
 func TestCustomSet_Clone(t *testing.T) {
-	original, err := NewCustomSet(cmpInt, 1, 2, 3)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
-	clone := original.Clone()
+	original, err := slices.NewCustomSet(cmpInt, 1, 2, 3)
+	core.AssertMustNoError(t, err, "NewCustomSet")
 
-	if clone == nil {
-		t.Fatal("Clone() returned nil")
-	}
+	clone := original.Clone()
+	core.AssertMustNotNil(t, clone, "Clone")
 
 	// Verify same elements
-	if clone.Len() != original.Len() {
-		t.Errorf("Clone has %d elements, original has %d", clone.Len(), original.Len())
-	}
-
+	core.AssertEqual(t, original.Len(), clone.Len(), "len")
 	for i := 0; i < original.Len(); i++ {
 		origVal, _ := original.GetByIndex(i)
-		cloneVal, _ := clone.(*CustomSet[int]).GetByIndex(i)
-		if origVal != cloneVal {
-			t.Errorf("Clone element %d: got %d, expected %d", i, cloneVal, origVal)
-		}
+		cloneVal, _ := clone.(*slices.CustomSet[int]).GetByIndex(i)
+		core.AssertEqual(t, origVal, cloneVal, "element %d", i)
 	}
 
 	// Verify independence
 	original.Add(4)
-	if clone.Contains(4) {
-		t.Error("Clone should not be affected by original modification")
-	}
+	core.AssertFalse(t, clone.Contains(4), "clone independence")
 }
 
 func TestCustomSet_Clear(t *testing.T) {
-	set, err := NewCustomSet(cmpInt, 1, 2, 3, 4, 5)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
-
-	if set.Len() != 5 {
-		t.Fatalf("Initial set has %d elements, expected 5", set.Len())
-	}
+	set, err := slices.NewCustomSet(cmpInt, 1, 2, 3, 4, 5)
+	core.AssertMustNoError(t, err, "NewCustomSet")
+	core.AssertMustEqual(t, 5, set.Len(), "initial len")
 
 	set.Clear()
-
-	if set.Len() != 0 {
-		t.Errorf("Clear() left %d elements, expected 0", set.Len())
-	}
+	core.AssertEqual(t, 0, set.Len(), "len after clear")
 
 	// Verify capacity remains
-	available, total := set.Cap()
-	if total == 0 {
-		t.Error("Clear() should preserve capacity")
-	}
-	_ = available // unused
+	_, total := set.Cap()
+	core.AssertNotEqual(t, 0, total, "capacity preserved")
 }
 
 func TestCustomSet_Purge(t *testing.T) {
-	set, err := NewCustomSet(cmpInt, 5, 3, 1, 4, 2)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
+	set, err := slices.NewCustomSet(cmpInt, 5, 3, 1, 4, 2)
+	core.AssertMustNoError(t, err, "NewCustomSet")
 
-	elements := set.Purge()
-
-	// Verify returned elements
-	if len(elements) != 5 {
-		t.Errorf("Purge() returned %d elements, expected 5", len(elements))
-	}
-
-	// Elements should be sorted
-	expected := []int{1, 2, 3, 4, 5}
-	for i, v := range elements {
-		if v != expected[i] {
-			t.Errorf("Purge() element %d: got %d, expected %d", i, v, expected[i])
-		}
-	}
+	// Returned elements should be sorted
+	core.AssertSliceEqual(t, core.S(1, 2, 3, 4, 5), set.Purge(), "purged")
 
 	// Verify set is empty with no capacity
-	if set.Len() != 0 {
-		t.Errorf("Purge() left %d elements, expected 0", set.Len())
-	}
-
+	core.AssertEqual(t, 0, set.Len(), "len after purge")
 	_, total := set.Cap()
-	if total != 0 {
-		t.Errorf("Purge() left capacity %d, expected 0", total)
-	}
+	core.AssertEqual(t, 0, total, "capacity after purge")
 }
 
 func TestCustomSet_ForEach(t *testing.T) {
-	set, err := NewCustomSet(cmpInt, 1, 2, 3, 4, 5)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
+	set, err := slices.NewCustomSet(cmpInt, 1, 2, 3, 4, 5)
+	core.AssertMustNoError(t, err, "NewCustomSet")
 
 	// Test full iteration
 	var sum int
@@ -190,10 +115,7 @@ func TestCustomSet_ForEach(t *testing.T) {
 		sum += v
 		return true
 	})
-
-	if sum != 15 {
-		t.Errorf("ForEach sum = %d, expected 15", sum)
-	}
+	core.AssertEqual(t, 15, sum, "sum")
 
 	// Test early termination
 	var count int
@@ -201,160 +123,96 @@ func TestCustomSet_ForEach(t *testing.T) {
 		count++
 		return count < 3
 	})
-
-	if count != 3 {
-		t.Errorf("ForEach early termination count = %d, expected 3", count)
-	}
+	core.AssertEqual(t, 3, count, "early termination count")
 }
 
 func TestCustomSet_Reserve(t *testing.T) {
-	set, err := NewCustomSet(cmpInt)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
+	set, err := slices.NewCustomSet(cmpInt)
+	core.AssertMustNoError(t, err, "NewCustomSet")
 
-	// Reserve capacity
-	if !set.Reserve(10) {
-		t.Error("Reserve(10) returned false")
-	}
+	core.AssertTrue(t, set.Reserve(10), "Reserve(10)")
 
 	available, _ := set.Cap()
-	if available < 10 {
-		t.Errorf("After Reserve(10), available capacity = %d, expected >= 10", available)
-	}
+	core.AssertTrue(t, available >= 10, "available capacity")
 
 	// Reserve less than current should return false
-	if set.Reserve(5) {
-		t.Error("Reserve(5) should return false when capacity is already >= 10")
-	}
+	core.AssertFalse(t, set.Reserve(5), "Reserve(5) when already >= 10")
 }
 
 func TestCustomSet_Grow(t *testing.T) {
-	set, err := NewCustomSet(cmpInt, 1, 2, 3)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
+	set, err := slices.NewCustomSet(cmpInt, 1, 2, 3)
+	core.AssertMustNoError(t, err, "NewCustomSet")
 
 	initialAvailable, _ := set.Cap()
 
-	// Grow capacity
-	if !set.Grow(5) {
-		t.Error("Grow(5) returned false")
-	}
+	core.AssertTrue(t, set.Grow(5), "Grow(5)")
 
 	newAvailable, _ := set.Cap()
-	if newAvailable < initialAvailable+5 {
-		t.Errorf("After Grow(5), available capacity increased by %d, expected >= 5",
-			newAvailable-initialAvailable)
-	}
+	core.AssertTrue(t, newAvailable >= initialAvailable+5, "available capacity")
 }
 
 func TestCustomSet_Trim(t *testing.T) {
-	set, err := NewCustomSet(cmpInt)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
+	set, err := slices.NewCustomSet(cmpInt)
+	core.AssertMustNoError(t, err, "NewCustomSet")
 
 	// Add elements and then grow capacity
 	set.Add(1, 2, 3)
 	set.Grow(20)
 
 	available, total := set.Cap()
-	if available <= 0 {
-		t.Fatalf("After Grow(20), available capacity = %d, expected > 0", available)
-	}
-	if total <= set.Len() {
-		t.Fatalf("After Grow(20), total capacity = %d, expected > %d", total, set.Len())
-	}
+	core.AssertMustTrue(t, available > 0, "available after grow")
+	core.AssertMustTrue(t, total > set.Len(), "total after grow")
 
 	// Trim excess capacity
-	if !set.Trim() {
-		t.Error("Trim() returned false")
-	}
+	core.AssertTrue(t, set.Trim(), "Trim()")
 
 	newAvailable, newTotal := set.Cap()
-	if newTotal != set.Len() {
-		t.Errorf("After Trim(), total capacity = %d, expected %d", newTotal, set.Len())
-	}
-	if newAvailable != 0 {
-		t.Errorf("After Trim(), available capacity = %d, expected 0", newAvailable)
-	}
+	core.AssertEqual(t, set.Len(), newTotal, "total after trim")
+	core.AssertEqual(t, 0, newAvailable, "available after trim")
 }
 
 func TestInitOrderedSet(t *testing.T) {
-	var set CustomSet[int]
+	var set slices.CustomSet[int]
 
-	if err := InitOrderedSet(&set, 3, 1, 4, 1, 5); err != nil {
-		t.Fatalf("InitOrderedSet failed: %v", err)
-	}
+	core.AssertMustNoError(t, slices.InitOrderedSet(&set, 3, 1, 4, 1, 5), "InitOrderedSet")
 
 	// Should have deduplicated and sorted
-	if set.Len() != 4 {
-		t.Errorf("InitOrderedSet created set with %d elements, expected 4", set.Len())
-	}
-
-	// Verify sorted order
-	expected := []int{1, 3, 4, 5}
-	for i, exp := range expected {
-		if v, _ := set.GetByIndex(i); v != exp {
-			t.Errorf("Element %d: got %d, expected %d", i, v, exp)
-		}
-	}
+	core.AssertSliceEqual(t, core.S(1, 3, 4, 5), set.Export(), "values")
 }
 
 func TestCustomSet_GetByIndex_Error(t *testing.T) {
-	set, err := NewCustomSet(cmpInt, 1, 2, 3)
-	assertNoError(t, err, "NewCustomSet")
+	set, err := slices.NewCustomSet(cmpInt, 1, 2, 3)
+	core.AssertMustNoError(t, err, "NewCustomSet")
 
 	// Test negative index
 	_, ok := set.GetByIndex(-1)
-	assertFalse(t, ok, "GetByIndex(-1) should return false")
+	core.AssertFalse(t, ok, "GetByIndex(-1)")
 
 	// Test out of bounds
 	_, ok = set.GetByIndex(3)
-	assertFalse(t, ok, "GetByIndex(3) with 3 elements should return false")
+	core.AssertFalse(t, ok, "GetByIndex(3) of 3 elements")
 }
 
 func TestCustomSet_Nil(t *testing.T) {
-	var set *CustomSet[int]
+	var set *slices.CustomSet[int]
 
 	// Test nil receiver methods
-	if set.Contains(1) {
-		t.Error("nil set Contains should return false")
-	}
-
-	if set.Len() != 0 {
-		t.Error("nil set Len should return 0")
-	}
+	core.AssertFalse(t, set.Contains(1), "nil Contains")
+	core.AssertEqual(t, 0, set.Len(), "nil Len")
 
 	available, total := set.Cap()
-	if available != 0 || total != 0 {
-		t.Error("nil set Cap should return 0, 0")
-	}
+	core.AssertEqual(t, 0, available, "nil Cap available")
+	core.AssertEqual(t, 0, total, "nil Cap total")
 
-	if set.Add(1) != 0 {
-		t.Error("nil set Add should return 0")
-	}
-
-	if set.Remove(1) != 0 {
-		t.Error("nil set Remove should return 0")
-	}
-
-	elements := set.Export()
-	if len(elements) != 0 {
-		t.Error("nil set Export should return empty slice")
-	}
+	core.AssertEqual(t, 0, set.Add(1), "nil Add")
+	core.AssertEqual(t, 0, set.Remove(1), "nil Remove")
+	core.AssertEqual(t, 0, len(set.Export()), "nil Export")
 }
 
 func TestMustCustomSet_Panic(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("MustCustomSet should panic with nil comparison function")
-		}
-	}()
-
-	// This should panic
-	_ = MustCustomSet[int](nil)
+	core.AssertPanic(t, func() {
+		_ = slices.MustCustomSet[int](nil)
+	}, core.ErrInvalid, "MustCustomSet(nil)")
 }
 
 func TestCustomSet_Complex(t *testing.T) {
@@ -374,24 +232,18 @@ func TestCustomSet_Complex(t *testing.T) {
 		return 0
 	}
 
-	set, err := NewCustomSet(cmpPerson,
+	set, err := slices.NewCustomSet(cmpPerson,
 		Person{ID: 3, Name: "Charlie"},
 		Person{ID: 1, Name: "Alice"},
 		Person{ID: 2, Name: "Bob"},
 		Person{ID: 1, Name: "Alice Duplicate"},
 	)
-	if err != nil {
-		t.Fatalf("NewCustomSet failed: %v", err)
-	}
+	core.AssertMustNoError(t, err, "NewCustomSet")
 
 	// Should have 3 unique persons (by ID)
-	if set.Len() != 3 {
-		t.Errorf("Set has %d persons, expected 3", set.Len())
-	}
+	core.AssertEqual(t, 3, set.Len(), "len")
 
 	// Should be sorted by ID
 	first, _ := set.GetByIndex(0)
-	if first.ID != 1 {
-		t.Errorf("First person ID = %d, expected 1", first.ID)
-	}
+	core.AssertEqual(t, 1, first.ID, "first ID")
 }

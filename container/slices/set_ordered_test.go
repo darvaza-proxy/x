@@ -1,45 +1,30 @@
-package slices
+package slices_test
 
 import (
-	"slices"
 	"testing"
+
+	"darvaza.org/core"
+	"darvaza.org/x/container/slices"
 )
 
 //revive:disable-next-line:cognitive-complexity
 func TestSet(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		var s []string
-		if got := NewOrderedSet(s...); got.Len() != 0 {
-			t.Errorf("Set() = %v, want empty slice", got)
-		}
+		core.AssertEqual(t, 0, slices.NewOrderedSet(s...).Len(), "len")
 	})
 
 	t.Run("no duplicates", func(t *testing.T) {
 		s := []string{"a", "b", "c"}
-		got := NewOrderedSet(s...)
-		want := []string{"a", "b", "c"}
-		if got.Len() != len(want) {
-			t.Errorf("Set() = %v, want %v", got, want)
-		}
-		for i := range want {
-			if v, ok := got.GetByIndex(i); !ok || v != want[i] {
-				t.Errorf("Set()[%d] = %v, want %v", i, v, want[i])
-			}
-		}
+		got := slices.NewOrderedSet(s...)
+		core.AssertSliceEqual(t, s, got.Export(), "values")
 	})
 
 	t.Run("with duplicates", func(t *testing.T) {
 		s := []string{"a", "b", "a", "c", "b", "c"}
-		got := NewOrderedSet(s...)
+		got := slices.NewOrderedSet(s...)
 		want := []string{"a", "b", "c"}
-		if got.Len() != len(want) {
-			t.Errorf("Set() = %v, want %v", got, want)
-		}
-		for i := range want {
-			if v, ok := got.GetByIndex(i); !ok || v != want[i] {
-				t.Errorf("Set()[%d] = %v, want %v", i, v, want[i])
-			}
-		}
+		core.AssertSliceEqual(t, want, got.Export(), "values")
 	})
 }
 
@@ -91,19 +76,13 @@ func TestSortedSet_Add(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			set := NewOrderedSet[int]()
+			set := slices.NewOrderedSet[int]()
 			if tt.initial != nil {
 				set.Add(tt.initial...)
 			}
 
-			count := set.Add(tt.add...)
-			if count != tt.expected {
-				t.Errorf("Add() returned %v, want %v", count, tt.expected)
-			}
-
-			if got := set.Export(); !slices.Equal(got, tt.result) {
-				t.Errorf("After Add() got %v, want %v", got, tt.result)
-			}
+			core.AssertEqual(t, tt.expected, set.Add(tt.add...), "Add count")
+			core.AssertSliceEqual(t, tt.result, set.Export(), "result")
 		})
 	}
 }
@@ -156,18 +135,11 @@ func TestSortedSet_Remove(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			set := NewOrderedSet[int]()
+			set := slices.NewOrderedSet[int]()
 			set.Add(tt.initial...)
 
-			count := set.Remove(tt.remove...)
-
-			if count != tt.count {
-				t.Errorf("Remove() count = %v, want %v", count, tt.count)
-			}
-
-			if got := set.Export(); !slices.Equal(got, tt.expected) {
-				t.Errorf("After Remove() got = %v, want %v", got, tt.expected)
-			}
+			core.AssertEqual(t, tt.count, set.Remove(tt.remove...), "Remove count")
+			core.AssertSliceEqual(t, tt.expected, set.Export(), "result")
 		})
 	}
 }
@@ -175,7 +147,7 @@ func TestSortedSet_Remove(t *testing.T) {
 //revive:disable-next-line:cognitive-complexity
 func TestSortedSet_TrimN(t *testing.T) {
 	tests := []struct {
-		set         *CustomSet[int]
+		set         *slices.CustomSet[int]
 		name        string
 		minCapacity int
 		want        bool
@@ -188,25 +160,25 @@ func TestSortedSet_TrimN(t *testing.T) {
 		},
 		{
 			name:        "empty set",
-			set:         NewOrderedSet[int](),
+			set:         slices.NewOrderedSet[int](),
 			minCapacity: 0,
 			want:        false,
 		},
 		{
 			name:        "set with elements above min capacity",
-			set:         NewOrderedSet(1, 2, 3, 4, 5),
+			set:         slices.NewOrderedSet(1, 2, 3, 4, 5),
 			minCapacity: 3,
 			want:        false,
 		},
 		{
 			name:        "set with elements below min capacity",
-			set:         NewOrderedSet(1, 2),
+			set:         slices.NewOrderedSet(1, 2),
 			minCapacity: 5,
 			want:        true,
 		},
 		{
 			name:        "negative min capacity",
-			set:         NewOrderedSet(1, 2, 3),
+			set:         slices.NewOrderedSet(1, 2, 3),
 			minCapacity: -1,
 			want:        false,
 		},
@@ -214,13 +186,10 @@ func TestSortedSet_TrimN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.set.TrimN(tt.minCapacity); got != tt.want {
-				t.Errorf("SortedSet.TrimN() = %v, want %v", got, tt.want)
-			}
+			core.AssertEqual(t, tt.want, tt.set.TrimN(tt.minCapacity), "TrimN")
 			if tt.set != nil {
-				if _, c := tt.set.Cap(); c < tt.minCapacity {
-					t.Errorf("SortedSet.Cap() = %v, want >= %v", c, tt.minCapacity)
-				}
+				_, c := tt.set.Cap()
+				core.AssertTrue(t, c >= tt.minCapacity, "capacity")
 			}
 		})
 	}
