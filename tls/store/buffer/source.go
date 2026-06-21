@@ -37,31 +37,31 @@ func (sn SourceName) NewError(err error, op, note string) error {
 	case sn.IsFile():
 		return sn.NewPathError(err, op, note)
 	case err == nil:
-		// no wrapping
+		// synthesise from the annotation alone
 		return sn.doNewError2(op, note)
-	case op == "" && note == "":
-		// pass through
-		return err
-	case op == "":
-		return core.Wrap(err, op)
-	case note == "":
-		return core.Wrap(err, note)
 	default:
-		return core.Wrapf(err, "%s: %s", op, note)
+		// core.Wrap returns err unchanged when the annotation is empty
+		return core.Wrap(err, annotation(op, note))
 	}
 }
 
 func (SourceName) doNewError2(op, note string) error {
+	if s := annotation(op, note); s != "" {
+		return errors.New(s)
+	}
+	return nil
+}
+
+// annotation joins op and note into a single "op: note" annotation, omitting
+// whichever side is empty. It returns "" when both are empty.
+func annotation(op, note string) string {
 	switch {
-	case op == "" && note == "":
-		// no error
-		return nil
 	case op != "" && note != "":
-		return fmt.Errorf("%s: %s", op, note)
-	case op == "":
-		return errors.New(note)
+		return op + ": " + note
+	case op != "":
+		return op
 	default:
-		return errors.New(op)
+		return note
 	}
 }
 
@@ -211,7 +211,7 @@ func (src *Source) doAddCertPair(ctx context.Context, out tls.StoreX509Writer, l
 func (src *Source) findKeyForCert(cert *x509.Certificate, keys *KeySet) x509utils.PrivateKey {
 	// same source first
 	for _, key := range src.Keys {
-		if x509utils.PublicKeyEqual(cert.PublicKey, key.Public) {
+		if x509utils.PublicKeyEqual(cert.PublicKey, key.Public()) {
 			return key
 		}
 	}
@@ -276,7 +276,7 @@ func addSourceFn[T any](ctx context.Context, out tls.StoreX509Writer, src *Sourc
 		_ = errs.AppendError(err)
 	}
 
-	return returnAdd2(count, errs.AsError())
+	return returnAdd2(len(data), count, errs.AsError())
 }
 
 func doAddSourceFn[T any](ctx context.Context, out tls.StoreX509Writer, data []T,
