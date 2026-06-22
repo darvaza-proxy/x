@@ -196,7 +196,7 @@ const (
 // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
 type CurveID uint16
 
-type keyShare struct {
+type keyShare struct { //nolint:govet // fieldalignment: TLS protocol struct; field order follows the wire format
 	group CurveID
 	data  []byte
 }

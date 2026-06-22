@@ -1,4 +1,3 @@
-// Package tls aids working with TLS Certificates
 package tls
 
 import "crypto/tls"
@@ -13,3 +12,8 @@ type (
 	// Config is an alias of the standard [tls.Config]
 	Config = tls.Config
 )
+
+// NewListener is an alias of the standard [tls.NewListener]. It wraps a
+// net.Listener so accepted connections negotiate TLS using the given [Config] —
+// pair it with an sni.Dispatcher to serve unclaimed connections.
+var NewListener = tls.NewListener

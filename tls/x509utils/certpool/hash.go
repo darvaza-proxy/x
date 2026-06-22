@@ -52,6 +52,14 @@ func HashSubject(cert *x509.Certificate) (Hash, bool) {
 	return Hash{}, false
 }
 
+// HashIssuer produces a blake3 digest of the raw issuer of the Certificate
+func HashIssuer(cert *x509.Certificate) (Hash, bool) {
+	if validCert(cert) {
+		return Sum(cert.RawIssuer), true
+	}
+	return Hash{}, false
+}
+
 // HashSubjectPublicKey produces a blake3 digest of the PublicKey of the Certificate
 func HashSubjectPublicKey(cert *x509.Certificate) (Hash, bool) {
 	if validCert(cert) {

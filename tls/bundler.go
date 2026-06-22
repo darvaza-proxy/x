@@ -19,8 +19,8 @@ type Bundler struct {
 	// Quality comparison function. Defaults to shorter-chain.
 	Less func(a, b []*x509.Certificate) bool
 
-	mu   sync.Mutex
 	opts x509.VerifyOptions
+	mu   sync.Mutex
 }
 
 // Bundle bundles a key and a certificate into a [tls.Certificate] using the

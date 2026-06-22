@@ -62,7 +62,7 @@ license that can be found in the LICENSE file.*/
 
 // ClientHelloInfo contains information from a ClientHello message in order to
 // guide application logic in the GetCertificate and GetConfigForClient callbacks.
-type ClientHelloInfo struct {
+type ClientHelloInfo struct { //nolint:govet // fieldalignment: TLS protocol struct; field order follows the wire format
 	raw                              []byte
 	Vers                             uint16
 	random                           []byte
