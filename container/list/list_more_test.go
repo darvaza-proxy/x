@@ -14,38 +14,55 @@ func TestNewWithValues(t *testing.T) {
 	core.AssertSliceEqual(t, values, l.Values(), "values")
 }
 
-func testFrontBackEmpty(t *testing.T) {
-	l := list.New[string]()
-	_, frontOK := l.Front()
-	core.AssertFalse(t, frontOK, "front present")
-	_, backOK := l.Back()
-	core.AssertFalse(t, backOK, "back present")
+var _ core.TestCase = frontBackTestCase{}
+
+// frontBackTestCase verifies Front and Back against a list built from input.
+type frontBackTestCase struct {
+	name      string
+	wantFront string
+	wantBack  string
+	input     []string
+	wantOK    bool
 }
 
-func testFrontBackSingle(t *testing.T) {
-	l := list.New("only")
-	front, ok := l.Front()
-	core.AssertTrue(t, ok, "front present")
-	core.AssertEqual(t, "only", front, "front")
-	back, ok := l.Back()
-	core.AssertTrue(t, ok, "back present")
-	core.AssertEqual(t, "only", back, "back")
+func newFrontBackTestCase(name string, input []string,
+	wantFront, wantBack string, wantOK bool) frontBackTestCase {
+	return frontBackTestCase{
+		name:      name,
+		wantFront: wantFront,
+		wantBack:  wantBack,
+		input:     input,
+		wantOK:    wantOK,
+	}
 }
 
-func testFrontBackMultiple(t *testing.T) {
-	l := list.New("first", "middle", "last")
-	front, ok := l.Front()
-	core.AssertTrue(t, ok, "front present")
-	core.AssertEqual(t, "first", front, "front")
-	back, ok := l.Back()
-	core.AssertTrue(t, ok, "back present")
-	core.AssertEqual(t, "last", back, "back")
+func (tc frontBackTestCase) Name() string { return tc.name }
+
+func (tc frontBackTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := list.New(tc.input...)
+	front, frontOK := l.Front()
+	back, backOK := l.Back()
+
+	core.AssertEqual(t, tc.wantOK, frontOK, "front present")
+	core.AssertEqual(t, tc.wantOK, backOK, "back present")
+	core.AssertEqual(t, tc.wantFront, front, "front")
+	core.AssertEqual(t, tc.wantBack, back, "back")
+}
+
+func frontBackTestCases() []frontBackTestCase {
+	return []frontBackTestCase{
+		newFrontBackTestCase("empty list", core.S[string](), "", "", false),
+		newFrontBackTestCase("single element", core.S("only"), "only", "only",
+			true),
+		newFrontBackTestCase("multiple elements",
+			core.S("first", "middle", "last"), "first", "last", true),
+	}
 }
 
 func TestFrontBack(t *testing.T) {
-	t.Run("empty list", testFrontBackEmpty)
-	t.Run("single element", testFrontBackSingle)
-	t.Run("multiple elements", testFrontBackMultiple)
+	core.RunTestCases(t, frontBackTestCases())
 }
 
 func TestPushFrontBack(t *testing.T) {
@@ -60,65 +77,95 @@ func TestPushFrontBack(t *testing.T) {
 	core.AssertSliceEqual(t, core.S(3, 1, 2, 4), l.Values(), "values")
 }
 
-func testDeleteMatchFnNone(t *testing.T) {
-	l := list.New(1, 3, 5, 7)
-	// Try to delete even numbers (none exist)
-	l.DeleteMatchFn(func(v int) bool {
-		return v%2 == 0
-	})
-	core.AssertEqual(t, 4, l.Len(), "length")
+var _ core.TestCase = deleteMatchFnTestCase{}
+
+// deleteMatchFnTestCase deletes even numbers from input and checks the remainder.
+type deleteMatchFnTestCase struct {
+	name  string
+	input []int
+	want  []int
 }
 
-func testDeleteMatchFnSome(t *testing.T) {
-	l := list.New(1, 2, 3, 4, 5)
-	// Delete even numbers
-	l.DeleteMatchFn(func(v int) bool {
-		return v%2 == 0
-	})
-	core.AssertSliceEqual(t, core.S(1, 3, 5), l.Values(), "values")
+func newDeleteMatchFnTestCase(name string, input,
+	want []int) deleteMatchFnTestCase {
+	return deleteMatchFnTestCase{
+		name:  name,
+		input: input,
+		want:  want,
+	}
 }
 
-func testDeleteMatchFnAll(t *testing.T) {
-	l := list.New(2, 4, 6, 8)
-	// Delete all even numbers
-	l.DeleteMatchFn(func(v int) bool {
-		return v%2 == 0
-	})
-	core.AssertEqual(t, 0, l.Len(), "length")
+func (tc deleteMatchFnTestCase) Name() string { return tc.name }
+
+func (tc deleteMatchFnTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := list.New(tc.input...)
+	l.DeleteMatchFn(func(v int) bool { return v%2 == 0 })
+	core.AssertSliceEqual(t, tc.want, l.Values(), "values")
+}
+
+func deleteMatchFnTestCases() []deleteMatchFnTestCase {
+	return []deleteMatchFnTestCase{
+		newDeleteMatchFnTestCase("delete none", core.S(1, 3, 5, 7),
+			core.S(1, 3, 5, 7)),
+		newDeleteMatchFnTestCase("delete some", core.S(1, 2, 3, 4, 5),
+			core.S(1, 3, 5)),
+		newDeleteMatchFnTestCase("delete all", core.S(2, 4, 6, 8),
+			core.S[int]()),
+	}
 }
 
 func TestDeleteMatchFn(t *testing.T) {
-	t.Run("delete none", testDeleteMatchFnNone)
-	t.Run("delete some", testDeleteMatchFnSome)
-	t.Run("delete all", testDeleteMatchFnAll)
+	core.RunTestCases(t, deleteMatchFnTestCases())
 }
 
-func testPopFirstMatchFnFound(t *testing.T) {
-	l := list.New(1, 2, 3, 4, 5)
-	// Pop first even number
-	v, ok := l.PopFirstMatchFn(func(n int) bool {
-		return n%2 == 0
-	})
-	core.AssertTrue(t, ok, "popped")
-	core.AssertEqual(t, 2, v, "popped value")
-	// Verify it was removed
-	core.AssertSliceEqual(t, core.S(1, 3, 4, 5), l.Values(), "remaining")
+var _ core.TestCase = popFirstMatchFnTestCase{}
+
+// popFirstMatchFnTestCase pops the first even number, checking value and remainder.
+type popFirstMatchFnTestCase struct {
+	name      string
+	input     []int
+	want      []int
+	wantValue int
+	wantOK    bool
 }
 
-func testPopFirstMatchFnNotFound(t *testing.T) {
-	l := list.New(1, 3, 5)
-	// Try to pop even number (none exist)
-	_, ok := l.PopFirstMatchFn(func(n int) bool {
-		return n%2 == 0
-	})
-	core.AssertFalse(t, ok, "not found")
-	// List should be unchanged
-	core.AssertEqual(t, 3, l.Len(), "length")
+func newPopFirstMatchFnTestCase(name string, input []int, wantValue int,
+	wantOK bool, want []int) popFirstMatchFnTestCase {
+	return popFirstMatchFnTestCase{
+		name:      name,
+		input:     input,
+		want:      want,
+		wantValue: wantValue,
+		wantOK:    wantOK,
+	}
+}
+
+func (tc popFirstMatchFnTestCase) Name() string { return tc.name }
+
+func (tc popFirstMatchFnTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := list.New(tc.input...)
+	v, ok := l.PopFirstMatchFn(func(n int) bool { return n%2 == 0 })
+
+	core.AssertEqual(t, tc.wantOK, ok, "popped")
+	core.AssertEqual(t, tc.wantValue, v, "value")
+	core.AssertSliceEqual(t, tc.want, l.Values(), "remaining")
+}
+
+func popFirstMatchFnTestCases() []popFirstMatchFnTestCase {
+	return []popFirstMatchFnTestCase{
+		newPopFirstMatchFnTestCase("found", core.S(1, 2, 3, 4, 5), 2, true,
+			core.S(1, 3, 4, 5)),
+		newPopFirstMatchFnTestCase("not found", core.S(1, 3, 5), 0, false,
+			core.S(1, 3, 5)),
+	}
 }
 
 func TestPopFirstMatchFn(t *testing.T) {
-	t.Run("found", testPopFirstMatchFnFound)
-	t.Run("not found", testPopFirstMatchFnNotFound)
+	core.RunTestCases(t, popFirstMatchFnTestCases())
 }
 
 func TestMoveToBackFirstMatchFn(t *testing.T) {
@@ -141,28 +188,48 @@ func TestMoveToFrontFirstMatchFn(t *testing.T) {
 	core.AssertSliceEqual(t, core.S(4, 1, 2, 3, 5), l.Values(), "values")
 }
 
-func testFirstMatchFnFound(t *testing.T) {
-	l := list.New("apple", "banana", "cherry", "date")
-	// Find first string with length > 5
-	v, ok := l.FirstMatchFn(func(s string) bool {
-		return len(s) > 5
-	})
-	core.AssertTrue(t, ok, "found")
-	core.AssertEqual(t, "banana", v, "match")
+var _ core.TestCase = firstMatchFnTestCase{}
+
+// firstMatchFnTestCase finds the first string longer than five characters.
+type firstMatchFnTestCase struct {
+	name      string
+	wantValue string
+	input     []string
+	wantOK    bool
 }
 
-func testFirstMatchFnNotFound(t *testing.T) {
-	l := list.New("a", "b", "c")
-	// Find string with length > 5
-	_, ok := l.FirstMatchFn(func(s string) bool {
-		return len(s) > 5
-	})
-	core.AssertFalse(t, ok, "not found")
+func newFirstMatchFnTestCase(name string, input []string, wantValue string,
+	wantOK bool) firstMatchFnTestCase {
+	return firstMatchFnTestCase{
+		name:      name,
+		wantValue: wantValue,
+		input:     input,
+		wantOK:    wantOK,
+	}
+}
+
+func (tc firstMatchFnTestCase) Name() string { return tc.name }
+
+func (tc firstMatchFnTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := list.New(tc.input...)
+	v, ok := l.FirstMatchFn(func(s string) bool { return len(s) > 5 })
+
+	core.AssertEqual(t, tc.wantOK, ok, "found")
+	core.AssertEqual(t, tc.wantValue, v, "match")
+}
+
+func firstMatchFnTestCases() []firstMatchFnTestCase {
+	return []firstMatchFnTestCase{
+		newFirstMatchFnTestCase("found",
+			core.S("apple", "banana", "cherry", "date"), "banana", true),
+		newFirstMatchFnTestCase("not found", core.S("a", "b", "c"), "", false),
+	}
 }
 
 func TestFirstMatchFn(t *testing.T) {
-	t.Run("found", testFirstMatchFnFound)
-	t.Run("not found", testFirstMatchFnNotFound)
+	core.RunTestCases(t, firstMatchFnTestCases())
 }
 
 func TestZero(t *testing.T) {
