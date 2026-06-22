@@ -25,41 +25,40 @@ const (
 
 // Config is the configuration for Bind()
 type Config struct {
-	// Interface is the list of interfaces to listen on
-	Interfaces []string
-	// Addresses is the list of addresses to listen on
-	Addresses []string
-	// Port is the port to listen on, for both TCP and UDP
-	Port uint16
-	// PortStrict tells us not to try other ports
-	PortStrict bool
-	// PortAttempts indicates how many times we will try finding a port
-	PortAttempts int
-	// DefaultPort indicates the port to try on the first attempt if Port is zero
-	DefaultPort uint16
-
-	// ReusePort tells if we should set [SO_REUSEADDR] when using the default
-	// listeners.
-	ReusePort bool
-
 	// Context specifies the context to be used by the default listeners.
 	Context context.Context
-	// KeepAlive specifies the keep-alive period used by the default listeners.
-	KeepAlive time.Duration
-
-	// OnlyTCP tells Bind to skip listening UDP ports
-	OnlyTCP bool
-	// OnlyUDP tells Bind to skip listening TCP ports
-	OnlyUDP bool
 
 	// ListenTCP is the helper to use to listen on TCP ports
 	ListenTCP func(network string, laddr *net.TCPAddr) (*net.TCPListener, error)
 	// ListenUDP is the helper to use to listen on UDP ports
 	ListenUDP func(network string, laddr *net.UDPAddr) (*net.UDPConn, error)
 
+	// Interface is the list of interfaces to listen on
+	Interfaces []string
+	// Addresses is the list of addresses to listen on
+	Addresses []string
+
+	// KeepAlive specifies the keep-alive period used by the default listeners.
+	KeepAlive time.Duration
+	// PortAttempts indicates how many times we will try finding a port
+	PortAttempts int
 	// MaxRecvBufferSize is the buffer size we will attempt to set to
 	// UDP listeners
 	MaxRecvBufferSize int
+
+	// Port is the port to listen on, for both TCP and UDP
+	Port uint16
+	// DefaultPort indicates the port to try on the first attempt if Port is zero
+	DefaultPort uint16
+	// PortStrict tells us not to try other ports
+	PortStrict bool
+	// ReusePort tells if we should set [SO_REUSEADDR] when using the default
+	// listeners.
+	ReusePort bool
+	// OnlyTCP tells Bind to skip listening UDP ports
+	OnlyTCP bool
+	// OnlyUDP tells Bind to skip listening TCP ports
+	OnlyUDP bool
 }
 
 // SetDefaults attempts to fill any configuration gap, specially

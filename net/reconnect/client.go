@@ -18,21 +18,12 @@ var (
 
 // Client is a reconnecting network client.
 type Client struct {
-	mu      sync.Mutex
-	wg      sync.WaitGroup
-	ctx     context.Context
-	cancel  context.CancelCauseFunc
-	started atomic.Bool
-	err     error
-
-	cfg     *Config
-	dialer  net.Dialer
-	network string
-	address string
-	logger  slog.Logger
-
-	readTimeout  time.Duration
-	writeTimeout time.Duration
+	ctx    context.Context
+	cancel context.CancelCauseFunc
+	err    error
+	conn   net.Conn
+	logger slog.Logger
+	cfg    *Config
 
 	waitReconnect func(context.Context) error
 	onConnect     func(context.Context, net.Conn) error
@@ -40,7 +31,17 @@ type Client struct {
 	onDisconnect  func(context.Context, net.Conn) error
 	onError       func(context.Context, net.Conn, error) error
 
-	conn net.Conn
+	dialer  net.Dialer
+	network string
+	address string
+
+	mu sync.Mutex
+	wg sync.WaitGroup
+
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+
+	started atomic.Bool
 }
 
 // Config returns the [Config] object used when [Reload] is called.

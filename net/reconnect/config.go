@@ -28,6 +28,28 @@ type Config struct {
 	Context context.Context
 	Logger  slog.Logger
 
+	// WaitReconnect is a helper used to wait between re-connection attempts.
+	WaitReconnect Waiter
+
+	// OnSocket is called, when defined, against the raw socket before attempting to
+	// connect
+	OnSocket func(context.Context, syscall.RawConn) error
+	// OnConnect is called, when defined, immediately after the connection is established
+	// but before the session is created.
+	OnConnect func(context.Context, net.Conn) error
+	// OnSession is expected to block until it's done.
+	OnSession func(context.Context) error
+	// OnDisconnect is called after closing the connection and can be used to
+	// prevent further connection retries.
+	OnDisconnect func(context.Context, net.Conn) error
+	// OnError is called after all errors and gives us the opportunity to
+	// decide how the error should be treated by the reconnection logic.
+	OnError func(context.Context, net.Conn, error) error
+
+	// immutable data
+	c   *Client
+	ctx context.Context
+
 	// Remote indicates the remote endpoint: TCP "host:port" or Unix socket path,
 	// e.g., "/path/to/socket" or "unix:/path".
 	Remote string
@@ -44,32 +66,9 @@ type Config struct {
 	// WriteTimeout is the default write deadline for the connection.
 	// Zero or negative disables the deadline.
 	WriteTimeout time.Duration `default:"2s"`
-
 	// ReconnectDelay specifies how long to wait between re-connections
 	// unless [WaitReconnect] is specified. Negative implies reconnecting is disabled.
 	ReconnectDelay time.Duration
-	// WaitReconnect is a helper used to wait between re-connection attempts.
-	WaitReconnect Waiter
-
-	// OnSocket is called, when defined, against the raw socket before attempting to
-	// connect
-	OnSocket func(context.Context, syscall.RawConn) error
-	// OnConnect is called, when defined, immediately after the connection is established
-	// but before the session is created.
-	OnConnect func(context.Context, net.Conn) error
-
-	// OnSession is expected to block until it's done.
-	OnSession func(context.Context) error
-	// OnDisconnect is called after closing the connection and can be used to
-	// prevent further connection retries.
-	OnDisconnect func(context.Context, net.Conn) error
-	// OnError is called after all errors and gives us the opportunity to
-	// decide how the error should be treated by the reconnection logic.
-	OnError func(context.Context, net.Conn, error) error
-
-	// immutable data
-	c   *Client
-	ctx context.Context
 }
 
 func (cfg *Config) unsafeBindClient(c *Client) {
