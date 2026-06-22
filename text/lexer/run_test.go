@@ -57,8 +57,8 @@ func newChainCounter(deltas ...int) (c *runCounter, start lexer.StateFn[*runCoun
 }
 
 type chainCase struct {
-	deltas []int
 	name   string
+	deltas []int
 }
 
 func (tc chainCase) Name() string { return tc.name }

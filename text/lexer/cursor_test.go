@@ -57,9 +57,9 @@ func TestPeek(t *testing.T) {
 // consumeCase asserts the rune sequence produced by repeated
 // [lexer.Cursor.Consume] calls until the source is exhausted.
 type consumeCase struct {
-	want []rune
 	name string
 	src  string
+	want []rune
 }
 
 func (tc consumeCase) Name() string { return tc.name }
