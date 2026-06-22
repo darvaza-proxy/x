@@ -288,20 +288,46 @@ func TestCopy(t *testing.T) {
 	t.Run("copy all", testCopyAll)
 }
 
-func TestPurge(t *testing.T) {
-	// Purge is specifically for removing elements that don't match the type
-	// This is more relevant when dealing with interface{} conversions
-	// For a generic List[T], all elements should already be of type T
-	l := list.New[int]()
-
-	// Add some values
-	l.PushBack(1)
-	l.PushBack(2)
-	l.PushBack(3)
-
-	// Since all elements are already int, purge should remove nothing
+func testPurgeNoMismatch(t *testing.T) {
+	// Every element is already an int, so Purge removes nothing.
+	l := list.New(1, 2, 3)
 	core.AssertEqual(t, 0, l.Purge(), "removed")
 	core.AssertEqual(t, 3, l.Len(), "length")
+}
+
+func testPurgeTypeMismatch(t *testing.T) {
+	// Inject a wrongly-typed value through the underlying list; only direct
+	// access to list.List can break the List[T] type invariant.
+	l := list.New(1, 2, 3)
+	l.Sys().PushBack("not an int")
+	core.AssertMustEqual(t, 4, l.Sys().Len(), "raw length")
+
+	// Iteration skips the wrongly-typed element...
+	core.AssertSliceEqual(t, core.S(1, 2, 3), l.Values(), "values before purge")
+
+	// ...and Purge removes it, reporting the count.
+	core.AssertEqual(t, 1, l.Purge(), "removed")
+	core.AssertEqual(t, 3, l.Sys().Len(), "raw length after purge")
+	core.AssertSliceEqual(t, core.S(1, 2, 3), l.Values(), "values after purge")
+}
+
+func testPurgeMultipleMismatches(t *testing.T) {
+	// Scatter wrongly-typed values at the head, middle and tail to confirm
+	// Purge scans the whole list rather than stopping at the first one.
+	l := list.New[int]()
+	for _, v := range []any{"a", 1, "b", 2, 3, "c"} {
+		l.Sys().PushBack(v)
+	}
+	core.AssertMustEqual(t, 6, l.Sys().Len(), "raw length")
+
+	core.AssertEqual(t, 3, l.Purge(), "removed")
+	core.AssertSliceEqual(t, core.S(1, 2, 3), l.Values(), "values")
+}
+
+func TestPurge(t *testing.T) {
+	t.Run("no mismatch", testPurgeNoMismatch)
+	t.Run("type mismatch", testPurgeTypeMismatch)
+	t.Run("multiple mismatches", testPurgeMultipleMismatches)
 }
 
 func TestNilList(t *testing.T) {
@@ -318,6 +344,7 @@ func TestNilList(t *testing.T) {
 	core.AssertFalse(t, backOK, "nil Back")
 
 	core.AssertEqual(t, 0, len(l.Values()), "nil Values")
+	core.AssertEqual(t, 0, l.Purge(), "nil Purge")
 
 	// These should not panic
 	core.AssertNoPanic(t, func() {

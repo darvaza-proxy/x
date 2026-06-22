@@ -185,7 +185,7 @@ func (l *List[T]) Purge() int {
 			if _, ok := el.Value.(T); !ok {
 				remove = append(remove, el)
 			}
-			return true
+			return false // continue: inspect every element
 		}
 
 		core.ListForEachElement(ll, cb)
