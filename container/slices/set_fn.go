@@ -15,9 +15,9 @@ var _ Set[struct{}] = (*CustomSet[struct{}])(nil)
 // CustomSet is a generic thread-safe set implementation with custom element comparison.
 // It maintains a sorted slice of unique elements using a provided comparison function.
 type CustomSet[T any] struct {
-	mu  sync.RWMutex
-	s   []T
 	cmp func(T, T) int // comparison function: negative if a<b, zero if a==b, positive if a>b
+	s   []T
+	mu  sync.RWMutex
 }
 
 // New creates a new empty CustomSet with the same comparison function as the current set.
@@ -55,8 +55,8 @@ func NewCustomSet[T any](cmp func(T, T) int, initial ...T) (*CustomSet[T], error
 
 // MustCustomSet creates a new CustomSet, panicking if initialization fails.
 // This is a convenience function for when error handling is not needed.
-func MustCustomSet[T any](cmd func(T, T) int, initial ...T) *CustomSet[T] {
-	return core.Must(NewCustomSet(cmd, initial...))
+func MustCustomSet[T any](cmp func(T, T) int, initial ...T) *CustomSet[T] {
+	return core.Must(NewCustomSet(cmp, initial...))
 }
 
 // InitCustomSet initializes a pre-allocated CustomSet with thread-safe semantics.

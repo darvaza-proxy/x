@@ -1,67 +1,72 @@
-package list
+package list_test
 
 import (
 	"testing"
+
+	"darvaza.org/core"
+	"darvaza.org/x/container/list"
 )
 
 func TestNewWithValues(t *testing.T) {
-	values := []int{1, 2, 3, 4, 5}
-	l := New(values...)
+	values := core.S(1, 2, 3, 4, 5)
+	l := list.New(values...)
 
-	if l.Len() != len(values) {
-		t.Errorf("Expected length %d, got %d", len(values), l.Len())
-	}
+	core.AssertSliceEqual(t, values, l.Values(), "values")
+}
 
-	result := l.Values()
-	for i, v := range result {
-		if v != values[i] {
-			t.Errorf("Value at index %d: got %d, expected %d", i, v, values[i])
-		}
+var _ core.TestCase = frontBackTestCase{}
+
+// frontBackTestCase verifies Front and Back against a list built from input.
+type frontBackTestCase struct {
+	name      string
+	wantFront string
+	wantBack  string
+	input     []string
+	wantOK    bool
+}
+
+func newFrontBackTestCase(name string, input []string,
+	wantFront, wantBack string, wantOK bool) frontBackTestCase {
+	return frontBackTestCase{
+		name:      name,
+		wantFront: wantFront,
+		wantBack:  wantBack,
+		input:     input,
+		wantOK:    wantOK,
 	}
 }
 
-func testFrontBackEmpty(t *testing.T) {
-	l := New[string]()
-	if v, ok := l.Front(); ok {
-		t.Errorf("Expected no front value, got %v", v)
-	}
-	if v, ok := l.Back(); ok {
-		t.Errorf("Expected no back value, got %v", v)
-	}
+func (tc frontBackTestCase) Name() string { return tc.name }
+
+func (tc frontBackTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := list.New(tc.input...)
+	front, frontOK := l.Front()
+	back, backOK := l.Back()
+
+	core.AssertEqual(t, tc.wantOK, frontOK, "front present")
+	core.AssertEqual(t, tc.wantOK, backOK, "back present")
+	core.AssertEqual(t, tc.wantFront, front, "front")
+	core.AssertEqual(t, tc.wantBack, back, "back")
 }
 
-func testFrontBackSingle(t *testing.T) {
-	l := New("only")
-	front, ok := l.Front()
-	if !ok || front != "only" {
-		t.Errorf("Front: got (%v, %v), expected (only, true)", front, ok)
-	}
-	back, ok := l.Back()
-	if !ok || back != "only" {
-		t.Errorf("Back: got (%v, %v), expected (only, true)", back, ok)
-	}
-}
-
-func testFrontBackMultiple(t *testing.T) {
-	l := New("first", "middle", "last")
-	front, ok := l.Front()
-	if !ok || front != "first" {
-		t.Errorf("Front: got (%v, %v), expected (first, true)", front, ok)
-	}
-	back, ok := l.Back()
-	if !ok || back != "last" {
-		t.Errorf("Back: got (%v, %v), expected (last, true)", back, ok)
+func frontBackTestCases() []frontBackTestCase {
+	return []frontBackTestCase{
+		newFrontBackTestCase("empty list", core.S[string](), "", "", false),
+		newFrontBackTestCase("single element", core.S("only"), "only", "only",
+			true),
+		newFrontBackTestCase("multiple elements",
+			core.S("first", "middle", "last"), "first", "last", true),
 	}
 }
 
 func TestFrontBack(t *testing.T) {
-	t.Run("empty list", testFrontBackEmpty)
-	t.Run("single element", testFrontBackSingle)
-	t.Run("multiple elements", testFrontBackMultiple)
+	core.RunTestCases(t, frontBackTestCases())
 }
 
 func TestPushFrontBack(t *testing.T) {
-	l := New[int]()
+	l := list.New[int]()
 
 	// Build: [3, 1, 2, 4]
 	l.PushBack(1)
@@ -69,225 +74,195 @@ func TestPushFrontBack(t *testing.T) {
 	l.PushFront(3)
 	l.PushBack(4)
 
-	expected := []int{3, 1, 2, 4}
-	values := l.Values()
+	core.AssertSliceEqual(t, core.S(3, 1, 2, 4), l.Values(), "values")
+}
 
-	if len(values) != len(expected) {
-		t.Fatalf("Expected %d values, got %d", len(expected), len(values))
-	}
+var _ core.TestCase = deleteMatchFnTestCase{}
 
-	for i, v := range values {
-		if v != expected[i] {
-			t.Errorf("Value at index %d: got %d, expected %d", i, v, expected[i])
-		}
+// deleteMatchFnTestCase deletes even numbers from input and checks the remainder.
+type deleteMatchFnTestCase struct {
+	name  string
+	input []int
+	want  []int
+}
+
+func newDeleteMatchFnTestCase(name string, input,
+	want []int) deleteMatchFnTestCase {
+	return deleteMatchFnTestCase{
+		name:  name,
+		input: input,
+		want:  want,
 	}
 }
 
-func testDeleteMatchFnNone(t *testing.T) {
-	l := New(1, 3, 5, 7)
-	// Try to delete even numbers (none exist)
-	l.DeleteMatchFn(func(v int) bool {
-		return v%2 == 0
-	})
-	if l.Len() != 4 {
-		t.Errorf("Expected length 4, got %d", l.Len())
-	}
+func (tc deleteMatchFnTestCase) Name() string { return tc.name }
+
+func (tc deleteMatchFnTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := list.New(tc.input...)
+	l.DeleteMatchFn(func(v int) bool { return v%2 == 0 })
+	core.AssertSliceEqual(t, tc.want, l.Values(), "values")
 }
 
-func testDeleteMatchFnSome(t *testing.T) {
-	l := New(1, 2, 3, 4, 5)
-	// Delete even numbers
-	l.DeleteMatchFn(func(v int) bool {
-		return v%2 == 0
-	})
-	expected := []int{1, 3, 5}
-	values := l.Values()
-	if len(values) != len(expected) {
-		t.Fatalf("Expected %d values, got %d", len(expected), len(values))
-	}
-	for i, v := range values {
-		if v != expected[i] {
-			t.Errorf("Value at index %d: got %d, expected %d", i, v, expected[i])
-		}
-	}
-}
-
-func testDeleteMatchFnAll(t *testing.T) {
-	l := New(2, 4, 6, 8)
-	// Delete all even numbers
-	l.DeleteMatchFn(func(v int) bool {
-		return v%2 == 0
-	})
-	if l.Len() != 0 {
-		t.Errorf("Expected empty list, got length %d", l.Len())
+func deleteMatchFnTestCases() []deleteMatchFnTestCase {
+	return []deleteMatchFnTestCase{
+		newDeleteMatchFnTestCase("delete none", core.S(1, 3, 5, 7),
+			core.S(1, 3, 5, 7)),
+		newDeleteMatchFnTestCase("delete some", core.S(1, 2, 3, 4, 5),
+			core.S(1, 3, 5)),
+		newDeleteMatchFnTestCase("delete all", core.S(2, 4, 6, 8),
+			core.S[int]()),
 	}
 }
 
 func TestDeleteMatchFn(t *testing.T) {
-	t.Run("delete none", testDeleteMatchFnNone)
-	t.Run("delete some", testDeleteMatchFnSome)
-	t.Run("delete all", testDeleteMatchFnAll)
+	core.RunTestCases(t, deleteMatchFnTestCases())
 }
 
-func testPopFirstMatchFnFound(t *testing.T) {
-	l := New(1, 2, 3, 4, 5)
-	// Pop first even number
-	v, ok := l.PopFirstMatchFn(func(n int) bool {
-		return n%2 == 0
-	})
-	if !ok || v != 2 {
-		t.Errorf("Expected (2, true), got (%d, %v)", v, ok)
-	}
-	// Verify it was removed
-	values := l.Values()
-	expected := []int{1, 3, 4, 5}
-	if len(values) != len(expected) {
-		t.Fatalf("Expected %d values, got %d", len(expected), len(values))
-	}
-	for i, val := range values {
-		if val != expected[i] {
-			t.Errorf("Value at index %d: got %d, expected %d", i, val, expected[i])
-		}
+var _ core.TestCase = popFirstMatchFnTestCase{}
+
+// popFirstMatchFnTestCase pops the first even number, checking value and remainder.
+type popFirstMatchFnTestCase struct {
+	name      string
+	input     []int
+	want      []int
+	wantValue int
+	wantOK    bool
+}
+
+func newPopFirstMatchFnTestCase(name string, input []int, wantValue int,
+	wantOK bool, want []int) popFirstMatchFnTestCase {
+	return popFirstMatchFnTestCase{
+		name:      name,
+		input:     input,
+		want:      want,
+		wantValue: wantValue,
+		wantOK:    wantOK,
 	}
 }
 
-func testPopFirstMatchFnNotFound(t *testing.T) {
-	l := New(1, 3, 5)
-	// Try to pop even number (none exist)
-	v, ok := l.PopFirstMatchFn(func(n int) bool {
-		return n%2 == 0
-	})
-	if ok {
-		t.Errorf("Expected not found, got (%d, true)", v)
-	}
-	// List should be unchanged
-	if l.Len() != 3 {
-		t.Errorf("Expected length 3, got %d", l.Len())
+func (tc popFirstMatchFnTestCase) Name() string { return tc.name }
+
+func (tc popFirstMatchFnTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := list.New(tc.input...)
+	v, ok := l.PopFirstMatchFn(func(n int) bool { return n%2 == 0 })
+
+	core.AssertEqual(t, tc.wantOK, ok, "popped")
+	core.AssertEqual(t, tc.wantValue, v, "value")
+	core.AssertSliceEqual(t, tc.want, l.Values(), "remaining")
+}
+
+func popFirstMatchFnTestCases() []popFirstMatchFnTestCase {
+	return []popFirstMatchFnTestCase{
+		newPopFirstMatchFnTestCase("found", core.S(1, 2, 3, 4, 5), 2, true,
+			core.S(1, 3, 4, 5)),
+		newPopFirstMatchFnTestCase("not found", core.S(1, 3, 5), 0, false,
+			core.S(1, 3, 5)),
 	}
 }
 
 func TestPopFirstMatchFn(t *testing.T) {
-	t.Run("found", testPopFirstMatchFnFound)
-	t.Run("not found", testPopFirstMatchFnNotFound)
+	core.RunTestCases(t, popFirstMatchFnTestCases())
 }
 
 func TestMoveToBackFirstMatchFn(t *testing.T) {
-	l := New(1, 2, 3, 4, 5)
+	l := list.New(1, 2, 3, 4, 5)
 	// Move first even number to back
 	l.MoveToBackFirstMatchFn(func(n int) bool {
 		return n%2 == 0
 	})
 
-	values := l.Values()
-	expected := []int{1, 3, 4, 5, 2}
-
-	if len(values) != len(expected) {
-		t.Fatalf("Expected %d values, got %d", len(expected), len(values))
-	}
-
-	for i, v := range values {
-		if v != expected[i] {
-			t.Errorf("Value at index %d: got %d, expected %d", i, v, expected[i])
-		}
-	}
+	core.AssertSliceEqual(t, core.S(1, 3, 4, 5, 2), l.Values(), "values")
 }
 
 func TestMoveToFrontFirstMatchFn(t *testing.T) {
-	l := New(1, 2, 3, 4, 5)
+	l := list.New(1, 2, 3, 4, 5)
 	// Move first number > 3 to front
 	l.MoveToFrontFirstMatchFn(func(n int) bool {
 		return n > 3
 	})
 
-	values := l.Values()
-	expected := []int{4, 1, 2, 3, 5}
+	core.AssertSliceEqual(t, core.S(4, 1, 2, 3, 5), l.Values(), "values")
+}
 
-	if len(values) != len(expected) {
-		t.Fatalf("Expected %d values, got %d", len(expected), len(values))
-	}
+var _ core.TestCase = firstMatchFnTestCase{}
 
-	for i, v := range values {
-		if v != expected[i] {
-			t.Errorf("Value at index %d: got %d, expected %d", i, v, expected[i])
-		}
+// firstMatchFnTestCase finds the first string longer than five characters.
+type firstMatchFnTestCase struct {
+	name      string
+	wantValue string
+	input     []string
+	wantOK    bool
+}
+
+func newFirstMatchFnTestCase(name string, input []string, wantValue string,
+	wantOK bool) firstMatchFnTestCase {
+	return firstMatchFnTestCase{
+		name:      name,
+		wantValue: wantValue,
+		input:     input,
+		wantOK:    wantOK,
 	}
 }
 
-func testFirstMatchFnFound(t *testing.T) {
-	l := New("apple", "banana", "cherry", "date")
-	// Find first string with length > 5
-	v, ok := l.FirstMatchFn(func(s string) bool {
-		return len(s) > 5
-	})
-	if !ok || v != "banana" {
-		t.Errorf("Expected (banana, true), got (%s, %v)", v, ok)
-	}
+func (tc firstMatchFnTestCase) Name() string { return tc.name }
+
+func (tc firstMatchFnTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := list.New(tc.input...)
+	v, ok := l.FirstMatchFn(func(s string) bool { return len(s) > 5 })
+
+	core.AssertEqual(t, tc.wantOK, ok, "found")
+	core.AssertEqual(t, tc.wantValue, v, "match")
 }
 
-func testFirstMatchFnNotFound(t *testing.T) {
-	l := New("a", "b", "c")
-	// Find string with length > 5
-	v, ok := l.FirstMatchFn(func(s string) bool {
-		return len(s) > 5
-	})
-	if ok {
-		t.Errorf("Expected not found, got (%s, true)", v)
+func firstMatchFnTestCases() []firstMatchFnTestCase {
+	return []firstMatchFnTestCase{
+		newFirstMatchFnTestCase("found",
+			core.S("apple", "banana", "cherry", "date"), "banana", true),
+		newFirstMatchFnTestCase("not found", core.S("a", "b", "c"), "", false),
 	}
 }
 
 func TestFirstMatchFn(t *testing.T) {
-	t.Run("found", testFirstMatchFnFound)
-	t.Run("not found", testFirstMatchFnNotFound)
+	core.RunTestCases(t, firstMatchFnTestCases())
 }
 
 func TestZero(t *testing.T) {
-	l := New[int]()
-	if z := l.Zero(); z != 0 {
-		t.Errorf("Expected zero value 0, got %d", z)
-	}
+	l := list.New[int]()
+	core.AssertEqual(t, 0, l.Zero(), "int zero")
 
-	ls := New[string]()
-	if z := ls.Zero(); z != "" {
-		t.Errorf("Expected zero value empty string, got %q", z)
-	}
+	ls := list.New[string]()
+	core.AssertEqual(t, "", ls.Zero(), "string zero")
 
 	type custom struct {
-		a int
 		b string
+		a int
 	}
-	lc := New[custom]()
+	lc := list.New[custom]()
 	z := lc.Zero()
-	if z.a != 0 || z.b != "" {
-		t.Errorf("Expected zero value {0, \"\"}, got %+v", z)
-	}
+	core.AssertEqual(t, 0, z.a, "custom zero a")
+	core.AssertEqual(t, "", z.b, "custom zero b")
 }
 
 func TestClone(t *testing.T) {
-	original := New(1, 2, 3)
+	original := list.New(1, 2, 3)
 	cloned := original.Clone()
 
 	// Verify they have same values
-	if original.Len() != cloned.Len() {
-		t.Errorf("Clone has different length: %d vs %d", cloned.Len(), original.Len())
-	}
-
-	origValues := original.Values()
-	cloneValues := cloned.Values()
-	for i := range origValues {
-		if origValues[i] != cloneValues[i] {
-			t.Errorf("Value mismatch at index %d: %v vs %v", i, origValues[i], cloneValues[i])
-		}
-	}
+	core.AssertSliceEqual(t, original.Values(), cloned.Values(), "clone values")
 
 	// Verify they are independent
 	cloned.PushBack(4)
-	if original.Len() == cloned.Len() {
-		t.Error("Clone modification affected original")
-	}
+	core.AssertNotEqual(t, original.Len(), cloned.Len(), "independent length")
 }
 
 func testCopyFilterTransform(t *testing.T) {
-	l := New(1, 2, 3, 4, 5, 6)
+	l := list.New(1, 2, 3, 4, 5, 6)
 	// Copy only even numbers, tripled
 	copied := l.Copy(func(v int) (int, bool) {
 		if v%2 == 0 {
@@ -296,38 +271,16 @@ func testCopyFilterTransform(t *testing.T) {
 		return 0, false
 	})
 
-	expected := []int{6, 12, 18}
-	values := copied.Values()
-
-	if len(values) != len(expected) {
-		t.Fatalf("Expected %d values, got %d", len(expected), len(values))
-	}
-
-	for i, v := range values {
-		if v != expected[i] {
-			t.Errorf("Value at index %d: got %d, expected %d", i, v, expected[i])
-		}
-	}
+	core.AssertSliceEqual(t, core.S(6, 12, 18), copied.Values(), "values")
 }
 
 func testCopyAll(t *testing.T) {
-	l := New("a", "b", "c")
+	l := list.New("a", "b", "c")
 	copied := l.Copy(func(v string) (string, bool) {
 		return v + v, true // double each string
 	})
 
-	expected := []string{"aa", "bb", "cc"}
-	values := copied.Values()
-
-	if len(values) != len(expected) {
-		t.Fatalf("Expected %d values, got %d", len(expected), len(values))
-	}
-
-	for i, v := range values {
-		if v != expected[i] {
-			t.Errorf("Value at index %d: got %s, expected %s", i, v, expected[i])
-		}
-	}
+	core.AssertSliceEqual(t, core.S("aa", "bb", "cc"), copied.Values(), "values")
 }
 
 func TestCopy(t *testing.T) {
@@ -335,56 +288,69 @@ func TestCopy(t *testing.T) {
 	t.Run("copy all", testCopyAll)
 }
 
+func testPurgeNoMismatch(t *testing.T) {
+	// Every element is already an int, so Purge removes nothing.
+	l := list.New(1, 2, 3)
+	core.AssertEqual(t, 0, l.Purge(), "removed")
+	core.AssertEqual(t, 3, l.Len(), "length")
+}
+
+func testPurgeTypeMismatch(t *testing.T) {
+	// Inject a wrongly-typed value through the underlying list; only direct
+	// access to list.List can break the List[T] type invariant.
+	l := list.New(1, 2, 3)
+	l.Sys().PushBack("not an int")
+	core.AssertMustEqual(t, 4, l.Sys().Len(), "raw length")
+
+	// Iteration skips the wrongly-typed element...
+	core.AssertSliceEqual(t, core.S(1, 2, 3), l.Values(), "values before purge")
+
+	// ...and Purge removes it, reporting the count.
+	core.AssertEqual(t, 1, l.Purge(), "removed")
+	core.AssertEqual(t, 3, l.Sys().Len(), "raw length after purge")
+	core.AssertSliceEqual(t, core.S(1, 2, 3), l.Values(), "values after purge")
+}
+
+func testPurgeMultipleMismatches(t *testing.T) {
+	// Scatter wrongly-typed values at the head, middle and tail to confirm
+	// Purge scans the whole list rather than stopping at the first one.
+	l := list.New[int]()
+	for _, v := range []any{"a", 1, "b", 2, 3, "c"} {
+		l.Sys().PushBack(v)
+	}
+	core.AssertMustEqual(t, 6, l.Sys().Len(), "raw length")
+
+	core.AssertEqual(t, 3, l.Purge(), "removed")
+	core.AssertSliceEqual(t, core.S(1, 2, 3), l.Values(), "values")
+}
+
 func TestPurge(t *testing.T) {
-	// Purge is specifically for removing elements that don't match the type
-	// This is more relevant when dealing with interface{} conversions
-	// For a generic List[T], all elements should already be of type T
-	l := New[int]()
-
-	// Add some values
-	l.PushBack(1)
-	l.PushBack(2)
-	l.PushBack(3)
-
-	// Since all elements are already int, purge should remove nothing
-	removed := l.Purge()
-	if removed != 0 {
-		t.Errorf("Expected 0 elements removed, got %d", removed)
-	}
-
-	if l.Len() != 3 {
-		t.Errorf("Expected length 3 after purge, got %d", l.Len())
-	}
+	t.Run("no mismatch", testPurgeNoMismatch)
+	t.Run("type mismatch", testPurgeTypeMismatch)
+	t.Run("multiple mismatches", testPurgeMultipleMismatches)
 }
 
 func TestNilList(t *testing.T) {
-	var l *List[int]
+	var l *list.List[int]
 
 	// Test nil-safe methods
-	if l.Len() != 0 {
-		t.Errorf("Nil list length should be 0, got %d", l.Len())
-	}
+	core.AssertEqual(t, 0, l.Len(), "nil length")
+	core.AssertNil(t, l.Sys(), "nil Sys")
 
-	if l.Sys() != nil {
-		t.Error("Nil list Sys() should return nil")
-	}
+	_, frontOK := l.Front()
+	core.AssertFalse(t, frontOK, "nil Front")
 
-	if v, ok := l.Front(); ok {
-		t.Errorf("Nil list Front() should return (zero, false), got (%v, %v)", v, ok)
-	}
+	_, backOK := l.Back()
+	core.AssertFalse(t, backOK, "nil Back")
 
-	if v, ok := l.Back(); ok {
-		t.Errorf("Nil list Back() should return (zero, false), got (%v, %v)", v, ok)
-	}
-
-	values := l.Values()
-	if len(values) != 0 {
-		t.Errorf("Nil list Values() should return empty slice, got %v", values)
-	}
+	core.AssertEqual(t, 0, len(l.Values()), "nil Values")
+	core.AssertEqual(t, 0, l.Purge(), "nil Purge")
 
 	// These should not panic
-	l.PushFront(1)
-	l.PushBack(2)
-	l.ForEach(func(int) bool { return true })
-	l.DeleteMatchFn(func(int) bool { return true })
+	core.AssertNoPanic(t, func() {
+		l.PushFront(1)
+		l.PushBack(2)
+		l.ForEach(func(int) bool { return true })
+		l.DeleteMatchFn(func(int) bool { return true })
+	}, "nil mutators")
 }
