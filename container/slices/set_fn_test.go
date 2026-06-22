@@ -36,27 +36,51 @@ func TestCustomSet_InitCustomSet(t *testing.T) {
 	core.AssertError(t, slices.InitCustomSet(&set, cmpInt), "re-init")
 }
 
+var _ core.TestCase = customSetContainsTestCase{}
+
+// customSetContainsTestCase checks CustomSet.Contains against a shared set.
+type customSetContainsTestCase struct {
+	set   *slices.CustomSet[int]
+	name  string
+	value int
+	want  bool
+}
+
+func newCustomSetContainsTestCase(name string, s *slices.CustomSet[int],
+	value int, want bool) customSetContainsTestCase {
+	return customSetContainsTestCase{
+		set:   s,
+		name:  name,
+		value: value,
+		want:  want,
+	}
+}
+
+func (tc customSetContainsTestCase) Name() string {
+	return tc.name
+}
+
+func (tc customSetContainsTestCase) Test(t *testing.T) {
+	t.Helper()
+	core.AssertEqual(t, tc.want, tc.set.Contains(tc.value), "Contains(%d)", tc.value)
+}
+
+func customSetContainsTestCases() []customSetContainsTestCase {
+	s := slices.MustCustomSet(cmpInt, 1, 3, 5, 7, 9)
+	return []customSetContainsTestCase{
+		newCustomSetContainsTestCase("present 1", s, 1, true),
+		newCustomSetContainsTestCase("present 3", s, 3, true),
+		newCustomSetContainsTestCase("present 5", s, 5, true),
+		newCustomSetContainsTestCase("present 7", s, 7, true),
+		newCustomSetContainsTestCase("present 9", s, 9, true),
+		newCustomSetContainsTestCase("absent 2", s, 2, false),
+		newCustomSetContainsTestCase("absent 4", s, 4, false),
+		newCustomSetContainsTestCase("absent 10", s, 10, false),
+	}
+}
+
 func TestCustomSet_Contains(t *testing.T) {
-	set, err := slices.NewCustomSet(cmpInt, 1, 3, 5, 7, 9)
-	core.AssertMustNoError(t, err, "NewCustomSet")
-
-	tests := []struct {
-		value  int
-		expect bool
-	}{
-		{1, true},
-		{3, true},
-		{5, true},
-		{7, true},
-		{9, true},
-		{2, false},
-		{4, false},
-		{10, false},
-	}
-
-	for _, tc := range tests {
-		core.AssertEqual(t, tc.expect, set.Contains(tc.value), "Contains(%d)", tc.value)
-	}
+	core.RunTestCases(t, customSetContainsTestCases())
 }
 
 func TestCustomSet_Clone(t *testing.T) {
