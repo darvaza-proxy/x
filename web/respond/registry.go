@@ -11,10 +11,10 @@ import (
 
 // A Registry is a collection of Renderers
 type Registry struct {
-	mu sync.Mutex
-	m  map[string]registryEntry
-
+	m        map[string]registryEntry
 	identity string
+
+	mu sync.Mutex
 }
 
 type registryEntry struct {

@@ -14,9 +14,9 @@ import (
 type Responder struct {
 	registry *Registry
 
+	identity  string
 	supported []string
 	ql        qlist.QualityList
-	identity  string
 }
 
 // Supports sets additional supported media types on the
@@ -46,8 +46,8 @@ type Response struct {
 	req  *http.Request
 	rw   http.ResponseWriter
 	hdrs http.Header
-	code int
 	h    Renderer
+	code int
 }
 
 // ContentType is the preferred Media Type for this Response

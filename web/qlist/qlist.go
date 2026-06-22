@@ -22,9 +22,9 @@ const (
 
 // QualityValue is a parsed item of a [QualityList]
 type QualityValue struct {
+	attrs   map[string]string
 	value   []string
 	quality float32
-	attrs   map[string]string
 }
 
 // IsZero tells if the QualityValue doesn't hold any information

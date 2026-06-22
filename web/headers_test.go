@@ -23,8 +23,8 @@ var (
 type hasHeaderTestCase struct {
 	name    string
 	setKey  string
-	values  []string
 	queryAs string
+	values  []string
 	want    bool
 }
 
@@ -78,8 +78,8 @@ type setHeaderTestCase struct {
 	name     string
 	key      string
 	value    string
-	args     []any
 	expected string
+	args     []any
 }
 
 func (tc setHeaderTestCase) Name() string {
@@ -118,8 +118,8 @@ func TestSetHeader(t *testing.T) {
 
 type setCacheTestCase struct {
 	name     string
-	duration time.Duration
 	expected string
+	duration time.Duration
 }
 
 func (tc setCacheTestCase) Name() string {
@@ -168,8 +168,8 @@ func TestSetNoCache(t *testing.T) {
 // setRetryAfterTestCase tests SetRetryAfter function
 type setRetryAfterTestCase struct {
 	name           string
-	retryAfter     time.Duration
 	expectedHeader string
+	retryAfter     time.Duration
 }
 
 func (tc setRetryAfterTestCase) Name() string {

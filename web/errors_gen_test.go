@@ -20,8 +20,8 @@ var (
 
 // basicStatusTestCase tests NewStatus* functions that take no parameters
 type basicStatusTestCase struct {
-	name         string
 	factory      func() *HTTPError
+	name         string
 	expectedCode int
 }
 
@@ -50,9 +50,9 @@ func newBasicStatusTestCase(name string, factory func() *HTTPError,
 
 // wrapperStatusTestCase tests NewStatus* functions that wrap an error
 type wrapperStatusTestCase struct {
-	name         string
-	factory      func(error) *HTTPError
 	inputErr     error
+	factory      func(error) *HTTPError
+	name         string
 	expectedCode int
 }
 
@@ -85,11 +85,11 @@ func newWrapperStatusTestCase(name string, factory func(error) *HTTPError,
 
 // retryStatusTestCase tests NewStatus* functions with Retry-After header
 type retryStatusTestCase struct {
-	name           string
 	factory        func(time.Duration) *HTTPError
+	name           string
+	expectedHeader string
 	retryAfter     time.Duration
 	expectedCode   int
-	expectedHeader string
 }
 
 func (tc retryStatusTestCase) Name() string {

@@ -26,10 +26,10 @@ var (
 // DNS label-length check — caller asked for 302, factory
 // wraps the failure as a 500.
 type redirectTestCase struct {
-	args    []any
 	name    string
 	dest    string
 	want    string
+	args    []any
 	wantErr bool
 }
 
@@ -132,10 +132,10 @@ func TestNewRedirect(t *testing.T) {
 // off to newRedirect with the right status code, and — via the
 // dirty-input row — that it actually routes through Clean.
 type redirectStatusTestCase struct {
+	factory func(string, ...any) *web.HTTPError
 	name    string
 	dest    string
 	want    string
-	factory func(string, ...any) *web.HTTPError
 	code    int
 	wantErr bool
 }
