@@ -148,6 +148,9 @@ func TestCustomSet_ForEach(t *testing.T) {
 		return count < 3
 	})
 	core.AssertEqual(t, 3, count, "early termination count")
+
+	// A nil callback is a no-op.
+	core.AssertNoPanic(t, func() { set.ForEach(nil) }, "nil callback")
 }
 
 func TestCustomSet_Reserve(t *testing.T) {
@@ -231,12 +234,86 @@ func TestCustomSet_Nil(t *testing.T) {
 	core.AssertEqual(t, 0, set.Add(1), "nil Add")
 	core.AssertEqual(t, 0, set.Remove(1), "nil Remove")
 	core.AssertEqual(t, 0, len(set.Export()), "nil Export")
+
+	core.AssertNil(t, set.New(), "nil New")
+	core.AssertNil(t, set.Clone(), "nil Clone")
+	core.AssertEqual(t, 0, len(set.Purge()), "nil Purge")
+	core.AssertFalse(t, set.Reserve(10), "nil Reserve")
+	core.AssertFalse(t, set.Grow(10), "nil Grow")
+	core.AssertFalse(t, set.Trim(), "nil Trim")
+
+	// Clear and ForEach are no-ops on a nil receiver.
+	core.AssertNoPanic(t, func() {
+		set.Clear()
+		set.ForEach(func(int) bool { return true })
+	}, "nil Clear/ForEach")
 }
 
 func TestMustCustomSet_Panic(t *testing.T) {
 	core.AssertPanic(t, func() {
 		_ = slices.MustCustomSet[int](nil)
 	}, core.ErrInvalid, "MustCustomSet(nil)")
+}
+
+func testInitNilReceiver(t *testing.T) {
+	var set *slices.CustomSet[int]
+	core.AssertErrorIs(t, slices.InitCustomSet(set, cmpInt), core.ErrNilReceiver, "nil receiver")
+}
+
+func testInitNilComparison(t *testing.T) {
+	var set slices.CustomSet[int]
+	core.AssertErrorIs(t, slices.InitCustomSet(&set, nil), core.ErrInvalid, "nil comparison")
+}
+
+func TestCustomSet_InitErrors(t *testing.T) {
+	t.Run("nil receiver", testInitNilReceiver)
+	t.Run("nil comparison", testInitNilComparison)
+}
+
+var _ core.TestCase = uninitialisedTestCase{}
+
+// uninitialisedTestCase checks that an operation on a zero-value CustomSet
+// (nil comparison, non-nil receiver) panics, covering the not-initialised
+// arms reached when NewCustomSet/InitCustomSet are bypassed.
+type uninitialisedTestCase struct {
+	op   func(*slices.CustomSet[int])
+	name string
+}
+
+func newUninitialisedTestCase(name string,
+	op func(*slices.CustomSet[int])) uninitialisedTestCase {
+	return uninitialisedTestCase{
+		op:   op,
+		name: name,
+	}
+}
+
+func (tc uninitialisedTestCase) Name() string {
+	return tc.name
+}
+
+func (tc uninitialisedTestCase) Test(t *testing.T) {
+	t.Helper()
+	var set slices.CustomSet[int]
+	core.AssertPanic(t, func() { tc.op(&set) }, nil, tc.name)
+}
+
+func uninitialisedTestCases() []uninitialisedTestCase {
+	return []uninitialisedTestCase{
+		newUninitialisedTestCase("New", func(s *slices.CustomSet[int]) { _ = s.New() }),
+		newUninitialisedTestCase("Clone", func(s *slices.CustomSet[int]) { _ = s.Clone() }),
+		newUninitialisedTestCase("Add", func(s *slices.CustomSet[int]) { s.Add(1) }),
+		newUninitialisedTestCase("Remove", func(s *slices.CustomSet[int]) { s.Remove(1) }),
+	}
+}
+
+func TestCustomSet_Uninitialised(t *testing.T) {
+	core.RunTestCases(t, uninitialisedTestCases())
+}
+
+func TestCustomSet_ContainsEmpty(t *testing.T) {
+	set := slices.MustCustomSet(cmpInt)
+	core.AssertFalse(t, set.Contains(1), "empty Contains")
 }
 
 func TestCustomSet_Complex(t *testing.T) {

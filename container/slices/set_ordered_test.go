@@ -147,6 +147,8 @@ func sortedSetRemoveTestCases() []sortedSetRemoveTestCase {
 			core.S(1, 2, 3), core.S(1, 2, 3), 3, core.S[int]()),
 		newSortedSetRemoveTestCase("remove partial",
 			core.S(1, 2, 3, 4, 5), core.S(2, 4), 2, core.S(1, 3, 5)),
+		newSortedSetRemoveTestCase("remove more than present",
+			core.S(1, 2, 3), core.S(1, 2, 3, 4), 3, core.S[int]()),
 	}
 }
 
@@ -187,10 +189,19 @@ func (tc trimNTestCase) Test(t *testing.T) {
 	}
 }
 
+// grownEmptySet returns an empty set carrying spare capacity, so that
+// trimming it to zero exercises the capacity == 0 branch of doTrim.
+func grownEmptySet() *slices.CustomSet[int] {
+	s := slices.NewOrderedSet[int]()
+	s.Grow(10)
+	return s
+}
+
 func trimNTestCases() []trimNTestCase {
 	return []trimNTestCase{
 		newTrimNTestCase("nil set", nil, 0, false),
 		newTrimNTestCase("empty set", slices.NewOrderedSet[int](), 0, false),
+		newTrimNTestCase("empty set with spare capacity", grownEmptySet(), 0, true),
 		newTrimNTestCase("set with elements above min capacity",
 			slices.NewOrderedSet(1, 2, 3, 4, 5), 3, false),
 		newTrimNTestCase("set with elements below min capacity",
