@@ -19,13 +19,13 @@ var (
 )
 
 type wrapFSFile struct {
-	mu sync.Mutex
 	r  *bytes.Reader
-
-	h  AssetHandler
 	fs fs.FS
 	fi fs.FileInfo
 	fn string
+
+	h  AssetHandler
+	mu sync.Mutex
 }
 
 func (*WrapFS) newFileHandler(fSys fs.FS, fn string) (*wrapFSFile, bool) {

@@ -39,9 +39,10 @@ type Asset interface {
 type AssetHandler struct {
 	Asset Asset
 
-	mu       sync.Mutex
 	ct       string
 	parsedCT qlist.QualityList
+
+	mu sync.Mutex
 }
 
 func (h *AssetHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {

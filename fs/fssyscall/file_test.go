@@ -11,10 +11,10 @@ import (
 var _ core.TestCase = fileLockTestCase{}
 
 type fileLockTestCase struct {
-	fn          func(*os.File) error
-	name        string
-	file        *os.File
 	expectedErr error
+	fn          func(*os.File) error
+	file        *os.File
+	name        string
 }
 
 func (tc fileLockTestCase) Name() string {

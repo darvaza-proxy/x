@@ -44,9 +44,10 @@ var (
 // embedFS is the data shared by all views of the given [embed.FS]
 type embedFS struct {
 	*embed.FS
-	sync.Mutex
 
 	files []*embedMeta
+
+	sync.Mutex
 }
 
 // unsafeAddFile registers a static file in the file system.
@@ -64,10 +65,10 @@ func (o *embedFS) unsafeAddFile(fi fs.FileInfo, name, path string) *embedMeta {
 // EmbedFS extends [embed.FS] for serving static assets.
 type EmbedFS struct {
 	base *embedFS
-	root string
 
 	files    map[string]*EmbedMeta
 	resolver func(*http.Request) (string, error)
+	root     string
 }
 
 func (o *EmbedFS) lock()   { o.base.Lock() }
@@ -376,9 +377,9 @@ func (o *EmbedFS) Middleware() func(http.Handler) http.Handler {
 
 // EmbedFile is a readable instance of an embedded static file.
 type EmbedFile struct {
-	mu     sync.Mutex
 	meta   *EmbedMeta
 	reader io.ReadSeeker
+	mu     sync.Mutex
 }
 
 func (fd *EmbedFile) getReader() (io.ReadSeeker, error) {
@@ -471,11 +472,12 @@ func (fd *EmbedFile) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 type embedMeta struct {
 	fs.FileInfo
 
-	mu   sync.Mutex
 	name string
 	path string
 	ct   string
 	tags []string
+
+	mu sync.Mutex
 }
 
 func (fm *embedMeta) Name() string { return fm.name }

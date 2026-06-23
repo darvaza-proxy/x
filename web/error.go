@@ -26,8 +26,8 @@ type Error interface {
 // HTTPError extends [core.WrappedError] with HTTP Status Code
 type HTTPError struct {
 	Err  error
-	Code int
 	Hdr  http.Header
+	Code int
 }
 
 // HTTPStatus returns the HTTP status code associated with the Error

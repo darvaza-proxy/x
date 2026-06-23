@@ -20,12 +20,12 @@ var (
 // WrapFS is an assets [FS] that tests multiple layers
 // and name variants.
 type WrapFS struct {
+	resolver func(*http.Request) (string, error)
+
 	layers []fs.FS
 	globs  [][]fs.Matcher
-	names  []func(string) []string
 	root   string
-
-	resolver func(*http.Request) (string, error)
+	names  []func(string) []string
 }
 
 func (o *WrapFS) forEachLayer(h func(fs.FS) bool) {

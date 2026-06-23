@@ -19,10 +19,10 @@ var (
 // ListenConfig extends the standard net.ListenConfig with a central holder
 // for the Context bound to the listeners
 type ListenConfig struct {
-	net.ListenConfig
-
 	// Context used when registering the listeners
 	Context context.Context
+
+	net.ListenConfig
 }
 
 // NewListenConfig assists creating a ListenConfig due to the two-layer definition

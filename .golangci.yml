@@ -24,6 +24,9 @@ linters:
     - unparam
     - unused
   settings:
+    govet:
+      enable:
+        - fieldalignment
     revive:
       rules:
         - name: blank-imports

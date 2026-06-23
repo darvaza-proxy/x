@@ -22,9 +22,9 @@ const (
 
 // QualityValue is a parsed item of a [QualityList]
 type QualityValue struct {
+	attrs   map[string]string
 	value   []string
 	quality float32
-	attrs   map[string]string
 }
 
 // IsZero tells if the QualityValue doesn't hold any information
@@ -245,7 +245,7 @@ func splitFields(s string) []string {
 		v = strings.TrimSpace(v)
 
 		// remove empty attributes
-		if len(partial) == 0 || len(v) > 0 {
+		if len(partial) == 0 || v != "" {
 			keep = true
 		}
 

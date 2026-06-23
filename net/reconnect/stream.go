@@ -18,13 +18,9 @@ var (
 // StreamSession provides an asynchronous stream session
 // using message types for receiving and sending.
 type StreamSession[Input, Output any] struct {
-	wg  core.ErrGroup
 	in  chan Input
 	out chan Output
 
-	// QueueSize specifies how many [Output] type entries can be buffered
-	// for delivery before [StreamSession.Send] blocks.
-	QueueSize uint
 	// Conn specifies the underlying connection
 	Conn io.ReadWriteCloser
 	// Context is an optional [context.Context] to allow cascading cancellations.
@@ -55,6 +51,12 @@ type StreamSession[Input, Output any] struct {
 
 	// OnError is optionally called when an error occurs
 	OnError func(error)
+
+	wg core.ErrGroup
+
+	// QueueSize specifies how many [Output] type entries can be buffered
+	// for delivery before [StreamSession.Send] blocks.
+	QueueSize uint
 }
 
 func (s *StreamSession[Input, Output]) init() error {

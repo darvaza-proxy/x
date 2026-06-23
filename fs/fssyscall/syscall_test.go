@@ -45,9 +45,9 @@ func newHandleTestCase(name string, handle Handle, wantErr bool) handleTestCase 
 
 type openTestCase struct {
 	filename string
+	name     string
 	mode     int
 	perm     fs.FileMode
-	name     string
 	wantErr  bool
 }
 

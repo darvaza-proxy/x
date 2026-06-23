@@ -19,13 +19,13 @@ var _ TemplateRenderer[string] = (*testTemplateRenderer)(nil)
 var _ TemplateRendererWithCode[string] = (*testTemplateRendererWithCode)(nil)
 
 type renderTemplateTestCase struct {
+	data           any
 	expectedBody   string
 	templateString string
-	data           any
 	name           string
+	method         string
 	inputCode      int
 	expectedCode   int
-	method         string
 	expectError    bool
 	nilTemplate    bool
 }
@@ -38,7 +38,7 @@ func (tc renderTemplateTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(tc.method, "/", nil)
+	req := httptest.NewRequest(tc.method, "/", http.NoBody)
 
 	var tmpl *template.Template
 	if !tc.nilTemplate {
@@ -56,9 +56,14 @@ func (tc renderTemplateTestCase) Test(t *testing.T) {
 
 	core.AssertNoError(t, err, "RenderTemplate")
 	core.AssertEqual(t, tc.expectedCode, rw.Code, "status code")
+	core.AssertEqual(t, tc.expectedBody, rw.Body.String(), "response body")
 
-	if tc.method != consts.HEAD {
-		core.AssertEqual(t, tc.expectedBody, rw.Body.String(), "response body")
+	// The implementation writes only the status line for HEAD, so
+	// it emits no Content-Length; assert its absence. For the other
+	// methods Content-Length must match the body length.
+	if tc.method == consts.HEAD {
+		core.AssertEqual(t, "", rw.Header().Get(consts.ContentLength), "content length")
+	} else {
 		contentLength := rw.Header().Get(consts.ContentLength)
 		expectedLength := len(tc.expectedBody)
 		core.AssertEqual(t, fmt.Sprintf("%d", expectedLength), contentLength, "content length")
@@ -75,29 +80,35 @@ func newRenderTemplateTestCase(name, templateString string, data any, expectedBo
 		expectedBody:   expectedBody,
 		inputCode:      code,
 		expectedCode:   code,
-		method:         "GET",
+		method:         consts.GET,
 		expectError:    false,
 		nilTemplate:    false,
 	}
 }
 
-//revive:disable-next-line:argument-limit
-func newRenderTemplateTestCaseMethod(name, method, templateString string, data any,
-	expectedBody string, code int) renderTemplateTestCase {
+// newRenderTemplateTestCaseHead builds a HEAD-method case. HEAD
+// responses carry no body, so the template and data are immaterial
+// fixtures; only the status mapping matters, and RenderTemplate may
+// adjust it (e.g. 200 → 204), so inputCode and expectedCode are
+// supplied independently.
+func newRenderTemplateTestCaseHead(name string, inputCode,
+	expectedCode int) renderTemplateTestCase {
 	return renderTemplateTestCase{
 		name:           name,
-		templateString: templateString,
-		data:           data,
-		expectedBody:   expectedBody,
-		inputCode:      code,
-		expectedCode:   code,
-		method:         method,
+		templateString: "{{.}}",
+		data:           "head",
+		expectedBody:   "",
+		inputCode:      inputCode,
+		expectedCode:   expectedCode,
+		method:         consts.HEAD,
 		expectError:    false,
 		nilTemplate:    false,
 	}
 }
 
-func newRenderTemplateTestCaseError(name string, nilTemplate bool) renderTemplateTestCase {
+// newRenderTemplateTestCaseNilTemplate builds a GET case whose template
+// is nil, so RenderTemplate fails before any rendering.
+func newRenderTemplateTestCaseNilTemplate(name string) renderTemplateTestCase {
 	return renderTemplateTestCase{
 		name:           name,
 		templateString: "",
@@ -105,9 +116,27 @@ func newRenderTemplateTestCaseError(name string, nilTemplate bool) renderTemplat
 		expectedBody:   "",
 		inputCode:      http.StatusOK,
 		expectedCode:   http.StatusOK,
-		method:         "GET",
+		method:         consts.GET,
 		expectError:    true,
-		nilTemplate:    nilTemplate,
+		nilTemplate:    true,
+	}
+}
+
+// newRenderTemplateTestCaseExecError builds a GET case whose template
+// parses but fails during execution, so the error surfaces through
+// RenderTemplate rather than from a nil template.
+func newRenderTemplateTestCaseExecError(name, templateString string,
+	data any) renderTemplateTestCase {
+	return renderTemplateTestCase{
+		name:           name,
+		templateString: templateString,
+		data:           data,
+		expectedBody:   "",
+		inputCode:      http.StatusOK,
+		expectedCode:   http.StatusOK,
+		method:         consts.GET,
+		expectError:    true,
+		nilTemplate:    false,
 	}
 }
 
@@ -121,7 +150,7 @@ func newRenderTemplateTestCaseNormalization(name, templateString string, data an
 		expectedBody:   expectedBody,
 		inputCode:      inputCode,
 		expectedCode:   expectedCode,
-		method:         "GET",
+		method:         consts.GET,
 		expectError:    false,
 		nilTemplate:    false,
 	}
@@ -135,6 +164,10 @@ func renderTemplateTestCases() []renderTemplateTestCase {
 			"Data: test", http.StatusCreated),
 		newRenderTemplateTestCase("status accepted", "{{.}}", "accepted",
 			"accepted", http.StatusAccepted),
+		// GET keeps a non-2xx status and still renders the body — the
+		// mirror of "HEAD keeps not found", which suppresses it.
+		newRenderTemplateTestCase("status not found renders body", "{{.}}",
+			"missing", "missing", http.StatusNotFound),
 		newRenderTemplateTestCase("complex template",
 			"Name: {{.Name}}, Age: {{.Age}}", testData{Name: "John", Age: 25},
 			"Name: John, Age: 25", http.StatusOK),
@@ -142,76 +175,33 @@ func renderTemplateTestCases() []renderTemplateTestCase {
 			"{{.}}", "default", "default", 0, http.StatusOK),
 		newRenderTemplateTestCaseNormalization("negative status code becomes 500",
 			"{{.}}", "error", "error", -1, http.StatusInternalServerError),
-		newRenderTemplateTestCaseMethod("HEAD request", consts.HEAD,
-			"{{.}}", "head", "", http.StatusNoContent),
-		newRenderTemplateTestCaseMethod("HEAD with custom status", consts.HEAD,
-			"{{.}}", "head", "", http.StatusAccepted),
-		newRenderTemplateTestCaseError("nil template", true),
+		// HEAD adjusts a 200 to 204 and leaves every other status
+		// untouched, always with an empty body. Normalisation runs
+		// first, so a 0 reaches the adjustment as 200 and becomes 204,
+		// while a negative settles at 500 and is left alone.
+		newRenderTemplateTestCaseHead("HEAD adjusts 200 to 204",
+			http.StatusOK, http.StatusNoContent),
+		newRenderTemplateTestCaseHead("HEAD normalises 0 then adjusts to 204",
+			0, http.StatusNoContent),
+		newRenderTemplateTestCaseHead("HEAD negative becomes 500",
+			-1, http.StatusInternalServerError),
+		newRenderTemplateTestCaseHead("HEAD keeps 204",
+			http.StatusNoContent, http.StatusNoContent),
+		newRenderTemplateTestCaseHead("HEAD keeps created",
+			http.StatusCreated, http.StatusCreated),
+		newRenderTemplateTestCaseHead("HEAD keeps accepted",
+			http.StatusAccepted, http.StatusAccepted),
+		newRenderTemplateTestCaseHead("HEAD keeps not found",
+			http.StatusNotFound, http.StatusNotFound),
+		newRenderTemplateTestCaseNilTemplate("nil template"),
+		newRenderTemplateTestCaseExecError("template execution error",
+			"{{.NonExistentField}}", "simple string"),
 	}
 }
 
 // TestRenderTemplate tests the RenderTemplate function
 func TestRenderTemplate(t *testing.T) {
 	core.RunTestCases(t, renderTemplateTestCases())
-}
-
-// TestRenderTemplateStatusCodes tests various status code scenarios
-func TestRenderTemplateStatusCodes(t *testing.T) {
-	t.Run("status code normalization", runTestRenderTemplateStatusCodeNormalization)
-	t.Run("head method status adjustment", runTestRenderTemplateHeadStatusAdjustment)
-}
-
-func runTestRenderTemplateStatusCodeNormalization(t *testing.T) {
-	tmpl, err := template.New("test").Parse("{{.}}")
-	core.AssertMustNoError(t, err, "template parse")
-
-	testCases := []struct {
-		name         string
-		inputCode    int
-		expectedCode int
-	}{
-		{"zero becomes 200", 0, http.StatusOK},
-		{"negative becomes 500", -1, http.StatusInternalServerError},
-		{"positive unchanged", http.StatusCreated, http.StatusCreated},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			rw := httptest.NewRecorder()
-			req := httptest.NewRequest("GET", "/", nil)
-
-			err := RenderTemplate(rw, req, tc.inputCode, tmpl, "test")
-			core.AssertNoError(t, err, "RenderTemplate")
-			core.AssertEqual(t, tc.expectedCode, rw.Code, "status code")
-		})
-	}
-}
-
-func runTestRenderTemplateHeadStatusAdjustment(t *testing.T) {
-	tmpl, err := template.New("test").Parse("{{.}}")
-	core.AssertMustNoError(t, err, "template parse")
-
-	testCases := []struct {
-		name         string
-		inputCode    int
-		expectedCode int
-	}{
-		{"200 becomes 204", http.StatusOK, http.StatusNoContent},
-		{"201 unchanged", http.StatusCreated, http.StatusCreated},
-		{"404 unchanged", http.StatusNotFound, http.StatusNotFound},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			rw := httptest.NewRecorder()
-			req := httptest.NewRequest(consts.HEAD, "/", nil)
-
-			err := RenderTemplate(rw, req, tc.inputCode, tmpl, "test")
-			core.AssertNoError(t, err, "RenderTemplate")
-			core.AssertEqual(t, tc.expectedCode, rw.Code, "status code")
-			core.AssertEqual(t, "", rw.Body.String(), "empty body for HEAD")
-		})
-	}
 }
 
 // TestDoRenderTemplate tests the doRenderTemplate function directly
@@ -280,7 +270,7 @@ func runTestWithTemplateCreatesOption(t *testing.T) {
 
 	// Test the renderer works
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	err = renderer(rw, req, http.StatusOK, "test")
 
 	core.AssertNoError(t, err, "renderer execution")
@@ -304,7 +294,7 @@ func runTestWithTemplateCustomMediaType(t *testing.T) {
 	core.AssertNotNil(t, renderer, "XML renderer registered")
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	err = renderer(rw, req, http.StatusOK, "test")
 
 	core.AssertNoError(t, err, "XML renderer execution")
@@ -322,7 +312,7 @@ func runTestTemplateRenderer(t *testing.T) {
 	renderer := &testTemplateRenderer{data: "legacy template test"}
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 
 	err := renderer.RenderTemplate(rw, req, "test data")
 	core.AssertNoError(t, err, "legacy template renderer")
@@ -333,7 +323,7 @@ func runTestTemplateRendererWithCode(t *testing.T) {
 	renderer := &testTemplateRendererWithCode{data: "code-aware template test"}
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 
 	err := renderer.RenderTemplate(rw, req, http.StatusCreated, "test data")
 	core.AssertNoError(t, err, "code-aware template renderer")

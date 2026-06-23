@@ -97,9 +97,9 @@ func TestParseRemote(t *testing.T) {
 // Test case for TimeoutToAbsoluteTime function
 type timeoutToAbsoluteTimeTestCase struct {
 	base     time.Time
-	duration time.Duration
 	expected time.Time
 	name     string
+	duration time.Duration
 }
 
 func newTimeoutToAbsoluteTimeTestCase(name string, base time.Time, duration time.Duration,

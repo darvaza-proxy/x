@@ -12,10 +12,10 @@ var _ core.TestCase = unsafeCutRootTestCase{}
 
 // joinRunes test cases
 type joinRunesTestCase struct {
+	name     string
 	before   []rune
 	after    []rune
 	expected []rune
-	name     string
 }
 
 func (tc joinRunesTestCase) Name() string {
@@ -60,8 +60,8 @@ type unsafeCutRootTestCase struct {
 	name     string
 	root     string
 	expected string
-	wantOK   bool
 	testName string
+	wantOK   bool
 }
 
 func (tc unsafeCutRootTestCase) Name() string {

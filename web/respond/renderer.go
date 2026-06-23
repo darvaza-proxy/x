@@ -17,8 +17,8 @@ var (
 )
 
 type renderer struct {
-	ct string
 	h  RenderFunc
+	ct string
 }
 
 func (r renderer) ContentType() string             { return r.ct }

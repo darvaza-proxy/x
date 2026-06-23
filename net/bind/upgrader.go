@@ -25,8 +25,8 @@ type Upgrader interface {
 // UpgraderListenConfig represents an object equivalent to a ListenConfig but
 // using a Upgrader in the middle
 type UpgraderListenConfig struct {
-	conf ListenConfig
 	upg  Upgrader
+	conf ListenConfig
 }
 
 // WithUpgrader creates a new ListenConfig using the provided Upgrader
