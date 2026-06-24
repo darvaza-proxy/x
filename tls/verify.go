@@ -17,28 +17,18 @@ func Verify(cert *tls.Certificate, roots *x509.CertPool) error {
 
 	switch {
 	case cert == nil:
-		return &x509utils.ErrInvalidCert{
-			Reason: "none provided",
-		}
+		return x509utils.NewErrInvalidCert(nil, nil, "none provided")
 	case cert.Leaf == nil || len(cert.Certificate) == 0:
-		return &x509utils.ErrInvalidCert{
-			Reason: "missing leaf certificate",
-		}
+		return x509utils.NewErrInvalidCert(nil, nil, "missing leaf certificate")
 	case len(cert.Leaf.Raw) == 0,
 		cert.Leaf.NotAfter.Before(now),
 		cert.Leaf.NotBefore.After(now),
 		!bytes.Equal(cert.Leaf.Raw, cert.Certificate[0]):
-		return &x509utils.ErrInvalidCert{
-			Reason: "invalid leaf certificate",
-		}
+		return x509utils.NewErrInvalidCert(nil, nil, "invalid leaf certificate")
 	case cert.PrivateKey == nil:
-		return &x509utils.ErrInvalidCert{
-			Reason: "missing private key",
-		}
+		return x509utils.NewErrInvalidCert(nil, nil, "missing private key")
 	case !x509utils.ValidCertKeyPair(cert.Leaf, cert.PrivateKey):
-		return &x509utils.ErrInvalidCert{
-			Reason: "invalid private key",
-		}
+		return x509utils.NewErrInvalidCert(nil, nil, "invalid private key")
 	case roots != nil:
 		return doVerifyRoots(cert, roots, now)
 	default:
