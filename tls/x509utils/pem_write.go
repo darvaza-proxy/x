@@ -35,25 +35,19 @@ func WriteCert(w io.Writer, cert *x509.Certificate) (int64, error) {
 
 	switch {
 	case cert == nil:
-		err := &ErrInvalidCert{Reason: "not provided"}
+		err := NewErrInvalidCert(nil, nil, "not provided")
 		return 0, err
 	case len(cert.Raw) == 0:
-		err := &ErrInvalidCert{Reason: "missing Raw DER certificate", Cert: cert}
+		err := NewErrInvalidCert(cert, nil, "missing Raw DER certificate")
 		return 0, err
 	}
 
-	err := pem.Encode(&buf, &pem.Block{
+	// cert.Raw is non-empty here and pem.Encode only fails when the writer
+	// does; a bytes.Buffer never does, so a non-nil error is unreachable.
+	core.MustNoError(pem.Encode(&buf, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: cert.Raw,
-	})
-	if err != nil {
-		err = &ErrInvalidCert{
-			Cert:   cert,
-			Err:    err,
-			Reason: "failed to encode certificate",
-		}
-		return 0, err
-	}
+	}))
 
 	return buf.WriteTo(w)
 }
