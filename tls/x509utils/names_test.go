@@ -11,6 +11,7 @@ import (
 var (
 	_ core.TestCase = nameAsIPTestCase{}
 	_ core.TestCase = nameAsSuffixTestCase{}
+	_ core.TestCase = sanitizeNameTestCase{}
 )
 
 // nameAsIPTestCase exercises NameAsIP: a parseable address is bracketed and
@@ -102,4 +103,53 @@ func nameAsSuffixTestCases() []nameAsSuffixTestCase {
 
 func TestNameAsSuffix(t *testing.T) {
 	core.RunTestCases(t, nameAsSuffixTestCases())
+}
+
+// sanitizeNameTestCase exercises SanitizeName: the name is split from its
+// optional port and case-folded to the form Names stores under (RFC 6125),
+// with IP addresses normalised. Acceptance and a non-empty result are
+// inseparable, so ok is asserted as the invariant expected != "".
+type sanitizeNameTestCase struct {
+	input    string
+	expected string
+	name     string
+}
+
+func (tc sanitizeNameTestCase) Name() string { return tc.name }
+
+func (tc sanitizeNameTestCase) Test(t *testing.T) {
+	t.Helper()
+	got, ok := x509utils.SanitizeName(tc.input)
+	core.AssertEqual(t, tc.expected, got, "name")
+	core.AssertEqual(t, tc.expected != "", ok, "ok")
+}
+
+func newSanitizeNameTestCase(name, input,
+	expected string) sanitizeNameTestCase {
+	return sanitizeNameTestCase{
+		input:    input,
+		expected: expected,
+		name:     name,
+	}
+}
+
+func sanitizeNameTestCases() []sanitizeNameTestCase {
+	return core.S(
+		// DNS names are case-insensitive (RFC 6125): an uppercase query
+		// folds to the lower-cased form Names stores under.
+		newSanitizeNameTestCase("uppercase host", "WWW.EXAMPLE.COM",
+			"www.example.com"),
+		newSanitizeNameTestCase("lowercase host", "www.example.com",
+			"www.example.com"),
+		newSanitizeNameTestCase("mixed case with port", "Mixed.Case.ORG:443",
+			"mixed.case.org"),
+		newSanitizeNameTestCase("ipv4", "1.2.3.4", "1.2.3.4"),
+		newSanitizeNameTestCase("ipv6 with port", "[2001:DB8::1]:443",
+			"2001:db8::1"),
+		newSanitizeNameTestCase("empty", "", ""),
+	)
+}
+
+func TestSanitizeName(t *testing.T) {
+	core.RunTestCases(t, sanitizeNameTestCases())
 }
