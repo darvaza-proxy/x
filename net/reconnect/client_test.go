@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -511,4 +512,238 @@ func TestClientConnectStopsWhenContextDone(t *testing.T) {
 	// the cancelled context stops Connect; it surfaces the context
 	// error rather than the plain rejection or a reconnect spin.
 	core.AssertErrorIs(t, c.Connect(), context.Canceled, "Connect")
+}
+
+// newReconnectWaiter returns a Waiter that permits the first `permit`
+// reconnect attempts and then returns stop, alongside a counter of how
+// many times it was consulted. A cancelled context always wins.
+func newReconnectWaiter(permit int32, stop error) (
+	func(context.Context) error, *atomic.Int32) {
+	calls := new(atomic.Int32)
+	fn := func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if calls.Add(1) <= permit {
+			return nil
+		}
+		return stop
+	}
+	return fn, calls
+}
+
+// clientStopTimeout bounds how long a stopped client may take to close
+// its Done channel before the wait is treated as a hang.
+const clientStopTimeout = 2 * time.Second
+
+// assertStopped fails unless the client's Done channel closes before
+// ctx expires, turning a stuck client into a clean failure rather than
+// a hung suite.
+func assertStopped(ctx context.Context, t *testing.T, c *reconnect.Client) {
+	t.Helper()
+
+	select {
+	case <-c.Done():
+	case <-ctx.Done():
+		t.Fatal("client did not stop in time")
+	}
+}
+
+// countMatchingErrors reports how many errors in errs match target.
+func countMatchingErrors(errs []error, target error) int {
+	var n int
+	for _, e := range errs {
+		if errors.Is(e, target) {
+			n++
+		}
+	}
+	return n
+}
+
+// TestClientReconnectDialFails drives the reconnect-dial failure path:
+// the waiter permits one reconnect attempt, so tryReconnect proceeds to
+// the dial, the dial fails, and the failure is routed through
+// handleReconnectError before the next waiter call stops the client.
+// This is the complement of TestClientWaiterErrorStops, where the
+// waiter errors on its first call and the dial is never reached.
+func TestClientReconnectDialFails(t *testing.T) {
+	errStopWaiting := errors.New("waiter stop sentinel")
+
+	// the waiter permits exactly one reconnect attempt, then stops the
+	// client. The permitted attempt dials the unreachable address, so
+	// tryReconnect routes that dial failure through handleReconnectError
+	// before the second waiter call ends the loop.
+	waiter, waiterCalls := newReconnectWaiter(1, errStopWaiting)
+
+	// bind a port then release it, so every dial fails non-fatally
+	// (ECONNREFUSED): the synchronous Connect dial and the reconnect
+	// dial alike.
+	lsn, err := net.Listen("tcp", addrLoopbackAny)
+	core.AssertMustNoError(t, err, "listen")
+	unreachableAddr := lsn.Addr().String()
+	core.AssertMustNoError(t, lsn.Close(), "close listener")
+
+	collector := new(errCollector)
+
+	cfg := &reconnect.Config{
+		Context:       context.Background(),
+		Remote:        unreachableAddr,
+		WaitReconnect: waiter,
+		OnError:       collector.OnError,
+	}
+
+	c, err := reconnect.New(cfg)
+	core.AssertMustNoError(t, err, "New")
+	core.AssertMustNoError(t, c.Connect(), "Connect")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	assertStopped(ctx, t, c)
+
+	// two waiter calls: one permitting the failed reconnect dial, one
+	// stopping the loop. A single call would mean the dial — and so
+	// handleReconnectError — was never reached.
+	core.AssertEqual(t, 2, int(waiterCalls.Load()), "waiter calls")
+	core.AssertErrorIs(t, c.Wait(), errStopWaiting, "Wait")
+
+	// both dials are refused and reported: the synchronous Connect dial
+	// and the reconnect dial routed through handleReconnectError.
+	core.AssertEqual(t, 2,
+		countMatchingErrors(collector.Errors(), syscall.ECONNREFUSED),
+		"refused dials reported")
+}
+
+// TestClientReconnectSucceeds drives the reconnect-success path: the
+// waiter permits one reconnect, the redial succeeds against the live
+// listener, and a second session runs before the waiter stops the
+// client. This exercises tryReconnect's ready return and the run
+// loop's re-entry with a freshly dialled connection.
+func TestClientReconnectSucceeds(t *testing.T) {
+	lsn, err := net.Listen("tcp", addrLoopbackAny)
+	core.AssertMustNoError(t, err, "listen")
+	defer func() { _ = lsn.Close() }()
+
+	// the peer accepts every dial and drops it; OnSession ends each
+	// session itself, so the listener only needs its backlog drained.
+	go acceptAndDrop(lsn)
+
+	errStopWaiting := errors.New("waiter stop sentinel")
+	waiter, waiterCalls := newReconnectWaiter(1, errStopWaiting)
+
+	var sessions atomic.Int32
+
+	cfg := &reconnect.Config{
+		Context:       context.Background(),
+		Remote:        lsn.Addr().String(),
+		WaitReconnect: waiter,
+		OnSession: func(context.Context) error {
+			sessions.Add(1)
+			return nil
+		},
+	}
+
+	c, err := reconnect.New(cfg)
+	core.AssertMustNoError(t, err, "New")
+	core.AssertMustNoError(t, c.Connect(), "Connect")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	assertStopped(ctx, t, c)
+
+	// the permitted waiter call let tryReconnect redial successfully,
+	// so a second session ran before the waiter stopped the client.
+	core.AssertEqual(t, 2, int(sessions.Load()), "sessions")
+	core.AssertEqual(t, 2, int(waiterCalls.Load()), "waiter calls")
+	core.AssertErrorIs(t, c.Wait(), errStopWaiting, "Wait")
+}
+
+// TestClientConnectFatalRejection drives handleConnectError's fatal
+// arm: OnConnect rejects an established connection with the only fatal
+// sentinel, ErrDoNotReconnect. dial surfaces it as the connect error,
+// so Connect terminates the client and returns it unfiltered instead
+// of retrying.
+func TestClientConnectFatalRejection(t *testing.T) {
+	lsn, err := net.Listen("tcp", addrLoopbackAny)
+	core.AssertMustNoError(t, err, "listen")
+	defer func() { _ = lsn.Close() }()
+
+	go acceptAndDrop(lsn)
+
+	collector := new(errCollector)
+
+	cfg := &reconnect.Config{
+		Context: context.Background(),
+		Remote:  lsn.Addr().String(),
+
+		OnConnect: func(context.Context, net.Conn) error {
+			return reconnect.ErrDoNotReconnect
+		},
+		OnError: collector.OnError,
+	}
+
+	c, err := reconnect.New(cfg)
+	core.AssertMustNoError(t, err, "New")
+
+	// the fatal rejection is returned by Connect itself, not retried.
+	core.AssertErrorIs(t, c.Connect(), reconnect.ErrDoNotReconnect, "Connect")
+
+	// the client is terminated, and the fatal error was observed by
+	// OnError on its way through handlePossiblyFatalError.
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	assertStopped(ctx, t, c)
+	core.AssertEqual(t, 1,
+		countMatchingErrors(collector.Errors(), reconnect.ErrDoNotReconnect),
+		"fatal rejection reported")
+}
+
+// TestClientDisconnectPanic drives run's recovery arm: a panic from
+// OnDisconnect escapes doOnDisconnect, which unlike OnSession has no
+// catcher, so it unwinds to run's deferred recover. The recover
+// surfaces it through OnError and terminates the client instead of
+// leaking the panic out of the worker goroutine.
+func TestClientDisconnectPanic(t *testing.T) {
+	errDisconnectPanic := errors.New("disconnect panic sentinel")
+
+	lsn, err := net.Listen("tcp", addrLoopbackAny)
+	core.AssertMustNoError(t, err, "listen")
+	defer func() { _ = lsn.Close() }()
+
+	go acceptAndDrop(lsn)
+
+	collector := new(errCollector)
+
+	cfg := &reconnect.Config{
+		Context: context.Background(),
+		Remote:  lsn.Addr().String(),
+
+		// the session ends at once; the panic comes from the disconnect
+		// hook, which runs outside the session catcher.
+		OnSession: func(context.Context) error {
+			return nil
+		},
+		OnDisconnect: func(context.Context, net.Conn) error {
+			panic(errDisconnectPanic)
+		},
+		OnError: collector.OnError,
+	}
+
+	c, err := reconnect.New(cfg)
+	core.AssertMustNoError(t, err, "New")
+	core.AssertMustNoError(t, c.Connect(), "Connect")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	assertStopped(ctx, t, c)
+
+	// the recovered panic is reported through OnError as a PanicError
+	// and recorded as the termination cause.
+	var found *core.PanicError
+	for _, e := range collector.Errors() {
+		if errors.As(e, &found) {
+			break
+		}
+	}
+	core.AssertNotNil(t, found, "OnDisconnect panic reported via OnError")
+	core.AssertErrorIs(t, c.Wait(), errDisconnectPanic, "Wait")
 }
