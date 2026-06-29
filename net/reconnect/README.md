@@ -34,10 +34,8 @@ resource clean-up.
 ```go
 import (
     "context"
-    "net"
     "time"
 
-    "darvaza.org/slog"
     "darvaza.org/x/net/reconnect"
 )
 
@@ -104,6 +102,12 @@ cfg := &reconnect.Config{
     Remote: "./app.sock",
     // ... other configuration
 }
+
+// Abstract Unix socket with @ prefix (Linux, auto-detected)
+cfg := &reconnect.Config{
+    Remote: "@app",
+    // ... other configuration
+}
 ```
 
 ## Advanced Configuration
@@ -147,19 +151,21 @@ cfg := &reconnect.Config{
         return handleSession(ctx)
     },
 
-    // Called when connection is about to close.
+    // Called after the connection has been closed.
     OnDisconnect: func(ctx context.Context, conn net.Conn) error {
-        logger.Info().Printf("Disconnecting from %s", conn.RemoteAddr())
+        logger.Info().Printf("Disconnected from %s", conn.RemoteAddr())
         // Clean up connection-specific resources.
         return nil
     },
 
-    // Called when errors occur.
+    // Called when errors occur. The returned error replaces the
+    // original for the reconnection logic.
     OnError: func(ctx context.Context, conn net.Conn, err error) error {
         logger.Error().
             WithField("error", err).
             Printf("Connection error")
-        // Return nil to allow retry, non-nil to stop reconnection.
+        // Return nil to discard the error and keep retrying,
+        // or reconnect.ErrDoNotReconnect to stop the client.
         return nil
     },
 }
@@ -208,10 +214,10 @@ The `Config` structure supports the following fields:
 | `Remote` | `string` | Required | Target address. TCP: `host:port`, Unix: `/path/to/socket` or `unix:/path` |
 | `KeepAlive` | `time.Duration` | `5s` | TCP keep-alive interval (ignored for Unix sockets). |
 | `DialTimeout` | `time.Duration` | `2s` | Connection establishment timeout. |
-| `ReadTimeout` | `time.Duration` | `2s` | Read deadline for connections. |
-| `WriteTimeout` | `time.Duration` | `2s` | Write deadline for connections. |
-| `ReconnectDelay` | `time.Duration` | `0` | Delay between reconnection attempts. |
-| `WaitReconnect` | `Waiter` | Constant waiter | Custom reconnection wait function. |
+| `ReadTimeout` | `time.Duration` | `2s` | Default read deadline, applied via the `Reset*Deadline` helpers, not automatically. |
+| `WriteTimeout` | `time.Duration` | `2s` | Default write deadline, applied via the `Reset*Deadline` helpers, not automatically. |
+| `ReconnectDelay` | `time.Duration` | `0` | Delay between reconnection attempts. Zero means 5s (`DefaultWaitReconnect`); negative disables reconnection. |
+| `WaitReconnect` | `Waiter` | `NewConstantWaiter(ReconnectDelay)` | Custom reconnection wait function. |
 | `OnSocket` | `func` | `nil` | Raw socket configuration callback. |
 | `OnConnect` | `func` | `nil` | Connection establishment callback. |
 | `OnSession` | `func` | `nil` | Session handler (blocks until done). |
@@ -226,7 +232,8 @@ The `Config` structure supports the following fields:
 // New creates a new Client with options.
 func New(cfg *Config, options ...OptionFunc) (*Client, error)
 
-// Connect initiates the connection and starts the reconnection loop.
+// Connect starts the reconnection loop. A nil return doesn't mean
+// a connection is established, only that the loop has started.
 func (c *Client) Connect() error
 
 // Config returns the configuration object.
@@ -236,13 +243,14 @@ func (c *Client) Config() *Config
 // Note: Currently returns ErrTODO.
 func (c *Client) Reload() error
 
-// Wait blocks until the client stops and returns the cancellation reason.
+// Wait blocks until the client stops and returns the cancellation
+// reason, nil when the shutdown was user-initiated.
 func (c *Client) Wait() error
 
 // Err returns the cancellation reason.
 func (c *Client) Err() error
 
-// Done returns a channel that watches the client workers.
+// Done returns a channel that closes once the client has stopped.
 func (c *Client) Done() <-chan struct{}
 
 // Shutdown initiates a shutdown and waits until done or context timeout.
@@ -312,8 +320,15 @@ var (
     ErrConfigBusy = core.QuietWrap(fs.ErrPermission,
         "config already in use")
 
-    // ErrRunning indicates the client is already running.
-    ErrRunning = errors.New("already running")
+    // ErrRunning indicates the client has already been started.
+    ErrRunning = core.QuietWrap(syscall.EBUSY,
+        "client already running")
+
+    // ErrDoNotReconnect tells the client to stop reconnecting.
+    ErrDoNotReconnect = errors.New("don't reconnect")
+
+    // ErrNotConnected indicates the client isn't currently connected.
+    ErrNotConnected = core.QuietWrap(fs.ErrClosed, "not connected")
 
     // Additional errors defined in the errors.go file.
 )
@@ -321,12 +336,15 @@ var (
 
 ### Error Classification
 
-- **Recoverable**: Network timeouts, connection refused, temporary failures.
-- **Non-recoverable**: Context cancellation, configuration errors, explicit
-  stop requests.
+- **Fatal**: `ErrDoNotReconnect`, possibly wrapped, terminates the client.
+- **Context termination**: the client stops retrying once its context is
+  cancelled or its deadline expires.
+- **Recoverable**: everything else — connection refused/reset/aborted,
+  timeouts, and other session errors — leads to a reconnection attempt.
 
-The `OnError` callback can override the default retry behaviour by returning
-a non-nil error to stop reconnection attempts.
+The `OnError` callback observes every error, and its return value replaces
+it: return `nil` to discard the error, or `ErrDoNotReconnect` to stop the
+client.
 
 ## Thread Safety
 
@@ -343,9 +361,9 @@ reuse a configuration for another client returns `ErrConfigBusy`.
 
 The client properly manages resources:
 
-- Connections are automatically closed on errors.
+- Connections are closed at the end of each session.
 - Goroutines are cleaned up on shutdown.
-- Context cancellation is propagated throughout.
+- Context cancellation is propagated to callbacks and workers.
 - The `Wait()` method ensures proper shutdown sequencing.
 
 ## Helper Functions
@@ -398,9 +416,10 @@ The `OnSession` callback should:
 
 - Block until the session is complete.
 - Handle all protocol-specific logic.
-- Return `nil` to trigger reconnection on completion.
-- Return an error to stop reconnection.
-- Respect context cancellation.
+- Return `nil` or a non-fatal error to trigger reconnection.
+- Return `ErrDoNotReconnect`, possibly wrapped, to stop the client.
+- Respect context cancellation for a graceful wind-down; a session left
+  blocked on a read is unblocked by shutdown closing the connection.
 
 ## Integration with darvaza.org/x/net
 
@@ -452,7 +471,7 @@ func createClient(addr string) (*reconnect.Client, error) {
                 return nil
             }
             // Stop on permanent errors.
-            return err
+            return reconnect.ErrDoNotReconnect
         },
     }
 
@@ -510,10 +529,7 @@ string:
 | Pattern | Network Type | Example |
 | --- | --- | --- |
 | `unix:` prefix | Unix socket | `unix:/var/run/app.sock` |
+| `@` prefix | Unix socket (abstract namespace, Linux) | `@app` |
 | Absolute path (`/`) | Unix socket | `/tmp/socket` |
 | Ends with `.sock` | Unix socket | `./app.sock`, `run/app.sock` |
 | All others | TCP | `example.com:8080`, `192.168.1.1:443` |
-
-This implementation provides enterprise-grade reliability for both TCP and Unix
-domain socket connections whilst maintaining simplicity and flexibility for
-various use cases.

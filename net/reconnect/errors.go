@@ -2,12 +2,12 @@ package reconnect
 
 import (
 	"context"
-	"errors"
 	"io/fs"
 	"os"
 	"syscall"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/errors"
 )
 
 var (
@@ -20,10 +20,16 @@ var (
 	ErrDoNotReconnect = errors.New("don't reconnect")
 
 	// ErrNotConnected indicates the [Client] isn't currently connected.
-	ErrNotConnected = core.QuietWrap(fs.ErrClosed, "not connected")
+	ErrNotConnected = core.QuietWrap(errors.ErrClosed, "not connected")
 
-	// ErrRunning indicates the [Client] has already being started.
+	// ErrRunning indicates the [Client] has already been started.
 	ErrRunning = core.QuietWrap(syscall.EBUSY, "client already running")
+
+	// ErrClosed indicates the [Client] has already been shut down
+	// and can no longer be started. It wraps the workgroup's
+	// sentinel so the shutdown signal still matches the one the
+	// group returns across the lifecycle stack.
+	ErrClosed = core.QuietWrap(errors.ErrClosed, "client closed")
 
 	// ErrNameEmpty indicates a name is empty
 	ErrNameEmpty = errors.New("name missing")
@@ -34,6 +40,8 @@ var (
 
 // IsFatal tells if the error means the connection
 // should be closed and not retried.
+// Only [ErrDoNotReconnect], possibly wrapped, is considered
+// fatal; anything else is treated as recoverable.
 func IsFatal(err error) bool {
 	if err != nil {
 		is, _ := core.IsErrorFn2(checkIsFatal, err)
@@ -89,8 +97,8 @@ func filterNonError(err error) error {
 	return err
 }
 
-// IsNonError checks if the error is an actual error instead of
-// a manual shutdown.
+// IsNonError reports whether the error represents a
+// user-initiated shutdown instead of an actual failure.
 func IsNonError(err error) bool {
 	if err == nil {
 		return true

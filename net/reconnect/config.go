@@ -14,7 +14,8 @@ import (
 	"darvaza.org/x/net"
 )
 
-// An OptionFunc modifies a [Config] consistently before SetDefaults() and Validate().
+// An OptionFunc modifies a [Config] before [Config.SetDefaults] and
+// [Config.Valid] run.
 type OptionFunc func(*Config) error
 
 var (
@@ -37,13 +38,17 @@ type Config struct {
 	// OnConnect is called, when defined, immediately after the connection is established
 	// but before the session is created.
 	OnConnect func(context.Context, net.Conn) error
-	// OnSession is expected to block until it's done.
+	// OnSession, when defined, owns the connection and is expected
+	// to block until the session is done. Returning nil or a
+	// non-fatal error leads to a reconnection attempt; return
+	// [ErrDoNotReconnect], possibly wrapped, to stop the [Client].
 	OnSession func(context.Context) error
 	// OnDisconnect is called after closing the connection and can be used to
-	// prevent further connection retries.
+	// prevent further connection retries by returning [ErrDoNotReconnect].
 	OnDisconnect func(context.Context, net.Conn) error
-	// OnError is called after all errors and gives us the opportunity to
-	// decide how the error should be treated by the reconnection logic.
+	// OnError is called after all errors, and its return value replaces
+	// the error for the reconnection logic. Return nil to discard the
+	// error, or [ErrDoNotReconnect] to stop the [Client].
 	OnError func(context.Context, net.Conn, error) error
 
 	// immutable data
@@ -55,19 +60,26 @@ type Config struct {
 	Remote string
 
 	// KeepAlive indicates the value to be set to TCP connections
-	// for the low level keep alive messages.
+	// for the low-level keep-alive messages.
 	KeepAlive time.Duration `default:"5s"`
 	// DialTimeout indicates how long are we willing to wait for new
 	// connections getting established.
 	DialTimeout time.Duration `default:"2s"`
-	// ReadTimeout is the default read deadline for the connection.
+	// ReadTimeout is the default read deadline for the connection,
+	// applied via [Client.ResetReadDeadline] and [Client.ResetDeadline].
+	// It is not set automatically on new connections.
 	// Zero or negative disables the deadline.
 	ReadTimeout time.Duration `default:"2s"`
-	// WriteTimeout is the default write deadline for the connection.
-	// Zero or negative disables the deadline.
+	// WriteTimeout is the default write deadline for the connection,
+	// applied via [Client.ResetWriteDeadline] and [Client.ResetDeadline].
+	// It is not set automatically on new connections.
+	// Zero or negative disables the deadline, except [Client.ResetDeadline]
+	// substitutes ReadTimeout when WriteTimeout is zero (see [Client.SetDeadline]).
 	WriteTimeout time.Duration `default:"2s"`
 	// ReconnectDelay specifies how long to wait between re-connections
-	// unless [WaitReconnect] is specified. Negative implies reconnecting is disabled.
+	// unless [WaitReconnect] is specified. Zero means
+	// [DefaultWaitReconnect], and negative implies reconnecting
+	// is disabled.
 	ReconnectDelay time.Duration
 }
 
