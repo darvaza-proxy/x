@@ -8,14 +8,15 @@ import (
 	"fmt"
 	"testing"
 
+	"darvaza.org/core"
+
 	"darvaza.org/x/tls/x509utils/certpool"
 )
 
 func TestSystemCertPool(t *testing.T) {
 	pool, err := certpool.SystemCertPool()
-	if err != nil {
-		t.Fatal(err)
-	}
+	core.AssertMustNoError(t, err, "system pool")
+	core.AssertMustNotNil(t, pool, "pool")
 
 	ctx := context.Background()
 	if deadLine, ok := t.Deadline(); ok {
@@ -30,6 +31,7 @@ func TestSystemCertPool(t *testing.T) {
 		i++
 		return true
 	})
+	core.AssertEqual(t, count, i-1, "visited all")
 }
 
 func printSystemCertTest(t *testing.T, i, count int, cert *x509.Certificate) {
