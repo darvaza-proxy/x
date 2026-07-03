@@ -10,12 +10,18 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"darvaza.org/core"
 )
 
 // Prefix is a filesystem prefix under which the system-mode
 // directories are composed. The special value [PrefixUser]
 // makes the FooDir methods return the same as their
-// UserFooDir counterparts.
+// UserFooDir counterparts. Any other value must be one of the
+// well-known prefixes or an absolute path to an existing
+// directory — see [Prefix.Validate] — and the FooDir methods
+// reject malformed values, including the zero value, with an
+// error.
 type Prefix string
 
 // PrefixUser is the Prefix indicating user mode, where the
@@ -27,8 +33,8 @@ const PrefixUser Prefix = "~"
 var prefix = PrefixUser
 
 // NewPrefix returns a Prefix for the given directory, resolved
-// to an absolute path and validated to exist. The special value
-// "~" returns [PrefixUser] instead.
+// to an absolute path and validated via [Prefix.Validate]. The
+// special value "~" returns [PrefixUser] instead.
 func NewPrefix(dir string) (Prefix, error) {
 	if Prefix(dir) == PrefixUser {
 		return PrefixUser, nil
@@ -39,19 +45,48 @@ func NewPrefix(dir string) (Prefix, error) {
 		return "", err
 	}
 
-	st, err := os.Stat(s)
+	p := Prefix(s)
+	if err := p.Validate(); err != nil {
+		return "", err
+	}
+	return p, nil
+}
+
+// Validate reports whether the Prefix is usable: one of the
+// well-known prefixes — [PrefixUser], [PrefixSystem],
+// [PrefixLocal] or [PrefixOptional] — or an absolute path to an
+// existing directory. Anything else — including the zero value,
+// which carries no root — fails with [fs.ErrInvalid], the stat
+// error, or [syscall.ENOTDIR].
+func (p Prefix) Validate() error {
+	switch p {
+	case PrefixUser, PrefixSystem, PrefixLocal, PrefixOptional:
+		return nil
+	default:
+		return p.validateDir()
+	}
+}
+
+// validateDir requires the Prefix to be an absolute path to an
+// existing directory.
+func (p Prefix) validateDir() error {
+	if !filepath.IsAbs(string(p)) {
+		return core.Wrapf(fs.ErrInvalid, "invalid prefix %q",
+			string(p))
+	}
+
+	st, err := os.Stat(string(p))
 	switch {
 	case err != nil:
-		return "", err
+		return err
 	case !st.IsDir():
-		err = &fs.PathError{
-			Path: s,
+		return &fs.PathError{
+			Path: string(p),
 			Op:   "stat",
 			Err:  syscall.ENOTDIR,
 		}
-		return "", err
 	default:
-		return Prefix(s), nil
+		return nil
 	}
 }
 

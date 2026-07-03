@@ -41,13 +41,13 @@ func (p Prefix) sysRuntimeDir(sub ...string) (string, error) {
 }
 
 // getSysPrefix returns the filesystem prefix to prepend to
-// system directories. It reports false under [PrefixUser],
-// which has no system prefix.
+// system directories. It reports false under [PrefixUser] and
+// the zero value, which have no system prefix.
 func (p Prefix) getSysPrefix() (string, bool) {
 	switch p {
 	case PrefixSystem:
 		return "", true
-	case PrefixUser:
+	case PrefixUser, "":
 		return "", false
 	default:
 		return string(p), true
@@ -55,6 +55,10 @@ func (p Prefix) getSysPrefix() (string, bool) {
 }
 
 func (p Prefix) sysDir(dir string, sub ...string) (string, error) {
+	if err := p.Validate(); err != nil {
+		return "", err
+	}
+
 	if p == PrefixOptional {
 		return getSysOptDir(dir, sub...)
 	}

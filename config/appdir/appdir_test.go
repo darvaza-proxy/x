@@ -238,12 +238,11 @@ func newSysRuntimeDirTestCase(name string, prefix appdir.Prefix,
 	return newSysDirTestCase(name, KindRuntime, prefix, sub, want)
 }
 
-// newSysConfigDirTestCaseErr declares a row where
-// [appdir.Prefix.ConfigDir] is expected to fail.
-func newSysConfigDirTestCaseErr(name string, prefix appdir.Prefix,
-	sub []string) sysDirTestCase {
+// newSysDirTestCaseErr declares a row expected to fail.
+func newSysDirTestCaseErr(name string, kind Kind,
+	prefix appdir.Prefix, sub []string) sysDirTestCase {
 	return sysDirTestCase{
-		kind:    KindConfig,
+		kind:    kind,
 		prefix:  prefix,
 		name:    name,
 		sub:     sub,
@@ -251,7 +250,14 @@ func newSysConfigDirTestCaseErr(name string, prefix appdir.Prefix,
 	}
 }
 
-func sysDirTestCases() []sysDirTestCase {
+// newSysConfigDirTestCaseErr declares a row where
+// [appdir.Prefix.ConfigDir] is expected to fail.
+func newSysConfigDirTestCaseErr(name string, prefix appdir.Prefix,
+	sub []string) sysDirTestCase {
+	return newSysDirTestCaseErr(name, KindConfig, prefix, sub)
+}
+
+func sysDirTestCases(tmp string) []sysDirTestCase {
 	return core.S(
 		// PrefixSystem
 		newSysCacheDirTestCase("cache system",
@@ -271,7 +277,14 @@ func sysDirTestCases() []sysDirTestCase {
 			"/usr/local/var/lib/app"),
 		// custom prefix
 		newSysConfigDirTestCase("config custom",
-			"/srv/pods", core.S("app"), "/srv/pods/etc/app"),
+			appdir.Prefix(tmp), core.S("app"), tmp+"/etc/app"),
+		// malformed prefixes carry no root and are rejected
+		newSysDirTestCaseErr("config zero value", KindConfig,
+			"", core.S("app")),
+		newSysDirTestCaseErr("data zero value", KindData,
+			"", core.S("app")),
+		newSysDirTestCaseErr("cache relative", KindCache,
+			"srv/pods", core.S("app")),
 		// PrefixOptional swaps app name and category
 		newSysCacheDirTestCase("cache opt",
 			appdir.PrefixOptional, core.S("app"), "/opt/app/cache"),
@@ -293,7 +306,7 @@ func sysDirTestCases() []sysDirTestCase {
 }
 
 func TestSysDir(t *testing.T) {
-	core.RunTestCases(t, sysDirTestCases())
+	core.RunTestCases(t, sysDirTestCases(t.TempDir()))
 }
 
 // sysUserModeTestCase tests the SysFooDir functions falling through

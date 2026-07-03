@@ -47,6 +47,7 @@ func TestGetSysPrefix(t *testing.T) {
 	testCases := []getSysPrefixTestCase{
 		newGetSysPrefixTestCase("system", PrefixSystem, "", true),
 		newGetSysPrefixTestCase("user", PrefixUser, "", false),
+		newGetSysPrefixTestCase("zero value", "", "", false),
 		newGetSysPrefixTestCase("local", PrefixLocal,
 			"/usr/local", true),
 		newGetSysPrefixTestCase("custom", "/srv/pods",
