@@ -17,7 +17,8 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 - **Environment Expansion**: Shell-style variable expansion in config files.
 - **Validation**: Integration with go-playground/validator.
 - **Defaults**: Automatic setting of default values.
-- **AppDir**: Platform-specific application directory resolution.
+- **AppDir**: Application directory resolution, user mode (XDG) or
+  system mode under a `Prefix` (FHS).
 
 ### Main Files
 
@@ -31,9 +32,12 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 
 ### AppDir Subpackage
 
-- `appdir.go`: Core directory resolution logic.
-- `appdir_xdg.go`: XDG Base Directory Specification implementation.
-- `appdir_fhs.go`: Filesystem Hierarchy Standard support.
+- `appdir.go`: `Prefix` type, user-mode helpers, and core resolution
+  logic.
+- `appdir_xdg.go`: XDG Base Directory Specification implementation
+  (`!windows`).
+- `appdir_fhs.go`: Filesystem Hierarchy Standard support (`!windows`).
+- `utils.go`: path-composition helpers (`Join` and friends).
 
 ## Architecture Notes
 
@@ -48,7 +52,8 @@ Key patterns:
 
 - Loader[T] provides a generic configuration loader with multiple fallbacks.
 - Option[T] functions allow post-processing of loaded configurations.
-- Platform-specific code is isolated in separate files (_unix.go suffixes).
+- Platform-specific code is isolated in separate files gated by build
+  tags (`//go:build !windows`).
 
 ## Development Commands
 
@@ -90,8 +95,11 @@ cfg, err := loader.NewFromFile(os.DirFS("/"),
 // Get user-specific config directory
 configDir, _ := appdir.UserConfigDir("myapp")
 
-// Get system-wide config directory
+// Get system-wide config directory using the default Prefix
 sysConfigDir, _ := appdir.SysConfigDir("myapp")
+
+// Get the config directory under a specific Prefix
+optConfigDir, _ := appdir.PrefixOptional.ConfigDir("myapp")
 
 // Get cache directory
 cacheDir, _ := appdir.UserCacheDir("myapp")
@@ -121,8 +129,9 @@ err := config.Prepare(&cfg)
 
 ## Platform Support
 
-- **Unix/Linux**: Full XDG Base Directory support.
-- **Windows**: Uses standard OS paths (via os.UserCacheDir, etc.).
+- **Unix/Linux**: Full XDG Base Directory support in user mode.
+- **Windows**: Not currently supported by the `appdir` subpackage;
+  the rest of the package is platform-independent.
 - **FHS Compliance**: System directories follow the Filesystem Hierarchy
   Standard.
 

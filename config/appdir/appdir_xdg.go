@@ -3,9 +3,9 @@
 package appdir
 
 import (
-	"fmt"
 	"os"
 	"os/user"
+	"strconv"
 )
 
 func getUserDataDir() (string, error) {
@@ -23,18 +23,18 @@ func getUserDataDir() (string, error) {
 	}
 }
 
-func getUserRuntimeDir() string {
+func getUserRuntimeDir() (string, error) {
 	dir := os.Getenv("XDG_RUNTIME_DIR")
 	if dir != "" {
-		return dir
+		return dir, nil
 	}
 
 	// systemd special
-	uid := fmt.Sprintf("%v", os.Getuid())
+	uid := strconv.Itoa(os.Getuid())
 	dir = "/run/user/" + uid
 	st, _ := os.Stat(dir)
 	if st != nil && st.IsDir() {
-		return dir
+		return dir, nil
 	}
 
 	dir = "/tmp/runtime-"
@@ -45,5 +45,5 @@ func getUserRuntimeDir() string {
 		dir += uid
 	}
 
-	return dir
+	return dir, nil
 }

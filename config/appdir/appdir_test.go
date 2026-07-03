@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"darvaza.org/core"
@@ -13,59 +14,12 @@ import (
 )
 
 // Compile-time verification that test case types implement TestCase interface
-var _ core.TestCase = joinTestCase{}
 var _ core.TestCase = userDirTestCase{}
 var _ core.TestCase = userDirErrTestCase{}
 var _ core.TestCase = sysDirTestCase{}
 var _ core.TestCase = sysUserModeTestCase{}
+var _ core.TestCase = newPrefixTestCase{}
 var _ core.TestCase = setSysPrefixTestCase{}
-
-// joinTestCase tests [appdir.Join] path composition.
-type joinTestCase struct {
-	base string
-	name string
-	want string
-	sub  []string
-}
-
-func (tc joinTestCase) Name() string {
-	return tc.name
-}
-
-func (tc joinTestCase) Test(t *testing.T) {
-	t.Helper()
-
-	got := appdir.Join(tc.base, tc.sub...)
-	core.AssertEqual(t, tc.want, got, "join")
-}
-
-func newJoinTestCase(name, base string, sub []string,
-	want string) joinTestCase {
-	return joinTestCase{
-		base: base,
-		name: name,
-		want: want,
-		sub:  sub,
-	}
-}
-
-func TestJoin(t *testing.T) {
-	testCases := core.S(
-		newJoinTestCase("base only", "/base", nil, "/base"),
-		newJoinTestCase("single sub", "/base", core.S("app"),
-			"/base/app"),
-		newJoinTestCase("slash sub", "/base", core.S("app/conf.d"),
-			"/base/app/conf.d"),
-		newJoinTestCase("multiple sub", "/base", core.S("app", "x/y"),
-			"/base/app/x/y"),
-		newJoinTestCase("no base", "", core.S("app"), "app"),
-		newJoinTestCase("trailing slash", "/base", core.S("app/"),
-			"/base/app"),
-		newJoinTestCase("empty sub", "/base", core.S(""), "/base"),
-	)
-
-	core.RunTestCases(t, testCases)
-}
 
 // userDirTestCase tests the UserFooDir functions honouring their
 // XDG environment variable override.
@@ -218,10 +172,9 @@ func TestUserDataDirFallback(t *testing.T) {
 	core.AssertEqual(t, "/home/test/.local/share/app", got, "dir")
 }
 
-// sysDirTestCase tests the SysFooDir functions under a stubbed
-// system prefix.
+// sysDirTestCase tests the [appdir.Prefix] FooDir methods.
 type sysDirTestCase struct {
-	prefix  string
+	prefix  appdir.Prefix
 	name    string
 	want    string
 	sub     []string
@@ -235,9 +188,8 @@ func (tc sysDirTestCase) Name() string {
 
 func (tc sysDirTestCase) Test(t *testing.T) {
 	t.Helper()
-	t.Cleanup(appdir.StubSysPrefix(tc.prefix))
 
-	got, err := callSysDirFunc(t, tc.kind, tc.sub...)
+	got, err := callPrefixDirFunc(t, tc.prefix, tc.kind, tc.sub...)
 	if tc.wantErr {
 		core.AssertError(t, err, "%s dir", tc.kind)
 		return
@@ -248,7 +200,7 @@ func (tc sysDirTestCase) Test(t *testing.T) {
 }
 
 // newSysDirTestCase declares a row expected to succeed.
-func newSysDirTestCase(name string, kind Kind, prefix string,
+func newSysDirTestCase(name string, kind Kind, prefix appdir.Prefix,
 	sub []string, want string) sysDirTestCase {
 	return sysDirTestCase{
 		kind:   kind,
@@ -259,33 +211,36 @@ func newSysDirTestCase(name string, kind Kind, prefix string,
 	}
 }
 
-// newSysCacheDirTestCase declares a row for [appdir.SysCacheDir].
-func newSysCacheDirTestCase(name, prefix string, sub []string,
-	want string) sysDirTestCase {
+// newSysCacheDirTestCase declares a row for
+// [appdir.Prefix.CacheDir].
+func newSysCacheDirTestCase(name string, prefix appdir.Prefix,
+	sub []string, want string) sysDirTestCase {
 	return newSysDirTestCase(name, KindCache, prefix, sub, want)
 }
 
-// newSysConfigDirTestCase declares a row for [appdir.SysConfigDir].
-func newSysConfigDirTestCase(name, prefix string, sub []string,
-	want string) sysDirTestCase {
+// newSysConfigDirTestCase declares a row for
+// [appdir.Prefix.ConfigDir].
+func newSysConfigDirTestCase(name string, prefix appdir.Prefix,
+	sub []string, want string) sysDirTestCase {
 	return newSysDirTestCase(name, KindConfig, prefix, sub, want)
 }
 
-// newSysDataDirTestCase declares a row for [appdir.SysDataDir].
-func newSysDataDirTestCase(name, prefix string, sub []string,
-	want string) sysDirTestCase {
+// newSysDataDirTestCase declares a row for [appdir.Prefix.DataDir].
+func newSysDataDirTestCase(name string, prefix appdir.Prefix,
+	sub []string, want string) sysDirTestCase {
 	return newSysDirTestCase(name, KindData, prefix, sub, want)
 }
 
-// newSysRuntimeDirTestCase declares a row for [appdir.SysRuntimeDir].
-func newSysRuntimeDirTestCase(name, prefix string, sub []string,
-	want string) sysDirTestCase {
+// newSysRuntimeDirTestCase declares a row for
+// [appdir.Prefix.RuntimeDir].
+func newSysRuntimeDirTestCase(name string, prefix appdir.Prefix,
+	sub []string, want string) sysDirTestCase {
 	return newSysDirTestCase(name, KindRuntime, prefix, sub, want)
 }
 
 // newSysConfigDirTestCaseErr declares a row where
-// [appdir.SysConfigDir] is expected to fail.
-func newSysConfigDirTestCaseErr(name, prefix string,
+// [appdir.Prefix.ConfigDir] is expected to fail.
+func newSysConfigDirTestCaseErr(name string, prefix appdir.Prefix,
 	sub []string) sysDirTestCase {
 	return sysDirTestCase{
 		kind:    KindConfig,
@@ -419,6 +374,96 @@ func TestSysDirUserMode(t *testing.T) {
 	core.RunTestCases(t, testCases)
 }
 
+// newPrefixTestCase tests [appdir.NewPrefix] validation and
+// path resolution.
+type newPrefixTestCase struct {
+	wantErrIs error
+	dir       string
+	name      string
+	want      appdir.Prefix
+}
+
+func (tc newPrefixTestCase) Name() string {
+	return tc.name
+}
+
+func (tc newPrefixTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	got, err := appdir.NewPrefix(tc.dir)
+	if tc.wantErrIs != nil {
+		core.AssertErrorIs(t, err, tc.wantErrIs, "new prefix")
+		return
+	}
+
+	core.AssertMustNoError(t, err, "new prefix")
+	core.AssertEqual(t, tc.want, got, "prefix")
+}
+
+// newNewPrefixTestCase declares a row expected to succeed, with
+// want holding the resulting Prefix value.
+func newNewPrefixTestCase(name, dir string,
+	want appdir.Prefix) newPrefixTestCase {
+	return newPrefixTestCase{
+		dir:  dir,
+		name: name,
+		want: want,
+	}
+}
+
+// newNewPrefixTestCaseErr declares a row expected to fail.
+func newNewPrefixTestCaseErr(name, dir string,
+	wantErrIs error) newPrefixTestCase {
+	return newPrefixTestCase{
+		wantErrIs: wantErrIs,
+		dir:       dir,
+		name:      name,
+	}
+}
+
+func newPrefixTestCases(tmp, file, cwd string) []newPrefixTestCase {
+	return core.S(
+		newNewPrefixTestCase("user mode", "~", appdir.PrefixUser),
+		newNewPrefixTestCase("existing dir", tmp,
+			appdir.Prefix(tmp)),
+		newNewPrefixTestCase("relative path", ".",
+			appdir.Prefix(cwd)),
+		newNewPrefixTestCaseErr("missing path",
+			filepath.Join(tmp, "missing"), fs.ErrNotExist),
+		newNewPrefixTestCaseErr("regular file", file,
+			syscall.ENOTDIR),
+	)
+}
+
+func TestNewPrefix(t *testing.T) {
+	tmp := t.TempDir()
+	file := filepath.Join(tmp, "file")
+	err := os.WriteFile(file, []byte("x"), 0o600)
+	core.AssertMustNoError(t, err, "write file")
+
+	cwd, err := os.Getwd()
+	core.AssertMustNoError(t, err, "getwd")
+
+	core.RunTestCases(t, newPrefixTestCases(tmp, file, cwd))
+}
+
+// TestNewPrefixAbsError pins [appdir.NewPrefix] propagating the
+// filepath.Abs failure resolving a relative argument when the
+// working directory no longer exists.
+func TestNewPrefixAbsError(t *testing.T) {
+	gone := filepath.Join(t.TempDir(), "gone")
+	err := os.Mkdir(gone, 0o750)
+	core.AssertMustNoError(t, err, "mkdir")
+
+	t.Chdir(gone)
+	err = os.Remove(gone)
+	core.AssertMustNoError(t, err, "remove")
+
+	got, err := appdir.NewPrefix(".")
+	core.AssertErrorIs(t, err, fs.ErrNotExist, "new prefix")
+	core.AssertEqual(t, appdir.Prefix(""), got, "prefix")
+}
+
 // setSysPrefixTestCase tests [appdir.SetSysPrefix] validation and its
 // effect on the SysFooDir functions.
 type setSysPrefixTestCase struct {
@@ -478,7 +523,7 @@ func setSysPrefixTestCases(tmp, file, cwd string) []setSysPrefixTestCase {
 		newSetSysPrefixTestCaseErr("missing path",
 			filepath.Join(tmp, "missing"), fs.ErrNotExist),
 		newSetSysPrefixTestCaseErr("regular file", file,
-			fs.ErrInvalid),
+			syscall.ENOTDIR),
 	)
 }
 
@@ -492,6 +537,31 @@ func TestSetSysPrefix(t *testing.T) {
 	core.AssertMustNoError(t, err, "getwd")
 
 	core.RunTestCases(t, setSysPrefixTestCases(tmp, file, cwd))
+}
+
+// TestSysPrefix pins the getter reflecting the current default
+// Prefix.
+func TestSysPrefix(t *testing.T) {
+	core.AssertEqual(t, appdir.PrefixUser, appdir.SysPrefix(),
+		"default")
+
+	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixSystem))
+	core.AssertEqual(t, appdir.PrefixSystem, appdir.SysPrefix(),
+		"stubbed")
+}
+
+// TestSetSysPrefixUserMode pins "~" returning the package to user
+// mode after a system-mode Prefix was in effect.
+func TestSetSysPrefixUserMode(t *testing.T) {
+	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixSystem))
+	t.Setenv("XDG_CONFIG_HOME", "/home/test/.config")
+
+	err := appdir.SetSysPrefix("~")
+	core.AssertMustNoError(t, err, "set prefix")
+
+	got, err := appdir.SysConfigDir("app")
+	core.AssertMustNoError(t, err, "sys config dir")
+	core.AssertEqual(t, "/home/test/.config/app", got, "dir")
 }
 
 func TestAllConfigDir(t *testing.T) {
@@ -516,12 +586,11 @@ func runTestAllConfigDirUserMode(t *testing.T) {
 func runTestAllConfigDirSystemMode(t *testing.T) {
 	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", "/home/test/.config")
-	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixSystem))
 
 	cwd, err := os.Getwd()
 	core.AssertMustNoError(t, err, "getwd")
 
-	dirs := appdir.AllConfigDir("app")
+	dirs := appdir.PrefixSystem.AllConfigDir("app")
 	core.AssertSliceEqual(t,
 		core.S(cwd, "/home/test/.config/app", "/etc/app"),
 		dirs, "dirs")

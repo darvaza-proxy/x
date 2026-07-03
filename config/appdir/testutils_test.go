@@ -105,6 +105,24 @@ func getSysDirFunc(kind Kind) func(...string) (string, error) {
 	}
 }
 
+// getPrefixDirFunc returns the [appdir.Prefix] FooDir method for the
+// given category, or nil if the category is not recognised.
+func getPrefixDirFunc(p appdir.Prefix,
+	kind Kind) func(...string) (string, error) {
+	switch kind {
+	case KindCache:
+		return p.CacheDir
+	case KindConfig:
+		return p.ConfigDir
+	case KindData:
+		return p.DataDir
+	case KindRuntime:
+		return p.RuntimeDir
+	default:
+		return nil
+	}
+}
+
 // callUserDirFunc resolves the UserFooDir function for the category,
 // asserts it was recognised, and invokes it.
 func callUserDirFunc(t *testing.T, kind Kind,
@@ -124,5 +142,17 @@ func callSysDirFunc(t *testing.T, kind Kind,
 
 	fn := getSysDirFunc(kind)
 	core.AssertMustNotNil(t, fn, "sys %s dir fn", kind)
+	return fn(args...)
+}
+
+// callPrefixDirFunc resolves the FooDir method of the given
+// [appdir.Prefix] for the category, asserts it was recognised, and
+// invokes it.
+func callPrefixDirFunc(t *testing.T, p appdir.Prefix, kind Kind,
+	args ...string) (string, error) {
+	t.Helper()
+
+	fn := getPrefixDirFunc(p, kind)
+	core.AssertMustNotNil(t, fn, "prefix %s dir fn", kind)
 	return fn(args...)
 }
