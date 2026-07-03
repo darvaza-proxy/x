@@ -146,6 +146,14 @@ func sanitizeNameTestCases() []sanitizeNameTestCase {
 		newSanitizeNameTestCase("ipv4", "1.2.3.4", "1.2.3.4"),
 		newSanitizeNameTestCase("ipv6 with port", "[2001:DB8::1]:443",
 			"2001:db8::1"),
+		// An IP scope zone is stripped on the IP branch by WithZone(""),
+		// never by removeZone.
+		newSanitizeNameTestCase("ipv6 zone", "[fe80::1%eth0]:443",
+			"fe80::1"),
+		// A '%' can only survive nameRE inside a non-final label, and idna's
+		// STD3 rules then reject it, so SplitHostPort fails before
+		// doSanitizeName: the removeZone name-branch is never reached.
+		newSanitizeNameTestCase("percent in host", "foo%bar.example", ""),
 		newSanitizeNameTestCase("empty", "", ""),
 	)
 }

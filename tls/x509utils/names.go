@@ -71,25 +71,12 @@ func SanitizeName(name string) (string, bool) {
 
 func doSanitizeName(name string) (string, bool) {
 	if addr, err := core.ParseAddr(name); err == nil {
-		// IP
-		addr = addr.Unmap()
-		addr = addr.WithZone("")
-		name = addr.String()
-	} else {
-		// Name
-		name = removeZone(name)
+		// IP: drop any 4-in-6 mapping and scope zone.
+		name = addr.Unmap().WithZone("").String()
 	}
+	// A non-IP name arrives already validated by SplitHostPort, whose idna
+	// check rejects '%', so it cannot carry a scope zone — nothing to strip.
 	return name, len(name) > 0
-}
-
-func removeZone(name string) string {
-	idx := strings.LastIndexFunc(name, func(r rune) bool {
-		return r == '%'
-	})
-	if idx < 0 {
-		return name
-	}
-	return name[:idx]
 }
 
 // NameAsIP prepares a sanitised IP address name for matching certificates
