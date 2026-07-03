@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // PrefixUser is the prefix used on
@@ -89,12 +90,7 @@ func SysCacheDir(sub ...string) (string, error) {
 		return UserCacheDir(sub...)
 	}
 
-	dir, err := getSysCacheDir()
-	if err != nil {
-		return "", err
-	}
-
-	return Join(dir, sub...), nil
+	return getSysCacheDir(sub...)
 }
 
 // SysConfigDir returns where to store application configuration
@@ -104,12 +100,7 @@ func SysConfigDir(sub ...string) (string, error) {
 		return UserConfigDir(sub...)
 	}
 
-	dir, err := getSysConfigDir()
-	if err != nil {
-		return "", err
-	}
-
-	return Join(dir, sub...), nil
+	return getSysConfigDir(sub...)
 }
 
 // SysDataDir returns where to store application persistent
@@ -119,12 +110,7 @@ func SysDataDir(sub ...string) (string, error) {
 		return UserDataDir(sub...)
 	}
 
-	dir, err := getSysDataDir()
-	if err != nil {
-		return "", err
-	}
-
-	return Join(dir, sub...), nil
+	return getSysDataDir(sub...)
 }
 
 // SysRuntimeDir returns where to store application run-time
@@ -134,12 +120,7 @@ func SysRuntimeDir(sub ...string) (string, error) {
 		return UserRuntimeDir(sub...)
 	}
 
-	dir, err := getSysRuntimeDir()
-	if err != nil {
-		return "", err
-	}
-
-	return Join(dir, sub...), nil
+	return getSysRuntimeDir(sub...)
 }
 
 // AllConfigDir returns a slice containing the application
@@ -169,7 +150,7 @@ func AllConfigDir(sub ...string) []string {
 
 	// /
 	if s, _ := SysConfigDir(sub...); s != "" && s != u {
-		out = append(out, u)
+		out = append(out, s)
 	}
 
 	return out
@@ -208,5 +189,12 @@ func partsFromSlash(base string, sub ...string) []string {
 }
 
 func splitFromSlash(s string) []string {
-	return filepath.SplitList(filepath.FromSlash(s))
+	parts := strings.Split(s, "/")
+	out := parts[:0]
+	for _, p := range parts {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
