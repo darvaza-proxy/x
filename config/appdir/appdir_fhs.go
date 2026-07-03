@@ -45,6 +45,8 @@ func getSysDir(dir string, sub ...string) (string, error) {
 	case PrefixSystem:
 		// ready
 	case PrefixUser:
+		// every SysFooDir handles PrefixUser before calling
+		// getSysDir; reaching this arm means internal misuse.
 		panic("unreachable")
 	default:
 		dir = prefix + dir
@@ -68,13 +70,13 @@ func getSysOptDir(dir string, sub ...string) (string, error) {
 	// convert /foo/app/blah to /opt/app/foo/blah
 	if len(parts) > 1 {
 		parts[0], parts[1] = parts[1], parts[0]
-		dir = PrefixOptional + filepath.Join(parts...)
-		return dir, nil
+		parts = append([]string{PrefixOptional}, parts...)
+		return filepath.Join(parts...), nil
 	}
 
 	// application name not specified
 	err := &fs.PathError{
-		Path: "/opt" + dir,
+		Path: PrefixOptional + dir,
 		Op:   "stat",
 		Err:  fs.ErrInvalid,
 	}

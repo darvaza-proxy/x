@@ -24,7 +24,7 @@ func getUserDataDir() (string, error) {
 }
 
 func getUserRuntimeDir() string {
-	dir := os.Getenv("XDG_RUNTIME_HOME")
+	dir := os.Getenv("XDG_RUNTIME_DIR")
 	if dir != "" {
 		return dir
 	}
