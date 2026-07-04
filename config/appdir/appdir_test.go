@@ -154,6 +154,7 @@ func TestUserDirErr(t *testing.T) {
 
 func TestUserRuntimeDirFallback(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", "")
+	t.Setenv("TMPDIR", "")
 
 	got, err := appdir.UserRuntimeDir()
 	core.AssertMustNoError(t, err, "user runtime dir")

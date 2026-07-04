@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/user"
 	"strconv"
+
+	"darvaza.org/core"
 )
 
 func getUserDataDir() (string, error) {
@@ -37,13 +39,19 @@ func getUserRuntimeDir() (string, error) {
 		return dir, nil
 	}
 
-	dir = "/tmp/runtime-"
+	name := "runtime-"
 	u, _ := user.Current()
 	if u != nil && u.Username != "" {
-		dir += u.Username
+		name += u.Username
 	} else {
-		dir += uid
+		name += uid
 	}
 
-	return dir, nil
+	return joinFn(getTempDir, name)
+}
+
+// getTempDir returns the volatile temporary directory, honouring
+// a $TMPDIR redirection and defaulting to /tmp.
+func getTempDir() (string, error) {
+	return core.Coalesce(os.Getenv("TMPDIR"), "/tmp"), nil
 }

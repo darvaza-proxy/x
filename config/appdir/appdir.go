@@ -136,9 +136,9 @@ func UserDataDir(sub ...string) (string, error) {
 //
 // When ${XDG_RUNTIME_DIR} is unset and the systemd
 // /run/user/<uid> directory doesn't exist, it falls back to
-// /tmp/runtime-<user> without creating it. Callers must create
-// the fallback with 0700 permissions to honour the XDG trust
-// requirements.
+// ${TMPDIR:-/tmp}/runtime-<user> without creating it. Callers
+// must create the fallback with 0700 permissions to honour the
+// XDG trust requirements.
 func UserRuntimeDir(sub ...string) (string, error) {
 	return joinFn(getUserRuntimeDir, sub...)
 }
