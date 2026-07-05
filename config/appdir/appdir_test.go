@@ -20,68 +20,6 @@ var _ core.TestCase = sysDirTestCase{}
 var _ core.TestCase = sysUserModeTestCase{}
 var _ core.TestCase = setSysPrefixTestCase{}
 
-// directory categories used by the Foo{Cache,Config,Data,Runtime}Dir
-// test case dispatchers.
-const (
-	kindCache   = "cache"
-	kindConfig  = "config"
-	kindData    = "data"
-	kindRuntime = "runtime"
-)
-
-// xdgEnvKey returns the XDG basedir environment variable overriding
-// the given directory category.
-func xdgEnvKey(kind string) string {
-	switch kind {
-	case kindCache:
-		return "XDG_CACHE_HOME"
-	case kindConfig:
-		return "XDG_CONFIG_HOME"
-	case kindData:
-		return "XDG_DATA_HOME"
-	default:
-		return "XDG_RUNTIME_DIR"
-	}
-}
-
-// userDirFn returns the UserFooDir function for the given category.
-func userDirFn(t *testing.T, kind string) func(...string) (string, error) {
-	t.Helper()
-
-	switch kind {
-	case kindCache:
-		return appdir.UserCacheDir
-	case kindConfig:
-		return appdir.UserConfigDir
-	case kindData:
-		return appdir.UserDataDir
-	case kindRuntime:
-		return appdir.UserRuntimeDir
-	default:
-		t.Fatalf("unknown kind %q", kind)
-		return nil
-	}
-}
-
-// sysDirFn returns the SysFooDir function for the given category.
-func sysDirFn(t *testing.T, kind string) func(...string) (string, error) {
-	t.Helper()
-
-	switch kind {
-	case kindCache:
-		return appdir.SysCacheDir
-	case kindConfig:
-		return appdir.SysConfigDir
-	case kindData:
-		return appdir.SysDataDir
-	case kindRuntime:
-		return appdir.SysRuntimeDir
-	default:
-		t.Fatalf("unknown kind %q", kind)
-		return nil
-	}
-}
-
 // joinTestCase tests [appdir.Join] path composition.
 type joinTestCase struct {
 	base string
@@ -112,7 +50,7 @@ func newJoinTestCase(name, base string, sub []string,
 }
 
 func TestJoin(t *testing.T) {
-	testCases := []joinTestCase{
+	testCases := core.S(
 		newJoinTestCase("base only", "/base", nil, "/base"),
 		newJoinTestCase("single sub", "/base", core.S("app"),
 			"/base/app"),
@@ -124,7 +62,7 @@ func TestJoin(t *testing.T) {
 		newJoinTestCase("trailing slash", "/base", core.S("app/"),
 			"/base/app"),
 		newJoinTestCase("empty sub", "/base", core.S(""), "/base"),
-	}
+	)
 
 	core.RunTestCases(t, testCases)
 }
@@ -132,11 +70,11 @@ func TestJoin(t *testing.T) {
 // userDirTestCase tests the UserFooDir functions honouring their
 // XDG environment variable override.
 type userDirTestCase struct {
-	kind     string
 	envValue string
 	name     string
 	want     string
 	sub      []string
+	kind     Kind
 }
 
 func (tc userDirTestCase) Name() string {
@@ -145,15 +83,15 @@ func (tc userDirTestCase) Name() string {
 
 func (tc userDirTestCase) Test(t *testing.T) {
 	t.Helper()
-	t.Setenv(xdgEnvKey(tc.kind), tc.envValue)
+	setXDGEnv(t, tc.kind, tc.envValue)
 
-	got, err := userDirFn(t, tc.kind)(tc.sub...)
-	core.AssertNoError(t, err, "%s dir", tc.kind)
+	got, err := callUserDirFunc(t, tc.kind, tc.sub...)
+	core.AssertMustNoError(t, err, "%s dir", tc.kind)
 	core.AssertEqual(t, tc.want, got, "dir")
 }
 
-func newUserDirTestCase(name, kind, envValue string, sub []string,
-	want string) userDirTestCase {
+func newUserDirTestCase(name string, kind Kind, envValue string,
+	sub []string, want string) userDirTestCase {
 	return userDirTestCase{
 		kind:     kind,
 		envValue: envValue,
@@ -166,29 +104,29 @@ func newUserDirTestCase(name, kind, envValue string, sub []string,
 // newUserCacheDirTestCase declares a row for [appdir.UserCacheDir].
 func newUserCacheDirTestCase(name, envValue string, sub []string,
 	want string) userDirTestCase {
-	return newUserDirTestCase(name, kindCache, envValue, sub, want)
+	return newUserDirTestCase(name, KindCache, envValue, sub, want)
 }
 
 // newUserConfigDirTestCase declares a row for [appdir.UserConfigDir].
 func newUserConfigDirTestCase(name, envValue string, sub []string,
 	want string) userDirTestCase {
-	return newUserDirTestCase(name, kindConfig, envValue, sub, want)
+	return newUserDirTestCase(name, KindConfig, envValue, sub, want)
 }
 
 // newUserDataDirTestCase declares a row for [appdir.UserDataDir].
 func newUserDataDirTestCase(name, envValue string, sub []string,
 	want string) userDirTestCase {
-	return newUserDirTestCase(name, kindData, envValue, sub, want)
+	return newUserDirTestCase(name, KindData, envValue, sub, want)
 }
 
 // newUserRuntimeDirTestCase declares a row for [appdir.UserRuntimeDir].
 func newUserRuntimeDirTestCase(name, envValue string, sub []string,
 	want string) userDirTestCase {
-	return newUserDirTestCase(name, kindRuntime, envValue, sub, want)
+	return newUserDirTestCase(name, KindRuntime, envValue, sub, want)
 }
 
 func TestUserDir(t *testing.T) {
-	testCases := []userDirTestCase{
+	testCases := core.S(
 		newUserCacheDirTestCase("cache", "/custom/cache",
 			core.S("app"), "/custom/cache/app"),
 		newUserConfigDirTestCase("config", "/custom/config",
@@ -200,7 +138,7 @@ func TestUserDir(t *testing.T) {
 		newUserRuntimeDirTestCase("runtime multipart",
 			"/custom/run", core.S("app/state"),
 			"/custom/run/app/state"),
-	}
+	)
 
 	core.RunTestCases(t, testCases)
 }
@@ -208,8 +146,8 @@ func TestUserDir(t *testing.T) {
 // userDirErrTestCase tests the UserFooDir functions failing when
 // both their XDG environment variable and HOME are unset.
 type userDirErrTestCase struct {
-	kind string
 	name string
+	kind Kind
 }
 
 func (tc userDirErrTestCase) Name() string {
@@ -218,14 +156,14 @@ func (tc userDirErrTestCase) Name() string {
 
 func (tc userDirErrTestCase) Test(t *testing.T) {
 	t.Helper()
-	t.Setenv(xdgEnvKey(tc.kind), "")
+	setXDGEnv(t, tc.kind, "")
 	t.Setenv("HOME", "")
 
-	_, err := userDirFn(t, tc.kind)("app")
+	_, err := callUserDirFunc(t, tc.kind, "app")
 	core.AssertError(t, err, "%s dir", tc.kind)
 }
 
-func newUserDirErrTestCase(name, kind string) userDirErrTestCase {
+func newUserDirErrTestCase(name string, kind Kind) userDirErrTestCase {
 	return userDirErrTestCase{
 		kind: kind,
 		name: name,
@@ -235,27 +173,27 @@ func newUserDirErrTestCase(name, kind string) userDirErrTestCase {
 // newUserCacheDirErrTestCase declares a row where
 // [appdir.UserCacheDir] is expected to fail.
 func newUserCacheDirErrTestCase(name string) userDirErrTestCase {
-	return newUserDirErrTestCase(name, kindCache)
+	return newUserDirErrTestCase(name, KindCache)
 }
 
 // newUserConfigDirErrTestCase declares a row where
 // [appdir.UserConfigDir] is expected to fail.
 func newUserConfigDirErrTestCase(name string) userDirErrTestCase {
-	return newUserDirErrTestCase(name, kindConfig)
+	return newUserDirErrTestCase(name, KindConfig)
 }
 
 // newUserDataDirErrTestCase declares a row where
 // [appdir.UserDataDir] is expected to fail.
 func newUserDataDirErrTestCase(name string) userDirErrTestCase {
-	return newUserDirErrTestCase(name, kindData)
+	return newUserDirErrTestCase(name, KindData)
 }
 
 func TestUserDirErr(t *testing.T) {
-	testCases := []userDirErrTestCase{
+	testCases := core.S(
 		newUserCacheDirErrTestCase("cache"),
 		newUserConfigDirErrTestCase("config"),
 		newUserDataDirErrTestCase("data"),
-	}
+	)
 
 	core.RunTestCases(t, testCases)
 }
@@ -264,7 +202,7 @@ func TestUserRuntimeDirFallback(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", "")
 
 	got, err := appdir.UserRuntimeDir()
-	core.AssertNoError(t, err, "user runtime dir")
+	core.AssertMustNoError(t, err, "user runtime dir")
 
 	ok := strings.HasPrefix(got, "/run/user/") ||
 		strings.HasPrefix(got, "/tmp/runtime-")
@@ -276,18 +214,18 @@ func TestUserDataDirFallback(t *testing.T) {
 	t.Setenv("HOME", "/home/test")
 
 	got, err := appdir.UserDataDir("app")
-	core.AssertNoError(t, err, "user data dir")
+	core.AssertMustNoError(t, err, "user data dir")
 	core.AssertEqual(t, "/home/test/.local/share/app", got, "dir")
 }
 
 // sysDirTestCase tests the SysFooDir functions under a stubbed
 // system prefix.
 type sysDirTestCase struct {
-	kind    string
 	prefix  string
 	name    string
 	want    string
 	sub     []string
+	kind    Kind
 	wantErr bool
 }
 
@@ -299,19 +237,19 @@ func (tc sysDirTestCase) Test(t *testing.T) {
 	t.Helper()
 	t.Cleanup(appdir.StubSysPrefix(tc.prefix))
 
-	got, err := sysDirFn(t, tc.kind)(tc.sub...)
+	got, err := callSysDirFunc(t, tc.kind, tc.sub...)
 	if tc.wantErr {
 		core.AssertError(t, err, "%s dir", tc.kind)
 		return
 	}
 
-	core.AssertNoError(t, err, "%s dir", tc.kind)
+	core.AssertMustNoError(t, err, "%s dir", tc.kind)
 	core.AssertEqual(t, tc.want, got, "dir")
 }
 
 // newSysDirTestCase declares a row expected to succeed.
-func newSysDirTestCase(name, kind, prefix string, sub []string,
-	want string) sysDirTestCase {
+func newSysDirTestCase(name string, kind Kind, prefix string,
+	sub []string, want string) sysDirTestCase {
 	return sysDirTestCase{
 		kind:   kind,
 		prefix: prefix,
@@ -324,25 +262,25 @@ func newSysDirTestCase(name, kind, prefix string, sub []string,
 // newSysCacheDirTestCase declares a row for [appdir.SysCacheDir].
 func newSysCacheDirTestCase(name, prefix string, sub []string,
 	want string) sysDirTestCase {
-	return newSysDirTestCase(name, kindCache, prefix, sub, want)
+	return newSysDirTestCase(name, KindCache, prefix, sub, want)
 }
 
 // newSysConfigDirTestCase declares a row for [appdir.SysConfigDir].
 func newSysConfigDirTestCase(name, prefix string, sub []string,
 	want string) sysDirTestCase {
-	return newSysDirTestCase(name, kindConfig, prefix, sub, want)
+	return newSysDirTestCase(name, KindConfig, prefix, sub, want)
 }
 
 // newSysDataDirTestCase declares a row for [appdir.SysDataDir].
 func newSysDataDirTestCase(name, prefix string, sub []string,
 	want string) sysDirTestCase {
-	return newSysDirTestCase(name, kindData, prefix, sub, want)
+	return newSysDirTestCase(name, KindData, prefix, sub, want)
 }
 
 // newSysRuntimeDirTestCase declares a row for [appdir.SysRuntimeDir].
 func newSysRuntimeDirTestCase(name, prefix string, sub []string,
 	want string) sysDirTestCase {
-	return newSysDirTestCase(name, kindRuntime, prefix, sub, want)
+	return newSysDirTestCase(name, KindRuntime, prefix, sub, want)
 }
 
 // newSysConfigDirTestCaseErr declares a row where
@@ -350,7 +288,7 @@ func newSysRuntimeDirTestCase(name, prefix string, sub []string,
 func newSysConfigDirTestCaseErr(name, prefix string,
 	sub []string) sysDirTestCase {
 	return sysDirTestCase{
-		kind:    kindConfig,
+		kind:    KindConfig,
 		prefix:  prefix,
 		name:    name,
 		sub:     sub,
@@ -359,7 +297,7 @@ func newSysConfigDirTestCaseErr(name, prefix string,
 }
 
 func sysDirTestCases() []sysDirTestCase {
-	return []sysDirTestCase{
+	return core.S(
 		// PrefixSystem
 		newSysCacheDirTestCase("cache system",
 			appdir.PrefixSystem, core.S("app"), "/var/cache/app"),
@@ -396,7 +334,7 @@ func sysDirTestCases() []sysDirTestCase {
 			"/opt/app/share/models"),
 		newSysConfigDirTestCaseErr("config opt without app name",
 			appdir.PrefixOptional, nil),
-	}
+	)
 }
 
 func TestSysDir(t *testing.T) {
@@ -406,11 +344,11 @@ func TestSysDir(t *testing.T) {
 // sysUserModeTestCase tests the SysFooDir functions falling through
 // to their UserFooDir counterparts under [appdir.PrefixUser].
 type sysUserModeTestCase struct {
-	kind     string
 	envValue string
 	name     string
 	want     string
 	sub      []string
+	kind     Kind
 }
 
 func (tc sysUserModeTestCase) Name() string {
@@ -420,15 +358,15 @@ func (tc sysUserModeTestCase) Name() string {
 func (tc sysUserModeTestCase) Test(t *testing.T) {
 	t.Helper()
 	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixUser))
-	t.Setenv(xdgEnvKey(tc.kind), tc.envValue)
+	setXDGEnv(t, tc.kind, tc.envValue)
 
-	got, err := sysDirFn(t, tc.kind)(tc.sub...)
-	core.AssertNoError(t, err, "%s dir", tc.kind)
+	got, err := callSysDirFunc(t, tc.kind, tc.sub...)
+	core.AssertMustNoError(t, err, "%s dir", tc.kind)
 	core.AssertEqual(t, tc.want, got, "dir")
 }
 
-func newSysUserModeTestCase(name, kind, envValue string, sub []string,
-	want string) sysUserModeTestCase {
+func newSysUserModeTestCase(name string, kind Kind, envValue string,
+	sub []string, want string) sysUserModeTestCase {
 	return sysUserModeTestCase{
 		kind:     kind,
 		envValue: envValue,
@@ -442,32 +380,32 @@ func newSysUserModeTestCase(name, kind, envValue string, sub []string,
 // [appdir.SysCacheDir] in user mode.
 func newSysCacheDirUserModeTestCase(name, envValue string,
 	sub []string, want string) sysUserModeTestCase {
-	return newSysUserModeTestCase(name, kindCache, envValue, sub, want)
+	return newSysUserModeTestCase(name, KindCache, envValue, sub, want)
 }
 
 // newSysConfigDirUserModeTestCase declares a row for
 // [appdir.SysConfigDir] in user mode.
 func newSysConfigDirUserModeTestCase(name, envValue string,
 	sub []string, want string) sysUserModeTestCase {
-	return newSysUserModeTestCase(name, kindConfig, envValue, sub, want)
+	return newSysUserModeTestCase(name, KindConfig, envValue, sub, want)
 }
 
 // newSysDataDirUserModeTestCase declares a row for
 // [appdir.SysDataDir] in user mode.
 func newSysDataDirUserModeTestCase(name, envValue string,
 	sub []string, want string) sysUserModeTestCase {
-	return newSysUserModeTestCase(name, kindData, envValue, sub, want)
+	return newSysUserModeTestCase(name, KindData, envValue, sub, want)
 }
 
 // newSysRuntimeDirUserModeTestCase declares a row for
 // [appdir.SysRuntimeDir] in user mode.
 func newSysRuntimeDirUserModeTestCase(name, envValue string,
 	sub []string, want string) sysUserModeTestCase {
-	return newSysUserModeTestCase(name, kindRuntime, envValue, sub, want)
+	return newSysUserModeTestCase(name, KindRuntime, envValue, sub, want)
 }
 
 func TestSysDirUserMode(t *testing.T) {
-	testCases := []sysUserModeTestCase{
+	testCases := core.S(
 		newSysCacheDirUserModeTestCase("cache", "/custom/cache",
 			core.S("app"), "/custom/cache/app"),
 		newSysConfigDirUserModeTestCase("config", "/custom/config",
@@ -476,7 +414,7 @@ func TestSysDirUserMode(t *testing.T) {
 			core.S("app"), "/custom/share/app"),
 		newSysRuntimeDirUserModeTestCase("runtime", "/custom/run",
 			core.S("app"), "/custom/run/app"),
-	}
+	)
 
 	core.RunTestCases(t, testCases)
 }
@@ -504,10 +442,10 @@ func (tc setSysPrefixTestCase) Test(t *testing.T) {
 		return
 	}
 
-	core.AssertNoError(t, err, "set prefix")
+	core.AssertMustNoError(t, err, "set prefix")
 
 	got, err := appdir.SysConfigDir("app")
-	core.AssertNoError(t, err, "sys config dir")
+	core.AssertMustNoError(t, err, "sys config dir")
 	core.AssertEqual(t, tc.want, got, "dir")
 }
 
@@ -532,7 +470,7 @@ func newSetSysPrefixTestCaseErr(name, dir string,
 }
 
 func setSysPrefixTestCases(tmp, file, cwd string) []setSysPrefixTestCase {
-	return []setSysPrefixTestCase{
+	return core.S(
 		newSetSysPrefixTestCase("existing dir", tmp,
 			filepath.Join(tmp, "etc", "app")),
 		newSetSysPrefixTestCase("relative path", ".",
@@ -541,7 +479,7 @@ func setSysPrefixTestCases(tmp, file, cwd string) []setSysPrefixTestCase {
 			filepath.Join(tmp, "missing"), fs.ErrNotExist),
 		newSetSysPrefixTestCaseErr("regular file", file,
 			fs.ErrInvalid),
-	}
+	)
 }
 
 func TestSetSysPrefix(t *testing.T) {
