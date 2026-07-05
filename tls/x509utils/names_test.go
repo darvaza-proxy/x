@@ -1,6 +1,9 @@
 package x509utils_test
 
 import (
+	"crypto/x509"
+	"net"
+	"net/url"
 	"testing"
 
 	"darvaza.org/core"
@@ -11,6 +14,7 @@ import (
 var (
 	_ core.TestCase = nameAsIPTestCase{}
 	_ core.TestCase = nameAsSuffixTestCase{}
+	_ core.TestCase = namesTestCase{}
 	_ core.TestCase = sanitizeNameTestCase{}
 )
 
@@ -160,4 +164,111 @@ func sanitizeNameTestCases() []sanitizeNameTestCase {
 
 func TestSanitizeName(t *testing.T) {
 	core.RunTestCases(t, sanitizeNameTestCases())
+}
+
+// namesTestCase exercises Names: DNS literals fold to lower case, wildcards
+// become dotted patterns, and IP SANs are bracketed. The certificates are
+// minted and re-parsed so their SANs are in the DER-canonical form the basic
+// store feeds Names via cert.Leaf.
+type namesTestCase struct {
+	cert     *x509.Certificate
+	name     string
+	names    []string
+	patterns []string
+}
+
+func (tc namesTestCase) Name() string { return tc.name }
+
+func (tc namesTestCase) Test(t *testing.T) {
+	t.Helper()
+	names, patterns := x509utils.Names(tc.cert)
+	core.AssertSliceEqual(t, tc.names, names, "names")
+	core.AssertSliceEqual(t, tc.patterns, patterns, "patterns")
+}
+
+func newNamesTestCase(name string, cert *x509.Certificate,
+	names, patterns []string) namesTestCase {
+	return namesTestCase{
+		cert:     cert,
+		name:     name,
+		names:    names,
+		patterns: patterns,
+	}
+}
+
+func namesTestCases(t *testing.T) []namesTestCase {
+	t.Helper()
+
+	dns := func(ds ...string) *x509.Certificate {
+		return certSpec{cn: ds[0], dns: ds}.build(t).cert
+	}
+	ip := func(cn string, ips ...net.IP) *x509.Certificate {
+		return certSpec{cn: cn, ips: ips}.build(t).cert
+	}
+	none := core.S[string]()
+
+	return core.S(
+		newNamesTestCase("dns literal", dns("a.example.com"),
+			core.S("a.example.com"), none),
+		// RFC 6125: DNS names are case-insensitive; Names lower-cases them.
+		newNamesTestCase("uppercase folds", dns("Foo.Example.COM"),
+			core.S("foo.example.com"), none),
+		// a wildcard becomes a dotted suffix pattern, not a literal name.
+		newNamesTestCase("wildcard pattern", dns("*.example.com"),
+			none, core.S(".example.com")),
+		newNamesTestCase("literal and wildcard",
+			dns("a.example.com", "*.example.com"),
+			core.S("a.example.com"), core.S(".example.com")),
+		newNamesTestCase("ipv4 bracketed",
+			ip("host", net.ParseIP("1.2.3.4")),
+			core.S("[1.2.3.4]"), none),
+		newNamesTestCase("ipv6 bracketed",
+			ip("host", net.ParseIP("2001:db8::1")),
+			core.S("[2001:db8::1]"), none),
+	)
+}
+
+func TestNames(t *testing.T) {
+	core.RunTestCases(t, namesTestCases(t))
+}
+
+// TestNamesNil confirms a nil certificate yields no names rather than
+// dereferencing into a panic.
+func TestNamesNil(t *testing.T) {
+	names, patterns := x509utils.Names(nil)
+	core.AssertNil(t, names, "names")
+	core.AssertNil(t, patterns, "patterns")
+}
+
+// TestNamesDropsAndDeduplicates covers splitDNSNames' empty-name drop, the
+// SliceUnique deduplication, and appendIPAddresses' malformed-IP drop, using
+// certificate literals so Names reads the SANs verbatim (a minted cert could
+// not carry an empty DNSName or a 3-byte IP address).
+func TestNamesDropsAndDeduplicates(t *testing.T) {
+	goodIP, err := core.ParseNetIP("1.2.3.4")
+	core.AssertMustNoError(t, err, "parse ip")
+
+	// a 3-byte address fails netip.AddrFromSlice and is dropped; the
+	// parsed one is canonical (unmapped) and is bracketed.
+	badIP := net.IP{1, 2, 3}
+
+	cert := &x509.Certificate{
+		DNSNames: []string{"a.example.com", "", "a.example.com", "*.example.com",
+			"*.example.com"},
+		IPAddresses: []net.IP{badIP, goodIP},
+	}
+
+	names, patterns := x509utils.Names(cert)
+	core.AssertSliceEqual(t, core.S("a.example.com", "[1.2.3.4]"), names,
+		"names")
+	core.AssertSliceEqual(t, core.S(".example.com"), patterns, "patterns")
+}
+
+// TestHostname confirms Hostname sanitises a URL host the same way SanitizeName
+// does: it strips the port and folds case.
+func TestHostname(t *testing.T) {
+	u := &url.URL{Host: "WWW.Example.COM:443"}
+	got, ok := x509utils.Hostname(u)
+	core.AssertMustTrue(t, ok, "ok")
+	core.AssertEqual(t, "www.example.com", got, "host")
 }

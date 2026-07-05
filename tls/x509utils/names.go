@@ -12,8 +12,12 @@ import (
 )
 
 // Names returns a list of exact names and patterns the certificate
-// supports
+// supports. A nil certificate yields no names.
 func Names(cert *x509.Certificate) (names, patterns []string) {
+	if cert == nil {
+		return nil, nil
+	}
+
 	names, patterns = splitDNSNames(cert.DNSNames)
 	names = appendIPAddresses(names, cert.IPAddresses)
 
