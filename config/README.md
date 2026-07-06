@@ -27,8 +27,29 @@ for dealing with config files.
 
 ## AppDir
 
-`appdir` contains helpers to determine the location of application
-specific files.
+`appdir` determines where an application should keep its files —
+cache, configuration, persistent data, and run-time data — following
+the XDG Base Directory Specification in user mode and the Filesystem
+Hierarchy Standard in system mode.
+
+The `Prefix` type selects the system-mode filesystem root:
+`PrefixSystem` (`/`), `PrefixLocal` (`/usr/local`), `PrefixOptional`
+(`/opt`), or a custom directory validated via `NewPrefix()`. The
+special `PrefixUser` value makes the methods return the user-mode
+locations instead. Any value other than the well-known constants
+must be an absolute path to an existing directory, as checked by
+`Validate()`; the methods reject malformed prefixes — including
+the zero value — with an error.
+
+* `UserCacheDir()`, `UserConfigDir()`, `UserDataDir()`,
+  `UserRuntimeDir()` — user mode (XDG).
+* `Prefix.CacheDir()`, `Prefix.ConfigDir()`, `Prefix.DataDir()`,
+  `Prefix.RuntimeDir()` — system mode under the `Prefix`.
+* `SysCacheDir()`, `SysConfigDir()`, `SysDataDir()`,
+  `SysRuntimeDir()` — shortcuts using the package default set via
+  `SetSysPrefix()` and read via `SysPrefix()`.
+* `AllConfigDir()` — configuration search path: working directory,
+  user mode, then system mode.
 
 ## Default values
 
