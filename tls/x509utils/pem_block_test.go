@@ -116,3 +116,20 @@ func blockToPrivateKeyTestCases(t *testing.T) []blockToPrivateKeyTestCase {
 func TestBlockToPrivateKey(t *testing.T) {
 	core.RunTestCases(t, blockToPrivateKeyTestCases(t))
 }
+
+// TestBlockNilGuards checks the public block parsers reject a nil *pem.Block
+// with core.ErrInvalid instead of dereferencing it and panicking (F63).
+func TestBlockNilGuards(t *testing.T) {
+	t.Run("BlockToPrivateKey", func(t *testing.T) {
+		_, err := x509utils.BlockToPrivateKey(nil)
+		core.AssertErrorIs(t, err, core.ErrInvalid, "error")
+	})
+	t.Run("BlockToRSAPrivateKey", func(t *testing.T) {
+		_, err := x509utils.BlockToRSAPrivateKey(nil)
+		core.AssertErrorIs(t, err, core.ErrInvalid, "error")
+	})
+	t.Run("BlockToCertificate", func(t *testing.T) {
+		_, err := x509utils.BlockToCertificate(nil)
+		core.AssertErrorIs(t, err, core.ErrInvalid, "error")
+	})
+}

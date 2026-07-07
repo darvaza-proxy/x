@@ -7,6 +7,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"strings"
+
+	"darvaza.org/core"
 )
 
 var (
@@ -24,6 +26,10 @@ var (
 // BlockToPrivateKey parses a PEM block into an rsa, ecdsa or ed25519 private
 // key, accepting the PKCS1, SEC1 and PKCS8 encodings.
 func BlockToPrivateKey(block *pem.Block) (PrivateKey, error) {
+	if block == nil {
+		return nil, core.ErrInvalid
+	}
+
 	if block.Type == "PRIVATE KEY" || strings.HasSuffix(block.Type, " PRIVATE KEY") {
 		return parsePrivateKeyDER(block.Bytes)
 	}
@@ -75,6 +81,10 @@ func BlockToRSAPrivateKey(block *pem.Block) (*rsa.PrivateKey, error) {
 
 // BlockToCertificate attempts to parse a pem.Block to extract a x509.Certificate
 func BlockToCertificate(block *pem.Block) (*x509.Certificate, error) {
+	if block == nil {
+		return nil, core.ErrInvalid
+	}
+
 	if block.Type == "CERTIFICATE" {
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
