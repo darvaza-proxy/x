@@ -21,23 +21,30 @@ var (
 	ErrNotSupported = errors.New("key type not supported")
 )
 
-// BlockToPrivateKey parses a pem Block looking for rsa, ecdsa or ed25519 Private Keys
+// BlockToPrivateKey parses a PEM block into an rsa, ecdsa or ed25519 private
+// key, accepting the PKCS1, SEC1 and PKCS8 encodings.
 func BlockToPrivateKey(block *pem.Block) (PrivateKey, error) {
 	if block.Type == "PRIVATE KEY" || strings.HasSuffix(block.Type, " PRIVATE KEY") {
-		if pk, _ := x509.ParsePKCS1PrivateKey(block.Bytes); pk != nil {
-			// *rsa.PrivateKey
-			return pk, nil
-		}
-
-		pk, err := parsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-
-		return pk, nil
+		return parsePrivateKeyDER(block.Bytes)
 	}
 
 	return nil, ErrIgnored
+}
+
+// parsePrivateKeyDER decodes a DER private key, trying the PKCS1, SEC1 and
+// PKCS8 encodings in turn.
+func parsePrivateKeyDER(b []byte) (PrivateKey, error) {
+	if pk, _ := x509.ParsePKCS1PrivateKey(b); pk != nil {
+		// *rsa.PrivateKey (PKCS1)
+		return pk, nil
+	}
+
+	if pk, _ := x509.ParseECPrivateKey(b); pk != nil {
+		// *ecdsa.PrivateKey (SEC1)
+		return pk, nil
+	}
+
+	return parsePKCS8PrivateKey(b)
 }
 
 func parsePKCS8PrivateKey(b []byte) (PrivateKey, error) {
