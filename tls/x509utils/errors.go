@@ -2,6 +2,8 @@ package x509utils
 
 import (
 	"crypto/x509"
+	"fmt"
+	"io/fs"
 	"strings"
 
 	"darvaza.org/core"
@@ -55,4 +57,29 @@ func (err ErrInvalidCert) Error() string {
 
 func (err ErrInvalidCert) Unwrap() error {
 	return err.Err
+}
+
+// newInvalidPathError reports a path as unusable for the stated
+// reason, wrapping fs.ErrInvalid so errors.Is matches against the
+// stdlib sentinel regardless of the core release in use.
+func newInvalidPathError(op, path, reason string) *fs.PathError {
+	return &fs.PathError{
+		Op:   op,
+		Path: clampErrPath(path),
+		Err:  core.Wrap(fs.ErrInvalid, reason),
+	}
+}
+
+// maxErrPathLen bounds how much of an offending path an error echoes. A
+// candidate longer than a real file name is a raw blob mistaken for one, and
+// storing it whole would flood the error; any genuine path sits well under it.
+const maxErrPathLen = 256
+
+// clampErrPath keeps an over-long path from filling the error with the entire
+// input, showing a leading slice and the original byte count instead.
+func clampErrPath(path string) string {
+	if len(path) <= maxErrPathLen {
+		return path
+	}
+	return fmt.Sprintf("%s… (%d bytes)", path[:maxErrPathLen], len(path))
 }
