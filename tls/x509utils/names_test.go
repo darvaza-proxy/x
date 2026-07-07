@@ -14,6 +14,7 @@ import (
 var (
 	_ core.TestCase = nameAsIPTestCase{}
 	_ core.TestCase = nameAsSuffixTestCase{}
+	_ core.TestCase = namesIPTestCase{}
 	_ core.TestCase = namesTestCase{}
 	_ core.TestCase = sanitizeNameTestCase{}
 )
@@ -52,6 +53,8 @@ func nameAsIPTestCases() []nameAsIPTestCase {
 		newNameAsIPTestCase("ipv4", "1.2.3.4", "[1.2.3.4]"),
 		newNameAsIPTestCase("overflow octet", "1.2.3.400", ""),
 		newNameAsIPTestCase("ipv6 unspecified", "::", "[::]"),
+		newNameAsIPTestCase("ipv4-mapped ipv6", "::ffff:1.2.3.4", "[1.2.3.4]"),
+		newNameAsIPTestCase("zoned link-local", "fe80::1%eth0", "[fe80::1]"),
 		newNameAsIPTestCase("fqdn", "foo.example.org", ""),
 	)
 }
@@ -262,6 +265,72 @@ func TestNamesDropsAndDeduplicates(t *testing.T) {
 	core.AssertSliceEqual(t, core.S("a.example.com", "[1.2.3.4]"), names,
 		"names")
 	core.AssertSliceEqual(t, core.S(".example.com"), patterns, "patterns")
+}
+
+// TestNamesMappedIP confirms a 16-byte IPv4-mapped-IPv6 iPAddress SAN is
+// stored under the canonical unmapped key ([1.2.3.4]), matching what the
+// lookup paths produce for the same address, rather than [::ffff:1.2.3.4]
+// (F61). A certificate literal carries the mapped SAN verbatim; a minted cert
+// would normalise it to a 4-byte SAN.
+func TestNamesMappedIP(t *testing.T) {
+	mapped := net.IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 1, 2, 3, 4}
+	cert := &x509.Certificate{IPAddresses: []net.IP{mapped}}
+
+	names, _ := x509utils.Names(cert)
+	core.AssertSliceEqual(t, core.S("[1.2.3.4]"), names, "names")
+}
+
+// namesIPTestCase feeds appendIPAddresses (through the exported Names) IP SANs
+// of every boundary length. netip.AddrFromSlice accepts only 4- and 16-byte
+// slices, both of which yield a valid address, so nothing shorter or longer
+// survives and no ok-but-invalid address exists. That is why appendIPAddresses
+// needs no IsValid() guard: these rows produce the same output with or without
+// it, and would catch a bad address leaking through if one ever could (F72).
+type namesIPTestCase struct {
+	name  string
+	ips   []net.IP
+	names []string
+}
+
+func (tc namesIPTestCase) Name() string { return tc.name }
+
+func (tc namesIPTestCase) Test(t *testing.T) {
+	t.Helper()
+	cert := &x509.Certificate{IPAddresses: tc.ips}
+	names, _ := x509utils.Names(cert)
+	core.AssertSliceEqual(t, tc.names, names, "names")
+}
+
+func newNamesIPTestCase(name string, ips []net.IP,
+	names []string) namesIPTestCase {
+	return namesIPTestCase{
+		ips:   ips,
+		names: names,
+		name:  name,
+	}
+}
+
+func namesIPTestCases() []namesIPTestCase {
+	none := core.S[string]()
+	return core.S(
+		newNamesIPTestCase("nil element", core.S[net.IP](nil), none),
+		newNamesIPTestCase("empty", []net.IP{{}}, none),
+		newNamesIPTestCase("three bytes", []net.IP{{1, 2, 3}}, none),
+		newNamesIPTestCase("ipv4", []net.IP{{1, 2, 3, 4}},
+			core.S("[1.2.3.4]")),
+		newNamesIPTestCase("five bytes", []net.IP{{1, 2, 3, 4, 5}}, none),
+		newNamesIPTestCase("fifteen bytes", []net.IP{make([]byte, 15)}, none),
+		newNamesIPTestCase("ipv4-mapped ipv6",
+			[]net.IP{{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 1, 2, 3, 4}},
+			core.S("[1.2.3.4]")),
+		newNamesIPTestCase("ipv6", []net.IP{net.ParseIP("2001:db8::1")},
+			core.S("[2001:db8::1]")),
+		newNamesIPTestCase("seventeen bytes", []net.IP{make([]byte, 17)}, none),
+	)
+}
+
+func TestNamesIPLengths(t *testing.T) {
+	core.RunTestCases(t, namesIPTestCases())
 }
 
 // TestHostname confirms Hostname sanitises a URL host the same way SanitizeName

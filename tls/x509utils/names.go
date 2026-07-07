@@ -46,11 +46,12 @@ func splitDNSNames(dnsNames []string) (names, patterns []string) {
 
 func appendIPAddresses(names []string, addrs []net.IP) []string {
 	for _, ip := range addrs {
+		// AddrFromSlice reports ok only for 4- or 16-byte slices, both of
+		// which yield a valid address; Unmap drops any 4-in-6 mapping so the
+		// stored key matches the form the lookup paths produce.
 		if addr, ok := netip.AddrFromSlice(ip); ok {
-			if addr.IsValid() {
-				name := fmt.Sprintf("[%s]", addr.String())
-				names = append(names, name)
-			}
+			name := fmt.Sprintf("[%s]", addr.Unmap())
+			names = append(names, name)
 		}
 	}
 	return names
@@ -74,20 +75,29 @@ func SanitizeName(name string) (string, bool) {
 }
 
 func doSanitizeName(name string) (string, bool) {
-	if addr, err := core.ParseAddr(name); err == nil {
-		// IP: drop any 4-in-6 mapping and scope zone.
-		name = addr.Unmap().WithZone("").String()
+	if addr, err := sanitizeAddr(name); err == nil {
+		name = addr.String()
 	}
 	// A non-IP name arrives already validated by SplitHostPort, whose idna
 	// check rejects '%', so it cannot carry a scope zone — nothing to strip.
 	return name, len(name) > 0
 }
 
+// sanitizeAddr parses an IP address and canonicalises it into the single form
+// the certificate name keys use — dropping any 4-in-6 mapping and scope zone —
+// so the storage (Names) and lookup (SanitizeName/NameAsIP) paths agree.
+func sanitizeAddr(name string) (netip.Addr, error) {
+	addr, err := core.ParseAddr(name)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	return addr.Unmap().WithZone(""), nil
+}
+
 // NameAsIP prepares a sanitised IP address name for matching certificates
 func NameAsIP(name string) (string, bool) {
-	if addr, err := core.ParseAddr(name); err == nil {
-		s := fmt.Sprintf("[%s]", addr)
-		return s, true
+	if addr, err := sanitizeAddr(name); err == nil {
+		return fmt.Sprintf("[%s]", addr), true
 	}
 	return "", false
 }
