@@ -3,6 +3,8 @@
 package appdir
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"darvaza.org/core"
@@ -12,7 +14,8 @@ import (
 var _ core.TestCase = getTempDirTestCase{}
 
 // getTempDirTestCase tests getTempDir honouring a $TMPDIR
-// redirection and defaulting to /tmp.
+// redirection, resolving a relative value to an absolute path
+// and defaulting to /tmp.
 type getTempDirTestCase struct {
 	tmpDir string
 	name   string
@@ -41,11 +44,20 @@ func newGetTempDirTestCase(name, tmpDir,
 	}
 }
 
-func TestGetTempDir(t *testing.T) {
-	testCases := []getTempDirTestCase{
+// getTempDirTestCases builds the rows, resolving the relative
+// row's expected value against cwd exactly as getTempDir does.
+func getTempDirTestCases(cwd string) []getTempDirTestCase {
+	return []getTempDirTestCase{
 		newGetTempDirTestCase("redirected", "/var/tmp", "/var/tmp"),
+		newGetTempDirTestCase("relative", "rel/tmp",
+			filepath.Join(cwd, "rel/tmp")),
 		newGetTempDirTestCase("default", "", "/tmp"),
 	}
+}
 
-	core.RunTestCases(t, testCases)
+func TestGetTempDir(t *testing.T) {
+	cwd, err := os.Getwd()
+	core.AssertMustNoError(t, err, "getwd")
+
+	core.RunTestCases(t, getTempDirTestCases(cwd))
 }
