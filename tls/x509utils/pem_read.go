@@ -2,6 +2,7 @@ package x509utils
 
 import (
 	"encoding/pem"
+	"errors"
 	"io/fs"
 	"os"
 	"path"
@@ -171,11 +172,11 @@ func (r *readOptions) run(s string) error {
 		return r.readPathPEM(s, st)
 	}
 
-	if pe, ok := err.(*os.PathError); ok {
-		if pe.Err == os.ErrInvalid {
-			// not a path
-			err = fs.ErrInvalid
-		}
+	var pe *fs.PathError
+	if errors.As(err, &pe) && errors.Is(pe.Err, fs.ErrInvalid) {
+		// stat rejected the string as an invalid path; surface the bare
+		// sentinel rather than the PathError wrapping it.
+		err = fs.ErrInvalid
 	}
 
 	return err
