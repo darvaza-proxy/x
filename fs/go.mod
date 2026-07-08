@@ -6,7 +6,7 @@ require darvaza.org/core v0.20.0
 
 require (
 	github.com/gobwas/glob v0.2.3
-	golang.org/x/sys v0.46.0
+	golang.org/x/sys v0.47.0
 )
 
 require (
