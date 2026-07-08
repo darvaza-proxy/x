@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"io/fs"
+	"slices"
 
 	"darvaza.org/core"
 	"darvaza.org/x/container/set"
@@ -238,7 +239,7 @@ func (s *CertPool) unsafeAddCert(name string, cert *x509.Certificate) error {
 	}
 
 	names, patterns := x509utils.Names(cert)
-	if name != "" && !core.SliceContains(names, name) {
+	if name != "" && !slices.Contains(names, name) {
 		names = append(names, name)
 	}
 
@@ -255,7 +256,7 @@ func (s *CertPool) unsafeAddCert(name string, cert *x509.Certificate) error {
 func (s *CertPool) unsafeAddCertName(cert *x509.Certificate, name string) error {
 	ce := s.entries[cert]
 
-	if name == "" || core.SliceContains(ce.names, name) {
+	if name == "" || slices.Contains(ce.names, name) {
 		// nothing to add
 		return core.ErrExists
 	}

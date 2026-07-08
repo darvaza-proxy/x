@@ -4,10 +4,10 @@ package assets
 import (
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 
-	"darvaza.org/core"
 	"darvaza.org/x/web/consts"
 	"darvaza.org/x/web/qlist"
 )
@@ -124,7 +124,7 @@ func (h *AssetHandler) copyHeaders(dest http.Header) {
 		Header() http.Header
 	}); ok {
 		for k, vv := range x.Header() {
-			dest[k] = core.SliceCopy(vv)
+			dest[k] = slices.Clone(vv)
 		}
 	}
 }

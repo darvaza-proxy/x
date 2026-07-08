@@ -3,6 +3,7 @@ package assets
 import (
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,7 +23,7 @@ func doCleanETags(s []string, tag string) (string, bool) {
 	case tag == "":
 		// empty
 		return "", false
-	case core.SliceContains(s, tag):
+	case slices.Contains(s, tag):
 		// duplicate
 		return "", false
 	default:

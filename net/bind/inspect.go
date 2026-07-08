@@ -3,6 +3,7 @@ package bind
 import (
 	"net"
 	"net/netip"
+	"slices"
 
 	"darvaza.org/core"
 )
@@ -62,7 +63,7 @@ func IPAddresses(s []netip.AddrPort) ([]netip.Addr, bool) {
 	for _, ap := range s {
 		if ap.IsValid() {
 			addr := ap.Addr()
-			if !core.SliceContains(out, addr) {
+			if !slices.Contains(out, addr) {
 				out = append(out, addr)
 			}
 		}
@@ -79,7 +80,7 @@ func StringIPAddresses(s []netip.AddrPort) ([]string, bool) {
 	for _, ap := range s {
 		if ap.IsValid() {
 			addr := ap.Addr().String()
-			if !core.SliceContains(out, addr) {
+			if !slices.Contains(out, addr) {
 				out = append(out, addr)
 			}
 		}

@@ -2,8 +2,7 @@ package certpool
 
 import (
 	"crypto/x509"
-
-	"darvaza.org/core"
+	"slices"
 )
 
 type certPoolEntry struct {
@@ -20,8 +19,8 @@ func (ce *certPoolEntry) Clone() *certPoolEntry {
 
 	return &certPoolEntry{
 		cert:     ce.cert,
-		names:    core.SliceCopy(ce.names),
-		patterns: core.SliceCopy(ce.patterns),
+		names:    slices.Clone(ce.names),
+		patterns: slices.Clone(ce.patterns),
 	}
 }
 
