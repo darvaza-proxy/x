@@ -8,7 +8,7 @@ require (
 )
 
 require (
-	golang.org/x/net v0.56.0
+	golang.org/x/net v0.57.0
 	lukechampine.com/blake3 v1.4.1
 )
 
