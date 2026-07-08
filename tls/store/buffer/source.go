@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 
 	"darvaza.org/core"
 	"darvaza.org/x/tls"
@@ -125,9 +126,9 @@ func (src *Source) Clone() *Source {
 	return &Source{
 		SourceName: src.SourceName,
 
-		Certs: core.SliceCopy(src.Certs),
-		Keys:  core.SliceCopy(src.Keys),
-		Errs:  core.SliceCopy(src.Errs),
+		Certs: slices.Clone(src.Certs),
+		Keys:  slices.Clone(src.Keys),
+		Errs:  slices.Clone(src.Errs),
 	}
 }
 

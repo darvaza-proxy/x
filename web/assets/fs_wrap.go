@@ -2,6 +2,7 @@ package assets
 
 import (
 	"net/http"
+	"slices"
 
 	"darvaza.org/core"
 	"darvaza.org/x/fs"
@@ -184,8 +185,8 @@ func (o *WrapFS) unsafeSub(dir string) *WrapFS {
 	}
 
 	return &WrapFS{
-		layers:   core.SliceCopy(o.layers),
-		globs:    core.SliceCopy(o.globs),
+		layers:   slices.Clone(o.layers),
+		globs:    slices.Clone(o.globs),
 		root:     root,
 		resolver: o.resolver,
 	}
@@ -282,7 +283,7 @@ func (o *WrapFS) WithTry(funcs ...func(string) []string) *WrapFS {
 func newIndexFunc(ss []string) func(string) []string {
 	return func(fn string) []string {
 		if fn == "." {
-			return core.SliceCopy(ss)
+			return slices.Clone(ss)
 		}
 
 		return core.SliceCopyFn(ss, func(_ []string, s string) (string, bool) {

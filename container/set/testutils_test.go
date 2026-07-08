@@ -1,6 +1,7 @@
 package set_test
 
 import (
+	"slices"
 	"testing"
 
 	"darvaza.org/core"
@@ -72,6 +73,6 @@ func assertHasIDs(t *testing.T, s *set.Set[int, int, testItem], ids ...int) {
 		got = append(got, v.ID)
 	}
 	for _, id := range ids {
-		core.AssertTrue(t, core.SliceContains(got, id), "contains %d", id)
+		core.AssertTrue(t, slices.Contains(got, id), "contains %d", id)
 	}
 }

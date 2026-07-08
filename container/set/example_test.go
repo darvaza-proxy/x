@@ -2,8 +2,8 @@ package set_test
 
 import (
 	"fmt"
+	"slices"
 
-	"darvaza.org/core"
 	"darvaza.org/x/container/set"
 )
 
@@ -128,7 +128,7 @@ func ExampleSet_ForEach() {
 	})
 
 	// Sort for consistent output
-	core.SliceSortOrdered(evens)
+	slices.Sort(evens)
 	printF("Even numbers: %v\n", evens)
 
 	// Output:
@@ -192,7 +192,7 @@ func ExampleSet_Copy() {
 		names = append(names, u.Name)
 		return true
 	})
-	core.SliceSortOrdered(names)
+	slices.Sort(names)
 
 	printS("Even users:")
 	for _, name := range names {
