@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	darvaza.org/core v0.20.0
 	darvaza.org/slog v0.9.1
-	darvaza.org/x/container v0.4.2
+	darvaza.org/x/container v0.5.0
 )
 
 require (
