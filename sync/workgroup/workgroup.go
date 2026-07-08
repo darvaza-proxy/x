@@ -511,12 +511,21 @@ func (wg *Group) GoCatch(fn func(context.Context) error, catch func(context.Cont
 	case fn == nil:
 		return nil
 	default:
-		return wg.doGo(func(_ context.Context) {
-			wg.run(fn, catch)
-		})
+		return wg.doGoRun(fn, catch)
 	}
 }
 
+// doGoRun enrols fn as a supervised task and runs it, the shared path behind
+// GoCatch.
+func (wg *Group) doGoRun(fn func(context.Context) error, catch func(context.Context, error) error) error {
+	return wg.doGo(func(_ context.Context) {
+		wg.run(fn, catch)
+	})
+}
+
+// run executes fn under core.Catch, routes the result through catch when set,
+// and cancels the Group if the surviving error is non-nil. fn and catch receive
+// wg.ctx, not the enrolment closure's context argument.
 func (wg *Group) run(fn func(context.Context) error, catch func(context.Context, error) error) {
 	err := core.Catch(func() error {
 		// execute the function
