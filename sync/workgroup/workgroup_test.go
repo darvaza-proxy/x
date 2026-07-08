@@ -386,8 +386,8 @@ func runTestCancelPropagatesCustom(t *testing.T) {
 // TestGroup_OnCancel tests the OnCancel handler.
 func TestGroup_OnCancel(t *testing.T) {
 	t.Run("HandlerFiresOnCancel", runTestOnCancelHandlerFires)
-	t.Run("HandlerReceivesGroupContext", runTestOnCancelReceivesContext)
-	t.Run("HandlerSeesCancelledContext", runTestOnCancelSeesCancelledContext)
+	t.Run("HandlerReceivesLiveContext", runTestOnCancelReceivesLiveContext)
+	t.Run("HandlerContextRetainsValues", runTestOnCancelContextRetainsValues)
 	t.Run("HandlerReceivesCustomCause", runTestOnCancelReceivesCause)
 	t.Run("HandlerReceivesContextCanceledForNilCause",
 		runTestOnCancelReceivesContextCanceledForNilCause)
@@ -415,45 +415,52 @@ func runTestOnCancelHandlerFires(t *testing.T) {
 	core.AssertNoError(t, wg.Wait(), "wait")
 }
 
-func runTestOnCancelReceivesContext(t *testing.T) {
-	t.Helper()
-	var received context.Context
-	receivedCh := make(chan struct{})
-
-	wg := workgroup.New(context.Background())
-	expected := wg.Context()
-	wg.OnCancel = func(ctx context.Context, _ error) {
-		received = ctx
-		close(receivedCh)
-	}
-
-	wg.Cancel(nil)
-	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
-		"handler ran")
-	core.AssertSame(t, expected, received, "context identity")
-	core.AssertNoError(t, wg.Wait(), "wait")
-}
-
-func runTestOnCancelSeesCancelledContext(t *testing.T) {
+// runTestOnCancelReceivesLiveContext pins that the handler's context is
+// detached from the Group's cancellation: it is live (ctx.Err() is nil)
+// rather than the already-cancelled group context.
+func runTestOnCancelReceivesLiveContext(t *testing.T) {
 	t.Helper()
 	var observedErr error
-	var observedCause error
 	receivedCh := make(chan struct{})
 
 	wg := workgroup.New(context.Background())
 	wg.OnCancel = func(ctx context.Context, _ error) {
 		observedErr = ctx.Err()
-		observedCause = context.Cause(ctx)
 		close(receivedCh)
 	}
 
 	wg.Cancel(nil)
 	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
 		"handler ran")
-	core.AssertErrorIs(t, observedErr, context.Canceled,
-		"ctx.Err() inside handler")
-	core.AssertErrorIs(t, observedCause, context.Canceled,
-		"context.Cause(ctx) inside handler")
+	core.AssertNoError(t, observedErr, "ctx.Err() inside handler")
+	core.AssertNoError(t, wg.Wait(), "wait")
+}
+
+// runTestOnCancelContextRetainsValues pins that detaching the handler's
+// context preserves the Group context's values, so cleanup work keeps any
+// logger or trace identifiers carried through it.
+func runTestOnCancelContextRetainsValues(t *testing.T) {
+	t.Helper()
+	type key string
+	testKey := key("trace-id")
+	testVal := "abc123"
+
+	var received any
+	receivedCh := make(chan struct{})
+
+	parent := context.WithValue(context.Background(), testKey, testVal)
+	wg := workgroup.New(parent)
+	wg.OnCancel = func(ctx context.Context, _ error) {
+		received = ctx.Value(testKey)
+		close(receivedCh)
+	}
+
+	wg.Cancel(nil)
+	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+		"handler ran")
+	if got, ok := core.AssertTypeIs[string](t, received, "value type"); ok {
+		core.AssertEqual(t, testVal, got, "value carried into handler")
+	}
 	core.AssertNoError(t, wg.Wait(), "wait")
 }
 

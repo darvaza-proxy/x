@@ -475,7 +475,7 @@ cancellation propagation and lifecycle management of concurrent operations.
 
 * Context integration for propagating cancellation signals.
 * Coordinated lifecycle management for concurrent tasks.
-* Graceful shutdown of operations.
+* Graceful shutdown via `Close`: cancels the Group and drains all tasks.
 * Error tracking and propagation.
 * Concurrent safety for multi-goroutine use.
 
@@ -521,7 +521,11 @@ if err := wg.Wait(); err != nil {
 
 * Propagates cancellation signals from parent contexts to all tasks.
 * Provides an `OnCancel` hook that fires on cancellation from any source —
-  an explicit `Cancel`/`Close` or the parent context.
+  an explicit `Cancel`/`Close` or the parent context. The handler receives
+  the cancellation cause and a live context detached from the Group's
+  cancellation (via `context.WithoutCancel`): it retains the Group context's
+  values but is not itself cancelled, so cleanup work can pass it along or
+  build its own deadline on top.
 * Safe for concurrent use from multiple goroutines.
 * Supports reuse after completion if not cancelled.
 * Error tracking distinguishes between normal cancellation and error causes.

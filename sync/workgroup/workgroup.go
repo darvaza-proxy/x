@@ -64,12 +64,15 @@ type Group struct {
 	// after the Group's context is already done is not guaranteed to
 	// run, as the cancellation watcher may have fired already.
 	//
-	// When the handler runs, the Group's context is already
-	// cancelled — ctx.Err() is non-nil and context.Cause(ctx)
-	// returns the cancellation cause. For cleanup work that needs
-	// a live context, derive from wg.Parent or detach via
-	// context.WithoutCancel(ctx); contexts derived from ctx are
-	// born cancelled.
+	// The handler receives a live context, detached from the Group's
+	// cancellation via context.WithoutCancel: it is not itself cancelled
+	// and carries no deadline, so the handler can pass it to cleanup
+	// operations — or build its own deadline or cancellation on top —
+	// without their being torn down by the cancellation that triggered
+	// the handler. It retains the Group context's values, so a logger,
+	// trace identifiers, and other request-scoped data carry through.
+	// The cancellation cause arrives through the cause argument, not
+	// context.Cause(ctx).
 	//
 	// cause carries the error passed to Cancel (context.Canceled for a
 	// nil cause), or context.Cause(parent) when the parent context is
@@ -364,16 +367,21 @@ func (wg *Group) spawnCancelHandler(cause error) chan struct{} {
 	go func() {
 		defer wg.tasks.Dec()
 		close(ready)
-		// Contain a panicking handler. Without this, a panic unwinds
-		// the detached goroutine with nothing to recover it: it crashes
-		// the process while Wait blocks forever on the tasks counter.
-		// run() wraps ordinary tasks the same way. The caught error is
-		// deliberately dropped: the group is already cancelled, so
-		// routing it back through Cancel would be a no-op. Surfacing it
-		// instead would require threading a cancellation cause out of
-		// the handler, which the Group does not yet support.
+		// The handler runs after wg.ctx is cancelled, so hand it a
+		// context detached from that cancellation: WithoutCancel strips
+		// the cancellation and deadline while retaining the values, so
+		// cleanup work gets a live context that still carries the group's
+		// logger or trace identifiers. The cause travels through the
+		// cause argument instead of context.Cause(ctx).
+		ctx := context.WithoutCancel(wg.ctx)
+		// Contain a panicking handler: user code invoked by the Group
+		// must not escape a panic and kill the process. The recovered
+		// error is discarded — OnCancel offers no catch hook and the
+		// Group is already cancelled, so it has nowhere to go; the
+		// same rule as any handler the Group invokes after
+		// cancellation.
 		_ = core.Catch(func() error {
-			fn(wg.ctx, cause)
+			fn(ctx, cause)
 			return nil
 		})
 	}()
