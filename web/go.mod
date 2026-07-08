@@ -14,7 +14,7 @@ require (
 
 require (
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/text v0.39.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 )
