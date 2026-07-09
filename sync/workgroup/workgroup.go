@@ -16,6 +16,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"darvaza.org/core"
 	"darvaza.org/x/sync/cond"
@@ -64,12 +65,15 @@ type Group struct {
 	// after the Group's context is already done is not guaranteed to
 	// run, as the cancellation watcher may have fired already.
 	//
-	// When the handler runs, the Group's context is already
-	// cancelled — ctx.Err() is non-nil and context.Cause(ctx)
-	// returns the cancellation cause. For cleanup work that needs
-	// a live context, derive from wg.Parent or detach via
-	// context.WithoutCancel(ctx); contexts derived from ctx are
-	// born cancelled.
+	// The handler receives a live context, detached from the Group's
+	// cancellation via context.WithoutCancel: it is not itself cancelled
+	// and carries no deadline, so the handler can pass it to cleanup
+	// operations — or build its own deadline or cancellation on top —
+	// without their being torn down by the cancellation that triggered
+	// the handler. It retains the Group context's values, so a logger,
+	// trace identifiers, and other request-scoped data carry through.
+	// The cancellation cause arrives through the cause argument, not
+	// context.Cause(ctx).
 	//
 	// cause carries the error passed to Cancel (context.Canceled for a
 	// nil cause), or context.Cause(parent) when the parent context is
@@ -364,16 +368,21 @@ func (wg *Group) spawnCancelHandler(cause error) chan struct{} {
 	go func() {
 		defer wg.tasks.Dec()
 		close(ready)
-		// Contain a panicking handler. Without this, a panic unwinds
-		// the detached goroutine with nothing to recover it: it crashes
-		// the process while Wait blocks forever on the tasks counter.
-		// run() wraps ordinary tasks the same way. The caught error is
-		// deliberately dropped: the group is already cancelled, so
-		// routing it back through Cancel would be a no-op. Surfacing it
-		// instead would require threading a cancellation cause out of
-		// the handler, which the Group does not yet support.
+		// The handler runs after wg.ctx is cancelled, so hand it a
+		// context detached from that cancellation: WithoutCancel strips
+		// the cancellation and deadline while retaining the values, so
+		// cleanup work gets a live context that still carries the group's
+		// logger or trace identifiers. The cause travels through the
+		// cause argument instead of context.Cause(ctx).
+		ctx := context.WithoutCancel(wg.ctx)
+		// Contain a panicking handler: user code invoked by the Group
+		// must not escape a panic and kill the process. The recovered
+		// error is discarded — OnCancel offers no catch hook and the
+		// Group is already cancelled, so it has nowhere to go; the
+		// same rule as any handler the Group invokes after
+		// cancellation.
 		_ = core.Catch(func() error {
-			fn(wg.ctx, cause)
+			fn(ctx, cause)
 			return nil
 		})
 	}()
@@ -511,13 +520,167 @@ func (wg *Group) GoCatch(fn func(context.Context) error, catch func(context.Cont
 	case fn == nil:
 		return nil
 	default:
-		return wg.doGo(func(_ context.Context) {
-			wg.run(fn, catch)
-		})
+		return wg.doGoRun(fn, catch)
 	}
 }
 
+// GoShutdown enrols a task paired with a shutdown handler that signals
+// it to end when the Group is cancelled — the http.Server
+// ListenAndServe/Shutdown pattern, for workers that cannot act on the
+// Group's context.
+//
+// fn is supervised exactly like a GoCatch task with no catch handler:
+// a panic becomes a core.PanicError and a non-nil return cancels the
+// whole Group with that error. It receives the Group's context but,
+// unlike an ordinary task, is not expected to act on its cancellation;
+// delivering that signal is what shutdown is for.
+//
+// shutdown's one job is to tell fn to end. It is invoked at most once,
+// only when the Group is cancelled — by an explicit Cancel or Close,
+// cancellation of the parent, or another task's failure — while fn is
+// still running. A worker that ends on its own needs no signal: if fn
+// returns nil the pair simply ends, like any other task, and if fn
+// returns an error the Group is cancelled with it, but the worker is
+// already gone, so its own shutdown is not invoked. When cancellation
+// and fn's return coincide, shutdown may still be invoked as fn ends;
+// like http.Server.Shutdown, it must tolerate the worker being gone
+// already.
+//
+// shutdown receives a live context detached from the Group's
+// cancellation via context.WithoutCancel: not itself cancelled, yet
+// retaining the Group context's values, so a logger or trace
+// identifiers carry through. The context is bounded by gracePeriod; a
+// gracePeriod of zero or less leaves it unbounded (see
+// core.WithTimeout). No cancellation cause is passed — mirroring
+// http.Server.Shutdown — and [Group.Err] answers when the cause
+// matters. A panic in shutdown is recovered and discarded, as in the
+// OnCancel handler: there is no catch hook to receive it, and the
+// Group is already cancelled, leaving no cause for it to become.
+//
+// The pair is enrolled as a single task: Wait, Done, and Close block
+// until both fn and shutdown have returned. Per-task cleanup belongs
+// in fn itself; Group-wide cancellation cleanup belongs in OnCancel.
+//
+// With a nil fn, shutdown is enrolled alone as a watcher task that
+// holds the Group open until cancellation signals it. A watcher is
+// per-resource where OnCancel is per-Group: enrol one for each
+// resource to release on cancellation, each with its own grace
+// period and no cause passed; OnCancel is the Group's single
+// transition hook and receives the cancellation cause.
+//
+// With a nil shutdown, fn is enrolled alone, equivalent to GoCatch
+// with no catch handler. When a handler is enrolled, GoShutdown
+// returns ErrClosed if the Group is already cancelled and nothing is
+// started; with both handlers nil there is nothing to enrol and it
+// returns nil.
+func (wg *Group) GoShutdown(
+	fn func(context.Context) error,
+	shutdown func(context.Context),
+	gracePeriod time.Duration,
+) error {
+	if err := wg.lazyInit(); err != nil {
+		return err
+	}
+
+	switch {
+	case fn == nil && shutdown == nil:
+		return nil
+	case shutdown == nil:
+		return wg.doGoRun(fn, nil)
+	case fn == nil:
+		return wg.doGo(wg.newShutdownWatcher(shutdown, gracePeriod))
+	default:
+		return wg.doGo(wg.newShutdownTask(fn, shutdown, gracePeriod))
+	}
+}
+
+// doGoRun enrols fn as a supervised task and runs it, the shared path behind
+// GoCatch.
+func (wg *Group) doGoRun(fn func(context.Context) error, catch func(context.Context, error) error) error {
+	return wg.doGo(func(_ context.Context) {
+		wg.run(fn, catch)
+	})
+}
+
+// newShutdownTask pairs fn with its shutdown handler in a single
+// counted task: fn runs supervised on an inner goroutine while the
+// outer body waits for cancellation or fn's return. shutdown exists to
+// signal a worker that cannot act on the Group's context, so it is
+// invoked only when the Group is cancelled while fn is still running;
+// a worker that ended on its own — cleanly, or with the error that
+// cancels the Group — has nobody left to signal.
+func (wg *Group) newShutdownTask(
+	fn func(context.Context) error,
+	shutdown func(context.Context),
+	gracePeriod time.Duration,
+) func(context.Context) {
+	return func(ctx context.Context) {
+		errCh := make(chan error, 1)
+		go func() {
+			// supervised like GoCatch: a panic becomes a PanicError.
+			errCh <- wg.runErr(fn, nil)
+		}()
+
+		select {
+		case err := <-errCh:
+			// fn ended on its own; nothing to signal. Its error, if
+			// any, cancels the Group here — before the pair is
+			// released — so a concurrent Wait observes the cause.
+			if err != nil {
+				wg.Cancel(err)
+			}
+		case <-ctx.Done():
+			wg.runShutdown(shutdown, gracePeriod)
+			// hold the task open until fn has wound down too. Its
+			// error arrives after cancellation, so it can no longer
+			// become the cause and is discarded like any other.
+			<-errCh
+		}
+	}
+}
+
+// newShutdownWatcher builds a shutdown-only task: it blocks until the
+// Group's context is cancelled and then invokes the shutdown handler,
+// holding the Group open until cancellation.
+func (wg *Group) newShutdownWatcher(
+	shutdown func(context.Context),
+	gracePeriod time.Duration,
+) func(context.Context) {
+	return func(ctx context.Context) {
+		// hold until the Group is cancelled; that signal starts the handler.
+		<-ctx.Done()
+		wg.runShutdown(shutdown, gracePeriod)
+	}
+}
+
+// runShutdown invokes the shutdown handler on a live context detached
+// from the Group's cancellation (context.WithoutCancel) and bounded by
+// gracePeriod.
+func (wg *Group) runShutdown(shutdown func(context.Context), gracePeriod time.Duration) {
+	ctx, cancel := core.WithTimeout(context.WithoutCancel(wg.ctx), gracePeriod)
+	defer cancel()
+	// Contain a panicking handler. GoShutdown offers no catch hook and
+	// the Group is already cancelled when shutdown runs, so the
+	// recovered error has nowhere to go — the same rule as the
+	// OnCancel handler.
+	_ = core.Catch(func() error {
+		shutdown(ctx)
+		return nil
+	})
+}
+
+// run executes fn via runErr and cancels the Group if the surviving
+// error is non-nil.
 func (wg *Group) run(fn func(context.Context) error, catch func(context.Context, error) error) {
+	if err := wg.runErr(fn, catch); err != nil {
+		wg.Cancel(err)
+	}
+}
+
+// runErr executes fn under core.Catch and routes the result through catch
+// when set, returning the surviving error without acting on it. fn and catch
+// receive wg.ctx, not the enrolment closure's context argument.
+func (wg *Group) runErr(fn func(context.Context) error, catch func(context.Context, error) error) error {
 	err := core.Catch(func() error {
 		// execute the function
 		return fn(wg.ctx)
@@ -530,10 +693,7 @@ func (wg *Group) run(fn func(context.Context) error, catch func(context.Context,
 		})
 	}
 
-	// cancel the group if the resulting error is non-nil
-	if err != nil {
-		wg.Cancel(err)
-	}
+	return err
 }
 
 // waitTasks blocks until the tasks counter has stably reached zero across
