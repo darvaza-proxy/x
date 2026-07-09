@@ -1414,6 +1414,11 @@ func TestGroup_NilReceiver(t *testing.T) {
 					func(_ context.Context, e error) error { return e },
 				)
 			}),
+		newNilReceiverErrorCase("GoShutdown",
+			func(wg *workgroup.Group) error {
+				return wg.GoShutdown(
+					func(_ context.Context) error { return nil }, nil, 0)
+			}),
 	})
 
 	core.RunTestCases(t, []nilReceiverPanicCase{
@@ -1665,6 +1670,386 @@ func runTestGoCatchHandlerReceivesContext(t *testing.T) {
 	_ = wg.Wait()
 	core.AssertEqual(t, wg.Context(), taskCtx, "task ctx")
 	core.AssertEqual(t, wg.Context(), catchCtx, "catch ctx")
+}
+
+// TestGroup_GoShutdown tests the GoShutdown method: an fn paired with a
+// shutdown handler that signals it to end when the Group is cancelled
+// while fn is still running.
+func TestGroup_GoShutdown(t *testing.T) {
+	t.Run("ServerPattern", runTestGoShutdownServerPattern)
+	t.Run("CloseSignalsShutdown", runTestGoShutdownCloseSignals)
+	t.Run("CleanReturnSkipsShutdown", runTestGoShutdownCleanReturnSkipsShutdown)
+	t.Run("FnErrorSkipsShutdown", runTestGoShutdownFnErrorSkipsShutdown)
+	t.Run("FnPanicSkipsShutdown", runTestGoShutdownFnPanicSkipsShutdown)
+	t.Run("FnErrorSignalsPeer", runTestGoShutdownFnErrorSignalsPeer)
+	t.Run("ShutdownContextBounded", runTestGoShutdownContextBounded)
+	t.Run("ShutdownContextUnbounded", runTestGoShutdownContextUnbounded)
+	t.Run("ShutdownPanicContained", runTestGoShutdownPanicContained)
+	t.Run("WatcherMode", runTestGoShutdownWatcherMode)
+	t.Run("NilShutdownRunsFn", runTestGoShutdownNilShutdownSuccess)
+	t.Run("NilShutdownSupervisesFn", runTestGoShutdownNilShutdownError)
+	t.Run("BothNilNoop", runTestGoShutdownBothNil)
+	t.Run("EnrolmentWhenCancelled", runTestGoShutdownEnrolmentWhenCancelled)
+}
+
+// runTestGoShutdownServerPattern models the http.Server pattern: fn ignores
+// the context and runs until the shutdown handler stops it. On cancellation
+// the handler closes the server, fn returns, and the paired task releases
+// the Group.
+func runTestGoShutdownServerPattern(t *testing.T) {
+	t.Helper()
+	serverStop := make(chan struct{})
+	var served atomic.Bool
+
+	wg := workgroup.New(context.Background())
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error {
+			served.Store(true)
+			<-serverStop // ListenAndServe: runs until Shutdown stops it
+			return nil
+		},
+		func(_ context.Context) { close(serverStop) }, // Shutdown
+		time.Second,
+	), "GoShutdown")
+
+	synctesting.AssertMustEventually(t, served.Load, 100*time.Millisecond,
+		"server started")
+	wg.Cancel(nil)
+	core.AssertNoError(t, wg.Wait(), "wait after shutdown stopped fn")
+	core.AssertTrue(t, served.Load(), "served")
+}
+
+// runTestGoShutdownCloseSignals pins the defer wg.Close() idiom: Close
+// cancels the Group, so it signals the running worker and waits for the
+// pair to end before returning.
+func runTestGoShutdownCloseSignals(t *testing.T) {
+	t.Helper()
+	serverStop := make(chan struct{})
+	var shutdownRan atomic.Bool
+	wg := workgroup.New(context.Background())
+
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { <-serverStop; return nil },
+		func(_ context.Context) {
+			shutdownRan.Store(true)
+			close(serverStop)
+		},
+		time.Second,
+	), "GoShutdown")
+
+	core.AssertNoError(t, wg.Close(), "close")
+	core.AssertTrue(t, shutdownRan.Load(), "shutdown fired by Close")
+}
+
+// runTestGoShutdownCleanReturnSkipsShutdown pins that an fn returning
+// without the Group being cancelled ends the pair; there is nobody to
+// signal, so the shutdown handler never runs.
+func runTestGoShutdownCleanReturnSkipsShutdown(t *testing.T) {
+	t.Helper()
+	var shutdownRan atomic.Bool
+	wg := workgroup.New(context.Background())
+
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { return nil },
+		func(_ context.Context) { shutdownRan.Store(true) },
+		time.Second,
+	), "GoShutdown")
+
+	core.AssertNoError(t, wg.Wait(), "wait")
+	core.AssertFalse(t, shutdownRan.Load(), "shutdown skipped on clean return")
+}
+
+// runTestGoShutdownFnErrorSkipsShutdown pins that fn's own error cancels
+// the Group but does not invoke its own shutdown handler: the worker has
+// already ended, so there is nobody left to signal.
+func runTestGoShutdownFnErrorSkipsShutdown(t *testing.T) {
+	t.Helper()
+	testErr := errors.New("fn failed")
+	var shutdownRan atomic.Bool
+	wg := workgroup.New(context.Background())
+
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { return testErr },
+		func(_ context.Context) { shutdownRan.Store(true) },
+		time.Second,
+	), "GoShutdown")
+
+	core.AssertErrorIs(t, wg.Wait(), testErr, "wait err")
+	core.AssertFalse(t, shutdownRan.Load(), "shutdown skipped on fn error")
+}
+
+// runTestGoShutdownFnPanicSkipsShutdown pins that fn's panic is supervised
+// into a PanicError cause without invoking its own shutdown handler.
+func runTestGoShutdownFnPanicSkipsShutdown(t *testing.T) {
+	t.Helper()
+	var shutdownRan atomic.Bool
+	wg := workgroup.New(context.Background())
+
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { panic("boom in fn") },
+		func(_ context.Context) { shutdownRan.Store(true) },
+		time.Second,
+	), "GoShutdown")
+
+	err := wg.Wait()
+	core.AssertFalse(t, shutdownRan.Load(), "shutdown skipped on fn panic")
+	if panicErr, ok := core.AssertTypeIs[*core.PanicError](t, err,
+		"panic type"); ok {
+		core.AssertContains(t, panicErr.Error(), "boom in fn", "panic msg")
+	}
+}
+
+// runTestGoShutdownFnErrorSignalsPeer pins both sides of the rule at once:
+// a failing worker cancels the Group without its own shutdown running,
+// while the still-running peer is signalled to end. Wait returning at all
+// proves the peer's shutdown fired, as nothing else unblocks it.
+func runTestGoShutdownFnErrorSignalsPeer(t *testing.T) {
+	t.Helper()
+	testErr := errors.New("fn failed")
+	peerStop := make(chan struct{})
+	var ownShutdown atomic.Bool
+	wg := workgroup.New(context.Background())
+
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { <-peerStop; return nil },
+		func(_ context.Context) { close(peerStop) },
+		time.Second,
+	), "peer GoShutdown")
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { return testErr },
+		func(_ context.Context) { ownShutdown.Store(true) },
+		time.Second,
+	), "failing GoShutdown")
+
+	core.AssertErrorIs(t, wg.Wait(), testErr, "wait err")
+	core.AssertFalse(t, ownShutdown.Load(), "own shutdown skipped")
+}
+
+// shutdownObservation captures what the shutdown handler observes about the
+// context it receives, so a caller can assert its detachment, deadline, and
+// values.
+type shutdownObservation struct {
+	err         error
+	value       string
+	hasDeadline bool
+}
+
+// shutdownCtxKey / shutdownCtxValue seed a value into the parent context so
+// the shutdown handler can prove the detached context still carries it.
+var shutdownCtxKey = core.NewContextKey[string]("workgroup-test-trace")
+
+const shutdownCtxValue = "trace-xyz"
+
+// observeShutdownContext enrols a server-pattern GoShutdown with the given
+// grace period, cancels the Group, and returns what the shutdown handler saw
+// of its context. Wait returning proves the handler ran: nothing else
+// unblocks fn.
+func observeShutdownContext(t *testing.T, grace time.Duration) shutdownObservation {
+	t.Helper()
+	var obs shutdownObservation
+	stop := make(chan struct{})
+	parent := shutdownCtxKey.WithValue(context.Background(), shutdownCtxValue)
+
+	wg := workgroup.New(parent)
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { <-stop; return nil },
+		func(ctx context.Context) {
+			obs.err = ctx.Err()
+			_, obs.hasDeadline = ctx.Deadline()
+			if v, ok := ctx.Value(shutdownCtxKey).(string); ok {
+				obs.value = v
+			}
+			close(stop)
+		},
+		grace,
+	), "GoShutdown")
+
+	wg.Cancel(nil)
+	core.AssertNoError(t, wg.Wait(), "wait")
+	return obs
+}
+
+// runTestGoShutdownContextBounded pins that a positive grace period hands
+// the shutdown handler a live, value-bearing context with a deadline.
+func runTestGoShutdownContextBounded(t *testing.T) {
+	t.Helper()
+	obs := observeShutdownContext(t, time.Minute)
+	core.AssertNoError(t, obs.err, "shutdown context live")
+	core.AssertTrue(t, obs.hasDeadline, "deadline present")
+	core.AssertEqual(t, shutdownCtxValue, obs.value, "value retained")
+}
+
+// runTestGoShutdownContextUnbounded pins that a non-positive grace period
+// leaves the shutdown context unbounded — live and value-bearing, no
+// deadline.
+func runTestGoShutdownContextUnbounded(t *testing.T) {
+	t.Helper()
+	obs := observeShutdownContext(t, 0)
+	core.AssertNoError(t, obs.err, "shutdown context live")
+	core.AssertFalse(t, obs.hasDeadline, "no deadline when unbounded")
+	core.AssertEqual(t, shutdownCtxValue, obs.value, "value retained")
+}
+
+// runTestGoShutdownPanicContained pins that a panicking shutdown handler is
+// recovered and discarded, so the signal still lands and Wait returns. The
+// handler stops the server before panicking; Wait returning proves both.
+func runTestGoShutdownPanicContained(t *testing.T) {
+	t.Helper()
+	stop := make(chan struct{})
+	wg := workgroup.New(context.Background())
+
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { <-stop; return nil },
+		func(_ context.Context) {
+			close(stop)
+			panic("boom in shutdown")
+		},
+		time.Second,
+	), "GoShutdown")
+
+	wg.Cancel(nil)
+	core.AssertNoError(t, wg.Wait(), "wait returns after contained panic")
+}
+
+// runTestGoShutdownWatcherMode pins the nil-fn form: the shutdown handler is
+// enrolled alone as a watcher that holds the Group open until cancellation
+// signals it.
+func runTestGoShutdownWatcherMode(t *testing.T) {
+	t.Helper()
+	shutdownRan := make(chan struct{})
+	wg := workgroup.New(context.Background())
+
+	core.AssertNoError(t, wg.GoShutdown(nil,
+		func(_ context.Context) { close(shutdownRan) }, time.Second),
+		"GoShutdown")
+
+	synctesting.AssertMustOpen(t, shutdownRan, 50*time.Millisecond,
+		"shutdown waits for cancellation")
+	wg.Cancel(nil)
+	synctesting.AssertMustClosed(t, shutdownRan, 100*time.Millisecond,
+		"shutdown ran on cancel")
+	core.AssertNoError(t, wg.Wait(), "wait")
+}
+
+// runTestGoShutdownNilShutdownSuccess pins that a nil shutdown degrades to a
+// plain supervised task that runs fn to completion.
+func runTestGoShutdownNilShutdownSuccess(t *testing.T) {
+	t.Helper()
+	var executed atomic.Bool
+	wg := workgroup.New(context.Background())
+
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { executed.Store(true); return nil },
+		nil, time.Second,
+	), "GoShutdown")
+
+	core.AssertNoError(t, wg.Wait(), "wait")
+	core.AssertTrue(t, executed.Load(), "fn executed")
+}
+
+// runTestGoShutdownNilShutdownError pins that the nil-shutdown degrade still
+// supervises fn: its error cancels the Group, as with GoCatch.
+func runTestGoShutdownNilShutdownError(t *testing.T) {
+	t.Helper()
+	testErr := errors.New("fn failed")
+	wg := workgroup.New(context.Background())
+
+	core.AssertNoError(t, wg.GoShutdown(
+		func(_ context.Context) error { return testErr }, nil, time.Second,
+	), "GoShutdown")
+
+	core.AssertErrorIs(t, wg.Wait(), testErr, "wait err")
+}
+
+// runTestGoShutdownBothNil pins that a nil fn and nil shutdown enrol nothing
+// and Wait returns at once.
+func runTestGoShutdownBothNil(t *testing.T) {
+	t.Helper()
+	wg := workgroup.New(context.Background())
+	core.AssertNoError(t, wg.GoShutdown(nil, nil, time.Second), "both nil")
+
+	done := make(chan struct{})
+	go func() { _ = wg.Wait(); close(done) }()
+	synctesting.AssertClosed(t, done, 100*time.Millisecond, "wait immediate")
+}
+
+// goShutdownCancelledCase exercises one GoShutdown enrolment arm against
+// an already cancelled Group: an arm with a handler to enrol refuses with
+// ErrClosed, while the both-nil form has nothing to enrol and returns nil.
+type goShutdownCancelledCase struct {
+	wantErr      error
+	name         string
+	withFn       bool
+	withShutdown bool
+}
+
+func (tc goShutdownCancelledCase) Name() string { return tc.name }
+
+func (tc goShutdownCancelledCase) Test(t *testing.T) {
+	t.Helper()
+	var fnRan, shutdownRan atomic.Bool
+	wg := workgroup.New(context.Background())
+	wg.Cancel(nil)
+
+	err := wg.GoShutdown(tc.fn(&fnRan), tc.shutdown(&shutdownRan), time.Second)
+	if tc.wantErr == nil {
+		core.AssertNoError(t, err, "enrol")
+	} else {
+		core.AssertErrorIs(t, err, tc.wantErr, "enrol")
+	}
+	core.AssertNoError(t, wg.Wait(), "wait")
+	core.AssertFalse(t, fnRan.Load(), "fn not enrolled")
+	core.AssertFalse(t, shutdownRan.Load(), "shutdown not enrolled")
+}
+
+// fn builds the arm's worker handler, nil when the arm leaves fn unset.
+func (tc goShutdownCancelledCase) fn(
+	ran *atomic.Bool,
+) func(context.Context) error {
+	if !tc.withFn {
+		return nil
+	}
+	return func(_ context.Context) error {
+		ran.Store(true)
+		return nil
+	}
+}
+
+// shutdown builds the arm's shutdown handler, nil when the arm leaves
+// shutdown unset.
+func (tc goShutdownCancelledCase) shutdown(
+	ran *atomic.Bool,
+) func(context.Context) {
+	if !tc.withShutdown {
+		return nil
+	}
+	return func(_ context.Context) {
+		ran.Store(true)
+	}
+}
+
+var _ core.TestCase = goShutdownCancelledCase{}
+
+func newGoShutdownCancelledCase(name string, withFn, withShutdown bool,
+	wantErr error) goShutdownCancelledCase {
+	return goShutdownCancelledCase{
+		wantErr:      wantErr,
+		name:         name,
+		withFn:       withFn,
+		withShutdown: withShutdown,
+	}
+}
+
+// runTestGoShutdownEnrolmentWhenCancelled pins each enrolment arm against
+// an already cancelled Group.
+func runTestGoShutdownEnrolmentWhenCancelled(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, core.S(
+		newGoShutdownCancelledCase("BothHandlers", true, true, errors.ErrClosed),
+		newGoShutdownCancelledCase("NilShutdown", true, false, errors.ErrClosed),
+		newGoShutdownCancelledCase("Watcher", false, true, errors.ErrClosed),
+		newGoShutdownCancelledCase("BothNil", false, false, nil),
+	))
 }
 
 // BenchmarkWorkgroup measures workgroup operation performance.

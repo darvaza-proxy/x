@@ -493,6 +493,11 @@ cancellation propagation and lifecycle management of concurrent operations.
 * `GoCatch(func(context.Context) error, func(context.Context, error) error)
   error`: Spawns a goroutine with error handling and error-triggered
   cancellation.
+* `GoShutdown(func(context.Context) error, func(context.Context),
+  time.Duration) error`: Spawns a supervised task paired with a shutdown
+  handler that signals it to end when the Group is cancelled while it is
+  still running — the `http.Server` `ListenAndServe`/`Shutdown` pattern
+  for workers that cannot act on the Group's context.
 
 ### Group Example usage
 
@@ -526,6 +531,18 @@ if err := wg.Wait(); err != nil {
   cancellation (via `context.WithoutCancel`): it retains the Group context's
   values but is not itself cancelled, so cleanup work can pass it along or
   build its own deadline on top.
+* `GoShutdown` pairs a task with a shutdown handler in a single tracked
+  unit. The handler's one job is to tell a worker that cannot act on the
+  Group's context to end: it runs at most once, only when the Group is
+  cancelled while the task is still running, and receives a live, detached
+  context bounded by the grace period (unbounded when the grace period is
+  zero or less). A task that ends on its own needs no signal — an error
+  still cancels the Group, but the handler is not invoked. With a nil
+  task the handler is enrolled alone as a watcher: the per-resource
+  counterpart to the per-Group `OnCancel` hook — one enrolled for each
+  resource to release on cancellation, grace-bounded, without the cause.
+  Like the `OnCancel` handler, a panic in the shutdown handler is
+  recovered and discarded.
 * Safe for concurrent use from multiple goroutines.
 * Supports reuse after completion if not cancelled.
 * Error tracking distinguishes between normal cancellation and error causes.
