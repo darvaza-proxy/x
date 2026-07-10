@@ -14,17 +14,15 @@ func WriteKey(w io.Writer, key PrivateKey) (int64, error) {
 	var buf bytes.Buffer
 
 	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
-	if err == nil {
-		err = pem.Encode(&buf, &pem.Block{
-			Type:  "PRIVATE KEY",
-			Bytes: keyDER,
-		})
+	if err != nil {
+		return 0, core.Wrap(err, "failed to encode key")
 	}
 
-	if err != nil {
-		err = core.Wrap(err, "failed to encode key")
-		return 0, err
-	}
+	// pem.Encode to a bytes.Buffer cannot fail; only the writer can.
+	core.MustNoError(pem.Encode(&buf, &pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: keyDER,
+	}))
 
 	return buf.WriteTo(w)
 }
