@@ -219,6 +219,15 @@ func TestReadPEMAbort(t *testing.T) {
 	core.AssertEqual(t, 1, got, "blocks")
 }
 
+// TestReadPEMNilCallback covers ReadPEM's nil-callback arm: with valid PEM and
+// no callback the decode loop runs every block to EOF and returns nil, rather
+// than invoking the absent callback (F70).
+func TestReadPEMNilCallback(t *testing.T) {
+	// two blocks, so the loop iterates with the callback skipped each time.
+	err := x509utils.ReadPEM(bytes.Repeat(testPEM(), 2), nil)
+	core.AssertNoError(t, err, "nil cb")
+}
+
 // testPEM encodes a single test PEM block.
 func testPEM() []byte {
 	return pem.EncodeToMemory(&pem.Block{
