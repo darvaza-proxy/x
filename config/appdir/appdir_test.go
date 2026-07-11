@@ -465,7 +465,9 @@ func TestSysDirUserMode(t *testing.T) {
 
 // TestNewPrefixAbsError pins [appdir.NewPrefix] propagating the
 // filepath.Abs failure resolving a relative argument when the
-// working directory no longer exists.
+// working directory no longer exists. Windows refuses to remove
+// the working directory, so unlike the other NewPrefix tests
+// this one cannot run there.
 func TestNewPrefixAbsError(t *testing.T) {
 	gone := filepath.Join(t.TempDir(), "gone")
 	err := os.Mkdir(gone, 0o750)

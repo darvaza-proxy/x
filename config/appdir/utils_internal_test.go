@@ -3,6 +3,7 @@ package appdir
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"darvaza.org/core"
@@ -27,7 +28,9 @@ func stubBaseDirErr() (string, error) {
 }
 
 // joinFnTestCase tests joinFn composing a directory from a base
-// directory accessor, propagating its error.
+// directory accessor, propagating its error. want is declared
+// slash-style and normalised to the platform separator via
+// filepath.FromSlash.
 type joinFnTestCase struct {
 	wantErr error
 	fn      func() (string, error)
@@ -51,7 +54,7 @@ func (tc joinFnTestCase) Test(t *testing.T) {
 	}
 
 	core.AssertNoError(t, err, "join fn")
-	core.AssertEqual(t, tc.want, got, "dir")
+	core.AssertEqual(t, filepath.FromSlash(tc.want), got, "dir")
 }
 
 // newJoinFnTestCase declares a row expected to succeed.
