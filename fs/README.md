@@ -126,7 +126,7 @@ through platform-specific syscalls.
 
 The implementation uses native APIs on each platform:
 
-* **Linux**: Uses `flock()` syscalls with `LOCK_EX` and `LOCK_NB` flags.
+* **Unix**: Uses `flock()` syscalls with `LOCK_EX` and `LOCK_NB` flags.
 * **Windows**: Uses `LockFileEx()` and `UnlockFileEx()` Win32 APIs.
 
 All platforms return `syscall.EBUSY` when `TryLockEx` cannot acquire a lock
