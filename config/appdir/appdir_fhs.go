@@ -10,20 +10,6 @@ import (
 	"darvaza.org/core"
 )
 
-const (
-	// PrefixLocal represents services installed outside
-	// the scope of the package manager.
-	PrefixLocal Prefix = "/usr/local"
-	// PrefixSystem represents services installed by
-	// the package manager.
-	PrefixSystem Prefix = "/"
-	// PrefixOptional represents services installed outside
-	// the scope of the package manager but requiring
-	// a complex hierarchy, usually installed by extracting
-	// an archive file.
-	PrefixOptional Prefix = "/opt"
-)
-
 func (p Prefix) sysCacheDir(sub ...string) (string, error) {
 	return p.sysDir("/var/cache", sub...)
 }

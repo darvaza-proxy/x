@@ -24,10 +24,6 @@ import (
 // error.
 type Prefix string
 
-// PrefixUser is the Prefix indicating user mode, where the
-// FooDir methods return the same as UserFooDir().
-const PrefixUser Prefix = "~"
-
 // prefix is the default Prefix used by the top-level
 // SysFooDir functions.
 var prefix = PrefixUser
@@ -59,12 +55,11 @@ func NewPrefix(dir string) (Prefix, error) {
 // which carries no root — fails with [fs.ErrInvalid], the stat
 // error, or [syscall.ENOTDIR].
 func (p Prefix) Validate() error {
-	switch p {
-	case PrefixUser, PrefixSystem, PrefixLocal, PrefixOptional:
+	if p.isWellKnown() {
 		return nil
-	default:
-		return p.validateDir()
 	}
+
+	return p.validateDir()
 }
 
 // validateDir requires the Prefix to be an absolute path to an

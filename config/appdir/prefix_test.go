@@ -15,6 +15,7 @@ import (
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = prefixValidateTestCase{}
 var _ core.TestCase = prefixUserModeTestCase{}
+var _ core.TestCase = newPrefixTestCase{}
 
 // prefixValidateTestCase tests [appdir.Prefix.Validate] pinning the
 // usability contract — a well-known prefix or an absolute path to
@@ -129,4 +130,88 @@ func TestPrefixUserMode(t *testing.T) {
 	)
 
 	core.RunTestCases(t, testCases)
+}
+
+// newPrefixTestCase tests [appdir.NewPrefix] validation and
+// path resolution.
+type newPrefixTestCase struct {
+	wantErrIs error
+	dir       string
+	name      string
+	want      appdir.Prefix
+}
+
+func (tc newPrefixTestCase) Name() string {
+	return tc.name
+}
+
+func (tc newPrefixTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	got, err := appdir.NewPrefix(tc.dir)
+	if tc.wantErrIs != nil {
+		core.AssertErrorIs(t, err, tc.wantErrIs, "new prefix")
+		return
+	}
+
+	core.AssertMustNoError(t, err, "new prefix")
+	core.AssertEqual(t, tc.want, got, "prefix")
+}
+
+// newNewPrefixTestCase declares a row expected to succeed, with
+// want holding the resulting Prefix value.
+func newNewPrefixTestCase(name, dir string,
+	want appdir.Prefix) newPrefixTestCase {
+	return newPrefixTestCase{
+		dir:  dir,
+		name: name,
+		want: want,
+	}
+}
+
+// newNewPrefixTestCaseErr declares a row expected to fail.
+func newNewPrefixTestCaseErr(name, dir string,
+	wantErrIs error) newPrefixTestCase {
+	return newPrefixTestCase{
+		wantErrIs: wantErrIs,
+		dir:       dir,
+		name:      name,
+	}
+}
+
+func newPrefixTestCases(tmp, file, cwd string) []newPrefixTestCase {
+	return core.S(
+		newNewPrefixTestCase("user mode", "~", appdir.PrefixUser),
+		newNewPrefixTestCase("existing dir", tmp,
+			appdir.Prefix(tmp)),
+		newNewPrefixTestCase("relative path", ".",
+			appdir.Prefix(cwd)),
+		newNewPrefixTestCaseErr("missing path",
+			filepath.Join(tmp, "missing"), fs.ErrNotExist),
+		newNewPrefixTestCaseErr("regular file", file,
+			syscall.ENOTDIR),
+	)
+}
+
+func TestNewPrefix(t *testing.T) {
+	tmp := t.TempDir()
+	file := filepath.Join(tmp, "file")
+	err := os.WriteFile(file, []byte("x"), 0o600)
+	core.AssertMustNoError(t, err, "write file")
+
+	cwd, err := os.Getwd()
+	core.AssertMustNoError(t, err, "getwd")
+
+	core.RunTestCases(t, newPrefixTestCases(tmp, file, cwd))
+}
+
+// TestSysPrefix pins the getter reflecting the current default
+// Prefix.
+func TestSysPrefix(t *testing.T) {
+	core.AssertEqual(t, appdir.PrefixUser, appdir.SysPrefix(),
+		"default")
+
+	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixSystem))
+	core.AssertEqual(t, appdir.PrefixSystem, appdir.SysPrefix(),
+		"stubbed")
 }
