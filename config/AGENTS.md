@@ -34,6 +34,8 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 
 - `appdir.go`: `Prefix` type, user-mode helpers, and core resolution
   logic.
+- `const.go`: the portable `PrefixUser` constant.
+- `const_unix.go`: FHS prefix constants (`!windows`).
 - `appdir_xdg.go`: XDG Base Directory Specification implementation
   (`!windows`).
 - `appdir_fhs.go`: Filesystem Hierarchy Standard support (`!windows`).
