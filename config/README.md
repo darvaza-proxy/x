@@ -30,18 +30,20 @@ for dealing with config files.
 `appdir` determines where an application should keep its files —
 cache, configuration, persistent data, and run-time data — following
 the XDG Base Directory Specification in user mode and the Filesystem
-Hierarchy Standard in system mode. On macOS the XDG variables still
-take precedence, with Apple-native locations as the user-mode
-fallbacks.
+Hierarchy Standard in system mode, with native equivalents on
+Windows. On macOS the XDG variables still take precedence, with
+Apple-native locations as the user-mode fallbacks.
 
 The `Prefix` type selects the system-mode filesystem root:
-`PrefixSystem` (`/`), `PrefixLocal` (`/usr/local`), `PrefixOptional`
-(`/opt`), or a custom directory validated via `NewPrefix()`. The
-special `PrefixUser` value makes the methods return the user-mode
-locations instead. Any value other than the well-known constants
-must be an absolute path to an existing directory, as checked by
-`Validate()`; the methods reject malformed prefixes — including
-the zero value — with an error.
+`PrefixSystem` (`/`), `PrefixLocal` (`/usr/local`) and
+`PrefixOptional` (`/opt`) on unix-like systems, or `PrefixSystem`
+alone — mapping to `%ProgramData%` — on Windows, or a custom
+directory validated via `NewPrefix()`. The special `PrefixUser`
+value makes the methods return the user-mode locations instead.
+Any value other than the well-known constants must be an absolute
+path to an existing directory, as checked by `Validate()`; the
+methods reject malformed prefixes — including the zero value —
+with an error.
 
 * `UserCacheDir()`, `UserConfigDir()`, `UserDataDir()`,
   `UserRuntimeDir()` — user mode (XDG).

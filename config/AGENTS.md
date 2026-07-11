@@ -18,7 +18,8 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 - **Validation**: Integration with go-playground/validator.
 - **Defaults**: Automatic setting of default values.
 - **AppDir**: Application directory resolution, user mode (XDG) or
-  system mode under a `Prefix` (FHS).
+  system mode under a `Prefix` (FHS), with native Windows
+  equivalents.
 
 ### Main Files
 
@@ -46,7 +47,8 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 - `appdir_unix.go`: shared temporary and runtime directory
   fallbacks (`!windows`).
 - `appdir_fhs.go`: Filesystem Hierarchy Standard support (`!windows`).
-- `appdir_windows.go`: stubbed Windows resolvers.
+- `appdir_windows.go`: Windows resolvers — `%AppData%` and
+  `%LocalAppData%` in user mode, `%ProgramData%` in system mode.
 - `utils.go`: path-composition helpers (`Join` and friends) and the
   environment-variable accessors.
 
@@ -143,8 +145,9 @@ err := config.Prepare(&cfg)
 - **Unix/Linux**: Full XDG Base Directory support in user mode.
 - **macOS**: XDG variables take precedence, with Apple-native
   locations as the user-mode fallbacks.
-- **Windows**: Not currently supported by the `appdir` subpackage;
-  the rest of the package is platform-independent.
+- **Windows**: native application data directories — `%AppData%`
+  and `%LocalAppData%` in user mode, `%ProgramData%` in system
+  mode.
 - **FHS Compliance**: System directories follow the Filesystem Hierarchy
   Standard.
 
