@@ -58,11 +58,10 @@ func SubjectPublicKeyBytes(pub crypto.PublicKey) ([]byte, error) {
 		SubjectPublicKey asn1.BitString
 	}
 
+	// MarshalPKIXPublicKey emits complete, well-formed SPKI DER and spki
+	// mirrors that structure exactly, so decoding it back cannot fail.
 	_, err = asn1.Unmarshal(spkiASN1, &spki)
-	if err != nil {
-		err = core.Wrap(err, "failed to decode public key")
-		return nil, err
-	}
+	core.MustNoError(err)
 
 	return spki.SubjectPublicKey.Bytes, nil
 }
