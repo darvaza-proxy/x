@@ -180,8 +180,11 @@ func newNewPrefixTestCaseErr(name, dir string,
 }
 
 func newPrefixTestCases(tmp, file, cwd string) []newPrefixTestCase {
-	return core.S(
-		newNewPrefixTestCase("user mode", "~", appdir.PrefixUser),
+	cases := core.S(
+		newNewPrefixTestCase("user mode",
+			string(appdir.PrefixUser), appdir.PrefixUser),
+		newNewPrefixTestCase("system prefix",
+			string(appdir.PrefixSystem), appdir.PrefixSystem),
 		newNewPrefixTestCase("existing dir", tmp,
 			appdir.Prefix(tmp)),
 		newNewPrefixTestCase("relative path", ".",
@@ -191,6 +194,7 @@ func newPrefixTestCases(tmp, file, cwd string) []newPrefixTestCase {
 		newNewPrefixTestCaseErr("regular file", file,
 			syscall.ENOTDIR),
 	)
+	return append(cases, osNewPrefixTestCases()...)
 }
 
 func TestNewPrefix(t *testing.T) {

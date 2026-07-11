@@ -28,12 +28,17 @@ type Prefix string
 // SysFooDir functions.
 var prefix = PrefixUser
 
-// NewPrefix returns a Prefix for the given directory, resolved
-// to an absolute path and validated via [Prefix.Validate]. The
-// special value "~" returns [PrefixUser] instead.
+// NewPrefix returns a Prefix for the given directory. A
+// well-known hint — [PrefixUser] or one of the system
+// prefixes [PrefixSystem], [PrefixLocal] and [PrefixOptional] —
+// is symbolic, expanded by the per-OS resolver at composition
+// time, so it is returned unchanged. Any other value is treated
+// as a path: resolved to absolute and validated via
+// [Prefix.Validate].
 func NewPrefix(dir string) (Prefix, error) {
-	if Prefix(dir) == PrefixUser {
-		return PrefixUser, nil
+	p := Prefix(dir)
+	if p.isWellKnown() {
+		return p, nil
 	}
 
 	s, err := filepath.Abs(dir)
@@ -41,7 +46,7 @@ func NewPrefix(dir string) (Prefix, error) {
 		return "", err
 	}
 
-	p := Prefix(s)
+	p = Prefix(s)
 	if err := p.Validate(); err != nil {
 		return "", err
 	}

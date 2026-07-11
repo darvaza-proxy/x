@@ -36,9 +36,13 @@ For detailed API documentation and usage examples, see [README.md](README.md).
   logic.
 - `const_unix.go`: the unix `Prefix` constants (`PrefixUser` and the
   FHS prefixes) plus the `isWellKnown` membership check (`!windows`).
+- `const_windows.go`: the Windows `Prefix` constants (`PrefixUser`
+  `@user` and `PrefixSystem` `%ProgramData%`) plus the `isWellKnown`
+  membership check (`windows`).
 - `appdir_xdg.go`: XDG Base Directory Specification implementation
   (`!windows`).
 - `appdir_fhs.go`: Filesystem Hierarchy Standard support (`!windows`).
+- `appdir_windows.go`: stubbed Windows resolvers.
 - `utils.go`: path-composition helpers (`Join` and friends).
 
 ## Architecture Notes
