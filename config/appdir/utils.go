@@ -1,6 +1,7 @@
 package appdir
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -22,6 +23,31 @@ func joinFn(fn func() (string, error),
 		return "", err
 	}
 	return Join(dir, sub...), nil
+}
+
+// getEnvDir returns the absolute directory named by the given
+// environment variable, or "" when it holds no absolute path,
+// whether unset, empty, or relative. Ignoring a relative value
+// matches the XDG Base Directory Specification, which treats a
+// relative path in its variables as invalid.
+func getEnvDir(key string) string {
+	if dir := os.Getenv(key); filepath.IsAbs(dir) {
+		return dir
+	}
+
+	return ""
+}
+
+// getEnvHomeDir returns the directory designated by the given
+// environment variable via [getEnvDir], or the given fallback
+// joined to the user's home directory when the variable is
+// unset.
+func getEnvHomeDir(key, fallback string) (string, error) {
+	if dir := getEnvDir(key); dir != "" {
+		return dir, nil
+	}
+
+	return joinFn(os.UserHomeDir, fallback)
 }
 
 func partsFromSlash(base string, sub ...string) []string {

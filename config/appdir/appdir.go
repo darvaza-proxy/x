@@ -2,7 +2,10 @@
 // files — cache, configuration, persistent data, and run-time
 // data — following the XDG Base Directory Specification in user
 // mode and the Filesystem Hierarchy Standard in system mode,
-// under a configurable [Prefix].
+// under a configurable [Prefix]. On macOS the XDG variables still
+// take precedence, but the user-mode fallbacks are the
+// Apple-native locations under the user's home — Library/Caches
+// and Library/Application Support.
 package appdir
 
 import (
@@ -134,14 +137,14 @@ func SysPrefix() Prefix {
 // when run in user mode.
 // ${XDG_CACHE_HOME}/...
 func UserCacheDir(sub ...string) (string, error) {
-	return joinFn(os.UserCacheDir, sub...)
+	return joinFn(getUserCacheDir, sub...)
 }
 
 // UserConfigDir returns where to store application configuration,
 // when run in user mode.
 // ${XDG_CONFIG_HOME}/...
 func UserConfigDir(sub ...string) (string, error) {
-	return joinFn(os.UserConfigDir, sub...)
+	return joinFn(getUserConfigDir, sub...)
 }
 
 // UserDataDir returns where to store application persistent
@@ -155,11 +158,11 @@ func UserDataDir(sub ...string) (string, error) {
 // variable data, when run in user mode.
 // ${XDG_RUNTIME_DIR}/...
 //
-// When ${XDG_RUNTIME_DIR} is unset and the systemd
-// /run/user/<uid> directory doesn't exist, it falls back to
-// ${TMPDIR:-/tmp}/runtime-<user> without creating it. Callers
-// must create the fallback with 0700 permissions to honour the
-// XDG trust requirements.
+// When ${XDG_RUNTIME_DIR} is unset — and, outside macOS, the
+// systemd /run/user/<uid> directory doesn't exist — it falls
+// back to ${TMPDIR:-/tmp}/runtime-<user> without creating it.
+// Callers must create the fallback with 0700 permissions to
+// honour the XDG trust requirements.
 func UserRuntimeDir(sub ...string) (string, error) {
 	return joinFn(getUserRuntimeDir, sub...)
 }

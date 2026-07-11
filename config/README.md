@@ -30,7 +30,9 @@ for dealing with config files.
 `appdir` determines where an application should keep its files —
 cache, configuration, persistent data, and run-time data — following
 the XDG Base Directory Specification in user mode and the Filesystem
-Hierarchy Standard in system mode.
+Hierarchy Standard in system mode. On macOS the XDG variables still
+take precedence, with Apple-native locations as the user-mode
+fallbacks.
 
 The `Prefix` type selects the system-mode filesystem root:
 `PrefixSystem` (`/`), `PrefixLocal` (`/usr/local`), `PrefixOptional`

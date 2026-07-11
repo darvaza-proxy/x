@@ -40,10 +40,15 @@ For detailed API documentation and usage examples, see [README.md](README.md).
   `@user` and `PrefixSystem` `%ProgramData%`) plus the `isWellKnown`
   membership check (`windows`).
 - `appdir_xdg.go`: XDG Base Directory Specification implementation
-  (`!windows`).
+  (`!windows && !darwin`).
+- `appdir_darwin.go`: XDG precedence with Apple-native fallbacks
+  (macOS).
+- `appdir_unix.go`: shared temporary and runtime directory
+  fallbacks (`!windows`).
 - `appdir_fhs.go`: Filesystem Hierarchy Standard support (`!windows`).
 - `appdir_windows.go`: stubbed Windows resolvers.
-- `utils.go`: path-composition helpers (`Join` and friends).
+- `utils.go`: path-composition helpers (`Join` and friends) and the
+  environment-variable accessors.
 
 ## Architecture Notes
 
@@ -136,6 +141,8 @@ err := config.Prepare(&cfg)
 ## Platform Support
 
 - **Unix/Linux**: Full XDG Base Directory support in user mode.
+- **macOS**: XDG variables take precedence, with Apple-native
+  locations as the user-mode fallbacks.
 - **Windows**: Not currently supported by the `appdir` subpackage;
   the rest of the package is platform-independent.
 - **FHS Compliance**: System directories follow the Filesystem Hierarchy

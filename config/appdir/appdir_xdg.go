@@ -1,57 +1,36 @@
-//go:build !windows
+//go:build !windows && !darwin
 
 package appdir
 
 import (
 	"os"
-	"os/user"
 	"strconv"
-
-	"darvaza.org/core"
 )
 
-func getUserDataDir() (string, error) {
-	dir := os.Getenv("XDG_DATA_HOME")
-	if dir != "" {
-		return dir, nil
-	}
+func getUserCacheDir() (string, error) {
+	return getEnvHomeDir("XDG_CACHE_HOME", ".cache")
+}
 
-	dir, err := os.UserHomeDir()
-	switch {
-	case err != nil:
-		return "", err
-	default:
-		return dir + "/.local/share", nil
-	}
+func getUserConfigDir() (string, error) {
+	return getEnvHomeDir("XDG_CONFIG_HOME", ".config")
+}
+
+func getUserDataDir() (string, error) {
+	return getEnvHomeDir("XDG_DATA_HOME", ".local/share")
 }
 
 func getUserRuntimeDir() (string, error) {
-	dir := os.Getenv("XDG_RUNTIME_DIR")
+	dir := getEnvDir("XDG_RUNTIME_DIR")
 	if dir != "" {
 		return dir, nil
 	}
 
 	// systemd special
-	uid := strconv.Itoa(os.Getuid())
-	dir = "/run/user/" + uid
+	dir = "/run/user/" + strconv.Itoa(os.Getuid())
 	st, _ := os.Stat(dir)
 	if st != nil && st.IsDir() {
 		return dir, nil
 	}
 
-	name := "runtime-"
-	u, _ := user.Current()
-	if u != nil && u.Username != "" {
-		name += u.Username
-	} else {
-		name += uid
-	}
-
-	return joinFn(getTempDir, name)
-}
-
-// getTempDir returns the volatile temporary directory, honouring
-// a $TMPDIR redirection and defaulting to /tmp.
-func getTempDir() (string, error) {
-	return core.Coalesce(os.Getenv("TMPDIR"), "/tmp"), nil
+	return getUserRuntimeTempDir()
 }

@@ -2,6 +2,7 @@ package appdir
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	"darvaza.org/core"
@@ -9,6 +10,8 @@ import (
 
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = joinFnTestCase{}
+var _ core.TestCase = getEnvDirTestCase{}
+var _ core.TestCase = getEnvHomeDirTestCase{}
 var _ core.TestCase = partsFromSlashTestCase{}
 var _ core.TestCase = splitFromSlashTestCase{}
 
@@ -82,6 +85,89 @@ func TestJoinFn(t *testing.T) {
 	}
 
 	core.RunTestCases(t, testCases)
+}
+
+// getEnvDirTestCase tests getEnvDir honouring absolute values of
+// the environment variable and treating anything else as unset.
+// Absolute paths are platform-specific, so the rows are
+// platform-gated.
+type getEnvDirTestCase struct {
+	envValue string
+	name     string
+	want     string
+	unset    bool
+}
+
+func (tc getEnvDirTestCase) Name() string {
+	return tc.name
+}
+
+func (tc getEnvDirTestCase) Test(t *testing.T) {
+	t.Helper()
+	// t.Setenv registers the restore that os.Unsetenv needs to
+	// leave behind when making the variable genuinely absent.
+	t.Setenv("APPDIR_TEST_DIR", tc.envValue)
+	if tc.unset {
+		err := os.Unsetenv("APPDIR_TEST_DIR")
+		core.AssertMustNoError(t, err, "unsetenv")
+	}
+
+	got := getEnvDir("APPDIR_TEST_DIR")
+	core.AssertEqual(t, tc.want, got, "dir")
+}
+
+func newGetEnvDirTestCase(name, envValue,
+	want string) getEnvDirTestCase {
+	return getEnvDirTestCase{
+		envValue: envValue,
+		name:     name,
+		want:     want,
+	}
+}
+
+// newGetEnvDirTestCaseUnset declares a row where the variable is
+// genuinely absent from the environment, not merely empty.
+func newGetEnvDirTestCaseUnset(name string) getEnvDirTestCase {
+	return getEnvDirTestCase{
+		name:  name,
+		want:  "",
+		unset: true,
+	}
+}
+
+// getEnvHomeDirTestCase tests getEnvHomeDir honouring absolute
+// values of the environment variable and falling back to a
+// directory under the user's home otherwise. setTestHome and the
+// rows are platform-specific and platform-gated.
+type getEnvHomeDirTestCase struct {
+	envValue string
+	name     string
+	fallback string
+	want     string
+}
+
+func (tc getEnvHomeDirTestCase) Name() string {
+	return tc.name
+}
+
+func (tc getEnvHomeDirTestCase) Test(t *testing.T) {
+	t.Helper()
+	t.Setenv("APPDIR_TEST_DIR", tc.envValue)
+	setTestHome(t)
+
+	got, err := getEnvHomeDir("APPDIR_TEST_DIR", tc.fallback)
+	core.AssertMustNoError(t, err, "env home dir")
+	core.AssertEqual(t, tc.want, got, "dir")
+}
+
+func newGetEnvHomeDirTestCase(name, envValue, fallback,
+	want string) getEnvHomeDirTestCase {
+	return getEnvHomeDirTestCase{
+		envValue: envValue,
+		name:     name,
+		fallback: fallback,
+		want:     want,
+	}
 }
 
 // partsFromSlashTestCase tests partsFromSlash flattening a base and

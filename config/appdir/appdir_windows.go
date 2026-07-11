@@ -7,6 +7,14 @@ import "darvaza.org/core"
 // builds and vets on Windows. The real implementation lands with
 // the Windows support work, replacing this file in place.
 
+func getUserCacheDir() (string, error) {
+	return "", core.ErrNotImplemented
+}
+
+func getUserConfigDir() (string, error) {
+	return "", core.ErrNotImplemented
+}
+
 func getUserDataDir() (string, error) {
 	return "", core.ErrNotImplemented
 }
