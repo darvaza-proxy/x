@@ -44,7 +44,7 @@ The package follows several design principles:
 Key patterns:
 
 - Interfaces follow os package naming conventions (e.g., ChmodFS for Chmod).
-- Platform-specific code uses build tags (_linux.go_, _windows.go).
+- Platform-specific code uses build tags (_unix.go,_windows.go).
 - Glob patterns support `**` for recursive matching.
 
 ## Development Commands
