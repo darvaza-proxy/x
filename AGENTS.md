@@ -183,8 +183,12 @@ Automated dual coverage reporting across all modules:
 
 GitHub Actions workflows split for better performance:
 
-- **Build workflow** (`.github/workflows/build.yml`): Focuses on compilation
-  only.
+- **Build workflow** (`.github/workflows/build.yml`): Compilation, plus a
+  cross-platform vet gate.
+  - `vet` job runs `make vet` across a `GOOS` matrix (linux, windows,
+    darwin). Because `go vet` compiles every package and its tests without
+    running them, it is the only compile check for the platforms CI cannot
+    execute natively.
 - **Test workflow** (`.github/workflows/test.yml`): Dedicated testing
   pipeline.
   - Race condition detection job with Go 1.26.
