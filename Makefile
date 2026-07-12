@@ -6,9 +6,10 @@ GO ?= go
 GOFMT ?= gofmt
 GOFMT_FLAGS = -w -l -s
 GOGENERATE_FLAGS = -v
+GOTEST_FLAGS ?=
 GOUP_FLAGS ?= -v
 GOUP_PACKAGES ?= ./...
-GOTEST_FLAGS ?=
+GOVET_FLAGS ?= -v
 JQ ?= jq
 
 TOOLSDIR := $(CURDIR)/internal/build
