@@ -6,7 +6,7 @@ set -eu
 INDEX="$1"
 
 PROJECTS="$(cut -d':' -f1 "$INDEX")"
-COMMANDS="tidy get build test coverage race up"
+COMMANDS="tidy get build test vet coverage race up"
 
 TAB=$(printf "\t")
 
@@ -142,6 +142,9 @@ gen_make_targets() {
 		;;
 	race)
 		call="env CGO_ENABLED=1 \$(GO) test -race -count=1 \$(GOTEST_FLAGS) ./..."
+		;;
+	vet)
+		call="\$(GO) vet \$(GOVET_FLAGS) ./..."
 		;;
 	*)
 		call="\$(GO) $cmd -v ./..."
