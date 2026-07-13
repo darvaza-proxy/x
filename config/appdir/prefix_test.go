@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"testing"
 
@@ -218,4 +219,25 @@ func TestSysPrefix(t *testing.T) {
 	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixSystem))
 	core.AssertEqual(t, appdir.PrefixSystem, appdir.SysPrefix(),
 		"stubbed")
+}
+
+// TestSysPrefixConcurrent exercises the atomic default under
+// concurrent writers and readers. Run with -race it guards
+// against a data race on the package-level prefix.
+func TestSysPrefixConcurrent(t *testing.T) {
+	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixUser))
+
+	dirs := core.S(string(appdir.PrefixUser), string(appdir.PrefixSystem))
+
+	var wg sync.WaitGroup
+	for i := range 16 {
+		dir := dirs[i%len(dirs)]
+		wg.Go(func() {
+			_ = appdir.SetSysPrefix(dir)
+		})
+		wg.Go(func() {
+			_, _ = appdir.SysCacheDir("app")
+		})
+	}
+	wg.Wait()
 }

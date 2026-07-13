@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 
 	"darvaza.org/core"
@@ -24,9 +25,20 @@ import (
 // error.
 type Prefix string
 
-// prefix is the default Prefix used by the top-level
-// SysFooDir functions.
-var prefix = PrefixUser
+// prefix is the default Prefix used by the top-level SysFooDir
+// functions. It is stored atomically so [SetSysPrefix] is safe
+// against concurrent readers, and initialised to [PrefixUser].
+var prefix atomic.Pointer[Prefix]
+
+func init() {
+	u := PrefixUser
+	prefix.Store(&u)
+}
+
+// loadPrefix returns the current default Prefix.
+func loadPrefix() Prefix {
+	return *prefix.Load()
+}
 
 // NewPrefix returns a Prefix for the given directory. A
 // well-known hint — [PrefixUser] or one of the system
@@ -91,22 +103,23 @@ func (p Prefix) validateDir() error {
 }
 
 // SetSysPrefix specifies what filesystem prefix to use
-// when generating SysFooDir() strings. The special value "~"
-// selects user mode ([PrefixUser]), the default.
+// when generating SysFooDir() strings. The well-known
+// [PrefixUser] selects user mode, the default. It is safe to
+// call concurrently with the SysFooDir readers.
 func SetSysPrefix(dir string) error {
 	p, err := NewPrefix(dir)
 	if err != nil {
 		return err
 	}
 
-	prefix = p
+	prefix.Store(&p)
 	return nil
 }
 
 // SysPrefix returns the default Prefix used by the top-level
 // SysFooDir functions.
 func SysPrefix() Prefix {
-	return prefix
+	return loadPrefix()
 }
 
 // UserCacheDir returns where to store application cache
@@ -195,25 +208,25 @@ func (p Prefix) RuntimeDir(sub ...string) (string, error) {
 // SysCacheDir returns where to store application cache,
 // when run in system mode.
 func SysCacheDir(sub ...string) (string, error) {
-	return prefix.CacheDir(sub...)
+	return loadPrefix().CacheDir(sub...)
 }
 
 // SysConfigDir returns where to store application configuration
 // data, when run in system mode.
 func SysConfigDir(sub ...string) (string, error) {
-	return prefix.ConfigDir(sub...)
+	return loadPrefix().ConfigDir(sub...)
 }
 
 // SysDataDir returns where to store application persistent
 // data, when run in system mode.
 func SysDataDir(sub ...string) (string, error) {
-	return prefix.DataDir(sub...)
+	return loadPrefix().DataDir(sub...)
 }
 
 // SysRuntimeDir returns where to store application run-time
 // variable data, when run in system mode.
 func SysRuntimeDir(sub ...string) (string, error) {
-	return prefix.RuntimeDir(sub...)
+	return loadPrefix().RuntimeDir(sub...)
 }
 
 // AllConfigDir returns a slice containing the application
@@ -253,5 +266,5 @@ func (p Prefix) AllConfigDir(sub ...string) []string {
 // configuration path on the current working directory, user mode,
 // and system mode.
 func AllConfigDir(sub ...string) []string {
-	return prefix.AllConfigDir(sub...)
+	return loadPrefix().AllConfigDir(sub...)
 }
