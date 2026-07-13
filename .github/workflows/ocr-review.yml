@@ -1,0 +1,29 @@
+name: OCR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: ocr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ocr-review:
+    if: |
+      github.actor != 'renovate[bot]' &&
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, runner1]
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Review against compute3 (Ollama, OpenAI-compatible)
+        uses: alibaba/open-code-review@v1.7.8
+        with:
+          llm_url: http://compute3.lan:11434/v1
+          llm_model: qwen3-coder:30b
+          llm_auth_token: ollama
+          llm_use_anthropic: 'false'
