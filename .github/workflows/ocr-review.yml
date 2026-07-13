@@ -20,10 +20,4 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Review against compute3 (Ollama, OpenAI-compatible)
-        uses: alibaba/open-code-review@v1.7.8
-        with:
-          llm_url: http://compute3.lan:11434/v1
-          llm_model: qwen3-coder:30b
-          llm_auth_token: ollama
-          llm_use_anthropic: 'false'
+      - uses: apptly-dev/mnggal-mnggal-reviewer@v1
