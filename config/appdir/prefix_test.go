@@ -190,6 +190,7 @@ func newPrefixTestCases(tmp, file, cwd string) []newPrefixTestCase {
 			appdir.Prefix(tmp)),
 		newNewPrefixTestCase("relative path", ".",
 			appdir.Prefix(cwd)),
+		newNewPrefixTestCaseErr("empty", "", fs.ErrInvalid),
 		newNewPrefixTestCaseErr("missing path",
 			filepath.Join(tmp, "missing"), fs.ErrNotExist),
 		newNewPrefixTestCaseErr("regular file", file,

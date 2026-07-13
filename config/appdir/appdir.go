@@ -46,11 +46,19 @@ func loadPrefix() Prefix {
 // is symbolic, expanded by the per-OS resolver at composition
 // time, so it is returned unchanged. Any other value is treated
 // as a path: resolved to absolute and validated via
-// [Prefix.Validate].
+// [Prefix.Validate]. The empty string is rejected rather than
+// silently resolving to the working directory.
 func NewPrefix(dir string) (Prefix, error) {
 	p := Prefix(dir)
 	if p.isWellKnown() {
 		return p, nil
+	}
+
+	if dir == "" {
+		// filepath.Abs("") resolves to the working directory,
+		// which would anchor the system tree at cwd; reject it
+		// as the zero value Validate already does.
+		return "", p.Validate()
 	}
 
 	s, err := filepath.Abs(dir)
