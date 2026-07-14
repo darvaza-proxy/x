@@ -33,17 +33,25 @@ var (
 	// across the lifecycle stack.
 	ErrClosed = core.QuietWrap(errors.ErrClosed, "already closed")
 
-	// ErrNameEmpty indicates a name is empty
-	ErrNameEmpty = errors.New("name missing")
+	// ErrNameEmpty indicates a name is empty. It wraps [core.ErrInvalid]
+	// so a caller matching the invalid-argument family with errors.Is
+	// catches it.
+	ErrNameEmpty = core.QuietWrap(core.ErrInvalid, "name missing")
 
-	// ErrNameTooLong indicates a name exceeds maximum length
-	ErrNameTooLong = errors.New("name too long")
+	// ErrNameTooLong indicates a name exceeds maximum length. It wraps
+	// [core.ErrInvalid] for the same reason.
+	ErrNameTooLong = core.QuietWrap(core.ErrInvalid, "name too long")
 )
 
 // IsFatal tells if the error means the connection
 // should be closed and not retried.
 // Only [ErrDoNotReconnect], possibly wrapped, is considered
 // fatal; anything else is treated as recoverable.
+//
+// IsFatal classifies connection errors seen inside the reconnect loop.
+// Caller-misuse errors are reported at setup time and never reach that
+// decision; they extend [core.ErrInvalid], so match them with errors.Is
+// against that sentinel instead.
 func IsFatal(err error) bool {
 	if err != nil {
 		is, _ := core.IsErrorFn2(checkIsFatal, err)
@@ -117,4 +125,22 @@ func checkIsNonError(err error) (is, certainly bool) {
 	default:
 		return false, false
 	}
+}
+
+// IsNotConnected reports whether err indicates the [Client] had no session
+// when a request was attempted, matching [ErrNotConnected] anywhere in the
+// chain. A fully shut-down client surfaces [ErrClosed] without
+// ErrNotConnected wrapping it; match [ErrClosed] instead to cover both the
+// closed and not-connected cases with a single target.
+func IsNotConnected(err error) bool {
+	return errors.Is(err, ErrNotConnected)
+}
+
+// IsClosed reports whether err indicates the [Client] has been shut down,
+// matching [ErrClosed] anywhere in the chain. Because [ErrNotConnected]
+// wraps [ErrClosed], IsClosed is the broad companion to [IsNotConnected]:
+// it is true for both a fully closed client and the transient
+// not-connected window, whereas IsNotConnected matches only the latter.
+func IsClosed(err error) bool {
+	return errors.Is(err, ErrClosed)
 }
