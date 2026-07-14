@@ -72,7 +72,7 @@ endif
 MARKDOWNLINT_FLAGS ?= --fix --config $(TOOLSDIR)/markdownlint.json
 
 ifndef LANGUAGETOOL
-ifeq ($(shell $(DLX) @twilio-labs/languagetool-cli --version 2>&1 | grep -qE '^(unknown|[0-9])' && echo yes),yes)
+ifeq ($(shell $(DLX) @twilio-labs/languagetool-cli --version < /dev/null | grep -qE '^(unknown|[0-9])' && echo yes),yes)
 LANGUAGETOOL = $(DLX) @twilio-labs/languagetool-cli
 else
 LANGUAGETOOL = true
@@ -81,7 +81,7 @@ endif
 LANGUAGETOOL_FLAGS ?= --config $(TOOLSDIR)/languagetool.cfg --custom-dict-file $(TMPDIR)/languagetool-dict.txt
 
 ifndef CSPELL
-ifeq ($(shell $(DLX) cspell --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+ifeq ($(shell $(DLX) cspell --version < /dev/null | grep -q '^[0-9]' && echo yes),yes)
 CSPELL = $(DLX) cspell
 else
 CSPELL = true
@@ -90,7 +90,7 @@ endif
 CSPELL_FLAGS ?= --no-progress --dot --config $(TOOLSDIR)/cspell.json
 
 ifndef SHELLCHECK
-ifeq ($(shell $(DLX) shellcheck --version 2>&1 | grep -q '^ShellCheck' && echo yes),yes)
+ifeq ($(shell $(DLX) shellcheck --version < /dev/null | grep -q '^ShellCheck' && echo yes),yes)
 SHELLCHECK = $(DLX) shellcheck
 else
 SHELLCHECK = true
