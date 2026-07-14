@@ -68,6 +68,11 @@ func (s *CertPool) IsCA() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	if len(s.entries) == 0 {
+		// an empty pool holds no CAs
+		return false
+	}
+
 	for _, ce := range s.entries {
 		if !ce.cert.IsCA {
 			return false
