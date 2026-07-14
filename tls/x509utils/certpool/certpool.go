@@ -74,7 +74,7 @@ func (s *CertPool) IsCA() bool {
 	}
 
 	for _, ce := range s.entries {
-		if !ce.cert.IsCA {
+		if !ce.IsCA() {
 			return false
 		}
 	}

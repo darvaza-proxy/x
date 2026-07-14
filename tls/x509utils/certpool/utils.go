@@ -23,10 +23,6 @@ func validCert(cert *x509.Certificate) bool {
 }
 
 func copyMap[K comparable, V any](m map[K]V, fn func(V) (V, bool)) map[K]V {
-	if fn == nil {
-		fn = copyFn
-	}
-
 	out := make(map[K]V, len(m))
 	for k, v := range m {
 		if v, ok := fn(v); ok {
@@ -37,10 +33,6 @@ func copyMap[K comparable, V any](m map[K]V, fn func(V) (V, bool)) map[K]V {
 }
 
 func copyMapList[K comparable, V any](m map[K]*list.List[V], fn func(V) (V, bool)) map[K]*list.List[V] {
-	if fn == nil {
-		fn = copyFn
-	}
-
 	out := make(map[K]*list.List[V], len(m))
 	for k, l1 := range m {
 		if l2 := l1.Copy(fn); l2.Len() > 0 {
@@ -48,10 +40,6 @@ func copyMapList[K comparable, V any](m map[K]*list.List[V], fn func(V) (V, bool
 		}
 	}
 	return out
-}
-
-func copyFn[V any](v V) (V, bool) {
-	return v, true
 }
 
 func sliceForEach[T any](ctx context.Context, fn func(context.Context, T) bool, values []T) {
