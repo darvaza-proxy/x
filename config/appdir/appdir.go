@@ -48,7 +48,7 @@ func loadPrefix() Prefix {
 // as a path: resolved to absolute and validated via
 // [Prefix.Validate]. The empty string is rejected rather than
 // silently resolving to the working directory.
-func NewPrefix(dir string) (Prefix, error) {
+func NewPrefix[T string | Prefix](dir T) (Prefix, error) {
 	p := Prefix(dir)
 	if p.isWellKnown() {
 		return p, nil
@@ -61,7 +61,7 @@ func NewPrefix(dir string) (Prefix, error) {
 		return "", p.Validate()
 	}
 
-	s, err := filepath.Abs(dir)
+	s, err := filepath.Abs(string(dir))
 	if err != nil {
 		return "", err
 	}
@@ -114,8 +114,8 @@ func (p Prefix) validateDir() error {
 // when generating SysFooDir() strings. The well-known
 // [PrefixUser] selects user mode, the default. It is safe to
 // call concurrently with the SysFooDir readers.
-func SetSysPrefix(dir string) error {
-	p, err := NewPrefix(dir)
+func SetSysPrefix[T string | Prefix](dir T) error {
+	p, err := NewPrefix(string(dir))
 	if err != nil {
 		return err
 	}

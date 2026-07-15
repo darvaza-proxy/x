@@ -228,7 +228,7 @@ func TestSysPrefix(t *testing.T) {
 func TestSysPrefixConcurrent(t *testing.T) {
 	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixUser))
 
-	dirs := core.S(string(appdir.PrefixUser), string(appdir.PrefixSystem))
+	dirs := core.S(appdir.PrefixUser, appdir.PrefixSystem)
 
 	var wg sync.WaitGroup
 	for i := range 16 {
