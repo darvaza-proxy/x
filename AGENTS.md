@@ -183,8 +183,12 @@ Automated dual coverage reporting across all modules:
 
 GitHub Actions workflows split for better performance:
 
-- **Build workflow** (`.github/workflows/build.yml`): Focuses on compilation
-  only.
+- **Build workflow** (`.github/workflows/build.yml`): Compilation, plus a
+  cross-platform vet gate.
+  - `vet` job runs `make vet` across a `GOOS` matrix (linux, windows,
+    darwin). Because `go vet` compiles every package and its tests without
+    running them, it is the only compile check for the platforms CI cannot
+    execute natively.
 - **Test workflow** (`.github/workflows/test.yml`): Dedicated testing
   pipeline.
   - Race condition detection job with Go 1.26.
@@ -266,6 +270,39 @@ go tool cover -html=coverage.out
 This provides a clean interface for passing arbitrary test flags without
 modifying the Makefile, making it easy to run tests with different
 configurations for debugging, coverage analysis, or CI/CD pipelines.
+
+## Vetting with GOVET_FLAGS
+
+The `GOVET_FLAGS` environment variable allows flexible `go vet`
+execution by passing additional flags. This variable is defined in the
+Makefile with a `-v` default and is used when running vet through the
+generated rules.
+
+### Vet Usage Examples
+
+```bash
+# Run vet quietly (drop the default -v)
+make vet GOVET_FLAGS=
+
+# Vet a single module
+make vet-sync
+
+# Cross-compile and vet every module for another platform
+GOOS=windows make vet
+GOOS=darwin make vet
+```
+
+### How GOVET_FLAGS Works
+
+1. The Makefile defines `GOVET_FLAGS ?= -v`.
+2. The generated rules use it in the vet target:
+   `$(GO) vet $(GOVET_FLAGS) ./...`.
+3. Any flags passed via `GOVET_FLAGS` are forwarded directly to
+   `go vet`.
+
+Because `go vet` compiles each package and its tests for the target
+`GOOS` without running them, `make vet` doubles as a cross-platform
+compile check.
 
 ## Important Notes
 

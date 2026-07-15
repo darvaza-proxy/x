@@ -48,6 +48,7 @@
     "fsys",
     "gobwas",
     "golangci",
+    "GOOS",
     "GOPATH",
     "goroutines",
     "Gosched",
