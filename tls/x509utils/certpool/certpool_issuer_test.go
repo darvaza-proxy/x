@@ -154,8 +154,7 @@ func TestGetBySubjectHashSurvivesClone(t *testing.T) {
 	pool := certpool.New()
 	core.AssertMustTrue(t, pool.AddCert(sub.cert), "add sub")
 
-	clone, ok := pool.Clone().(*certpool.CertPool)
-	core.AssertMustTrue(t, ok, "clone is *CertPool")
+	clone := core.AssertMustTypeIs[*certpool.CertPool](t, pool.Clone(), "clone")
 
 	got := clone.GetByIssuer(leaf.cert)
 	core.AssertMustEqual(t, 1, len(got), "candidate found in clone")

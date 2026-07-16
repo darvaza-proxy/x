@@ -121,14 +121,10 @@ func (s *CertPool) unsafeDeleteCertEntry(ce *certPoolEntry) {
 
 	delete(s.entries, cert)
 
-	eq := func(p *certPoolEntry) bool {
-		return ce == p
-	}
-
-	deleteMapListMatchFn(s.names, ce.names, eq)
-	deleteMapListMatchFn(s.patterns, ce.patterns, eq)
+	deleteMapListMatchFn(s.names, ce.names, ce.Equal)
+	deleteMapListMatchFn(s.patterns, ce.patterns, ce.Equal)
 	if h, ok := HashSubject(ce.cert); ok {
-		deleteMapListMatchFn(s.bySubject, []Hash{h}, eq)
+		deleteMapListMatchFn(s.bySubject, []Hash{h}, ce.Equal)
 	}
 }
 

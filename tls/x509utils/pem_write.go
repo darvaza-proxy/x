@@ -14,17 +14,15 @@ func WriteKey(w io.Writer, key PrivateKey) (int64, error) {
 	var buf bytes.Buffer
 
 	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
-	if err == nil {
-		err = pem.Encode(&buf, &pem.Block{
-			Type:  "PRIVATE KEY",
-			Bytes: keyDER,
-		})
+	if err != nil {
+		return 0, core.Wrap(err, "failed to encode key")
 	}
 
-	if err != nil {
-		err = core.Wrap(err, "failed to encode key")
-		return 0, err
-	}
+	// pem.Encode to a bytes.Buffer cannot fail; only the writer can.
+	core.MustNoError(pem.Encode(&buf, &pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: keyDER,
+	}))
 
 	return buf.WriteTo(w)
 }
@@ -35,25 +33,19 @@ func WriteCert(w io.Writer, cert *x509.Certificate) (int64, error) {
 
 	switch {
 	case cert == nil:
-		err := &ErrInvalidCert{Reason: "not provided"}
+		err := NewErrInvalidCert(nil, nil, "not provided")
 		return 0, err
 	case len(cert.Raw) == 0:
-		err := &ErrInvalidCert{Reason: "missing Raw DER certificate", Cert: cert}
+		err := NewErrInvalidCert(cert, nil, "missing Raw DER certificate")
 		return 0, err
 	}
 
-	err := pem.Encode(&buf, &pem.Block{
+	// cert.Raw is non-empty here and pem.Encode only fails when the writer
+	// does; a bytes.Buffer never does, so a non-nil error is unreachable.
+	core.MustNoError(pem.Encode(&buf, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: cert.Raw,
-	})
-	if err != nil {
-		err = &ErrInvalidCert{
-			Cert:   cert,
-			Err:    err,
-			Reason: "failed to encode certificate",
-		}
-		return 0, err
-	}
+	}))
 
 	return buf.WriteTo(w)
 }

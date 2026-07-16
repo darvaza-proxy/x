@@ -51,16 +51,14 @@ func ValidKeyPair(pub crypto.PublicKey, key crypto.PrivateKey) bool {
 }
 
 // IsSelfSigned tests if a certificate corresponds to a self-signed CA.
+//
+// This is a structural test: the certificate must be a CA whose Subject and
+// Issuer match and whose signature verifies against its own key. It does not
+// check time validity, so an expired self-signed root is still recognised —
+// deliberately, since callers use it to classify roots and terminate issuer
+// walks, where validity is a separate handshake-time concern.
 func IsSelfSigned(c *x509.Certificate) bool {
-	if c != nil && c.IsCA && bytes.Equal(c.RawSubject, c.RawIssuer) {
-		pool := x509.NewCertPool()
-
-		pool.AddCert(c)
-		_, err := c.Verify(x509.VerifyOptions{
-			Roots: pool,
-		})
-
-		return err == nil
-	}
-	return false
+	return c != nil && c.IsCA &&
+		bytes.Equal(c.RawSubject, c.RawIssuer) &&
+		c.CheckSignatureFrom(c) == nil
 }

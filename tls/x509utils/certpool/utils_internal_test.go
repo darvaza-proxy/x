@@ -7,6 +7,8 @@ import (
 	"darvaza.org/core"
 )
 
+var _ core.TestCase = validCertTestCase{}
+
 // validCertTestCase exercises validCert: a certificate is valid only when it
 // carries DER bytes, a public key, and both a non-empty subject and issuer
 // (RFC 5280 makes issuer a mandatory field).
@@ -24,8 +26,6 @@ func (tc validCertTestCase) Test(t *testing.T) {
 	t.Helper()
 	core.AssertEqual(t, tc.want, validCert(tc.cert), "validCert")
 }
-
-var _ core.TestCase = validCertTestCase{}
 
 func newValidCertTestCase(name string, cert *x509.Certificate,
 	want bool) validCertTestCase {

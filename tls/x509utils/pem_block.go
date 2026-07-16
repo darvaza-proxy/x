@@ -7,6 +7,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"strings"
+
+	"darvaza.org/core"
 )
 
 var (
@@ -21,23 +23,34 @@ var (
 	ErrNotSupported = errors.New("key type not supported")
 )
 
-// BlockToPrivateKey parses a pem Block looking for rsa, ecdsa or ed25519 Private Keys
+// BlockToPrivateKey parses a PEM block into an rsa, ecdsa or ed25519 private
+// key, accepting the PKCS1, SEC1 and PKCS8 encodings.
 func BlockToPrivateKey(block *pem.Block) (PrivateKey, error) {
+	if block == nil {
+		return nil, core.ErrInvalid
+	}
+
 	if block.Type == "PRIVATE KEY" || strings.HasSuffix(block.Type, " PRIVATE KEY") {
-		if pk, _ := x509.ParsePKCS1PrivateKey(block.Bytes); pk != nil {
-			// *rsa.PrivateKey
-			return pk, nil
-		}
-
-		pk, err := parsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-
-		return pk, nil
+		return parsePrivateKeyDER(block.Bytes)
 	}
 
 	return nil, ErrIgnored
+}
+
+// parsePrivateKeyDER decodes a DER private key, trying the PKCS1, SEC1 and
+// PKCS8 encodings in turn.
+func parsePrivateKeyDER(b []byte) (PrivateKey, error) {
+	if pk, _ := x509.ParsePKCS1PrivateKey(b); pk != nil {
+		// *rsa.PrivateKey (PKCS1)
+		return pk, nil
+	}
+
+	if pk, _ := x509.ParseECPrivateKey(b); pk != nil {
+		// *ecdsa.PrivateKey (SEC1)
+		return pk, nil
+	}
+
+	return parsePKCS8PrivateKey(b)
 }
 
 func parsePKCS8PrivateKey(b []byte) (PrivateKey, error) {
@@ -68,6 +81,10 @@ func BlockToRSAPrivateKey(block *pem.Block) (*rsa.PrivateKey, error) {
 
 // BlockToCertificate attempts to parse a pem.Block to extract a x509.Certificate
 func BlockToCertificate(block *pem.Block) (*x509.Certificate, error) {
+	if block == nil {
+		return nil, core.ErrInvalid
+	}
+
 	if block.Type == "CERTIFICATE" {
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {

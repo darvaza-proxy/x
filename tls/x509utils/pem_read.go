@@ -2,9 +2,11 @@ package x509utils
 
 import (
 	"encoding/pem"
+	"errors"
 	"io/fs"
 	"os"
 	"path"
+	"strings"
 
 	"darvaza.org/core"
 )
@@ -14,29 +16,31 @@ import (
 type DecodePEMBlockFunc func(fSys fs.FS, filename string, block *pem.Block) bool
 
 // ReadPEM invokes a callback for each PEM block found in the input data.
-// It returns ErrEmpty if the input is empty, core.ErrInvalid if it
-// fails to decode.
+// It returns ErrEmpty if the input is empty, and core.ErrInvalid if no
+// PEM block is found at all. Non-PEM text around the blocks is skipped,
+// matching [pem.Decode]'s tolerance for surrounding commentary.
 func ReadPEM(b []byte, cb DecodePEMBlockFunc) error {
-	var block *pem.Block
-
 	if len(b) == 0 {
 		return ErrEmpty
 	}
 
-	for {
-		block, b = pem.Decode(b)
-		switch {
-		case block == nil:
-			// failed to decode
-			return core.ErrInvalid
-		case cb != nil && !cb(nil, "", block):
+	block, rest := pem.Decode(b)
+	if block == nil {
+		// no PEM block in the input
+		return core.ErrInvalid
+	}
+
+	for block != nil {
+		if cb != nil && !cb(nil, "", block) {
 			// aborted
 			return nil
-		case len(b) == 0:
-			// EOF
-			return nil
 		}
+
+		block, rest = pem.Decode(rest)
 	}
+
+	// EOF; trailing non-PEM content after the last block is skipped
+	return nil
 }
 
 // ReadFilePEM reads a PEM file calling cb for each block
@@ -142,10 +146,24 @@ type readOptions struct {
 	dirs bool
 }
 
+// maxPathLen caps how long a string can still be considered a
+// candidate file name once it failed to parse as raw PEM. It matches
+// Linux's PATH_MAX, which includes the terminating NUL, so a path of
+// this length is already impossible.
+const maxPathLen = 4096
+
 func (r *readOptions) run(s string) error {
 	if ReadPEM([]byte(s), r.cb) == nil {
 		// raw. done.
 		return nil
+	}
+
+	// not a possible path, don't bother stat-ing
+	switch {
+	case len(s) >= maxPathLen:
+		return newInvalidPathError("stat", s, "path too long")
+	case strings.Contains(s, "\x00"):
+		return newInvalidPathError("stat", s, "NUL byte in path")
 	}
 
 	st, err := r.stat(s)
@@ -154,11 +172,11 @@ func (r *readOptions) run(s string) error {
 		return r.readPathPEM(s, st)
 	}
 
-	if pe, ok := err.(*os.PathError); ok {
-		if pe.Err == os.ErrInvalid {
-			// not a path
-			err = fs.ErrInvalid
-		}
+	var pe *fs.PathError
+	if errors.As(err, &pe) && errors.Is(pe.Err, fs.ErrInvalid) {
+		// stat rejected the string as an invalid path; surface the bare
+		// sentinel rather than the PathError wrapping it.
+		err = fs.ErrInvalid
 	}
 
 	return err
@@ -175,11 +193,7 @@ func (r *readOptions) stat(s string) (fs.FileInfo, error) {
 func (r *readOptions) readDirPEM(s string) error {
 	switch {
 	case !r.dirs:
-		return &fs.PathError{
-			Op:   "Read",
-			Path: s,
-			Err:  core.Wrap(core.ErrInvalid, "directories support disabled"),
-		}
+		return newInvalidPathError("read", s, "directories support disabled")
 	case r.fs == nil:
 		return ReadDirPEM(os.DirFS(s), ".", r.cb)
 	default:
