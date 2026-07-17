@@ -15,6 +15,7 @@ func i(x int64) num.Int128 {
 
 var (
 	_ core.TestCase = int128DivModTestCase{}
+	_ core.TestCase = int128MulDivModTestCase{}
 	_ core.TestCase = int128UnaryTestCase{}
 	_ core.TestCase = int128CmpTestCase{}
 )
@@ -79,6 +80,58 @@ func TestInt128DivByZeroPanics(t *testing.T) {
 		"div-mod by zero")
 	core.AssertPanic(t, func() { i(1).Div(i(0)) }, num.ErrDivZero, "div by zero")
 	core.AssertPanic(t, func() { i(1).Mod(i(0)) }, num.ErrDivZero, "mod by zero")
+}
+
+// int128MulDivModTestCase exercises the signed wide multiply-then-divide
+// across the sign matrix.
+type int128MulDivModTestCase struct {
+	name  string
+	a     num.Int128
+	b     num.Int128
+	d     num.Int128
+	wantQ num.Int128
+}
+
+func newInt128MulDivModTestCase(name string, a, b, d,
+	wantQ num.Int128) int128MulDivModTestCase {
+	return int128MulDivModTestCase{name: name, a: a, b: b, d: d, wantQ: wantQ}
+}
+
+func (tc int128MulDivModTestCase) Name() string { return tc.name }
+
+func (tc int128MulDivModTestCase) Test(t *testing.T) {
+	t.Helper()
+	q, r := tc.a.MulDivMod(tc.b, tc.d)
+	core.AssertEqual(t, tc.wantQ, q, "quotient")
+	// the remainder is pinned by the identity a*b == q*d + r, which also
+	// fixes its sign.
+	core.AssertEqual(t, tc.a.Mul(tc.b), q.Mul(tc.d).Add(r), "identity")
+}
+
+func int128MulDivModTestCases() []int128MulDivModTestCase {
+	return []int128MulDivModTestCase{
+		newInt128MulDivModTestCase("pos", i(7), i(3), i(5), i(4)),
+		newInt128MulDivModTestCase("neg product", i(-7), i(3), i(5), i(-4)),
+		newInt128MulDivModTestCase("neg divisor", i(7), i(3), i(-5), i(-4)),
+		newInt128MulDivModTestCase("neg product neg divisor", i(-7), i(3),
+			i(-5), i(4)),
+		newInt128MulDivModTestCase("both operands neg", i(-7), i(-3), i(5),
+			i(4)),
+		newInt128MulDivModTestCase("exact", i(6), i(2), i(3), i(4)),
+		newInt128MulDivModTestCase("divisor larger", i(2), i(3), i(10), i(0)),
+		// wide product: 10^12 * 10^12 / 10^6 = 10^18, exercising mul256.
+		newInt128MulDivModTestCase("wide product", i(1e12), i(1e12), i(1e6),
+			i(1e18)),
+	}
+}
+
+func TestInt128MulDivMod(t *testing.T) {
+	core.RunTestCases(t, int128MulDivModTestCases())
+}
+
+func TestInt128MulDivModByZeroPanics(t *testing.T) {
+	core.AssertPanic(t, func() { i(1).MulDivMod(i(1), i(0)) }, num.ErrDivZero,
+		"mul-div-mod by zero")
 }
 
 // int128UnaryTestCase exercises Neg, Abs and IsNegative.

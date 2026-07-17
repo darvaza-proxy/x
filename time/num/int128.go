@@ -104,6 +104,25 @@ func (v Int128) DivMod(w Int128) (q, r Int128) {
 	return q, r
 }
 
+// MulDivMod returns the quotient and remainder of v*w/d, forming the
+// product in a 256-bit intermediate so it cannot overflow before the
+// division. The quotient is truncated towards zero and wraps if it
+// exceeds the 128-bit range. The remainder takes the sign of the
+// product v*w with |r| < |d|, so v*w == q*d + r whenever the quotient
+// does not wrap. It panics with [ErrDivZero] when d is zero.
+func (v Int128) MulDivMod(w, d Int128) (q, r Int128) {
+	prodNeg := v.IsNegative() != w.IsNegative()
+	uq, ur := v.Abs().bits().MulDivMod(w.Abs().bits(), d.Abs().bits())
+	q, r = Int128(uq), Int128(ur)
+	if prodNeg {
+		r = r.Neg()
+	}
+	if prodNeg != d.IsNegative() {
+		q = q.Neg()
+	}
+	return q, r
+}
+
 // Cmp returns -1, 0 or +1 as v is less than, equal to or greater
 // than w.
 func (v Int128) Cmp(w Int128) int {

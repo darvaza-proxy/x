@@ -5,7 +5,9 @@ package num
 // division and comparison over a magnitude that never carries a sign.
 //
 // Div returns the quotient, Mod the remainder, and DivMod both, so
-// that v*q + r recovers the dividend with r < v.
+// that v*q + r recovers the dividend with r < v. MulDivMod fuses a
+// multiply and a divide, forming the product in an intermediate wide
+// enough that it cannot overflow before the division.
 type Unsigned[T any] interface {
 	IsZero() bool
 	Equal(v T) bool
@@ -17,6 +19,7 @@ type Unsigned[T any] interface {
 	Div(v T) T
 	Mod(v T) T
 	DivMod(v T) (q, r T)
+	MulDivMod(v, d T) (q, r T)
 }
 
 // Signed extends Unsigned with the sign-aware operations of a
