@@ -14,8 +14,10 @@ set -eu
 
 # list of directories with go.mod
 MODULES=$("$FIND" ./* -name go.mod | "$SED" -e 's;^\./;;' | "$TR" '\n' '\0' | "$XARGS" -n1 -0r dirname)
-# shellcheck disable=2178 # space delimited list of grouping prefixes
-GROUPS=
+# Space-delimited list of grouping prefixes. Not 'GROUPS': that is a
+# special variable in bash, and assigning to it aborts under bash 3.2 in
+# POSIX mode (macOS /bin/sh) with set -e.
+GROUP_PREFIXES=
 
 mod() {
 	local d="${1:-.}"
@@ -30,8 +32,8 @@ namedir() {
 		return
 	fi
 
-	# shellcheck disable=2086,2128 # word splitting of $GROUPS intended, not array.
-	for g in $GROUPS; do
+	# shellcheck disable=2086 # word splitting of $GROUP_PREFIXES intended
+	for g in $GROUP_PREFIXES; do
 		n="${d#"$g/"}"
 		if [ "$n" != "$d" ]; then
 			echo "$n" | "$TR" '/' '-'
