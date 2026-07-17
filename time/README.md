@@ -19,6 +19,20 @@
 `darvaza.org/x/time` hosts time-related primitives that don't belong in
 the Go standard library. Subpackages are added as concrete needs surface.
 
+## Packages
+
+### `num`
+
+Fixed-width integer types for the time packages: `Uint128` and
+`Int128`, unsigned and signed 128-bit integers behind the generic
+`Unsigned` and `Signed` constraints.
+
+Arithmetic wraps on overflow, matching Go's built-in integer
+operators, so `Add`, `Sub` and `Mul` never panic. Division by zero
+panics with `ErrDivZero`, which wraps `core.ErrInvalid`; signed
+division truncates towards zero, with the remainder taking the sign
+of the dividend.
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
