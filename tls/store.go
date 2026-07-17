@@ -198,17 +198,21 @@ func NewConfig(store Store) (*tls.Config, error) {
 }
 
 // SplitClientHelloInfo takes the context and server name out of a [tls.ClientHelloInfo].
-// If no ServerName is provided, the server's IP address will be used.
+// If no ServerName is provided, the server's local IP address is used when the
+// connection exposes a resolvable address; otherwise the server name is empty.
 func SplitClientHelloInfo(chi *tls.ClientHelloInfo) (ctx context.Context, serverName string, err error) {
 	if chi == nil {
 		return ctx, "", core.ErrInvalid
 	}
 	ctx = chi.Context()
 	serverName = chi.ServerName
-	if serverName == "" {
-		host, _, _ := core.SplitHostPort(chi.Conn.LocalAddr().String())
-		if host != "" {
-			serverName = fmt.Sprintf("[%s]", host)
+	if serverName == "" && chi.Conn != nil {
+		// Take the typed local address: core.AddrPort selects the IP,
+		// drops any 4-in-6 mapping and scope zone, and lands on the
+		// bracketed form Names stores under. Pass LocalAddr(), not Conn
+		// itself, whose RemoteAddr() arm would resolve the client address.
+		if ap, ok := core.AddrPort(chi.Conn.LocalAddr()); ok {
+			serverName = fmt.Sprintf("[%s]", ap.Addr())
 		}
 	}
 
