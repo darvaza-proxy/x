@@ -4,15 +4,22 @@
 set -eu
 
 : "${GO:=go}"
+: "${FIND:=find}"
+: "${SED:=sed}"
+: "${TR:=tr}"
+: "${XARGS:=xargs}"
+: "${GREP:=grep}"
+: "${CUT:=cut}"
+: "${SORT:=sort}"
 
 # list of directories with go.mod
-MODULES=$(find ./* -name go.mod | sed -e 's;^\./;;' | tr '\n' '\0' | xargs -n1 -0r dirname)
+MODULES=$("$FIND" ./* -name go.mod | "$SED" -e 's;^\./;;' | "$TR" '\n' '\0' | "$XARGS" -n1 -0r dirname)
 # shellcheck disable=2178 # space delimited list of grouping prefixes
 GROUPS=
 
 mod() {
 	local d="${1:-.}"
-	grep ^module "$d/go.mod" | cut -d' ' -f2
+	"$GREP" ^module "$d/go.mod" | "$CUT" -d' ' -f2
 }
 
 namedir() {
@@ -27,17 +34,17 @@ namedir() {
 	for g in $GROUPS; do
 		n="${d#"$g/"}"
 		if [ "$n" != "$d" ]; then
-			echo "$n" | tr '/' '-'
+			echo "$n" | "$TR" '/' '-'
 			return
 		fi
 	done
 
-	echo "$d" | tr '/' '-'
+	echo "$d" | "$TR" '/' '-'
 }
 
 mod_replace() {
 	local d="$1"
-	grep "=>" "$d/go.mod" | sed -n -e "s;^.*\($ROOT_MODULE.*\)[ \t]\+=>.*;\1;p"
+	"$GREP" "=>" "$d/go.mod" | "$SED" -n -e "s;^.*\($ROOT_MODULE.*\)[ \t]\+=>.*;\1;p"
 }
 
 gen_index() {
@@ -57,11 +64,11 @@ INDEX=$(gen_index $MODULES)
 echo "$INDEX" | while IFS=: read -r name dir mod; do
 	deps=
 	for dep in $(mod_replace "$dir"); do
-		depname=$(echo "$INDEX" | grep ":$dep$" | cut -d: -f1 | tr '\n' ',' | sed -e 's|,\+$||g')
+		depname=$(echo "$INDEX" | "$GREP" ":$dep$" | "$CUT" -d: -f1 | "$TR" '\n' ',' | "$SED" -e 's|,\+$||g')
 		if [ -n "$depname" ]; then
 			deps="${deps:+$deps,}$depname"
 		fi
 	done
 
 	echo "$name:$dir:$mod:$deps"
-done | sort -V
+done | "$SORT" -V
