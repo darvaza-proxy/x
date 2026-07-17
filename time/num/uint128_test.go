@@ -19,6 +19,7 @@ func u(lo uint64) num.Uint128 {
 var (
 	_ core.TestCase = uint128DivModTestCase{}
 	_ core.TestCase = uint128MulTestCase{}
+	_ core.TestCase = uint128MulDivModTestCase{}
 	_ core.TestCase = uint128CmpTestCase{}
 )
 
@@ -79,6 +80,67 @@ func TestUint128DivByZeroPanics(t *testing.T) {
 		"div-mod by zero")
 	core.AssertPanic(t, func() { u(1).Div(u(0)) }, num.ErrDivZero, "div by zero")
 	core.AssertPanic(t, func() { u(1).Mod(u(0)) }, num.ErrDivZero, "mod by zero")
+}
+
+// uint128MulDivModTestCase exercises the wide multiply-then-divide.
+type uint128MulDivModTestCase struct {
+	name  string
+	a     num.Uint128
+	b     num.Uint128
+	d     num.Uint128
+	wantQ num.Uint128
+}
+
+func newUint128MulDivModTestCase(name string, a, b, d,
+	wantQ num.Uint128) uint128MulDivModTestCase {
+	return uint128MulDivModTestCase{name: name, a: a, b: b, d: d, wantQ: wantQ}
+}
+
+func (tc uint128MulDivModTestCase) Name() string { return tc.name }
+
+func (tc uint128MulDivModTestCase) Test(t *testing.T) {
+	t.Helper()
+	q, r := tc.a.MulDivMod(tc.b, tc.d)
+	core.AssertEqual(t, tc.wantQ, q, "quotient")
+	// the remainder is pinned by the identity a*b == q*d + r (mod 2^128).
+	core.AssertEqual(t, tc.a.Mul(tc.b), q.Mul(tc.d).Add(r), "identity")
+}
+
+func uint128MulDivModTestCases() []uint128MulDivModTestCase {
+	return []uint128MulDivModTestCase{
+		newUint128MulDivModTestCase("product then divide", u(6), u(7), u(5),
+			u(8)),
+		newUint128MulDivModTestCase("exact", u(10), u(10), u(4), u(25)),
+		newUint128MulDivModTestCase("divisor larger", u(2), u(3), u(10), u(0)),
+		// product exceeds 128 bits but the quotient still fits.
+		newUint128MulDivModTestCase("wide product", num.MaxUint128, u(2), u(2),
+			num.MaxUint128),
+		// product is exactly 2^128, so the quotient wraps to zero.
+		newUint128MulDivModTestCase("quotient wraps", num.NewUint128(1, 0),
+			num.NewUint128(1, 0), u(1), u(0)),
+		// (2^65-1)^2 = 2^130 - 2^66 + 1 makes both word-1 cross-term
+		// additions carry, so word 2 receives a carry of two; dividing by
+		// 2^64 surfaces that word in the quotient's high half, guarding the
+		// mul256 carry propagation.
+		newUint128MulDivModTestCase("double carry into word 2",
+			num.NewUint128(1, maxWord), num.NewUint128(1, maxWord),
+			num.NewUint128(1, 0), num.NewUint128(3, maxWord-3)),
+		// (2^128-1)*(2^128-2^64+1) overflows word 2 into word 3; dividing
+		// the product back by the first factor recovers the second, so a
+		// dropped word-3 carry in mul256 would corrupt the quotient.
+		newUint128MulDivModTestCase("carry into word 3", num.MaxUint128,
+			num.NewUint128(maxWord, 1), num.MaxUint128,
+			num.NewUint128(maxWord, 1)),
+	}
+}
+
+func TestUint128MulDivMod(t *testing.T) {
+	core.RunTestCases(t, uint128MulDivModTestCases())
+}
+
+func TestUint128MulDivModByZeroPanics(t *testing.T) {
+	core.AssertPanic(t, func() { u(1).MulDivMod(u(1), u(0)) }, num.ErrDivZero,
+		"mul-div-mod by zero")
 }
 
 // uint128MulTestCase exercises the low-128-bit product.

@@ -70,6 +70,18 @@ func (u Uint128) DivMod(v Uint128) (q, r Uint128) {
 	return u256{lo: u}.divMod128(v)
 }
 
+// MulDivMod returns the quotient and remainder of u*v/d, forming the
+// product in a 256-bit intermediate so it cannot overflow before the
+// division. The quotient wraps if it exceeds the 128-bit range and the
+// remainder is always less than d. It panics with [ErrDivZero] when d
+// is zero.
+func (u Uint128) MulDivMod(v, d Uint128) (q, r Uint128) {
+	if d.IsZero() {
+		panic(ErrDivZero)
+	}
+	return mul256(u, v).divMod128(d)
+}
+
 // Cmp returns -1, 0 or +1 as u is less than, equal to or greater
 // than v.
 func (u Uint128) Cmp(v Uint128) int {
@@ -97,12 +109,6 @@ func (u Uint128) shl1(in uint64) Uint128 {
 
 // setBit returns u with bit i set when i is within the low 128 bits;
 // higher bits are dropped, matching the wrapping policy of Add and Mul.
-//
-// The i >= 128 arm is unreachable through its sole caller,
-// u256.divMod128, which promotes a 128-bit numerator so no quotient bit
-// reaches that high.
-//
-// TODO: add a regression row once a caller feeds a wider numerator.
 func (u Uint128) setBit(i int) Uint128 {
 	switch {
 	case i >= 128:

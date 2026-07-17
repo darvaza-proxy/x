@@ -19,16 +19,24 @@ func assertSignedEqual[T num.Signed[T]](t *testing.T, expected, actual T,
 }
 
 // signedIntType carries what a signed integer type needs to run the
-// shared suite: how to build a value from an int64 and its bounds.
+// shared suite: how to build a value from an int64, its bounds, and a
+// wide multiply exercising the MulDivMod intermediate; for the native
+// integers its product also overflows the type, proving the wider
+// path.
 type signedIntType[T num.Signed[T]] struct {
-	mk  func(int64) T
-	min T
-	max T
+	mk    func(int64) T
+	min   T
+	max   T
+	wideA int64
+	wideB int64
+	wideD int64
+	wideQ int64
 }
 
 func runSignedIntTests[T num.Signed[T]](t *testing.T, it signedIntType[T]) {
 	t.Helper()
 	t.Run("div-mod", it.testDivMod)
+	t.Run("mul-div-mod", it.testMulDivMod)
 	t.Run("unary", it.testUnary)
 	t.Run("cmp", it.testCmp)
 	t.Run("div-zero", it.testDivZero)
@@ -37,6 +45,11 @@ func runSignedIntTests[T num.Signed[T]](t *testing.T, it signedIntType[T]) {
 
 func (it signedIntType[T]) testDivMod(t *testing.T) {
 	core.RunTestCases(t, signedDivModCases(it.mk, it.min))
+}
+
+func (it signedIntType[T]) testMulDivMod(t *testing.T) {
+	core.RunTestCases(t, signedMulDivModCases(it.mk,
+		it.wideA, it.wideB, it.wideD, it.wideQ))
 }
 
 func (it signedIntType[T]) testUnary(t *testing.T) {
@@ -54,6 +67,8 @@ func (it signedIntType[T]) testDivZero(t *testing.T) {
 		"div-mod by zero")
 	core.AssertPanic(t, func() { one.Div(zero) }, num.ErrDivZero, "div by zero")
 	core.AssertPanic(t, func() { one.Mod(zero) }, num.ErrDivZero, "mod by zero")
+	core.AssertPanic(t, func() { one.MulDivMod(one, zero) }, num.ErrDivZero,
+		"mul-div-mod by zero")
 }
 
 func (it signedIntType[T]) testBasics(t *testing.T) {
@@ -68,6 +83,7 @@ func (it signedIntType[T]) testBasics(t *testing.T) {
 
 var (
 	_ core.TestCase = signedDivModCase[num.Int128]{}
+	_ core.TestCase = signedMulDivModCase[num.Int128]{}
 	_ core.TestCase = signedUnaryCase[num.Int128]{}
 	_ core.TestCase = signedCmpCase[num.Int128]{}
 )
@@ -119,6 +135,51 @@ func signedDivModCases[T num.Signed[T]](mk func(int64) T,
 		newSignedDivModCase("neg divisor larger", mk(-3), mk(5), mk(0), mk(-3)),
 		// the minimum over -1 overflows and wraps to the minimum, matching Go.
 		newSignedDivModCase("min over neg one", minVal, mk(-1), minVal, mk(0)),
+	}
+}
+
+// signedMulDivModCase exercises the signed wide multiply-then-divide
+// across the sign matrix.
+type signedMulDivModCase[T num.Signed[T]] struct {
+	a     T
+	b     T
+	d     T
+	wantQ T
+	name  string
+}
+
+func newSignedMulDivModCase[T num.Signed[T]](name string, a, b, d,
+	wantQ T) signedMulDivModCase[T] {
+	return signedMulDivModCase[T]{name: name, a: a, b: b, d: d, wantQ: wantQ}
+}
+
+func (tc signedMulDivModCase[T]) Name() string { return tc.name }
+
+func (tc signedMulDivModCase[T]) Test(t *testing.T) {
+	t.Helper()
+	q, r := tc.a.MulDivMod(tc.b, tc.d)
+	assertSignedEqual(t, tc.wantQ, q, "quotient")
+	// the remainder is pinned by the identity a*b == q*d + r, which also
+	// fixes its sign.
+	assertSignedEqual(t, tc.a.Mul(tc.b), q.Mul(tc.d).Add(r), "identity")
+}
+
+func signedMulDivModCases[T num.Signed[T]](mk func(int64) T, wideA, wideB,
+	wideD, wideQ int64) []signedMulDivModCase[T] {
+	return []signedMulDivModCase[T]{
+		newSignedMulDivModCase("pos", mk(7), mk(3), mk(5), mk(4)),
+		newSignedMulDivModCase("neg product", mk(-7), mk(3), mk(5), mk(-4)),
+		newSignedMulDivModCase("neg divisor", mk(7), mk(3), mk(-5), mk(-4)),
+		newSignedMulDivModCase("neg product neg divisor", mk(-7), mk(3), mk(-5),
+			mk(4)),
+		newSignedMulDivModCase("both operands neg", mk(-7), mk(-3), mk(5),
+			mk(4)),
+		newSignedMulDivModCase("exact", mk(6), mk(2), mk(3), mk(4)),
+		newSignedMulDivModCase("divisor larger", mk(2), mk(3), mk(10), mk(0)),
+		// wide product: the product overflows the native width, so a correct
+		// quotient proves the wider intermediate.
+		newSignedMulDivModCase("wide product", mk(wideA), mk(wideB), mk(wideD),
+			mk(wideQ)),
 	}
 }
 
@@ -197,8 +258,12 @@ func signedCmpCases[T num.Signed[T]](mk func(int64) T, minVal,
 
 func TestInt128(t *testing.T) {
 	runSignedIntTests(t, signedIntType[num.Int128]{
-		mk:  num.NewInt128,
-		min: num.MinInt128,
-		max: num.MaxInt128,
+		mk:    num.NewInt128,
+		wideA: 1e12, // 1e12 * 1e12 / 1e6 = 1e18, through the mul256 path.
+		wideB: 1e12,
+		wideD: 1e6,
+		wideQ: 1e18,
+		min:   num.MinInt128,
+		max:   num.MaxInt128,
 	})
 }

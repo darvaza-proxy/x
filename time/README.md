@@ -31,7 +31,9 @@ Arithmetic wraps on overflow, matching Go's built-in integer
 operators, so `Add`, `Sub` and `Mul` never panic. Division by zero
 panics with `ErrDivZero`, which wraps `core.ErrInvalid`; signed
 division truncates towards zero, with the remainder taking the sign
-of the dividend.
+of the dividend. `MulDivMod` fuses a multiply and a divide, forming
+the product in an intermediate wide enough that it cannot overflow
+before the division.
 
 ## Development
 
