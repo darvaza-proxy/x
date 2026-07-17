@@ -28,7 +28,8 @@ XARGS ?= xargs
 export FIND GREP SED SORT TR CUT COLUMN XARGS
 
 TOOLSDIR := $(CURDIR)/internal/build
-TMPDIR ?= $(CURDIR)/.tmp
+# ':=' not '?=': TMPDIR is often set in the environment, which '?=' inherits.
+TMPDIR := $(CURDIR)/.tmp
 OUTDIR ?= $(TMPDIR)
 COVERAGE_DIR ?= $(TMPDIR)/coverage
 
