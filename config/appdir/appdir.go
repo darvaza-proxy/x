@@ -2,7 +2,12 @@
 // files — cache, configuration, persistent data, and run-time
 // data — following the XDG Base Directory Specification in user
 // mode and the Filesystem Hierarchy Standard in system mode,
-// under a configurable [Prefix].
+// under a configurable [Prefix]. On macOS the XDG variables still
+// take precedence, but the user-mode fallbacks are the
+// Apple-native locations under the user's home — Library/Caches
+// and Library/Application Support. On Windows the same interface
+// maps to the application data directories: %AppData% and
+// %LocalAppData% in user mode, %ProgramData% in system mode.
 package appdir
 
 import (
@@ -23,6 +28,12 @@ import (
 // directory — see [Prefix.Validate] — and the FooDir methods
 // reject malformed values, including the zero value, with an
 // error.
+//
+// The predefined constants are platform-specific: unix-like
+// systems follow the FHS, with [PrefixSystem] at the root and
+// [PrefixLocal] and [PrefixOptional] alongside it, while Windows
+// defines [PrefixSystem] alone — the machine-wide %ProgramData%
+// directory, resolved when composing.
 type Prefix string
 
 // prefix is the default Prefix used by the top-level SysFooDir
@@ -132,21 +143,22 @@ func SysPrefix() Prefix {
 
 // UserCacheDir returns where to store application cache
 // when run in user mode.
-// ${XDG_CACHE_HOME}/...
+// ${XDG_CACHE_HOME}/... (%LocalAppData% on Windows).
 func UserCacheDir(sub ...string) (string, error) {
-	return joinFn(os.UserCacheDir, sub...)
+	return joinFn(getUserCacheDir, sub...)
 }
 
 // UserConfigDir returns where to store application configuration,
 // when run in user mode.
-// ${XDG_CONFIG_HOME}/...
+// ${XDG_CONFIG_HOME}/... (%AppData% on Windows).
 func UserConfigDir(sub ...string) (string, error) {
-	return joinFn(os.UserConfigDir, sub...)
+	return joinFn(getUserConfigDir, sub...)
 }
 
 // UserDataDir returns where to store application persistent
 // data, when run in user mode.
-// ${XDG_DATA_HOME}/...
+// ${XDG_DATA_HOME}/... (%AppData% on Windows, shared with
+// configuration).
 func UserDataDir(sub ...string) (string, error) {
 	return joinFn(getUserDataDir, sub...)
 }
@@ -155,19 +167,23 @@ func UserDataDir(sub ...string) (string, error) {
 // variable data, when run in user mode.
 // ${XDG_RUNTIME_DIR}/...
 //
-// When ${XDG_RUNTIME_DIR} is unset and the systemd
-// /run/user/<uid> directory doesn't exist, it falls back to
-// ${TMPDIR:-/tmp}/runtime-<user> without creating it. Callers
-// must create the fallback with 0700 permissions to honour the
-// XDG trust requirements.
+// When ${XDG_RUNTIME_DIR} is unset — and, outside macOS, the
+// systemd /run/user/<uid> directory doesn't exist — it falls
+// back to ${TMPDIR:-/tmp}/runtime-<user> without creating it.
+// Callers must create the fallback with 0700 permissions to
+// honour the XDG trust requirements. On Windows a
+// runtime-<user> directory under the user's temporary directory
+// is used instead: %TMP% (or %TEMP%) when defined, otherwise
+// the default %LocalAppData%\Temp.
 func UserRuntimeDir(sub ...string) (string, error) {
 	return joinFn(getUserRuntimeDir, sub...)
 }
 
 // CacheDir returns where to store application cache under
 // this Prefix. Under [PrefixUser] it returns the same as
-// [UserCacheDir]. Under [PrefixOptional] the application name
-// is required, and its absence is an error.
+// [UserCacheDir]. Under [PrefixOptional] — and on Windows under
+// every system-mode Prefix — the application name is required,
+// and its absence is an error.
 func (p Prefix) CacheDir(sub ...string) (string, error) {
 	if p == PrefixUser {
 		return UserCacheDir(sub...)
@@ -178,8 +194,9 @@ func (p Prefix) CacheDir(sub ...string) (string, error) {
 
 // ConfigDir returns where to store application configuration
 // data under this Prefix. Under [PrefixUser] it returns the
-// same as [UserConfigDir]. Under [PrefixOptional] the
-// application name is required, and its absence is an error.
+// same as [UserConfigDir]. Under [PrefixOptional] — and on
+// Windows under every system-mode Prefix — the application
+// name is required, and its absence is an error.
 func (p Prefix) ConfigDir(sub ...string) (string, error) {
 	if p == PrefixUser {
 		return UserConfigDir(sub...)
@@ -190,8 +207,9 @@ func (p Prefix) ConfigDir(sub ...string) (string, error) {
 
 // DataDir returns where to store application persistent data
 // under this Prefix. Under [PrefixUser] it returns the same
-// as [UserDataDir]. Under [PrefixOptional] the application
-// name is required, and its absence is an error.
+// as [UserDataDir]. Under [PrefixOptional] — and on Windows
+// under every system-mode Prefix — the application name is
+// required, and its absence is an error.
 func (p Prefix) DataDir(sub ...string) (string, error) {
 	if p == PrefixUser {
 		return UserDataDir(sub...)
@@ -203,8 +221,8 @@ func (p Prefix) DataDir(sub ...string) (string, error) {
 // RuntimeDir returns where to store application run-time
 // variable data under this Prefix. Under [PrefixUser] it
 // returns the same as [UserRuntimeDir]. Under [PrefixOptional]
-// the application name is required, and its absence is an
-// error.
+// — and on Windows under every system-mode Prefix — the
+// application name is required, and its absence is an error.
 func (p Prefix) RuntimeDir(sub ...string) (string, error) {
 	if p == PrefixUser {
 		return UserRuntimeDir(sub...)

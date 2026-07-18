@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -17,6 +18,8 @@ import (
 
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = userDirTestCase{}
+var _ core.TestCase = userDirFallbackTestCase{}
+var _ core.TestCase = userRuntimeDirFallbackTestCase{}
 var _ core.TestCase = userDirErrTestCase{}
 var _ core.TestCase = sysDirTestCase{}
 var _ core.TestCase = sysUserModeTestCase{}
@@ -99,7 +102,10 @@ func TestUserDir(t *testing.T) {
 }
 
 // userDirErrTestCase tests the UserFooDir functions failing when
-// both their XDG environment variable and HOME are unset.
+// both their XDG environment variable and HOME are empty, leaving
+// no directory to resolve. Runtime is excluded: its fallback is
+// the systemd or temporary directory, never HOME, so it cannot
+// fail this way.
 type userDirErrTestCase struct {
 	name string
 	kind Kind
@@ -153,25 +159,93 @@ func TestUserDirErr(t *testing.T) {
 	core.RunTestCases(t, testCases)
 }
 
-func TestUserRuntimeDirFallback(t *testing.T) {
-	t.Setenv("XDG_RUNTIME_DIR", "")
+// userRuntimeDirFallbackTestCase tests [appdir.UserRuntimeDir]
+// falling back to the systemd or temporary runtime directory when
+// ${XDG_RUNTIME_DIR} is empty or set to a non-absolute value,
+// both of which the XDG Base Directory Specification requires to
+// be treated as unset.
+type userRuntimeDirFallbackTestCase struct {
+	envValue string
+	name     string
+}
+
+func (tc userRuntimeDirFallbackTestCase) Name() string {
+	return tc.name
+}
+
+func (tc userRuntimeDirFallbackTestCase) Test(t *testing.T) {
+	t.Helper()
+	t.Setenv("XDG_RUNTIME_DIR", tc.envValue)
 	t.Setenv("TMPDIR", "")
 
 	got, err := appdir.UserRuntimeDir()
 	core.AssertMustNoError(t, err, "user runtime dir")
 
-	ok := strings.HasPrefix(got, "/run/user/") ||
-		strings.HasPrefix(got, "/tmp/runtime-")
-	core.AssertTrue(t, ok, "fallback %q", got)
+	// Which tier applies is environment-dependent: on a systemd
+	// host /run/user/<uid> short-circuits, otherwise the temporary
+	// runtime directory is used. Assert against the tier that
+	// actually applies rather than accepting either.
+	runDir := "/run/user/" + strconv.Itoa(os.Getuid())
+	if st, _ := os.Stat(runDir); st != nil && st.IsDir() {
+		core.AssertEqual(t, runDir, got, "systemd runtime")
+	} else {
+		core.AssertTrue(t, strings.HasPrefix(got, "/tmp/runtime-"),
+			"temp runtime %q", got)
+	}
 }
 
-func TestUserDataDirFallback(t *testing.T) {
-	t.Setenv("XDG_DATA_HOME", "")
+func newUserRuntimeDirFallbackTestCase(name,
+	envValue string) userRuntimeDirFallbackTestCase {
+	return userRuntimeDirFallbackTestCase{
+		envValue: envValue,
+		name:     name,
+	}
+}
+
+func TestUserRuntimeDirFallback(t *testing.T) {
+	testCases := core.S(
+		newUserRuntimeDirFallbackTestCase("empty", ""),
+		newUserRuntimeDirFallbackTestCase("relative",
+			"relative/run"),
+	)
+
+	core.RunTestCases(t, testCases)
+}
+
+// userDirFallbackTestCase tests the UserFooDir functions falling
+// back to their directory under $HOME when their XDG environment
+// variable is empty or set to a non-absolute value, both of which
+// the XDG Base Directory Specification requires to be treated as
+// unset.
+type userDirFallbackTestCase struct {
+	envValue string
+	name     string
+	want     string
+	kind     Kind
+}
+
+func (tc userDirFallbackTestCase) Name() string {
+	return tc.name
+}
+
+func (tc userDirFallbackTestCase) Test(t *testing.T) {
+	t.Helper()
+	setXDGEnv(t, tc.kind, tc.envValue)
 	t.Setenv("HOME", "/home/test")
 
-	got, err := appdir.UserDataDir("app")
-	core.AssertMustNoError(t, err, "user data dir")
-	core.AssertEqual(t, "/home/test/.local/share/app", got, "dir")
+	got, err := callUserDirFunc(t, tc.kind, "app")
+	core.AssertMustNoError(t, err, "%s dir", tc.kind)
+	core.AssertEqual(t, tc.want, got, "dir")
+}
+
+func newUserDirFallbackTestCase(name string, kind Kind,
+	envValue, want string) userDirFallbackTestCase {
+	return userDirFallbackTestCase{
+		envValue: envValue,
+		name:     name,
+		want:     want,
+		kind:     kind,
+	}
 }
 
 // sysDirTestCase tests the [appdir.Prefix] FooDir methods.
@@ -391,7 +465,9 @@ func TestSysDirUserMode(t *testing.T) {
 
 // TestNewPrefixAbsError pins [appdir.NewPrefix] propagating the
 // filepath.Abs failure resolving a relative argument when the
-// working directory no longer exists.
+// working directory no longer exists. Windows refuses to remove
+// the working directory, so unlike the other NewPrefix tests
+// this one cannot run there.
 func TestNewPrefixAbsError(t *testing.T) {
 	gone := filepath.Join(t.TempDir(), "gone")
 	err := os.Mkdir(gone, 0o750)

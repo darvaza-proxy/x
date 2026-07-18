@@ -1,6 +1,7 @@
 package appdir_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"darvaza.org/core"
@@ -11,7 +12,9 @@ import (
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = joinTestCase{}
 
-// joinTestCase tests [appdir.Join] path composition.
+// joinTestCase tests [appdir.Join] path composition. want is
+// declared slash-style and normalised to the platform separator
+// via filepath.FromSlash.
 type joinTestCase struct {
 	base string
 	name string
@@ -27,7 +30,7 @@ func (tc joinTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	got := appdir.Join(tc.base, tc.sub...)
-	core.AssertEqual(t, tc.want, got, "join")
+	core.AssertEqual(t, filepath.FromSlash(tc.want), got, "join")
 }
 
 func newJoinTestCase(name, base string, sub []string,
