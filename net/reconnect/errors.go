@@ -81,20 +81,24 @@ func checkIsFatal(err error) (is, certainly bool) {
 	}
 }
 
-func checkIsExpectable(err error) (is, certainly bool) {
-	switch err {
-	case fs.ErrClosed,
-		os.ErrDeadlineExceeded,
-		syscall.ECONNABORTED,
-		syscall.ECONNREFUSED,
-		syscall.ECONNRESET:
-		// reconnect
-		return true, true
-	default:
-		// unknown
-		return false, false
-	}
-}
+// expectableConnErrors are the connection failures the reconnect loop
+// treats as recoverable: the transport or the peer dropped the
+// connection in a way a redial can legitimately recover from. The
+// per-platform set in expectableConnErrorsOS adds the equivalents that
+// exist only on that platform — the WSAE* family on Windows, where a
+// dial or an established connection reports those rather than the POSIX
+// ECONN* values above.
+var expectableConnErrors = append([]error{
+	fs.ErrClosed,
+	os.ErrDeadlineExceeded,
+	syscall.ECONNABORTED,
+	syscall.ECONNREFUSED,
+	syscall.ECONNRESET,
+}, expectableConnErrorsOS...)
+
+// checkIsExpectable reports whether err is a recoverable connection
+// failure, matching any node in its chain against expectableConnErrors.
+var checkIsExpectable = core.NewCheckErrorIsIn2(expectableConnErrors)
 
 // filterNonError checks if the cause of the shutdown is worth
 // reporting or it was initiated by the user instead.
