@@ -1,6 +1,7 @@
 package num_test
 
 import (
+	"math"
 	"testing"
 
 	"darvaza.org/core"
@@ -254,6 +255,30 @@ func signedCmpCases[T num.Signed[T]](mk func(int64) T, minVal,
 		newSignedCmpCase("min less than max", minVal, maxVal, -1),
 		newSignedCmpCase("max greater than min", maxVal, minVal, 1),
 	}
+}
+
+func TestInt32(t *testing.T) {
+	runSignedIntTests(t, signedIntType[num.Int32]{
+		mk:    func(x int64) num.Int32 { return num.Int32(x) },
+		wideA: 100000, // 1e5 * 1e5 / 1e3 = 1e7, product overflows int32.
+		wideB: 100000,
+		wideD: 1000,
+		wideQ: 10000000,
+		min:   num.Int32(math.MinInt32),
+		max:   num.Int32(math.MaxInt32),
+	})
+}
+
+func TestInt64(t *testing.T) {
+	runSignedIntTests(t, signedIntType[num.Int64]{
+		mk:    func(x int64) num.Int64 { return num.Int64(x) },
+		wideA: 1e12, // 1e12 * 1e12 / 1e6 = 1e18, product overflows int64.
+		wideB: 1e12,
+		wideD: 1e6,
+		wideQ: 1e18,
+		min:   num.Int64(math.MinInt64),
+		max:   num.Int64(math.MaxInt64),
+	})
 }
 
 func TestInt128(t *testing.T) {

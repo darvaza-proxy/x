@@ -1,5 +1,6 @@
 // Package num provides the fixed-width integer types used by the time
-// packages: Uint128 and Int128, unsigned and signed 128-bit integers.
+// packages: the signed integers Int32, Int64 and Int128, and the unsigned
+// Uint128.
 //
 // Arithmetic wraps on overflow, matching Go's built-in integer
 // operators, so Add, Sub and Mul never panic. Division by zero panics

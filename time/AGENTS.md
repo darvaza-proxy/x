@@ -15,6 +15,9 @@ the standard library.
 
 - **`Uint128`**, **`Int128`**: unsigned and signed 128-bit integers on a
   two-word layout, wrapping on overflow like Go's built-in operators.
+- **`Int32`**, **`Int64`**: the native integers wrapped into the same
+  method surface, forming the `MulDivMod` product in a wider
+  intermediate — `int64` for `Int32`, `Int128` for `Int64`.
 - **`Unsigned[T]`**, **`Signed[T]`**: generic constraints naming the
   method surface the family shares, including the fused `MulDivMod`
   wide multiply-divide.
@@ -28,6 +31,8 @@ Files:
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero`.
 - `num/int128.go`: `Int128` and its operations.
+- `num/int32.go`: `Int32` and its operations.
+- `num/int64.go`: `Int64` and its operations.
 - `num/num.go`: the `Unsigned` and `Signed` constraints.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.

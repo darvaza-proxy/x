@@ -23,9 +23,9 @@ the Go standard library. Subpackages are added as concrete needs surface.
 
 ### `num`
 
-Fixed-width integer types for the time packages: `Uint128` and
-`Int128`, unsigned and signed 128-bit integers behind the generic
-`Unsigned` and `Signed` constraints.
+Fixed-width integer types for the time packages: the signed integers
+`Int32`, `Int64` and `Int128`, and the unsigned `Uint128`, behind the
+generic `Unsigned` and `Signed` constraints.
 
 Arithmetic wraps on overflow, matching Go's built-in integer
 operators, so `Add`, `Sub` and `Mul` never panic. Division by zero
