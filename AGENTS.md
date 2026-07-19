@@ -179,23 +179,28 @@ Automated dual coverage reporting across all modules:
 - Automatic HTML report generation in `.tmp/coverage/` directory.
 - Creates module-specific coverage targets (`coverage-<module>`).
 
-### CI/CD Workflow Separation
+### CI/CD Workflows
 
-GitHub Actions workflows split for better performance:
+GitHub Actions workflows:
 
-- **Build workflow** (`.github/workflows/build.yml`): Compilation, plus a
-  cross-platform vet gate.
-  - `vet` job runs `make vet` across a `GOOS` matrix (linux, windows,
-    darwin). Because `go vet` compiles every package and its tests without
-    running them, it is the only compile check for the platforms CI cannot
-    execute natively.
-- **Test workflow** (`.github/workflows/test.yml`): Dedicated testing
-  pipeline.
-  - Race condition detection job with Go 1.26.
-  - Multi-version testing matrix (Go 1.25 and 1.26).
-  - Conditional execution to avoid duplicate runs on PRs.
+- **Build workflow** (`.github/workflows/build.yml`): Compiles every
+  module across Go 1.25 and 1.26. Host (Linux) `go vet` runs here via
+  `make`'s `tidy` step.
+- **Platforms workflow** (`.github/workflows/platforms.yml`):
+  Cross-platform test and race, with the premium macOS and Windows
+  runners gated behind cheap Linux jobs.
+  - `vet` cross-compiles the non-host targets (windows, darwin) with
+    `make vet`. Because `go vet` compiles every module's packages and
+    tests without running them, it is the only compile check for the
+    platforms CI cannot execute natively.
+  - `linux-test` (Go 1.25 and 1.26) and `linux-race` run the suites on
+    Linux.
+  - The native `test` (macOS, Windows × Go 1.25 and 1.26) and `race`
+    (macOS, Windows) jobs declare `needs:` on the Linux gates, so a
+    cross-compile break or a Linux failure skips them and spends no
+    premium minutes. macOS installs the GNU userland and selects it
+    through the build's `SED`/`GREP`/`SORT`/`XARGS` overrides.
 - Workflows skip branches ending in `-wip`.
-- Improves parallelism and reduces redundant work.
 
 ### Codecov Integration
 
