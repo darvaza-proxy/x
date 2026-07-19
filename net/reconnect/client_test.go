@@ -5,7 +5,6 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"testing"
 	"time"
 
@@ -560,8 +559,8 @@ func TestClientReconnectDialFails(t *testing.T) {
 	waiter, waiterCalls := newReconnectWaiter(1, errStopWaiting)
 
 	// bind a port then release it, so every dial fails non-fatally
-	// (ECONNREFUSED): the synchronous Connect dial and the reconnect
-	// dial alike.
+	// (connection refused): the synchronous Connect dial and the
+	// reconnect dial alike.
 	lsn, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	unreachableAddr := lsn.Addr().String()
@@ -593,7 +592,7 @@ func TestClientReconnectDialFails(t *testing.T) {
 	// both dials are refused and reported: the synchronous Connect dial
 	// and the reconnect dial routed through handleReconnectError.
 	core.AssertEqual(t, 2,
-		countMatchingErrors(errs.Errors(), syscall.ECONNREFUSED),
+		countMatchingErrors(errs.Errors(), errConnRefused),
 		"refused dials reported")
 }
 
