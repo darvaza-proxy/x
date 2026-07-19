@@ -1,5 +1,7 @@
 package reconnect_test
 
+// cspell:words WSAECONNREFUSED
+
 import "golang.org/x/sys/windows"
 
 // errConnRefused is the errno a dial to a closed port reports on

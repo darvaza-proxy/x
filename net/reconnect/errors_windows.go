@@ -1,5 +1,7 @@
 package reconnect
 
+// cspell:words WSAECONNABORTED WSAECONNREFUSED WSAECONNRESET
+
 import "golang.org/x/sys/windows"
 
 // expectableConnErrorsOS holds the Windows Sockets connection errnos. A
