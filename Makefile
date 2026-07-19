@@ -12,8 +12,24 @@ GOUP_PACKAGES ?= ./...
 GOVET_FLAGS ?= -v
 JQ ?= jq
 
+# External text utilities. The build scripts rely on GNU-only behaviour
+# (sort -V, xargs -r, and \+/[ \t] in sed and grep expressions). On BSD
+# userland (e.g. macOS) point these at the GNU variants —
+# SED=gsed GREP=ggrep SORT=gsort XARGS=gxargs — rather than shadowing the
+# system tools on PATH. Exported so the shell scripts pick them up too.
+FIND ?= find
+GREP ?= grep
+SED ?= sed
+SORT ?= sort
+TR ?= tr
+CUT ?= cut
+COLUMN ?= column
+XARGS ?= xargs
+export FIND GREP SED SORT TR CUT COLUMN XARGS
+
 TOOLSDIR := $(CURDIR)/internal/build
-TMPDIR ?= $(CURDIR)/.tmp
+# ':=' not '?=': TMPDIR is often set in the environment, which '?=' inherits.
+TMPDIR := $(CURDIR)/.tmp
 OUTDIR ?= $(TMPDIR)
 COVERAGE_DIR ?= $(TMPDIR)/coverage
 
@@ -123,20 +139,20 @@ $(TMPDIR)/gen.mk: $(TOOLSDIR)/gen_mk.sh $(TMPDIR)/index Makefile ; $(info $(M) g
 
 $(TMPDIR)/languagetool-dict.txt: $(TOOLSDIR)/cspell.json | check-jq ; $(info $(M) generating languagetool dictionary…)
 	$Q mkdir -p $(@D)
-	$Q $(JQ) -r '.words[]' $< | sort > $@
+	$Q $(JQ) -r '.words[]' $< | $(SORT) > $@
 
 include $(TMPDIR)/gen.mk
 
 fmt: ; $(info $(M) reformatting sources…)
-	$Q find . $(FIND_FILES_GO_ARGS) -print0 | xargs -0 -r $(GOFMT) $(GOFMT_FLAGS)
+	$Q $(FIND) . $(FIND_FILES_GO_ARGS) -print0 | $(XARGS) -0 -r $(GOFMT) $(GOFMT_FLAGS)
 	$Q $(FIX_WHITESPACE) $(FIX_WHITESPACE_ARGS)
 ifneq ($(MARKDOWNLINT),true)
-	$Q find . $(FIND_FILES_MARKDOWN_ARGS) -print0 | xargs -0 -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
+	$Q $(FIND) . $(FIND_FILES_MARKDOWN_ARGS) -print0 | $(XARGS) -0 -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
 endif
 
 ifneq ($(LANGUAGETOOL),true)
 check-grammar: $(TMPDIR)/languagetool-dict.txt FORCE ; $(info $(M) checking grammar…)
-	$Q find . $(FIND_FILES_MARKDOWN_ARGS) -print0 | xargs -0 -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
+	$Q $(FIND) . $(FIND_FILES_MARKDOWN_ARGS) -print0 | $(XARGS) -0 -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
 else
 check-grammar: FORCE ; $(info $(M) grammar checks disabled)
 endif
@@ -153,7 +169,7 @@ endif
 ifneq ($(SHELLCHECK),true)
 TIDY_SHELL = check-shell
 check-shell: FORCE ; $(info $(M) checking shell scripts…)
-	$Q find . $(FIND_FILES_PRUNE_ARGS) -o -name '*.sh' -print0 | xargs -0 -r $(SHELLCHECK) $(SHELLCHECK_FLAGS)
+	$Q $(FIND) . $(FIND_FILES_PRUNE_ARGS) -o -name '*.sh' -print0 | $(XARGS) -0 -r $(SHELLCHECK) $(SHELLCHECK_FLAGS)
 else
 TIDY_SHELL =
 check-shell: FORCE ; $(info $(M) shell checks disabled)
@@ -162,7 +178,7 @@ endif
 tidy: fmt $(TIDY_SPELLING) $(TIDY_SHELL)
 
 generate: ; $(info $(M) running go:generate…)
-	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
+	$Q git grep -l '^//go:generate' | $(SORT) -uV | $(XARGS) -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
 
 # Prepare for codecov uploading
 codecov: merged-coverage $(COVERAGE_DIR)/codecov.sh
