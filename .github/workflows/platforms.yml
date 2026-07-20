@@ -109,6 +109,16 @@ jobs:
       run: brew install coreutils findutils gnu-sed grep
     - name: Run tests
       run: make test ${{ matrix.make_args }}
+    # Reuse the test boxes rather than spend runners on a tidy job. The
+    # linter version is selected per Go version, so run tidy on every
+    # cell: each tier enforces its own rules, and the versions diverge
+    # again over time. This also lints the darwin/windows loader files
+    # golangci-lint skips off-platform. git diff --exit-code then fails,
+    # printing the patch, on any change.
+    - name: Tidy leaves no changes
+      run: |
+        make tidy ${{ matrix.make_args }}
+        git diff --exit-code
 
   race:
     name: race (${{ matrix.os }})
