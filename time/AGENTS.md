@@ -9,7 +9,7 @@ the standard library.
 
 ### Subpackages
 
-- **`num`**: fixed-width integer types for the time packages.
+- **`num`**: fixed-width numeric types for the time packages.
 
 ### num Package
 
@@ -18,6 +18,10 @@ the standard library.
 - **`Int32`**, **`Int64`**: the native integers wrapped into the same
   method surface, forming the `MulDivMod` product in a wider
   intermediate — `int64` for `Int32`, `Int128` for `Int64`.
+- **`Decimal[T, S]`**: signed fixed-point number backed by one of the
+  signed integers, with the exported `DecimalScaler` supplying the
+  resolution; `Milli32`, `Milli64` and `Atto128` are its
+  instantiations.
 - **`Unsigned[T]`**, **`Signed[T]`**: generic constraints naming the
   method surface the family shares, including the fused `MulDivMod`
   wide multiply-divide.
@@ -26,13 +30,17 @@ the standard library.
 
 Files:
 
-- `num/const.go`: word primitives and the sentinel bounds
-  (`MaxUint128`, `MinInt128`, …).
+- `num/atto128.go`: the `Atto128` instantiation and its scale.
+- `num/const.go`: word primitives, the fixed-point scale factors and
+  the sentinel bounds (`MaxUint128`, `MinInt128`, …).
+- `num/decimal.go`: `Decimal` and the `DecimalScaler` interface.
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero`.
 - `num/int128.go`: `Int128` and its operations.
 - `num/int32.go`: `Int32` and its operations.
 - `num/int64.go`: `Int64` and its operations.
+- `num/milli.go`: the `Milli32` and `Milli64` instantiations and their
+  scales.
 - `num/num.go`: the `Unsigned` and `Signed` constraints.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
