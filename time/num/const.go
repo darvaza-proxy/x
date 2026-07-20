@@ -8,6 +8,16 @@ const (
 	maxInt64 uint64 = maxUint64 >> 1
 )
 
+// Fixed-point scale factors: the number of sub-units in one whole unit
+// at each resolution.
+const (
+	// milliScale is the milli (10^-3) resolution as a plain factor,
+	// narrow enough to convert into either backing width.
+	milliScale = 1e3
+	// attoScale is the atto (10^-18) resolution as a plain factor.
+	attoScale = 1e18
+)
+
 // Sentinel bounds. These are effectively constants, held as var only
 // because a struct cannot be a Go const.
 var (
