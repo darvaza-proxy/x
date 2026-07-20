@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"runtime"
 	"testing"
 	"time"
 
@@ -19,9 +20,6 @@ import (
 
 func TestSystemCertPool(t *testing.T) {
 	pool, err := certpool.SystemCertPool()
-	if errors.Is(err, core.ErrTODO) {
-		t.Skipf("system cert pool loader not implemented: %v", err)
-	}
 	core.AssertMustNoError(t, err, "system pool")
 	core.AssertMustNotNil(t, pool, "pool")
 
@@ -32,13 +30,37 @@ func TestSystemCertPool(t *testing.T) {
 		defer cancel()
 	}
 
-	i, count := 1, pool.Count()
+	count, minCount := pool.Count(), minSystemCertCount()
+	core.AssertTrue(t, count >= minCount, "count %d >= %d", count, minCount)
+
+	i := 1
 	pool.ForEach(ctx, func(_ context.Context, cert *x509.Certificate) bool {
 		printSystemCertTest(t, i, count, cert)
 		i++
 		return true
 	})
 	core.AssertEqual(t, count, i-1, "visited all")
+}
+
+// minSystemCertCount returns the fewest roots a healthy system trust store
+// is expected to hold on this platform. A loader that returns a non-empty
+// but implausibly small pool — a partial walk, an over-strict filter —
+// passes a bare non-empty check; this floor catches it. Each value sits
+// well below what the platform actually ships, so it only trips on a
+// genuinely truncated load.
+func minSystemCertCount() int {
+	switch runtime.GOOS {
+	case "darwin", "linux":
+		// Apple ships ~150 built-in roots; Linux distributions carry
+		// the Mozilla bundle, of a similar size.
+		return 100
+	case "windows":
+		// A fresh Windows root store holds only a few dozen
+		// preinstalled roots and grows on demand.
+		return 30
+	default:
+		return 1
+	}
 }
 
 // TestSystemCertPoolVerifiesGitHub dials github.com over TLS trusting only
@@ -52,9 +74,6 @@ func TestSystemCertPoolVerifiesGitHub(t *testing.T) {
 	}
 
 	pool, err := certpool.SystemCertPool()
-	if errors.Is(err, core.ErrTODO) {
-		t.Skipf("system cert pool loader not implemented: %v", err)
-	}
 	core.AssertMustNoError(t, err, "system pool")
 	core.AssertMustNotNil(t, pool, "pool")
 
