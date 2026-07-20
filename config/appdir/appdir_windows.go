@@ -1,5 +1,6 @@
-// cspell:words LOCALAPPDATA USERPROFILE writable
 package appdir
+
+// cspell:words LOCALAPPDATA USERPROFILE writable
 
 import (
 	"errors"
