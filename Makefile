@@ -80,8 +80,8 @@ FIND_FILES_GO_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.go'
 FIND_FILES_MARKDOWN_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.md'
 
 ifndef MARKDOWNLINT
-ifeq ($(shell $(DLX) markdownlint-cli --version < /dev/null | grep -q '^[0-9]' && echo yes),yes)
-MARKDOWNLINT = $(DLX) markdownlint-cli
+ifeq ($(shell $(DLX) markdownlint-cli2 --help < /dev/null | grep -q '^markdownlint-cli2 v[0-9]' && echo yes),yes)
+MARKDOWNLINT = $(DLX) markdownlint-cli2
 else
 MARKDOWNLINT = true
 endif
