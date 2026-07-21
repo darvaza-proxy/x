@@ -15,6 +15,7 @@ var _ core.TestCase = userDirTestCase{}
 var _ core.TestCase = userDirErrTestCase{}
 var _ core.TestCase = userDirFallbackTestCase{}
 var _ core.TestCase = sysDirTestCase{}
+var _ core.TestCase = sysUserModeTestCase{}
 
 // userDirTestCase tests the UserFooDir functions honouring the
 // environment variable providing their base directory.
@@ -301,4 +302,86 @@ func sysDirTestCases(tmp string) []sysDirTestCase {
 
 func TestSysDir(t *testing.T) {
 	core.RunTestCases(t, sysDirTestCases(t.TempDir()))
+}
+
+// sysUserModeTestCase tests the SysFooDir functions falling through
+// to their UserFooDir counterparts under [appdir.PrefixUser].
+type sysUserModeTestCase struct {
+	envValue string
+	name     string
+	want     string
+	sub      []string
+	kind     Kind
+}
+
+func (tc sysUserModeTestCase) Name() string {
+	return tc.name
+}
+
+func (tc sysUserModeTestCase) Test(t *testing.T) {
+	t.Helper()
+	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixUser))
+	t.Setenv("USERNAME", "test")
+	setWinEnv(t, tc.kind, tc.envValue)
+
+	got, err := callSysDirFunc(t, tc.kind, tc.sub...)
+	core.AssertMustNoError(t, err, "%s dir", tc.kind)
+	core.AssertEqual(t, tc.want, got, "dir")
+}
+
+func newSysUserModeTestCase(name string, kind Kind, envValue string,
+	sub []string, want string) sysUserModeTestCase {
+	return sysUserModeTestCase{
+		kind:     kind,
+		envValue: envValue,
+		name:     name,
+		want:     want,
+		sub:      sub,
+	}
+}
+
+// newSysCacheDirUserModeTestCase declares a row for
+// [appdir.SysCacheDir] in user mode.
+func newSysCacheDirUserModeTestCase(name, envValue string,
+	sub []string, want string) sysUserModeTestCase {
+	return newSysUserModeTestCase(name, KindCache, envValue, sub, want)
+}
+
+// newSysConfigDirUserModeTestCase declares a row for
+// [appdir.SysConfigDir] in user mode.
+func newSysConfigDirUserModeTestCase(name, envValue string,
+	sub []string, want string) sysUserModeTestCase {
+	return newSysUserModeTestCase(name, KindConfig, envValue, sub, want)
+}
+
+// newSysDataDirUserModeTestCase declares a row for
+// [appdir.SysDataDir] in user mode.
+func newSysDataDirUserModeTestCase(name, envValue string,
+	sub []string, want string) sysUserModeTestCase {
+	return newSysUserModeTestCase(name, KindData, envValue, sub, want)
+}
+
+// newSysRuntimeDirUserModeTestCase declares a row for
+// [appdir.SysRuntimeDir] in user mode.
+func newSysRuntimeDirUserModeTestCase(name, envValue string,
+	sub []string, want string) sysUserModeTestCase {
+	return newSysUserModeTestCase(name, KindRuntime, envValue, sub, want)
+}
+
+func TestSysDirUserMode(t *testing.T) {
+	testCases := core.S(
+		newSysCacheDirUserModeTestCase("cache", `C:\custom\local`,
+			core.S("app"), `C:\custom\local\app`),
+		newSysConfigDirUserModeTestCase("config", `C:\custom\roaming`,
+			core.S("app"), `C:\custom\roaming\app`),
+		// data shares the roaming directory with config
+		newSysDataDirUserModeTestCase("data", `C:\custom\roaming`,
+			core.S("app"), `C:\custom\roaming\app`),
+		// run-time data gets a user-distinguishing leaf under
+		// the temporary directory
+		newSysRuntimeDirUserModeTestCase("runtime", `C:\custom\tmp`,
+			core.S("app"), `C:\custom\tmp\runtime-test\app`),
+	)
+
+	core.RunTestCases(t, testCases)
 }

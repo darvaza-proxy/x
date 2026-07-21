@@ -63,7 +63,7 @@ FIX_WHITESPACE_EXCLUDE_EXTS ?= \
 	$(FIX_WHITESPACE_EXCLUDE_OTHER_EXTS)
 FIX_WHITESPACE_EXCLUDE_PATTERNS ?= $(patsubst %,-o -name '*.%',$(FIX_WHITESPACE_EXCLUDE_EXTS))
 FIX_WHITESPACE_EXCLUDE ?= $(FIX_WHITESPACE_EXCLUDE_GO) $(FIX_WHITESPACE_EXCLUDE_PATTERNS)
-FIX_WHITESPACE_ARGS ?= . \! \( $(FIX_WHITESPACE_EXCLUDE) \)
+FIX_WHITESPACE_ARGS ?= . '!' '(' $(FIX_WHITESPACE_EXCLUDE) ')'
 
 ifndef DLX
 ifeq ($(shell pnpm --version < /dev/null 2> /dev/null | grep -q '^[0-9]' && echo yes),yes)
@@ -80,8 +80,8 @@ FIND_FILES_GO_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.go'
 FIND_FILES_MARKDOWN_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.md'
 
 ifndef MARKDOWNLINT
-ifeq ($(shell $(DLX) markdownlint-cli --version < /dev/null | grep -q '^[0-9]' && echo yes),yes)
-MARKDOWNLINT = $(DLX) markdownlint-cli
+ifeq ($(shell $(DLX) markdownlint-cli2 --help < /dev/null | grep -q '^markdownlint-cli2 v[0-9]' && echo yes),yes)
+MARKDOWNLINT = $(DLX) markdownlint-cli2
 else
 MARKDOWNLINT = true
 endif

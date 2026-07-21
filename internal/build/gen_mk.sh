@@ -75,6 +75,18 @@ gen_var_name() {
 	done
 }
 
+# align renders the tab-separated "NAME<TAB>=<TAB>value" rows as a table.
+# column(1) is absent from some minimal and Windows shells; there we fall
+# back to tr, turning the tab delimiters into spaces — the result loses the
+# alignment but is still valid Make.
+align() {
+	if command -v "$COLUMN" >/dev/null 2>&1; then
+		"$COLUMN" -t -s "$TAB"
+	else
+		"$TR" "$TAB" ' '
+	fi
+}
+
 # generate files lists
 #
 gen_files_lists() {
@@ -109,7 +121,7 @@ EOT
 		cat <<-EOT
 		$files$TAB=$TAB$files_cmd
 		EOT
-	done < "$INDEX" | "$COLUMN" -t -s "$TAB"
+	done < "$INDEX" | align
 }
 
 gen_make_targets() {
