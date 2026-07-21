@@ -2,7 +2,7 @@ module darvaza.org/x/cmp
 
 go 1.25.0
 
-require darvaza.org/core v0.21.0
+require darvaza.org/core v0.21.1
 
 require (
 	golang.org/x/net v0.57.0 // indirect
