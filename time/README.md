@@ -36,7 +36,8 @@ panics with `ErrDivZero`, which wraps `core.ErrInvalid`; signed
 division truncates towards zero, with the remainder taking the sign
 of the dividend. `MulDivMod` fuses a multiply and a divide, forming
 the product in an intermediate wide enough that it cannot overflow
-before the division.
+before the division. `EuclideanDivMod` and `EuclideanMulDivMod`
+instead keep the remainder non-negative.
 
 ## Development
 

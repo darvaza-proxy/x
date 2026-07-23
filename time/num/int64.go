@@ -1,6 +1,9 @@
 package num
 
-var _ Signed[Int64] = Int64(0)
+var (
+	_ Signed[Int64]    = Int64(0)
+	_ Euclidean[Int64] = Int64(0)
+)
 
 // Int64 is a signed 64-bit integer wrapping the native int64,
 // extending the Signed family to 64 bits with the same method surface
@@ -10,6 +13,18 @@ type Int64 int64
 // sys returns v as its underlying native int64.
 func (v Int64) sys() int64 {
 	return int64(v)
+}
+
+// one returns the multiplicative unit, the [EuclideanDivMod] quotient
+// step.
+func (Int64) one() Int64 {
+	return 1
+}
+
+// ulp returns the smallest positive value, the [EuclideanMulDivMod]
+// quotient step; for an integer it equals one.
+func (Int64) ulp() Int64 {
+	return 1
 }
 
 // IsZero reports whether v is zero.

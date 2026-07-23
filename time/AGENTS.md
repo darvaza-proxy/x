@@ -25,6 +25,10 @@ the standard library.
 - **`Unsigned[T]`**, **`Signed[T]`**: generic constraints naming the
   method surface the family shares, including the fused `MulDivMod`
   wide multiply-divide.
+- **`EuclideanDivMod`**, **`EuclideanMulDivMod`**: division helpers
+  correcting the remainder into `[0, |divisor|)`, constrained on
+  `Euclidean`; `SignedEuclidean` combines it with `Signed` and is the
+  `Decimal` backing constraint.
 - **`ErrDivZero`**: the division-by-zero panic value, wrapping
   `core.ErrInvalid`.
 
@@ -36,6 +40,8 @@ Files:
 - `num/decimal.go`: `Decimal` and the `DecimalScaler` interface.
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero`.
+- `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
+  and the Euclidean division helpers.
 - `num/int128.go`: `Int128` and its operations.
 - `num/int32.go`: `Int32` and its operations.
 - `num/int64.go`: `Int64` and its operations.

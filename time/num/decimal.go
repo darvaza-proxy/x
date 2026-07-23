@@ -19,7 +19,7 @@ type DecimalScaler[T any] interface {
 // carry the scale through MulDivMod so the intermediate product cannot
 // overflow before the scale is applied; this caps the family at the
 // Int128 backing, whose product fits a 256-bit intermediate.
-type Decimal[T Signed[T], S DecimalScaler[T]] struct {
+type Decimal[T SignedEuclidean[T], S DecimalScaler[T]] struct {
 	v T
 }
 
@@ -28,7 +28,8 @@ type Decimal[T Signed[T], S DecimalScaler[T]] struct {
 // sign taken from whole, or from frac when whole is zero. frac need not
 // stay below one whole unit: it carries. The combined magnitude wraps if
 // it exceeds the backing width.
-func newDecimal[T Signed[T], S DecimalScaler[T]](whole, frac T) Decimal[T, S] {
+func newDecimal[T SignedEuclidean[T], S DecimalScaler[T]](whole,
+	frac T) Decimal[T, S] {
 	var s S
 	neg := whole.IsNegative() || (whole.IsZero() && frac.IsNegative())
 	mag := whole.Abs().Mul(s.Scale()).Add(frac.Abs())
@@ -37,6 +38,29 @@ func newDecimal[T Signed[T], S DecimalScaler[T]](whole, frac T) Decimal[T, S] {
 	}
 	return Decimal[T, S]{mag}
 }
+
+// one returns the multiplicative unit, one whole at the resolution:
+// the step between consecutive DivMod quotients.
+func (Decimal[T, S]) one() Decimal[T, S] {
+	var s S
+	return Decimal[T, S]{s.Scale()}
+}
+
+// ulp returns the smallest positive value, one sub-unit at the
+// resolution: the step between consecutive MulDivMod quotients.
+func (Decimal[T, S]) ulp() Decimal[T, S] {
+	var z T
+	return Decimal[T, S]{z.ulp()}
+}
+
+// one and ulp are reached only through the [Euclidean] interface — w.one()
+// and d.ulp() inside EuclideanDivMod and EuclideanMulDivMod — which
+// staticcheck's unused checker cannot follow from a type-parameter
+// constraint back to the generic method, so it reports them unused even at
+// full coverage. Naming them on a concrete instantiation marks them used;
+// a var initialiser is not an instrumented statement, so it costs no
+// coverage.
+var _ = Atto128{}.one().Add(Atto128{}.ulp())
 
 // IsZero reports whether d is zero.
 func (d Decimal[T, S]) IsZero() bool {

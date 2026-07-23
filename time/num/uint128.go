@@ -2,12 +2,27 @@ package num
 
 import "math/bits"
 
-var _ Unsigned[Uint128] = Uint128{}
+var (
+	_ Unsigned[Uint128]  = Uint128{}
+	_ Euclidean[Uint128] = Uint128{}
+)
 
 // Uint128 is an unsigned 128-bit integer stored as a high and low
 // 64-bit word. The zero value is numeric zero.
 type Uint128 struct {
 	hi, lo uint64
+}
+
+// one returns the multiplicative unit, the [EuclideanDivMod] quotient
+// step.
+func (Uint128) one() Uint128 {
+	return Uint128{lo: 1}
+}
+
+// ulp returns the smallest positive value, the [EuclideanMulDivMod]
+// quotient step; for an integer it equals one.
+func (Uint128) ulp() Uint128 {
+	return Uint128{lo: 1}
 }
 
 // NewUint128 assembles a Uint128 from its high and low 64-bit words,
@@ -24,6 +39,18 @@ func (u Uint128) IsZero() bool {
 // Equal reports whether u and v are equal.
 func (u Uint128) Equal(v Uint128) bool {
 	return u == v
+}
+
+// IsNegative reports whether u is less than zero, which is never the
+// case for an unsigned integer.
+func (Uint128) IsNegative() bool {
+	return false
+}
+
+// Abs returns u unchanged, an unsigned integer being its own absolute
+// value.
+func (u Uint128) Abs() Uint128 {
+	return u
 }
 
 // Add returns u+v, wrapping on overflow.

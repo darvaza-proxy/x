@@ -7,5 +7,6 @@
 // Arithmetic wraps on overflow, matching Go's built-in integer
 // operators, so Add, Sub and Mul never panic. Division by zero panics
 // with [ErrDivZero]. Signed division truncates towards zero, with the
-// remainder taking the sign of the dividend.
+// remainder taking the sign of the dividend; [EuclideanDivMod] and
+// [EuclideanMulDivMod] instead keep the remainder non-negative.
 package num

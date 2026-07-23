@@ -1,11 +1,26 @@
 package num
 
-var _ Signed[Int32] = Int32(0)
+var (
+	_ Signed[Int32]    = Int32(0)
+	_ Euclidean[Int32] = Int32(0)
+)
 
 // Int32 is a signed 32-bit integer wrapping the native int32,
 // extending the Signed family down to 32 bits with the same method
 // surface as Int128. The zero value is numeric zero.
 type Int32 int32
+
+// one returns the multiplicative unit, the [EuclideanDivMod] quotient
+// step.
+func (Int32) one() Int32 {
+	return 1
+}
+
+// ulp returns the smallest positive value, the [EuclideanMulDivMod]
+// quotient step; for an integer it equals one.
+func (Int32) ulp() Int32 {
+	return 1
+}
 
 // IsZero reports whether v is zero.
 func (v Int32) IsZero() bool {

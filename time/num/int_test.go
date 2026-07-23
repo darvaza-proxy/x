@@ -20,11 +20,11 @@ func assertSignedEqual[T num.Signed[T]](t *testing.T, expected, actual T,
 }
 
 // signedIntType carries what a signed integer type needs to run the
-// shared suite: how to build a value from an int64, its bounds, and a
-// wide multiply exercising the MulDivMod intermediate; for the native
-// integers its product also overflows the type, proving the wider
-// path.
-type signedIntType[T num.Signed[T]] struct {
+// shared suites, truncated and Euclidean alike: how to build a value
+// from an int64, its bounds, and a wide multiply exercising the
+// MulDivMod intermediate; for the native integers its product also
+// overflows the type, proving the wider path.
+type signedIntType[T num.SignedEuclidean[T]] struct {
 	mk    func(int64) T
 	min   T
 	max   T
@@ -34,7 +34,8 @@ type signedIntType[T num.Signed[T]] struct {
 	wideQ int64
 }
 
-func runSignedIntTests[T num.Signed[T]](t *testing.T, it signedIntType[T]) {
+func runSignedIntTests[T num.SignedEuclidean[T]](t *testing.T,
+	it signedIntType[T]) {
 	t.Helper()
 	t.Run("div-mod", it.testDivMod)
 	t.Run("mul-div-mod", it.testMulDivMod)

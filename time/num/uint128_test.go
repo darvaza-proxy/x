@@ -232,3 +232,13 @@ func TestUint128IsZero(t *testing.T) {
 	core.AssertFalse(t, u(1).IsZero(), "non-zero")
 	core.AssertFalse(t, num.NewUint128(1, 0).IsZero(), "high only")
 }
+
+// TestUint128Sign pins the unsigned sign surface: never negative and
+// its own absolute value, even with the top bit set, where a signed
+// reading of the same pattern would say otherwise.
+func TestUint128Sign(t *testing.T) {
+	core.AssertFalse(t, num.ZeroUint128.IsNegative(), "zero negative")
+	core.AssertFalse(t, num.MaxUint128.IsNegative(), "max negative")
+	core.AssertEqual(t, u(5), u(5).Abs(), "abs")
+	core.AssertEqual(t, num.MaxUint128, num.MaxUint128.Abs(), "abs max")
+}

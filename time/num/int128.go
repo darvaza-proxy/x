@@ -2,7 +2,10 @@ package num
 
 import "math/bits"
 
-var _ Signed[Int128] = Int128{}
+var (
+	_ Signed[Int128]    = Int128{}
+	_ Euclidean[Int128] = Int128{}
+)
 
 // Int128 is a signed 128-bit integer in two's-complement form,
 // sharing the two-word layout of Uint128. The zero value is numeric
@@ -11,6 +14,18 @@ type Int128 Uint128
 
 func (v Int128) bits() Uint128 {
 	return Uint128(v)
+}
+
+// one returns the multiplicative unit, the [EuclideanDivMod] quotient
+// step.
+func (Int128) one() Int128 {
+	return Int128{lo: 1}
+}
+
+// ulp returns the smallest positive value, the [EuclideanMulDivMod]
+// quotient step; for an integer it equals one.
+func (Int128) ulp() Int128 {
+	return Int128{lo: 1}
 }
 
 // NewInt128 sign-extends a signed 64-bit value into an Int128.
