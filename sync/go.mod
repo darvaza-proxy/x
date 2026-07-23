@@ -2,7 +2,7 @@ module darvaza.org/x/sync
 
 go 1.25.0
 
-require darvaza.org/core v0.21.1
+require darvaza.org/core v0.21.2
 
 require (
 	golang.org/x/net v0.57.0 // indirect
