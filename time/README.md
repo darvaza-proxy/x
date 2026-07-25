@@ -39,6 +39,12 @@ the product in an intermediate wide enough that it cannot overflow
 before the division. `EuclideanDivMod` and `EuclideanMulDivMod`
 instead keep the remainder non-negative.
 
+The integer types convert to and from base-10 text through `String`,
+`MarshalText` and `UnmarshalText`, without a big-number dependency;
+malformed input yields `ErrSyntax` and out-of-range values `ErrRange`,
+the standard `strconv` sentinels re-exported and additionally wrapping
+`core.ErrInvalid`.
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see

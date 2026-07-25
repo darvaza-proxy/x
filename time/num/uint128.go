@@ -1,10 +1,21 @@
 package num
 
-import "math/bits"
+import (
+	"encoding"
+	"fmt"
+	"math/bits"
+	"strconv"
+
+	"darvaza.org/core"
+)
 
 var (
 	_ Unsigned[Uint128]  = Uint128{}
 	_ Euclidean[Uint128] = Uint128{}
+
+	_ fmt.Stringer             = Uint128{}
+	_ encoding.TextMarshaler   = Uint128{}
+	_ encoding.TextUnmarshaler = (*Uint128)(nil)
 )
 
 // Uint128 is an unsigned 128-bit integer stored as a high and low
@@ -146,4 +157,55 @@ func (u Uint128) setBit(i int) Uint128 {
 		u.lo |= 1 << i
 	}
 	return u
+}
+
+// String returns u in base 10.
+func (u Uint128) String() string {
+	return string(u.appendText(nil))
+}
+
+// MarshalText renders u as its base-10 digits.
+func (u Uint128) MarshalText() ([]byte, error) {
+	return u.appendText(nil), nil
+}
+
+// UnmarshalText parses the base-10 digits of b into u. It rejects empty
+// input and non-digit bytes with [ErrSyntax] and values above
+// [MaxUint128] with [ErrRange].
+func (u *Uint128) UnmarshalText(b []byte) error {
+	v, err := parseUint128(string(b), MaxUint128)
+	switch {
+	case err != nil:
+		return err
+	case u == nil:
+		return core.ErrNilReceiver
+	default:
+		*u = v
+		return nil
+	}
+}
+
+// appendText writes the base-10 digits of u to dst and returns the
+// extended buffer. A value below 2^64 formats in a single pass; a wider
+// one is peeled into base-decChunk groups, most significant first, with
+// the trailing groups zero-padded to decChunkDigits. The 128-bit range
+// spans at most 39 digits, so three groups always suffice.
+func (u Uint128) appendText(dst []byte) []byte {
+	if u.hi == 0 {
+		return strconv.AppendUint(dst, u.lo, 10)
+	}
+	div := Uint128{lo: decChunk}
+	var chunk [3]uint64
+	n := 0
+	for rest := u; !rest.IsZero(); {
+		var r Uint128
+		rest, r = rest.DivMod(div)
+		chunk[n] = r.lo
+		n++
+	}
+	dst = strconv.AppendUint(dst, chunk[n-1], 10)
+	for i := n - 2; i >= 0; i-- {
+		dst = appendPadded(dst, chunk[i], decChunkDigits)
+	}
+	return dst
 }

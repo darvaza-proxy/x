@@ -1,8 +1,20 @@
 package num
 
+import (
+	"encoding"
+	"fmt"
+	"strconv"
+
+	"darvaza.org/core"
+)
+
 var (
 	_ Signed[Int64]    = Int64(0)
 	_ Euclidean[Int64] = Int64(0)
+
+	_ fmt.Stringer             = Int64(0)
+	_ encoding.TextMarshaler   = Int64(0)
+	_ encoding.TextUnmarshaler = (*Int64)(nil)
 )
 
 // Int64 is a signed 64-bit integer wrapping the native int64,
@@ -121,5 +133,31 @@ func (v Int64) Cmp(w Int64) int {
 		return -1
 	default:
 		return 0
+	}
+}
+
+// String returns v in base 10.
+func (v Int64) String() string {
+	return strconv.FormatInt(v.sys(), 10)
+}
+
+// MarshalText renders v as its signed base-10 digits.
+func (v Int64) MarshalText() ([]byte, error) {
+	return strconv.AppendInt(nil, v.sys(), 10), nil
+}
+
+// UnmarshalText parses a signed base-10 integer from b into v. It rejects
+// malformed input with [ErrSyntax] and values outside the int64 range
+// with [ErrRange].
+func (v *Int64) UnmarshalText(b []byte) error {
+	x, err := strconv.ParseInt(string(b), 10, 64)
+	switch {
+	case err != nil:
+		return parseIntError(b, err)
+	case v == nil:
+		return core.ErrNilReceiver
+	default:
+		*v = Int64(x)
+		return nil
 	}
 }

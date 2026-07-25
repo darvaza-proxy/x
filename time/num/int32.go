@@ -1,8 +1,20 @@
 package num
 
+import (
+	"encoding"
+	"fmt"
+	"strconv"
+
+	"darvaza.org/core"
+)
+
 var (
 	_ Signed[Int32]    = Int32(0)
 	_ Euclidean[Int32] = Int32(0)
+
+	_ fmt.Stringer             = Int32(0)
+	_ encoding.TextMarshaler   = Int32(0)
+	_ encoding.TextUnmarshaler = (*Int32)(nil)
 )
 
 // Int32 is a signed 32-bit integer wrapping the native int32,
@@ -116,5 +128,31 @@ func (v Int32) Cmp(w Int32) int {
 		return -1
 	default:
 		return 0
+	}
+}
+
+// String returns v in base 10.
+func (v Int32) String() string {
+	return strconv.FormatInt(int64(v), 10)
+}
+
+// MarshalText renders v as its signed base-10 digits.
+func (v Int32) MarshalText() ([]byte, error) {
+	return strconv.AppendInt(nil, int64(v), 10), nil
+}
+
+// UnmarshalText parses a signed base-10 integer from b into v. It rejects
+// malformed input with [ErrSyntax] and values outside the int32 range
+// with [ErrRange].
+func (v *Int32) UnmarshalText(b []byte) error {
+	x, err := strconv.ParseInt(string(b), 10, 32)
+	switch {
+	case err != nil:
+		return parseIntError(b, err)
+	case v == nil:
+		return core.ErrNilReceiver
+	default:
+		*v = Int32(x)
+		return nil
 	}
 }

@@ -29,8 +29,13 @@ the standard library.
   correcting the remainder into `[0, |divisor|)`, constrained on
   `Euclidean`; `SignedEuclidean` combines it with `Signed` and is the
   `Decimal` backing constraint.
+- **Base-10 text**: the integer types render through `String` and
+  `MarshalText` and parse through `UnmarshalText`, all in base 10 and
+  without a big-number dependency.
 - **`ErrDivZero`**: the division-by-zero panic value, wrapping
-  `core.ErrInvalid`.
+  `core.ErrInvalid`. **`ErrSyntax`** and **`ErrRange`** are the
+  text-parse failures: `strconv.ErrSyntax` and `strconv.ErrRange`
+  re-exported, and additionally wrapping `core.ErrInvalid`.
 
 Files:
 
@@ -48,6 +53,9 @@ Files:
 - `num/milli.go`: the `Milli32` and `Milli64` instantiations and their
   scales.
 - `num/num.go`: the `Unsigned` and `Signed` constraints.
+- `num/text.go`: the shared base-10 parsing and formatting helpers
+  behind each type's `String`, `MarshalText` and `UnmarshalText`
+  methods, reporting `ErrSyntax`/`ErrRange` on bad input.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
 - `num/uint128.go`: `Uint128` and its operations.

@@ -1,10 +1,20 @@
 package num
 
-import "math/bits"
+import (
+	"encoding"
+	"fmt"
+	"math/bits"
+
+	"darvaza.org/core"
+)
 
 var (
 	_ Signed[Int128]    = Int128{}
 	_ Euclidean[Int128] = Int128{}
+
+	_ fmt.Stringer             = Int128{}
+	_ encoding.TextMarshaler   = Int128{}
+	_ encoding.TextUnmarshaler = (*Int128)(nil)
 )
 
 // Int128 is a signed 128-bit integer in two's-complement form,
@@ -156,4 +166,40 @@ func (v Int128) Cmp(w Int128) int {
 	default:
 		return 0
 	}
+}
+
+// String returns v in base 10, with a leading minus sign when negative.
+func (v Int128) String() string {
+	return string(v.appendText(nil))
+}
+
+// MarshalText renders v as its signed base-10 digits.
+func (v Int128) MarshalText() ([]byte, error) {
+	return v.appendText(nil), nil
+}
+
+// UnmarshalText parses a signed base-10 integer from b into v. It rejects
+// malformed input with [ErrSyntax] and values outside the Int128 range
+// with [ErrRange].
+func (v *Int128) UnmarshalText(b []byte) error {
+	x, err := parseInt128(string(b))
+	switch {
+	case err != nil:
+		return err
+	case v == nil:
+		return core.ErrNilReceiver
+	default:
+		*v = x
+		return nil
+	}
+}
+
+// appendText writes v's signed base-10 digits to dst. The magnitude is
+// taken as an unsigned 128-bit value, so MinInt128 renders as 2^127
+// rather than wrapping.
+func (v Int128) appendText(dst []byte) []byte {
+	if v.IsNegative() {
+		dst = append(dst, '-')
+	}
+	return v.Abs().bits().appendText(dst)
 }
