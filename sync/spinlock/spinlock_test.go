@@ -1,6 +1,7 @@
 package spinlock_test
 
 import (
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -140,6 +141,31 @@ func TestSpinLock_LockBlocks(t *testing.T) {
 	sl.Unlock()
 }
 
+// TestSpinLock_TryLockDoesNotBlock is the deterministic counterpart to
+// TestSpinLock_LockBlocks: against a held spinlock, TryLock reports
+// failure from a second goroutine and returns within the budget instead
+// of spinning until release. Both halves hold on any schedule, so this
+// pins the contract the contention test can only sample.
+func TestSpinLock_TryLockDoesNotBlock(t *testing.T) {
+	var sl spinlock.SpinLock
+
+	core.AssertMustTrue(t, sl.TryLock(), "initial TryLock")
+
+	var acquired atomic.Bool
+	done := make(chan struct{})
+	go func() {
+		acquired.Store(sl.TryLock())
+		close(done)
+	}()
+
+	synctesting.AssertMustClosed(t, done, spinlockTestTimeout,
+		"TryLock returns while the spinlock is held")
+	core.AssertFalse(t, acquired.Load(),
+		"TryLock while held by another goroutine")
+
+	sl.Unlock()
+}
+
 // TestSpinLock_Concurrent verifies mutual exclusion under contention: a
 // counter incremented only inside the critical section ends at exactly
 // goroutines × iterations.
@@ -171,38 +197,63 @@ func TestSpinLock_Concurrent(t *testing.T) {
 }
 
 // tryLockStats aggregates the shared state of the TryLock contention
-// test: attempted and successful acquisitions, the live count of worker
-// goroutines, and the highest concurrency level observed.
+// test: the total attempts, an atomic tally of successful acquisitions,
+// a lock-protected counter bumped inside the critical section, a live
+// occupancy gauge, and a count of exclusion breaches.
+//
+// occupancy is raised on entry to the critical section and lowered on
+// exit; a correct lock never lets it exceed one, so any entry that
+// observes a higher value records a violation. The gauge never
+// false-fails, though it only catches admissions whose gauge windows
+// overlap, which the yield in run widens deliberately.
+//
+// The counter/successes equality is the belt-and-braces check: a
+// double-admit races the plain counter — the race detector flags the
+// race, and a lost increment breaks the equality.
 type tryLockStats struct {
-	sl spinlock.SpinLock
+	counter int
 
-	attempts atomic.Int32
-	counter  int
-
-	current atomic.Int32
-	peak    atomic.Int32
+	sl         spinlock.SpinLock
+	attempts   atomic.Int32
+	successes  atomic.Int32
+	occupancy  atomic.Int32
+	violations atomic.Int32
 }
 
-// run attempts iterations TryLock acquisitions, incrementing the
-// lock-protected counter on each success and tracking peak worker
-// concurrency via atomic.UpdateMax.
+// run performs iterations TryLock attempts. Each success raises the
+// occupancy gauge inside the critical section — a value above one is a
+// double-admit and records a violation — then bumps the success tally and
+// the lock-protected counter before releasing.
+//
+// The yield before the gauge is lowered hands the processor to another
+// worker while this one is admitted. Without it a schedule offering no
+// parallelism runs each worker's attempts back to back, none of them
+// ever meets a held lock, and every oracle here passes vacuously.
 func (s *tryLockStats) run(iterations int) {
-	atomic.UpdateMax(&s.peak, s.current.Add(1))
-	defer s.current.Add(-1)
-
 	for range iterations {
 		s.attempts.Add(1)
 		if s.sl.TryLock() {
+			if s.occupancy.Add(1) != 1 {
+				s.violations.Add(1)
+			}
+			s.successes.Add(1)
 			s.counter++
+			runtime.Gosched()
+			s.occupancy.Add(-1)
 			s.sl.Unlock()
 		}
 	}
 }
 
-// TestSpinLock_TryLockConcurrent verifies TryLock never blocks and never
-// double-admits under contention. When the workers genuinely overlapped,
-// some attempts must fail; when the scheduler serialised them, every
-// attempt must succeed.
+// TestSpinLock_TryLockConcurrent verifies TryLock never double-admits
+// under contention. The occupancy gauge asserts mutual exclusion
+// directly: no entry ever saw a second worker already inside, and run's
+// yield keeps that window open even where the schedule offers no
+// parallelism. The counter/successes equality backs that up — the race
+// detector flags a double-admit racing the plain counter, and a lost
+// increment breaks the equality. The non-blocking half of the contract
+// belongs to TestSpinLock_TryLockDoesNotBlock, which pins it on every
+// schedule rather than sampling it here.
 func TestSpinLock_TryLockConcurrent(t *testing.T) {
 	var stats tryLockStats
 
@@ -221,18 +272,19 @@ func TestSpinLock_TryLockConcurrent(t *testing.T) {
 
 	wg.Wait()
 
-	attempts, counter := stats.attempts.Load(), int32(stats.counter)
-	t.Logf("peak workers: %d, counter: %d, attempts: %d",
-		stats.peak.Load(), counter, attempts)
+	attempts := stats.attempts.Load()
+	successes := stats.successes.Load()
+	violations := stats.violations.Load()
+	counter := int32(stats.counter)
+	t.Logf("attempts: %d, successes: %d", attempts, successes)
 
-	if stats.peak.Load() <= 1 {
-		core.AssertEqual(t, attempts, counter,
-			"workers never overlapped: every attempt succeeds")
-		return
-	}
-	core.AssertTrue(t, counter > 0, "some attempts succeed")
-	core.AssertTrue(t, counter < attempts,
-		"under contention some attempts fail")
+	core.AssertEqual(t, int32(goroutines*iterations), attempts,
+		"every attempt counted")
+	core.AssertTrue(t, successes > 0, "some attempts succeed")
+	core.AssertEqual(t, int32(0), violations,
+		"mutual exclusion: no double-admit observed")
+	core.AssertEqual(t, successes, counter,
+		"mutual exclusion: counter matches successes")
 }
 
 // TestSpinLock_LockDefer verifies the Lock + deferred Unlock idiom leaves
