@@ -9,6 +9,15 @@ import (
 	"darvaza.org/x/fs"
 )
 
+// Pin the aliased mode bits as constants: shamash relies on their
+// constant-ness to fold them into a constant expression, so a slip to a
+// var would break downstream builds rather than these tests.
+const _ fs.FileMode = fs.ModeDir | fs.ModeAppend | fs.ModeExclusive |
+	fs.ModeTemporary | fs.ModeSymlink | fs.ModeDevice |
+	fs.ModeNamedPipe | fs.ModeSocket | fs.ModeSetuid |
+	fs.ModeSetgid | fs.ModeCharDevice | fs.ModeSticky |
+	fs.ModeIrregular | fs.ModeType | fs.ModePerm
+
 // Compile-time verification that test case types implement TestCase.
 var (
 	_ core.TestCase = validPathTestCase{}

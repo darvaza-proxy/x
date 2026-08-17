@@ -95,11 +95,32 @@ include aliases and proxies of commonly used symbols.
 
 ### Constants
 
+Standard error sentinels:
+
 * `fs.ErrInvalid`
 * `fs.ErrPermission`
-* `fs.ErrExists`
-* `fs.ErrNotExists`
+* `fs.ErrExist`
+* `fs.ErrNotExist`
 * `fs.ErrClosed`
+
+The `fs.FileMode` bits, with the combined `fs.ModeType` and `fs.ModePerm`
+masks:
+
+* `fs.ModeDir`
+* `fs.ModeAppend`
+* `fs.ModeExclusive`
+* `fs.ModeTemporary`
+* `fs.ModeSymlink`
+* `fs.ModeDevice`
+* `fs.ModeNamedPipe`
+* `fs.ModeSocket`
+* `fs.ModeSetuid`
+* `fs.ModeSetgid`
+* `fs.ModeCharDevice`
+* `fs.ModeSticky`
+* `fs.ModeIrregular`
+* `fs.ModeType`
+* `fs.ModePerm`
 
 ### Functions
 

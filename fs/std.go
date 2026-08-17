@@ -13,6 +13,27 @@ type (
 	PathError = fs.PathError
 )
 
+// Aliases of the standard [fs.FileMode] mode bits, and their
+// combined type and permission masks.
+const (
+	ModeDir        = fs.ModeDir
+	ModeAppend     = fs.ModeAppend
+	ModeExclusive  = fs.ModeExclusive
+	ModeTemporary  = fs.ModeTemporary
+	ModeSymlink    = fs.ModeSymlink
+	ModeDevice     = fs.ModeDevice
+	ModeNamedPipe  = fs.ModeNamedPipe
+	ModeSocket     = fs.ModeSocket
+	ModeSetuid     = fs.ModeSetuid
+	ModeSetgid     = fs.ModeSetgid
+	ModeCharDevice = fs.ModeCharDevice
+	ModeSticky     = fs.ModeSticky
+	ModeIrregular  = fs.ModeIrregular
+
+	ModeType = fs.ModeType
+	ModePerm = fs.ModePerm
+)
+
 var (
 	// ErrInvalid is an alias of the standard [fs.ErrInvalid] constant.
 	ErrInvalid = fs.ErrInvalid
