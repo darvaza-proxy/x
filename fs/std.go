@@ -33,6 +33,13 @@ func ValidPath(name string) bool {
 	return fs.ValidPath(name)
 }
 
+// ReadDir is a proxy to the standard [fs.ReadDir] function
+// which attempts to read the named directory on the given file
+// system, returning its entries sorted by filename.
+func ReadDir(fSys fs.FS, name string) ([]fs.DirEntry, error) {
+	return fs.ReadDir(fSys, name)
+}
+
 // ReadFile is a proxy to the standard [fs.ReadFile] function
 // which attempts to read the content of a file with a given name
 // on the given file system.

@@ -61,10 +61,13 @@ ones to gain parity with the `os` package.
 ### New
 
 * `ChmodFS`
+* `ChownFS`
 * `ChtimesFS`
+* `CreateFS`
 * `MkdirFS`
 * `MkdirAllFS`
 * `MkdirTempFS`
+* `OpenFileFS`
 * `ReadlinkFS`
 * `RemoveFS`
 * `RemoveAllFS`
@@ -76,6 +79,7 @@ ones to gain parity with the `os` package.
 
 * `fs.File`
 * `fs.ReadDirFile`
+* `WriterFile`
 
 ## Proxies
 
@@ -99,6 +103,9 @@ include aliases and proxies of commonly used symbols.
 
 ### Functions
 
+* `fs.ReadDir`
+* `fs.ReadFile`
+* `fs.Stat`
 * `fs.ValidPath`
 
 ## File Locking
