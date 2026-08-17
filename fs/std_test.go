@@ -9,6 +9,19 @@ import (
 	"darvaza.org/x/fs"
 )
 
+// Compile-time verification that the standard-library aliases in std.go
+// stay bound to the types the os package re-exports, and that the
+// WalkDirFunc alias and the skip sentinels keep their shapes.
+var (
+	_ fs.FileInfo    = (os.FileInfo)(nil)
+	_ fs.DirEntry    = (os.DirEntry)(nil)
+	_ fs.FileMode    = os.FileMode(0)
+	_ *fs.PathError  = (*os.PathError)(nil)
+	_ fs.WalkDirFunc = func(string, fs.DirEntry, error) error { return nil }
+	_ error          = fs.SkipDir
+	_ error          = fs.SkipAll
+)
+
 // Pin the aliased mode bits as constants: shamash relies on their
 // constant-ness to fold them into a constant expression, so a slip to a
 // var would break downstream builds rather than these tests.
@@ -257,4 +270,76 @@ func readDirTestCases(fsys fs.FS) []readDirTestCase {
 
 func TestReadDir(t *testing.T) {
 	core.RunTestCases(t, readDirTestCases(newTreeFS(t)))
+}
+
+// TestSub proves the Sub proxy yields a working subtree.
+func TestSub(t *testing.T) {
+	sub, err := fs.Sub(newTreeFS(t), "sub")
+	core.AssertMustNoError(t, err, "Sub")
+	got, err := fs.ReadFile(sub, "world.txt")
+	core.AssertMustNoError(t, err, "ReadFile")
+	core.AssertEqual(t, "world", string(got), "content")
+}
+
+// walkPaths collects every path WalkDir visits, pruning the subtree at
+// skip when skip is non-empty to exercise the SkipDir sentinel.
+func walkPaths(t *testing.T, fsys fs.FS, skip string) []string {
+	t.Helper()
+	var got []string
+	walk := func(p string, _ fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		got = append(got, p)
+		if skip != "" && p == skip {
+			return fs.SkipDir
+		}
+		return nil
+	}
+	core.AssertMustNoError(t, fs.WalkDir(fsys, ".", walk), "WalkDir")
+	return got
+}
+
+func runWalkDirFull(t *testing.T) {
+	t.Helper()
+	got := walkPaths(t, newTreeFS(t), "")
+	want := core.S(".", "hello.txt", "sub", "sub/deep",
+		"sub/deep/leaf.txt", "sub/world.txt")
+	core.AssertSliceEqual(t, want, got, "walk paths")
+}
+
+func runWalkDirSkip(t *testing.T) {
+	t.Helper()
+	got := walkPaths(t, newTreeFS(t), "sub")
+	core.AssertSliceEqual(t, core.S(".", "hello.txt", "sub"), got, "skipped walk")
+}
+
+func TestWalkDir(t *testing.T) {
+	t.Run("full", runWalkDirFull)
+	t.Run("skipdir", runWalkDirSkip)
+}
+
+// TestFileInfoToDirEntry proves the conversion proxy keeps name and kind.
+func TestFileInfoToDirEntry(t *testing.T) {
+	fi, err := fs.Stat(newTreeFS(t), "sub")
+	core.AssertMustNoError(t, err, "Stat")
+	de := fs.FileInfoToDirEntry(fi)
+	core.AssertEqual(t, "sub", de.Name(), "name")
+	core.AssertTrue(t, de.IsDir(), "isDir")
+}
+
+// TestFormatDirEntry proves the formatter names the entry it describes.
+func TestFormatDirEntry(t *testing.T) {
+	fi, err := fs.Stat(newTreeFS(t), "hello.txt")
+	core.AssertMustNoError(t, err, "Stat")
+	out := fs.FormatDirEntry(fs.FileInfoToDirEntry(fi))
+	core.AssertContains(t, out, "hello.txt", "formatted entry")
+}
+
+// TestFormatFileInfo proves the formatter names the file it describes.
+func TestFormatFileInfo(t *testing.T) {
+	fi, err := fs.Stat(newTreeFS(t), "hello.txt")
+	core.AssertMustNoError(t, err, "Stat")
+	out := fs.FormatFileInfo(fi)
+	core.AssertContains(t, out, "hello.txt", "formatted info")
 }

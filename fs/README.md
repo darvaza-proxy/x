@@ -90,8 +90,9 @@ include aliases and proxies of commonly used symbols.
 
 * `fs.FileInfo`
 * `fs.FileMode`
-* `fs.DirInfo`
+* `fs.DirEntry`
 * `fs.PathError`
+* `fs.WalkDirFunc`
 
 ### Constants
 
@@ -122,12 +123,22 @@ masks:
 * `fs.ModeType`
 * `fs.ModePerm`
 
+Walk-control sentinels, returned from a `fs.WalkDirFunc`:
+
+* `fs.SkipDir`
+* `fs.SkipAll`
+
 ### Functions
 
+* `fs.FileInfoToDirEntry`
+* `fs.FormatDirEntry`
+* `fs.FormatFileInfo`
 * `fs.ReadDir`
 * `fs.ReadFile`
 * `fs.Stat`
+* `fs.Sub`
 * `fs.ValidPath`
+* `fs.WalkDir`
 
 ## File Locking
 

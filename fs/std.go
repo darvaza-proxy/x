@@ -11,6 +11,8 @@ type (
 	DirEntry = fs.DirEntry
 	// PathError is an alias of the standard [fs.PathError] type.
 	PathError = fs.PathError
+	// WalkDirFunc is an alias of the standard [fs.WalkDirFunc] type.
+	WalkDirFunc = fs.WalkDirFunc
 )
 
 // Aliases of the standard [fs.FileMode] mode bits, and their
@@ -45,6 +47,11 @@ var (
 	ErrNotExist = fs.ErrNotExist
 	// ErrClosed is an alias of the standard [fs.ErrClosed] constant.
 	ErrClosed = fs.ErrClosed
+
+	// SkipDir is an alias of the standard [fs.SkipDir] sentinel.
+	SkipDir = fs.SkipDir
+	// SkipAll is an alias of the standard [fs.SkipAll] sentinel.
+	SkipAll = fs.SkipAll
 )
 
 // ValidPath is a proxy to the standard [fs.ValidPath]
@@ -73,4 +80,39 @@ func ReadFile(fSys fs.FS, name string) ([]byte, error) {
 // name on the given file system.
 func Stat(fSys fs.FS, name string) (fs.FileInfo, error) {
 	return fs.Stat(fSys, name)
+}
+
+// Sub is a proxy to the standard [fs.Sub] function
+// which returns a file system corresponding to the subtree
+// rooted at the given directory.
+func Sub(fSys fs.FS, dir string) (fs.FS, error) {
+	return fs.Sub(fSys, dir)
+}
+
+// WalkDir is a proxy to the standard [fs.WalkDir] function
+// which walks the file tree rooted at the given directory,
+// calling fn for each file or directory in the tree.
+func WalkDir(fSys fs.FS, root string, fn fs.WalkDirFunc) error {
+	return fs.WalkDir(fSys, root, fn)
+}
+
+// FileInfoToDirEntry is a proxy to the standard
+// [fs.FileInfoToDirEntry] function which returns a [fs.DirEntry]
+// reporting the given [fs.FileInfo].
+func FileInfoToDirEntry(info fs.FileInfo) fs.DirEntry {
+	return fs.FileInfoToDirEntry(info)
+}
+
+// FormatDirEntry is a proxy to the standard [fs.FormatDirEntry]
+// function which returns a formatted version of the given
+// [fs.DirEntry] for human readability.
+func FormatDirEntry(dir fs.DirEntry) string {
+	return fs.FormatDirEntry(dir)
+}
+
+// FormatFileInfo is a proxy to the standard [fs.FormatFileInfo]
+// function which returns a formatted version of the given
+// [fs.FileInfo] for human readability.
+func FormatFileInfo(info fs.FileInfo) string {
+	return fs.FormatFileInfo(info)
 }
