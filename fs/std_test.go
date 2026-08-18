@@ -39,6 +39,33 @@ var (
 	_ core.TestCase = readDirTestCase{}
 )
 
+// Compile-time verification that the link stubs satisfy the standard and
+// the deprecated link interfaces the ReadLink proxy bridges between.
+var (
+	_ fs.ReadLinkFS = readLinkStub{}
+	_ fs.ReadlinkFS = oldLinkStub{}
+)
+
+// readLinkStub stands in for a file system implementing the standard
+// [fs.ReadLinkFS]; ReadLink returns a canned target.
+type readLinkStub struct{ target string }
+
+func (readLinkStub) Open(string) (fs.File, error)      { return nil, fs.ErrNotExist }
+func (s readLinkStub) ReadLink(string) (string, error) { return s.target, nil }
+func (readLinkStub) Lstat(string) (fs.FileInfo, error) { return nil, fs.ErrNotExist }
+
+// oldLinkStub stands in for a file system implementing only the
+// deprecated single-method Readlink spelling.
+type oldLinkStub struct{ target string }
+
+func (oldLinkStub) Open(string) (fs.File, error)      { return nil, fs.ErrNotExist }
+func (s oldLinkStub) Readlink(string) (string, error) { return s.target, nil }
+
+// bareStub implements only [fs.FS] and supports no link operations.
+type bareStub struct{}
+
+func (bareStub) Open(string) (fs.File, error) { return nil, fs.ErrNotExist }
+
 // newTreeFS builds a small real directory tree under a temporary root and
 // returns it as an [fs.FS] for the proxy tests to walk.
 func newTreeFS(t *testing.T) fs.FS {
@@ -342,4 +369,42 @@ func TestFormatFileInfo(t *testing.T) {
 	core.AssertMustNoError(t, err, "Stat")
 	out := fs.FormatFileInfo(fi)
 	core.AssertContains(t, out, "hello.txt", "formatted info")
+}
+
+// TestLstat proves the Lstat proxy forwards, falling back to Stat for a
+// regular file on a link-supporting tree.
+func TestLstat(t *testing.T) {
+	fi, err := fs.Lstat(newTreeFS(t), "hello.txt")
+	core.AssertMustNoError(t, err, "Lstat")
+	core.AssertEqual(t, "hello.txt", fi.Name(), "name")
+	core.AssertEqual(t, int64(5), fi.Size(), "size")
+	core.AssertFalse(t, fi.IsDir(), "isDir")
+}
+
+func runReadLinkStandard(t *testing.T) {
+	t.Helper()
+	got, err := fs.ReadLink(readLinkStub{target: "new-target"}, "link")
+	core.AssertMustNoError(t, err, "ReadLink")
+	core.AssertEqual(t, "new-target", got, "target")
+}
+
+func runReadLinkBridge(t *testing.T) {
+	t.Helper()
+	got, err := fs.ReadLink(oldLinkStub{target: "old-target"}, "link")
+	core.AssertMustNoError(t, err, "ReadLink")
+	core.AssertEqual(t, "old-target", got, "target")
+}
+
+func runReadLinkUnsupported(t *testing.T) {
+	t.Helper()
+	_, err := fs.ReadLink(bareStub{}, "link")
+	core.AssertError(t, err, "ReadLink")
+}
+
+// TestReadLink proves the proxy uses the standard interface, bridges the
+// deprecated single-method spelling, and errors when neither is present.
+func TestReadLink(t *testing.T) {
+	t.Run("standard", runReadLinkStandard)
+	t.Run("deprecated bridge", runReadLinkBridge)
+	t.Run("unsupported", runReadLinkUnsupported)
 }

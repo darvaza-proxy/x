@@ -75,8 +75,17 @@ type ReadDirFS = fs.ReadDirFS
 // ReadFileFS is an alias of the standard [fs.ReadFileFS] type.
 type ReadFileFS = fs.ReadFileFS
 
+// ReadLinkFS is an alias of the standard [fs.ReadLinkFS] type, the
+// interface implemented by a file system that supports reading symbolic
+// links through the [ReadLink] and [Lstat] proxies.
+type ReadLinkFS = fs.ReadLinkFS
+
 // ReadlinkFS is the interface implemented by a file system that
 // provides the functionality of [os.Readlink].
+//
+// Deprecated: use [ReadLinkFS], the alias of the standard
+// [fs.ReadLinkFS]. The [ReadLink] proxy still accepts a file system that
+// implements only this older single-method spelling.
 type ReadlinkFS interface {
 	FS
 	Readlink(path string) (string, error)

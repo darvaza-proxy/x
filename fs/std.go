@@ -82,6 +82,27 @@ func Stat(fSys fs.FS, name string) (fs.FileInfo, error) {
 	return fs.Stat(fSys, name)
 }
 
+// Lstat is a proxy to the standard [fs.Lstat] function which returns
+// [fs.FileInfo] about the given name without following a final symbolic
+// link. On a file system without link support it behaves as Stat.
+func Lstat(fSys fs.FS, name string) (fs.FileInfo, error) {
+	return fs.Lstat(fSys, name)
+}
+
+// ReadLink is a proxy to the standard [fs.ReadLink] function which
+// returns the destination of the named symbolic link. A file system
+// that implements only the deprecated [ReadlinkFS] spelling is accepted
+// too, so callers need not special-case it while implementations
+// migrate to the standard [ReadLinkFS].
+func ReadLink(fSys fs.FS, name string) (string, error) {
+	if _, ok := fSys.(ReadLinkFS); !ok {
+		if old, ok := fSys.(ReadlinkFS); ok {
+			return old.Readlink(name)
+		}
+	}
+	return fs.ReadLink(fSys, name)
+}
+
 // Sub is a proxy to the standard [fs.Sub] function
 // which returns a file system corresponding to the subtree
 // rooted at the given directory.

@@ -55,6 +55,7 @@ ones to gain parity with the `os` package.
 * `fs.GlobFS`
 * `fs.ReadDirFS`
 * `fs.ReadFileFS`
+* `fs.ReadLinkFS`
 * `fs.StatFS`
 * `fs.SubFS`
 
@@ -68,7 +69,7 @@ ones to gain parity with the `os` package.
 * `MkdirAllFS`
 * `MkdirTempFS`
 * `OpenFileFS`
-* `ReadlinkFS`
+* `ReadlinkFS` (deprecated: use the `fs.ReadLinkFS` alias)
 * `RemoveFS`
 * `RemoveAllFS`
 * `RenameFS`
@@ -133,8 +134,10 @@ Walk-control sentinels, returned from a `fs.WalkDirFunc`:
 * `fs.FileInfoToDirEntry`
 * `fs.FormatDirEntry`
 * `fs.FormatFileInfo`
+* `fs.Lstat`
 * `fs.ReadDir`
 * `fs.ReadFile`
+* `fs.ReadLink`
 * `fs.Stat`
 * `fs.Sub`
 * `fs.ValidPath`
