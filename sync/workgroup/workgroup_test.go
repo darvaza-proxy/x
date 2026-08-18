@@ -938,62 +938,133 @@ func runOneConcurrentCancelIteration(t *testing.T, i int) {
 }
 
 // concurrentCounts groups the atomic counters threaded through the
-// concurrent Go/Cancel stress test.
+// concurrent Go/Cancel stress test: accepted enrolments, the two ways a
+// task can end, and the number of tasks that reached their select.
 type concurrentCounts struct {
-	cancelled, completed atomic.Int32
+	accepted  atomic.Int32
+	cancelled atomic.Int32
+	expired   atomic.Int32
+	entered   atomic.Int32
 }
 
+// concurrentTaskBlock caps how long a stress-test task waits for
+// cancellation once inside its select, and how long the canceller waits
+// for a round of tasks to get there. Cancel fires within microseconds of
+// that round forming, so this bound only turns a broken Go or Cancel
+// into a failure instead of a hang; a healthy run never reaches it, and
+// the test asserts as much.
+const concurrentTaskBlock = 10 * time.Second
+
+// concurrentGoFixture carries the shared state of the concurrent Go/Cancel
+// stress test: the Group under test, the outcome counters, the ready
+// barrier that releases the canceller once cancelAfter tasks have reached
+// their selects, and the shape of the run, which is adders enrolling
+// workers with tasks each, plus one canceller.
+type concurrentGoFixture struct {
+	wg          *workgroup.Group
+	counts      *concurrentCounts
+	ready       chan struct{}
+	adders      int
+	tasks       int
+	cancelAfter int32
+}
+
+// task is the enrolled unit of work: it records arrival at its select,
+// closing ready when the cancelAfter round is complete, then blocks
+// until cancelled, or until the fallback fires.
+func (fx *concurrentGoFixture) task(ctx context.Context) {
+	if fx.counts.entered.Add(1) == fx.cancelAfter {
+		close(fx.ready)
+	}
+	select {
+	case <-ctx.Done():
+		fx.counts.cancelled.Add(1)
+	case <-time.After(concurrentTaskBlock):
+		fx.counts.expired.Add(1)
+	}
+}
+
+// enrol adds one task, recording it only when the Group accepts it. A
+// Go after cancellation is rejected and left uncounted.
+func (fx *concurrentGoFixture) enrol() {
+	if fx.wg.Go(fx.task) == nil {
+		fx.counts.accepted.Add(1)
+	}
+}
+
+// cancel waits for a round of tasks to reach their selects, then
+// cancels, so cancellation catches tasks in flight rather than depending
+// on a sleep landing mid-stream. A round that never forms is reported
+// as the canceller's failure instead of parking the test.
+func (fx *concurrentGoFixture) cancel() error {
+	select {
+	case <-fx.ready:
+	case <-time.After(concurrentTaskBlock):
+		return errors.New("no round of tasks reached its select")
+	}
+
+	fx.wg.Cancel(errors.New("concurrent cancellation"))
+	return nil
+}
+
+// worker is one RunConcurrentTest worker: the ids below adders enrol
+// tasks as fast as they can, and the last one is the canceller. Workers
+// need no start barrier; ready is what sequences the canceller.
+func (fx *concurrentGoFixture) worker(id int) error {
+	if id == fx.adders {
+		return fx.cancel()
+	}
+
+	for range fx.tasks {
+		fx.enrol()
+	}
+	return nil
+}
+
+// runTestConcurrentGoAndCancel races enrolment against cancellation:
+// several adders enrol tasks as fast as they can while one canceller
+// cancels the Group. The canceller waits until a round of tasks has
+// reached its select before firing, so cancellation is guaranteed to
+// reach tasks in flight; the outcome no longer turns on a sleep landing
+// mid-stream. It then asserts the accounting: every accepted task is
+// cancelled exactly once, and none waits out the fallback.
 func runTestConcurrentGoAndCancel(t *testing.T) {
 	t.Helper()
 	const numRoutines = 10
 	const tasksPerRoutine = 100
 
-	wg := workgroup.New(context.Background())
-	counts := &concurrentCounts{}
-
-	var startWg, endWg sync.WaitGroup
-	startWg.Add(numRoutines + 1)
-	endWg.Add(numRoutines + 1)
-
-	for range numRoutines {
-		go concurrentGoAdder(&startWg, &endWg, wg, tasksPerRoutine, counts)
+	fx := &concurrentGoFixture{
+		wg:     workgroup.New(context.Background()),
+		counts: &concurrentCounts{},
+		ready:  make(chan struct{}),
+		adders: numRoutines,
+		tasks:  tasksPerRoutine,
+		// Wait for a full round of tasks to reach their selects before
+		// cancelling. Reaching is enough: a task that enters its select
+		// after Cancel still takes ctx.Done, so timing cannot turn a
+		// cancelled task into an expired one.
+		cancelAfter: numRoutines,
 	}
-	go concurrentGoCanceller(&startWg, &endWg, wg)
 
-	endWg.Wait()
-	_ = wg.Wait()
+	err := core.RunConcurrentTest(t, numRoutines+1, fx.worker)
+	core.AssertNoError(t, err, "workers")
+	_ = fx.wg.Wait()
 
-	core.AssertTrue(t, counts.cancelled.Load() > 0, "some cancelled")
-	t.Logf("completed: %d, cancelled: %d",
-		counts.completed.Load(), counts.cancelled.Load())
-}
+	accepted := fx.counts.accepted.Load()
+	cancelled := fx.counts.cancelled.Load()
+	expired := fx.counts.expired.Load()
+	t.Logf("accepted: %d, cancelled: %d, expired: %d",
+		accepted, cancelled, expired)
 
-func concurrentGoAdder(start, end *sync.WaitGroup, wg *workgroup.Group,
-	n int, counts *concurrentCounts) {
-	defer end.Done()
-	start.Done()
-	start.Wait()
-
-	for range n {
-		_ = wg.Go(func(ctx context.Context) {
-			select {
-			case <-ctx.Done():
-				counts.cancelled.Add(1)
-			case <-time.After(10 * time.Millisecond):
-				counts.completed.Add(1)
-			}
-		})
-		time.Sleep(time.Millisecond)
-	}
-}
-
-func concurrentGoCanceller(start, end *sync.WaitGroup, wg *workgroup.Group) {
-	defer end.Done()
-	start.Done()
-	start.Wait()
-
-	time.Sleep(50 * time.Millisecond)
-	wg.Cancel(errors.New("concurrent cancellation"))
+	// Cancellation reaches the tasks in flight when it fires; the canceller
+	// waits for a round of them to reach their select, so this holds
+	// without depending on scheduler timing.
+	core.AssertTrue(t, cancelled > 0, "some cancelled")
+	// The fallback is a hang guard, not an outcome: no task waits it out.
+	core.AssertEqual(t, int32(0), expired, "expired")
+	// Every accepted task is cancelled exactly once, never lost nor
+	// double-counted, however Go and Cancel interleave.
+	core.AssertEqual(t, accepted, cancelled, "tasks cancelled")
 }
 
 func runTestConcurrentDoneChannels(t *testing.T) {
