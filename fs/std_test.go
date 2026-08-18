@@ -80,9 +80,9 @@ func newTreeFS(t *testing.T) fs.FS {
 // writeTreeFile creates dir (with parents) and writes content into name.
 func writeTreeFile(t *testing.T, dir, name, content string) {
 	t.Helper()
-	core.AssertMustNoError(t, os.MkdirAll(dir, 0o755), "mkdir %q", dir)
+	core.AssertMustNoError(t, os.MkdirAll(dir, 0o750), "mkdir %q", dir)
 	path := filepath.Join(dir, name)
-	core.AssertMustNoError(t, os.WriteFile(path, []byte(content), 0o644),
+	core.AssertMustNoError(t, os.WriteFile(path, []byte(content), 0o600),
 		"write %q", path)
 }
 
