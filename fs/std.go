@@ -11,6 +11,29 @@ type (
 	DirEntry = fs.DirEntry
 	// PathError is an alias of the standard [fs.PathError] type.
 	PathError = fs.PathError
+	// WalkDirFunc is an alias of the standard [fs.WalkDirFunc] type.
+	WalkDirFunc = fs.WalkDirFunc
+)
+
+// Aliases of the standard [fs.FileMode] mode bits, and their
+// combined type and permission masks.
+const (
+	ModeDir        = fs.ModeDir
+	ModeAppend     = fs.ModeAppend
+	ModeExclusive  = fs.ModeExclusive
+	ModeTemporary  = fs.ModeTemporary
+	ModeSymlink    = fs.ModeSymlink
+	ModeDevice     = fs.ModeDevice
+	ModeNamedPipe  = fs.ModeNamedPipe
+	ModeSocket     = fs.ModeSocket
+	ModeSetuid     = fs.ModeSetuid
+	ModeSetgid     = fs.ModeSetgid
+	ModeCharDevice = fs.ModeCharDevice
+	ModeSticky     = fs.ModeSticky
+	ModeIrregular  = fs.ModeIrregular
+
+	ModeType = fs.ModeType
+	ModePerm = fs.ModePerm
 )
 
 var (
@@ -24,6 +47,11 @@ var (
 	ErrNotExist = fs.ErrNotExist
 	// ErrClosed is an alias of the standard [fs.ErrClosed] constant.
 	ErrClosed = fs.ErrClosed
+
+	// SkipDir is an alias of the standard [fs.SkipDir] sentinel.
+	SkipDir = fs.SkipDir
+	// SkipAll is an alias of the standard [fs.SkipAll] sentinel.
+	SkipAll = fs.SkipAll
 )
 
 // ValidPath is a proxy to the standard [fs.ValidPath]
@@ -31,6 +59,13 @@ var (
 // for use in a call to Open().
 func ValidPath(name string) bool {
 	return fs.ValidPath(name)
+}
+
+// ReadDir is a proxy to the standard [fs.ReadDir] function
+// which attempts to read the named directory on the given file
+// system, returning its entries sorted by filename.
+func ReadDir(fSys fs.FS, name string) ([]fs.DirEntry, error) {
+	return fs.ReadDir(fSys, name)
 }
 
 // ReadFile is a proxy to the standard [fs.ReadFile] function
@@ -45,4 +80,60 @@ func ReadFile(fSys fs.FS, name string) ([]byte, error) {
 // name on the given file system.
 func Stat(fSys fs.FS, name string) (fs.FileInfo, error) {
 	return fs.Stat(fSys, name)
+}
+
+// Lstat is a proxy to the standard [fs.Lstat] function which returns
+// [fs.FileInfo] about the given name without following a final symbolic
+// link. On a file system without link support it behaves as Stat.
+func Lstat(fSys fs.FS, name string) (fs.FileInfo, error) {
+	return fs.Lstat(fSys, name)
+}
+
+// ReadLink is a proxy to the standard [fs.ReadLink] function which
+// returns the destination of the named symbolic link. A file system
+// that implements only the deprecated [ReadlinkFS] spelling is accepted
+// too, so callers need not special-case it while implementations
+// migrate to the standard [ReadLinkFS].
+func ReadLink(fSys fs.FS, name string) (string, error) {
+	if _, ok := fSys.(ReadLinkFS); !ok {
+		if old, ok := fSys.(ReadlinkFS); ok {
+			return old.Readlink(name)
+		}
+	}
+	return fs.ReadLink(fSys, name)
+}
+
+// Sub is a proxy to the standard [fs.Sub] function
+// which returns a file system corresponding to the subtree
+// rooted at the given directory.
+func Sub(fSys fs.FS, dir string) (fs.FS, error) {
+	return fs.Sub(fSys, dir)
+}
+
+// WalkDir is a proxy to the standard [fs.WalkDir] function
+// which walks the file tree rooted at the given directory,
+// calling fn for each file or directory in the tree.
+func WalkDir(fSys fs.FS, root string, fn fs.WalkDirFunc) error {
+	return fs.WalkDir(fSys, root, fn)
+}
+
+// FileInfoToDirEntry is a proxy to the standard
+// [fs.FileInfoToDirEntry] function which returns a [fs.DirEntry]
+// reporting the given [fs.FileInfo].
+func FileInfoToDirEntry(info fs.FileInfo) fs.DirEntry {
+	return fs.FileInfoToDirEntry(info)
+}
+
+// FormatDirEntry is a proxy to the standard [fs.FormatDirEntry]
+// function which returns a formatted version of the given
+// [fs.DirEntry] for human readability.
+func FormatDirEntry(dir fs.DirEntry) string {
+	return fs.FormatDirEntry(dir)
+}
+
+// FormatFileInfo is a proxy to the standard [fs.FormatFileInfo]
+// function which returns a formatted version of the given
+// [fs.FileInfo] for human readability.
+func FormatFileInfo(info fs.FileInfo) string {
+	return fs.FormatFileInfo(info)
 }

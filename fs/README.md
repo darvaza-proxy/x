@@ -55,17 +55,21 @@ ones to gain parity with the `os` package.
 * `fs.GlobFS`
 * `fs.ReadDirFS`
 * `fs.ReadFileFS`
+* `fs.ReadLinkFS`
 * `fs.StatFS`
 * `fs.SubFS`
 
 ### New
 
 * `ChmodFS`
+* `ChownFS`
 * `ChtimesFS`
+* `CreateFS`
 * `MkdirFS`
 * `MkdirAllFS`
 * `MkdirTempFS`
-* `ReadlinkFS`
+* `OpenFileFS`
+* `ReadlinkFS` (deprecated: use the `fs.ReadLinkFS` alias)
 * `RemoveFS`
 * `RemoveAllFS`
 * `RenameFS`
@@ -76,6 +80,7 @@ ones to gain parity with the `os` package.
 
 * `fs.File`
 * `fs.ReadDirFile`
+* `WriterFile`
 
 ## Proxies
 
@@ -86,20 +91,57 @@ include aliases and proxies of commonly used symbols.
 
 * `fs.FileInfo`
 * `fs.FileMode`
-* `fs.DirInfo`
+* `fs.DirEntry`
 * `fs.PathError`
+* `fs.WalkDirFunc`
 
 ### Constants
 
+Standard error sentinels:
+
 * `fs.ErrInvalid`
 * `fs.ErrPermission`
-* `fs.ErrExists`
-* `fs.ErrNotExists`
+* `fs.ErrExist`
+* `fs.ErrNotExist`
 * `fs.ErrClosed`
+
+The `fs.FileMode` bits, with the combined `fs.ModeType` and `fs.ModePerm`
+masks:
+
+* `fs.ModeDir`
+* `fs.ModeAppend`
+* `fs.ModeExclusive`
+* `fs.ModeTemporary`
+* `fs.ModeSymlink`
+* `fs.ModeDevice`
+* `fs.ModeNamedPipe`
+* `fs.ModeSocket`
+* `fs.ModeSetuid`
+* `fs.ModeSetgid`
+* `fs.ModeCharDevice`
+* `fs.ModeSticky`
+* `fs.ModeIrregular`
+* `fs.ModeType`
+* `fs.ModePerm`
+
+Walk-control sentinels, returned from a `fs.WalkDirFunc`:
+
+* `fs.SkipDir`
+* `fs.SkipAll`
 
 ### Functions
 
+* `fs.FileInfoToDirEntry`
+* `fs.FormatDirEntry`
+* `fs.FormatFileInfo`
+* `fs.Lstat`
+* `fs.ReadDir`
+* `fs.ReadFile`
+* `fs.ReadLink`
+* `fs.Stat`
+* `fs.Sub`
 * `fs.ValidPath`
+* `fs.WalkDir`
 
 ## File Locking
 

@@ -11,6 +11,14 @@ type File = fs.File
 // ReadDirFile is an alias of the standard [fs.ReadDirFile] interface.
 type ReadDirFile = fs.ReadDirFile
 
+// WriterFile is a [File] that also implements [io.Writer], matching
+// the method set of [os.File] as returned by [os.Create] and
+// [os.OpenFile].
+type WriterFile interface {
+	File
+	io.Writer
+}
+
 var (
 	_ fs.File       = (*ClosedFile)(nil)
 	_ io.ReadSeeker = (*ClosedFile)(nil)

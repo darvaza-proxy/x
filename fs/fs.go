@@ -16,11 +16,25 @@ type ChmodFS interface {
 	Chmod(path string, mode FileMode) error
 }
 
+// ChownFS is the interface implemented by a file system that
+// provides the functionality of [os.Chown].
+type ChownFS interface {
+	FS
+	Chown(path string, uid, gid int) error
+}
+
 // ChtimesFS is the interface implemented by a file system that
 // provides the functionality of [os.Chtimes].
 type ChtimesFS interface {
 	FS
 	Chtimes(path string, atime, mtime time.Time) error
+}
+
+// CreateFS is the interface implemented by a file system that
+// provides the functionality of [os.Create].
+type CreateFS interface {
+	FS
+	Create(path string) (WriterFile, error)
 }
 
 // GlobFS is an alias of the standard [fs.GlobFS] interface.
@@ -41,10 +55,18 @@ type MkdirAllFS interface {
 }
 
 // MkdirTempFS is the interface implemented by a file system that
-// provides the functionality of [os.MkdirTemp].
+// provides the functionality of [os.MkdirTemp], returning the name
+// of the directory it created.
 type MkdirTempFS interface {
 	FS
-	MkdirTemp(dir string, pattern string) error
+	MkdirTemp(dir string, pattern string) (string, error)
+}
+
+// OpenFileFS is the interface implemented by a file system that
+// provides the functionality of [os.OpenFile].
+type OpenFileFS interface {
+	FS
+	OpenFile(path string, flag int, perm FileMode) (WriterFile, error)
 }
 
 // ReadDirFS is an alias of the standard [fs.ReadDirFS] type.
@@ -53,8 +75,17 @@ type ReadDirFS = fs.ReadDirFS
 // ReadFileFS is an alias of the standard [fs.ReadFileFS] type.
 type ReadFileFS = fs.ReadFileFS
 
+// ReadLinkFS is an alias of the standard [fs.ReadLinkFS] type, the
+// interface implemented by a file system that supports reading symbolic
+// links through the [ReadLink] and [Lstat] proxies.
+type ReadLinkFS = fs.ReadLinkFS
+
 // ReadlinkFS is the interface implemented by a file system that
 // provides the functionality of [os.Readlink].
+//
+// Deprecated: use [ReadLinkFS], the alias of the standard
+// [fs.ReadLinkFS]. The [ReadLink] proxy still accepts a file system that
+// implements only this older single-method spelling.
 type ReadlinkFS interface {
 	FS
 	Readlink(path string) (string, error)
