@@ -22,9 +22,9 @@ var (
 	_ error          = fs.SkipAll
 )
 
-// Pin the aliased mode bits as constants: shamash relies on their
-// constant-ness to fold them into a constant expression, so a slip to a
-// var would break downstream builds rather than these tests.
+// Pin the aliased mode bits as constants: a consumer folding them into a
+// constant expression relies on their constant-ness, so a slip to a var
+// would break downstream builds rather than these tests.
 const _ fs.FileMode = fs.ModeDir | fs.ModeAppend | fs.ModeExclusive |
 	fs.ModeTemporary | fs.ModeSymlink | fs.ModeDevice |
 	fs.ModeNamedPipe | fs.ModeSocket | fs.ModeSetuid |
@@ -343,7 +343,7 @@ func runWalkDirSkip(t *testing.T) {
 
 func TestWalkDir(t *testing.T) {
 	t.Run("full", runWalkDirFull)
-	t.Run("skipdir", runWalkDirSkip)
+	t.Run("SkipDir", runWalkDirSkip)
 }
 
 // TestFileInfoToDirEntry proves the conversion proxy keeps name and kind.
