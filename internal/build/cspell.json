@@ -98,6 +98,8 @@
     "scsv",
     "scts",
     "seekable",
+    "Setgid",
+    "Setuid",
     "shellcheck",
     "Shutdowner",
     "Signaled",
