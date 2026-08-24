@@ -627,9 +627,9 @@ func runTestMatchEqFn2WithCustomStruct(t *testing.T) {
 		return a.age == b.age
 	}
 
-	p1 := person{"Alice", 30}
-	p2 := person{"Bob", 30}
-	p3 := person{"Charlie", 25}
+	p1 := person{nameAlice, 30}
+	p2 := person{nameBob, 30}
+	p3 := person{nameCharlie, 25}
 
 	matchAge30 := MatchEqFn2(p1, sameAge)
 
