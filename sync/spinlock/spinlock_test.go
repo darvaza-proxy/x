@@ -177,18 +177,15 @@ func TestSpinLock_Concurrent(t *testing.T) {
 	const iterations = 1000
 
 	var wg sync.WaitGroup
-	wg.Add(goroutines)
 
 	for range goroutines {
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			for range iterations {
 				sl.Lock()
 				counter++
 				sl.Unlock()
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -261,13 +258,11 @@ func TestSpinLock_TryLockConcurrent(t *testing.T) {
 	const iterations = 200
 
 	var wg sync.WaitGroup
-	wg.Add(goroutines)
 
 	for range goroutines {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			stats.run(iterations)
-		}()
+		})
 	}
 
 	wg.Wait()
