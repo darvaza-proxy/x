@@ -61,10 +61,10 @@ func runTestComposeStructFields(t *testing.T) {
 	)
 
 	tests := []composeTestCase[Person]{
-		newComposeTestCase("adult", Person{"Alice", 30}, true, isAdult),
-		newComposeTestCase("child", Person{"Bob", 12}, false, isAdult),
-		newComposeTestCase("exact boundary", Person{"Charlie", 18}, true, isAdult),
-		newComposeTestCase("just under boundary", Person{"David", 17}, false, isAdult),
+		newComposeTestCase("adult", Person{nameAlice, 30}, true, isAdult),
+		newComposeTestCase("child", Person{nameBob, 12}, false, isAdult),
+		newComposeTestCase("exact boundary", Person{nameCharlie, 18}, true, isAdult),
+		newComposeTestCase("just under boundary", Person{nameDavid, 17}, false, isAdult),
 	}
 
 	core.RunTestCases(t, tests)
@@ -78,8 +78,8 @@ func runTestComposeStructFields(t *testing.T) {
 	)
 
 	nameTests := []composeTestCase[Person]{
-		newComposeTestCase("starts with A", Person{"Alice", 30}, true, nameStartsWithA),
-		newComposeTestCase("starts with different letter", Person{"Bob", 25}, false, nameStartsWithA),
+		newComposeTestCase("starts with A", Person{nameAlice, 30}, true, nameStartsWithA),
+		newComposeTestCase("starts with different letter", Person{nameBob, 25}, false, nameStartsWithA),
 		newComposeTestCase("empty name", Person{"", 20}, false, nameStartsWithA),
 	}
 
@@ -169,25 +169,25 @@ func runTestComposeNested(t *testing.T) {
 	tests := []composeTestCase[Person]{
 		newComposeTestCase(
 			"from new city",
-			newPerson("Alice", 30, newAddress("123 Broadway", "New York", "10001")),
+			newPerson(nameAlice, 30, newAddress("123 Broadway", "New York", "10001")),
 			true,
 			isFromNewCity,
 		),
 		newComposeTestCase(
 			"from another new city",
-			newPerson("Bob", 25, newAddress("456 Main St", "New Orleans", "70112")),
+			newPerson(nameBob, 25, newAddress("456 Main St", "New Orleans", "70112")),
 			true,
 			isFromNewCity,
 		),
 		newComposeTestCase(
 			"not from new city",
-			newPerson("Charlie", 40, newAddress("789 Oak Dr", "Boston", "02108")),
+			newPerson(nameCharlie, 40, newAddress("789 Oak Dr", "Boston", "02108")),
 			false,
 			isFromNewCity,
 		),
 		newComposeTestCase(
 			"empty city",
-			newPerson("David", 22, newAddress("101 Pine Ave", "", "90210")),
+			newPerson(nameDavid, 22, newAddress("101 Pine Ave", "", "90210")),
 			false,
 			isFromNewCity,
 		),
