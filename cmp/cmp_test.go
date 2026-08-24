@@ -313,9 +313,9 @@ func runTestEqFn2CustomStruct(t *testing.T) {
 		return a.age == b.age
 	}
 
-	p1 := person{"Alice", 30}
-	p2 := person{"Bob", 30}
-	p3 := person{"Charlie", 25}
+	p1 := person{nameAlice, 30}
+	p2 := person{nameBob, 30}
+	p3 := person{nameCharlie, 25}
 
 	core.AssertTrue(t, EqFn2(p1, p2, sameAge), "same age")
 	core.AssertFalse(t, EqFn2(p1, p3, sameAge), "different age")
