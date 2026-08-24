@@ -296,16 +296,14 @@ func runTestConcurrentWriters(t *testing.T) {
 	const numGoroutines, iterations = 10, 100
 
 	var wg sync.WaitGroup
-	wg.Add(numGoroutines)
 	for range numGoroutines {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range iterations {
 				s.Lock()
 				count++
 				s.Unlock()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -319,21 +317,18 @@ func runTestConcurrentReadersWriters(t *testing.T) {
 	const numReaders, numWriters, iterations = 10, 5, 50
 
 	var wg sync.WaitGroup
-	wg.Add(numReaders + numWriters)
 	for range numReaders {
-		go runReaderLoop(&wg, s, &counter, iterations)
+		wg.Go(func() { runReaderLoop(s, &counter, iterations) })
 	}
 	for range numWriters {
-		go runWriterLoop(&wg, s, &counter, iterations)
+		wg.Go(func() { runWriterLoop(s, &counter, iterations) })
 	}
 	wg.Wait()
 
 	core.AssertEqual(t, numWriters*iterations, counter, "writer increments")
 }
 
-func runReaderLoop(wg *sync.WaitGroup, s *semaphore.Semaphore, counter *int,
-	iterations int) {
-	defer wg.Done()
+func runReaderLoop(s *semaphore.Semaphore, counter *int, iterations int) {
 	for range iterations {
 		s.RLock()
 		_ = *counter
@@ -342,9 +337,7 @@ func runReaderLoop(wg *sync.WaitGroup, s *semaphore.Semaphore, counter *int,
 	}
 }
 
-func runWriterLoop(wg *sync.WaitGroup, s *semaphore.Semaphore, counter *int,
-	iterations int) {
-	defer wg.Done()
+func runWriterLoop(s *semaphore.Semaphore, counter *int, iterations int) {
 	for range iterations {
 		s.Lock()
 		*counter++
@@ -581,18 +574,16 @@ func TestSemaphore_Stress(t *testing.T) {
 	const numWorkers, iterations = 20, 500
 
 	var wg sync.WaitGroup
-	wg.Add(numWorkers)
 
 	counter := 0
 	var counterMutex sync.Mutex
 
 	for i := range numWorkers {
-		go func(id int) {
-			defer wg.Done()
+		wg.Go(func() {
 			for j := range iterations {
-				performOperation(s, (id+j)%6, &counter, &counterMutex)
+				performOperation(s, (i+j)%6, &counter, &counterMutex)
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 
