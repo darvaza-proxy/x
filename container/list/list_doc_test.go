@@ -89,9 +89,10 @@ func ExampleList_DeleteMatchFn() {
 func ExampleList_FirstMatchFn() {
 	l := list.New(1, 2, 3, 4, 5)
 	// Find first even number
-	if v, ok := l.FirstMatchFn(func(n int) bool {
+	v, ok := l.FirstMatchFn(func(n int) bool {
 		return n%2 == 0
-	}); ok {
+	})
+	if ok {
 		printLn("First even:", v)
 	}
 	// Output: First even: 2
