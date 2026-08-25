@@ -79,10 +79,7 @@ func (tc readPEMTestCase) Test(t *testing.T) {
 }
 
 func readPEMTestCases() []readPEMTestCase {
-	block := string(pem.EncodeToMemory(&pem.Block{
-		Type:  "TEST BLOCK",
-		Bytes: []byte("test data"),
-	}))
+	block := string(testPEM())
 
 	return core.S(
 		newReadPEMTestCase("empty input", "", x509utils.ErrEmpty, 0),
@@ -136,10 +133,7 @@ func (tc readStringPEMTestCase) Test(t *testing.T) {
 func readStringPEMTestCases(t *testing.T) []readStringPEMTestCase {
 	t.Helper()
 
-	block := string(pem.EncodeToMemory(&pem.Block{
-		Type:  "TEST BLOCK",
-		Bytes: []byte("test data"),
-	}))
+	block := string(testPEM())
 	missing := filepath.Join(t.TempDir(), "missing.pem")
 
 	return core.S(
@@ -202,10 +196,7 @@ func TestReadStringPEMDirsDisabled(t *testing.T) {
 // TestReadPEMAbort stops the walk when the callback returns false, leaving the
 // remaining blocks undelivered.
 func TestReadPEMAbort(t *testing.T) {
-	block := pem.EncodeToMemory(&pem.Block{
-		Type:  "TEST BLOCK",
-		Bytes: []byte("test data"),
-	})
+	block := testPEM()
 
 	var got int
 	cb := func(_ fs.FS, _ string, _ *pem.Block) bool {
