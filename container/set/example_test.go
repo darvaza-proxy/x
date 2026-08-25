@@ -175,9 +175,9 @@ func ExampleSet_Copy() {
 	}
 
 	users, _ := cfg.New(
-		User{ID: 1, Name: "Alice"},
-		User{ID: 2, Name: "Bob"},
-		User{ID: 3, Name: "Charlie"},
+		User{ID: 1, Name: "Erin"},
+		User{ID: 2, Name: "Frank"},
+		User{ID: 3, Name: "Grace"},
 		User{ID: 4, Name: "Diana"},
 	)
 
@@ -201,7 +201,7 @@ func ExampleSet_Copy() {
 	printLn()
 
 	// Output:
-	// Even users: Bob Diana
+	// Even users: Diana Frank
 }
 
 func ExampleSet_Clone() {
