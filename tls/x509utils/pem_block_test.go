@@ -47,6 +47,19 @@ func mkX25519Key(t *testing.T) *ecdh.PrivateKey {
 	return key
 }
 
+// keyBlock labels DER bytes as a "PRIVATE KEY" block. The bytes are not
+// checked, so rows covering the parse-error and wrong-type arms pass
+// malformed or absent DER.
+func keyBlock(der []byte) *pem.Block {
+	return &pem.Block{Type: "PRIVATE KEY", Bytes: der}
+}
+
+// certBlock labels DER bytes as a "CERTIFICATE" block, on the same terms as
+// [keyBlock].
+func certBlock(der []byte) *pem.Block {
+	return &pem.Block{Type: "CERTIFICATE", Bytes: der}
+}
+
 // pkcs1Block wraps an RSA key as a PKCS1 "RSA PRIVATE KEY" block.
 func pkcs1Block(t *testing.T, key *rsa.PrivateKey) *pem.Block {
 	t.Helper()
@@ -59,7 +72,7 @@ func pkcs8Block(t *testing.T, key crypto.PrivateKey) *pem.Block {
 	t.Helper()
 	der, err := x509.MarshalPKCS8PrivateKey(key)
 	core.AssertMustNoError(t, err, "marshal PKCS8")
-	return &pem.Block{Type: "PRIVATE KEY", Bytes: der}
+	return keyBlock(der)
 }
 
 // sec1Block wraps an ECDSA key as a SEC1 "EC PRIVATE KEY" block.
@@ -127,7 +140,7 @@ func blockToPrivateKeyTestCases(t *testing.T) []blockToPrivateKeyTestCase {
 		newBlockToPrivateKeyTestCase("X25519 PKCS8 unsupported",
 			pkcs8Block(t, mkX25519Key(t)), nil, x509utils.ErrNotSupported),
 		newBlockToPrivateKeyTestCase("certificate block",
-			&pem.Block{Type: "CERTIFICATE"}, nil, x509utils.ErrIgnored),
+			certBlock(nil), nil, x509utils.ErrIgnored),
 	)
 }
 
@@ -139,10 +152,7 @@ func TestBlockToPrivateKey(t *testing.T) {
 // a PRIVATE KEY block whose bytes are rejected by the PKCS1, SEC1 and PKCS8
 // decoders in turn surfaces x509's parse error.
 func TestBlockToPrivateKeyMalformed(t *testing.T) {
-	got, err := x509utils.BlockToPrivateKey(&pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: []byte("not der"),
-	})
+	got, err := x509utils.BlockToPrivateKey(keyBlock([]byte("not der")))
 	core.AssertError(t, err, "parse error")
 	core.AssertNil(t, got, "key")
 }
@@ -207,9 +217,9 @@ func blockToCertificateTestCases(t *testing.T) []blockToCertificateTestCase {
 
 	return core.S(
 		newBlockToCertificateTestCase("certificate",
-			&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}, cert, nil),
+			certBlock(cert.Raw), cert, nil),
 		newBlockToCertificateTestCase("wrong type",
-			&pem.Block{Type: "PRIVATE KEY"}, nil, x509utils.ErrIgnored),
+			keyBlock(nil), nil, x509utils.ErrIgnored),
 	)
 }
 
@@ -220,10 +230,7 @@ func TestBlockToCertificate(t *testing.T) {
 // TestBlockToCertificateMalformed covers the parse-error arm: a CERTIFICATE
 // block whose bytes are not valid DER surfaces x509's parse error.
 func TestBlockToCertificateMalformed(t *testing.T) {
-	got, err := x509utils.BlockToCertificate(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: []byte("not der"),
-	})
+	got, err := x509utils.BlockToCertificate(certBlock([]byte("not der")))
 	core.AssertError(t, err, "parse error")
 	core.AssertNil(t, got, "cert")
 }
