@@ -10,6 +10,14 @@ import (
 	"darvaza.org/x/net/reconnect"
 )
 
+// Remote addresses the Config scenarios dial. The address is incidental
+// to what each scenario asserts.
+const (
+	remoteTCP     = "example.com:8080"
+	remoteUnix    = "/var/run/app.sock"
+	remoteInvalid = "invalid-remote"
+)
+
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = validateRemoteTestCase{}
 
@@ -84,7 +92,7 @@ func runTestConfigValidValidConfig(t *testing.T) {
 	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
-		Remote:  "example.com:8080",
+		Remote:  remoteTCP,
 	}
 	err := cfg.SetDefaults()
 	core.AssertNoError(t, err, "set defaults")
@@ -97,7 +105,7 @@ func runTestConfigValidInvalidRemote(t *testing.T) {
 	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
-		Remote:  "invalid-remote",
+		Remote:  remoteInvalid,
 	}
 	err := cfg.SetDefaults()
 	core.AssertNoError(t, err, "set defaults")
@@ -109,7 +117,7 @@ func runTestConfigValidInvalidRemote(t *testing.T) {
 func runTestConfigValidMissingContext(t *testing.T) {
 	t.Helper()
 	cfg := &reconnect.Config{
-		Remote: "example.com:8080",
+		Remote: remoteTCP,
 	}
 	err := cfg.SetDefaults()
 	core.AssertNoError(t, err, "set defaults")
@@ -124,7 +132,7 @@ func runTestConfigValidMissingLogger(t *testing.T) {
 	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
-		Remote:  "example.com:8080",
+		Remote:  remoteTCP,
 	}
 	err := cfg.SetDefaults()
 	core.AssertNoError(t, err, "set defaults")
@@ -139,7 +147,7 @@ func runTestConfigValidMissingWaitReconnect(t *testing.T) {
 	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
-		Remote:  "example.com:8080",
+		Remote:  remoteTCP,
 	}
 	err := cfg.SetDefaults()
 	core.AssertNoError(t, err, "set defaults")
@@ -162,7 +170,7 @@ func runTestNewValidConfig(t *testing.T) {
 	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
-		Remote:  "example.com:8080",
+		Remote:  remoteTCP,
 	}
 
 	client, err := reconnect.New(cfg)
@@ -174,7 +182,7 @@ func runTestNewUnixSocketConfig(t *testing.T) {
 	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
-		Remote:  "/var/run/app.sock",
+		Remote:  remoteUnix,
 	}
 
 	client, err := reconnect.New(cfg)
@@ -186,7 +194,7 @@ func runTestNewInvalidConfig(t *testing.T) {
 	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
-		Remote:  "invalid-remote",
+		Remote:  remoteInvalid,
 	}
 
 	client, err := reconnect.New(cfg)
