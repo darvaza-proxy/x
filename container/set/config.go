@@ -1,8 +1,6 @@
 package set
 
 import (
-	"reflect"
-
 	"darvaza.org/core"
 )
 
@@ -59,36 +57,20 @@ func (cfg Config[K, H, T]) Must(items ...T) *Set[K, H, T] {
 	return core.Must(cfg.New(items...))
 }
 
-// Equal determines if two Config instances use exactly the same callback functions
-// by comparing their memory addresses using reflection. This is used to optimize
-// Set operations like Copy() when configs are identical.
+// Equal determines if two Config instances use the same callback functions,
+// as [core.IsSame] sees them. This is used to optimize Set operations like
+// Copy() when configs are identical.
 //
 // Equal isn't cheap but it saves Copy() from performing unnecessary rehashing.
 func (cfg Config[K, H, T]) Equal(other Config[K, H, T]) bool {
 	switch {
-	case !equalFuncPointer(cfg.Hash, other.Hash):
+	case !core.IsSame(cfg.Hash, other.Hash):
 		return false
-	case !equalFuncPointer(cfg.ItemKey, other.ItemKey):
+	case !core.IsSame(cfg.ItemKey, other.ItemKey):
 		return false
-	case !equalFuncPointer(cfg.ItemMatch, other.ItemMatch):
+	case !core.IsSame(cfg.ItemMatch, other.ItemMatch):
 		return false
 	default:
 		return true
-	}
-}
-
-func equalFuncPointer[T any](f1, f2 T) bool {
-	v1 := reflect.ValueOf(f1)
-	v2 := reflect.ValueOf(f2)
-	nil1 := v1.IsNil()
-	nil2 := v2.IsNil()
-
-	switch {
-	case nil1 && nil2:
-		return true
-	case nil1, nil2:
-		return false
-	default:
-		return v1.Pointer() == v2.Pointer()
 	}
 }
