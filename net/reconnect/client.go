@@ -87,17 +87,19 @@ func (c *Client) Connect() error {
 	// value the run spawn below returns. ErrClosed wraps the group's
 	// errors.ErrClosed, so it satisfies a caller matching either; the
 	// bare err would only match the latter.
-	if err := c.wg.Go(func(ctx context.Context) {
+	err = c.wg.Go(func(ctx context.Context) {
 		<-ctx.Done()
 		c.closeConn()
-	}); err != nil {
+	})
+	if err != nil {
 		unsafeClose(conn)
 		return ErrClosed
 	}
 
-	if err := c.wg.Go(func(context.Context) {
+	err = c.wg.Go(func(context.Context) {
 		c.run(conn)
-	}); err != nil {
+	})
+	if err != nil {
 		// a concurrent Shutdown/terminate cancelled the group between
 		// the dial and the spawn; don't leak the freshly dialled
 		// connection, and report the client is shut down rather than
