@@ -178,10 +178,11 @@ func (s *StreamSession[_, _]) Spawn() error {
 // watcher cannot be enrolled, so run is never started and kill closes
 // the resource directly.
 func (s *StreamSession[_, _]) goWithKill(run WorkerFunc, kill func() error) {
-	if err := s.wg.Go(func(ctx context.Context) {
+	err := s.wg.Go(func(ctx context.Context) {
 		<-ctx.Done()
 		_ = kill()
-	}); err != nil {
+	})
+	if err != nil {
 		_ = kill()
 		return
 	}
