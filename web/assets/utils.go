@@ -119,32 +119,26 @@ func tryReadSeeker(v any) (fs.ReadSeeker, bool) {
 }
 
 func tryStat(v any) (fs.FileInfo, bool) {
-	if f, ok := v.(interface {
-		Stat() (fs.FileInfo, error)
-	}); ok {
+	switch f := v.(type) {
+	case Stater:
 		fi, err := f.Stat()
 		return fi, fi != nil && err == nil
-	}
-
-	if f, ok := v.(interface {
-		Info() (fs.FileInfo, error)
-	}); ok {
+	case Infoer:
 		fi, err := f.Info()
 		return fi, fi != nil && err == nil
+	default:
+		return nil, false
 	}
-
-	return nil, false
 }
 
 func tryModTime(v any) (time.Time, bool) {
-	var modTime time.Time
-	if f, ok := v.(interface {
-		ModTime() time.Time
-	}); ok {
-		modTime = f.ModTime()
+	switch f := v.(type) {
+	case ModTimer:
+		modTime := f.ModTime()
+		return modTime, !modTime.IsZero()
+	default:
+		return time.Time{}, false
 	}
-
-	return modTime, !modTime.IsZero()
 }
 
 func getModTime(v any) (time.Time, bool) {
