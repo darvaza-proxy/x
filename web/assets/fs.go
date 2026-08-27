@@ -3,6 +3,7 @@ package assets
 import (
 	"embed"
 	"net/http"
+	"time"
 
 	"darvaza.org/core"
 	"darvaza.org/x/fs"
@@ -54,6 +55,27 @@ type ETagsSetterFS interface {
 	fs.FS
 
 	SetETags(string, ...string) ([]string, error)
+}
+
+// Stater is implemented by a file able to describe itself. It is
+// narrower than [fs.File], which also requires Read and Close.
+type Stater interface {
+	Stat() (fs.FileInfo, error)
+}
+
+// Infoer is implemented by a directory entry able to describe the file
+// it names. It is narrower than [fs.DirEntry], which also requires
+// Name, IsDir and Type.
+type Infoer interface {
+	Info() (fs.FileInfo, error)
+}
+
+// ModTimer is implemented by a value that declares when it was last
+// modified, enabling Last-Modified and conditional requests. It is
+// narrower than [fs.FileInfo], which also requires Name, Size, Mode,
+// IsDir and Sys.
+type ModTimer interface {
+	ModTime() time.Time
 }
 
 // NewFS creates a new assets [FS] from the given [fs.FS], optional root, and an
