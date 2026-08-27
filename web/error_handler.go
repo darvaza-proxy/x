@@ -100,13 +100,9 @@ func getAsErrorCode(err error, code int) int {
 
 func getAsErrorHeaders(err error) http.Header {
 	switch v := err.(type) {
-	case interface {
-		Header() http.Header
-	}:
+	case HeaderProvider:
 		return v.Header().Clone()
-	case interface {
-		Headers() http.Header
-	}:
+	case HeadersProvider:
 		return v.Headers().Clone()
 	default:
 		return nil
