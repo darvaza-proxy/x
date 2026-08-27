@@ -69,7 +69,7 @@ func BestQuality(supported []string, ql QualityList) (string, float32, bool) {
 
 	for _, s := range supported {
 		q, err := ParseQualityValue(s)
-		if err != nil {
+		if err == nil {
 			sql = append(sql, q)
 		}
 	}
@@ -79,32 +79,50 @@ func BestQuality(supported []string, ql QualityList) (string, float32, bool) {
 
 // BestQualityWithIdentity searches for the best option among supported values
 // based on the provided QualityList, but gives special treatment to an
-// identity option which is used if it's the best or if nothing was chosen but
-// the identity isn't explicitly forbidden
+// identity option which is used if it's the best, or if nothing was chosen
+// and the list doesn't refuse it. Following [RFC 9110], an identity the list
+// doesn't mention is acceptable; only an entry matching it with a zero
+// quality refuses it.
+//
+// [RFC 9110]: https://www.rfc-editor.org/rfc/rfc9110.html#section-12.5.3
 func BestQualityWithIdentity(supported []string,
 	ql QualityList, identity string) (string, float32, bool) {
 	// pick the best supported match
 	bestOption, bestQuality, _ := BestQuality(supported, ql)
 
-	if identity != "" {
-		// test for identity
-		fitness, quality := FitnessAndQuality(identity, ql)
-		switch {
-		case quality > bestQuality:
-			// identity is best
-		case bestOption == "" && fitness >= 0:
-			// nothing chosen, but identity wasn't forbidden
-		default:
-			// no luck with the identity
-			goto done
-		}
+	bestOption, bestQuality = withIdentity(ql, identity,
+		bestOption, bestQuality)
 
-		bestOption = identity
-		bestQuality = quality
+	return bestOption, bestQuality, bestOption != ""
+}
+
+// withIdentity decides whether the identity option supersedes the best
+// supported match found so far. An empty identity means no fallback was
+// offered.
+func withIdentity(ql QualityList, identity, bestOption string,
+	bestQuality float32) (string, float32) {
+	//
+	if identity == "" {
+		return bestOption, bestQuality
 	}
 
-done:
-	return bestOption, bestQuality, bestOption != ""
+	fitness, quality := FitnessAndQuality(identity, ql)
+
+	switch {
+	case quality > bestQuality:
+		// the identity is the best match
+		return identity, quality
+	case bestOption != "":
+		// a supported value was chosen instead
+		return bestOption, bestQuality
+	case fitness >= 0:
+		// nothing chosen, and the list matches the identity at zero
+		// quality, refusing it
+		return bestOption, bestQuality
+	default:
+		// nothing chosen, and the list doesn't mention the identity
+		return identity, MaximumQuality
+	}
 }
 
 // BestEncoding chooses the best supported compression option considering
