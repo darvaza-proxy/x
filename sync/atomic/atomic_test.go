@@ -78,14 +78,12 @@ func TestBitmaskOrConcurrent(t *testing.T) {
 	var changedCount atomic.Int32
 	var wg sync.WaitGroup
 
-	wg.Add(n)
 	for i := range n {
-		go func(bit int) {
-			defer wg.Done()
-			if _, changed := atomic.BitmaskOr(&p, uint32(1)<<bit); changed {
+		wg.Go(func() {
+			if _, changed := atomic.BitmaskOr(&p, uint32(1)<<i); changed {
 				changedCount.Add(1)
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 
@@ -145,12 +143,11 @@ func TestUpdateMaxConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 
 	results := make([]int32, n)
-	wg.Add(n)
 	for i := range n {
-		go func(v int32) {
-			defer wg.Done()
+		wg.Go(func() {
+			v := int32(i)
 			results[v] = atomic.UpdateMax(&p, v)
-		}(int32(i))
+		})
 	}
 	wg.Wait()
 

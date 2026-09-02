@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"darvaza.org/x/web"
 	"darvaza.org/x/web/consts"
 	"darvaza.org/x/web/qlist"
 )
@@ -120,9 +121,7 @@ func (h *AssetHandler) serveContent(rw http.ResponseWriter, req *http.Request) {
 
 func (h *AssetHandler) copyHeaders(dest http.Header) {
 	// copy headers
-	if x, ok := h.Asset.(interface {
-		Header() http.Header
-	}); ok {
+	if x, ok := h.Asset.(web.HeaderProvider); ok {
 		for k, vv := range x.Header() {
 			dest[k] = slices.Clone(vv)
 		}

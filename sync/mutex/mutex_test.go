@@ -171,15 +171,13 @@ func TestConcurrentLocking(t *testing.T) {
 	const goroutines = 10
 
 	var wg sync.WaitGroup
-	wg.Add(goroutines)
 	for range goroutines {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			if mutex.TryLock(m1, m2) {
 				time.Sleep(time.Millisecond)
 				mutex.Unlock(m1, m2)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

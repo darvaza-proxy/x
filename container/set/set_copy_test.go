@@ -10,7 +10,7 @@ import (
 
 func testCopyIntoUninitialisedDst(t *testing.T) {
 	cfg := testConfig()
-	src := cfg.Must(testItem{ID: 1, Name: "one"}, testItem{ID: 2, Name: "two"})
+	src := cfg.Must(testItem{ID: 1, Name: nameOne}, testItem{ID: 2, Name: nameTwo})
 	dst := &set.Set[int, int, testItem]{}
 
 	got := src.Copy(dst, nil)
@@ -19,7 +19,7 @@ func testCopyIntoUninitialisedDst(t *testing.T) {
 	assertHasIDs(t, dst, 1, 2)
 
 	// the copy must be independent: mutating src must not touch dst.
-	_, _ = src.Push(testItem{ID: 3, Name: "three"})
+	_, _ = src.Push(testItem{ID: 3, Name: nameThree})
 	core.AssertFalse(t, dst.Contains(3), "dst independent of src")
 }
 
@@ -27,13 +27,13 @@ func testCopyIntoCompatibleDst(t *testing.T) {
 	// src and dst share the same Config, so Copy takes the append path.
 	cfg := testConfig()
 	src := cfg.Must(
-		testItem{ID: 1, Name: "one"},     // hash 1, also present in dst
-		testItem{ID: 11, Name: "eleven"}, // hash 1, new entry in existing bucket
-		testItem{ID: 2, Name: "two"},     // hash 2, new bucket
+		testItem{ID: 1, Name: nameOne},     // hash 1, also present in dst
+		testItem{ID: 11, Name: nameEleven}, // hash 1, new entry in existing bucket
+		testItem{ID: 2, Name: nameTwo},     // hash 2, new bucket
 	)
 	dst := cfg.Must(
-		testItem{ID: 1, Name: "one"},
-		testItem{ID: 3, Name: "three"},
+		testItem{ID: 1, Name: nameOne},
+		testItem{ID: 3, Name: nameThree},
 	)
 
 	got := src.Copy(dst, nil)
@@ -46,11 +46,11 @@ func testCopyIntoCompatibleDst(t *testing.T) {
 func testCopyIntoCompatibleDstFiltered(t *testing.T) {
 	cfg := testConfig()
 	src := cfg.Must(
-		testItem{ID: 1, Name: "one"},
-		testItem{ID: 2, Name: "two"},
-		testItem{ID: 3, Name: "three"},
+		testItem{ID: 1, Name: nameOne},
+		testItem{ID: 2, Name: nameTwo},
+		testItem{ID: 3, Name: nameThree},
 	)
-	dst := cfg.Must(testItem{ID: 4, Name: "four"})
+	dst := cfg.Must(testItem{ID: 4, Name: nameFour})
 
 	got := src.Copy(dst, func(v testItem) bool { return v.ID != 2 })
 
@@ -61,7 +61,7 @@ func testCopyIntoCompatibleDstFiltered(t *testing.T) {
 func testCopyIntoEmptyCompatibleDst(t *testing.T) {
 	// dst is initialised but empty, exercising the bucket preallocation.
 	cfg := testConfig()
-	src := cfg.Must(testItem{ID: 1, Name: "one"}, testItem{ID: 2, Name: "two"})
+	src := cfg.Must(testItem{ID: 1, Name: nameOne}, testItem{ID: 2, Name: nameTwo})
 	dst := cfg.Must()
 
 	got := src.Copy(dst, nil)
@@ -71,9 +71,10 @@ func testCopyIntoEmptyCompatibleDst(t *testing.T) {
 }
 
 func testCopyIntoIncompatibleDst(t *testing.T) {
-	// distinct Config instances are not Equal, so Copy falls back to Push.
-	src := testConfig().Must(testItem{ID: 1, Name: "one"}, testItem{ID: 2, Name: "two"})
-	dst := testConfig().Must(testItem{ID: 3, Name: "three"})
+	// dst hashes differently, so the Configs are not Equal and Copy
+	// falls back to Push.
+	src := testConfig().Must(testItem{ID: 1, Name: nameOne}, testItem{ID: 2, Name: nameTwo})
+	dst := testAltConfig().Must(testItem{ID: 3, Name: nameThree})
 
 	got := src.Copy(dst, nil)
 
@@ -83,11 +84,11 @@ func testCopyIntoIncompatibleDst(t *testing.T) {
 
 func testCopyIntoIncompatibleDstFiltered(t *testing.T) {
 	src := testConfig().Must(
-		testItem{ID: 1, Name: "one"},
-		testItem{ID: 2, Name: "two"},
-		testItem{ID: 3, Name: "three"},
+		testItem{ID: 1, Name: nameOne},
+		testItem{ID: 2, Name: nameTwo},
+		testItem{ID: 3, Name: nameThree},
 	)
-	dst := testConfig().Must()
+	dst := testAltConfig().Must()
 
 	got := src.Copy(dst, func(v testItem) bool { return v.ID%2 == 0 })
 
@@ -106,7 +107,7 @@ func TestCopyIntoDestination(t *testing.T) {
 
 func testCopySameSrcDst(t *testing.T) {
 	cfg := testConfig()
-	s := cfg.Must(testItem{ID: 1, Name: "one"}, testItem{ID: 2, Name: "two"})
+	s := cfg.Must(testItem{ID: 1, Name: nameOne}, testItem{ID: 2, Name: nameTwo})
 
 	got := s.Copy(s, nil)
 
@@ -116,7 +117,7 @@ func testCopySameSrcDst(t *testing.T) {
 
 func testCopyNilSource(t *testing.T) {
 	var src *set.Set[int, int, testItem]
-	dst := testConfig().Must(testItem{ID: 1, Name: "one"})
+	dst := testConfig().Must(testItem{ID: 1, Name: nameOne})
 
 	got := src.Copy(dst, nil)
 
@@ -126,7 +127,7 @@ func testCopyNilSource(t *testing.T) {
 
 func testCopyUninitialisedSource(t *testing.T) {
 	src := &set.Set[int, int, testItem]{}
-	dst := testConfig().Must(testItem{ID: 1, Name: "one"})
+	dst := testConfig().Must(testItem{ID: 1, Name: nameOne})
 
 	got := src.Copy(dst, nil)
 

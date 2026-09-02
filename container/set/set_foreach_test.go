@@ -31,7 +31,7 @@ func testForEachNilReceiver(t *testing.T) {
 }
 
 func testForEachNilFunc(t *testing.T) {
-	s := testConfig().Must(testItem{ID: 1, Name: "one"})
+	s := testConfig().Must(testItem{ID: 1, Name: nameOne})
 	core.AssertNoPanic(t, func() { s.ForEach(nil) }, "nil function is a no-op")
 }
 

@@ -1793,8 +1793,8 @@ func runTestGoShutdownFnPanicSkipsShutdown(t *testing.T) {
 
 	err := wg.Wait()
 	core.AssertFalse(t, shutdownRan.Load(), "shutdown skipped on fn panic")
-	if panicErr, ok := core.AssertTypeIs[*core.PanicError](t, err,
-		"panic type"); ok {
+	panicErr, ok := core.AssertTypeIs[*core.PanicError](t, err, "panic type")
+	if ok {
 		core.AssertContains(t, panicErr.Error(), "boom in fn", "panic msg")
 	}
 }
