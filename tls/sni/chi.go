@@ -21,13 +21,30 @@ func (c *Conn) Read(b []byte) (int, error) {
 
 // PeekClientHelloInfo extracts the ClientHelloInfo from a connection
 // still allowing a future handler have complete untouched access to
-// the stream
+// the stream. Cancelling ctx interrupts a read the peer is holding
+// open and fails the peek with the context's error.
 func PeekClientHelloInfo(ctx context.Context,
 	conn net.Conn) (*tls.ClientHelloInfo, net.Conn, error) {
 	//
 	var buf bytes.Buffer
 
+	// The handshake below reads through a stand-in whose Close is a no-op,
+	// so the cancellation it performs on ctx cannot reach the real
+	// connection. Expire the read there instead, and undo it if the
+	// handshake wins the race so the connection is handed over clean.
+	expired := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		defer close(expired)
+		_ = conn.SetReadDeadline(time.Now())
+	})
+
 	chi, err := ReadClientHelloInfo(ctx, io.TeeReader(conn, &buf))
+	if !stop() {
+		// the expiry has started on its own goroutine; let it finish
+		// so the reset below cannot be overtaken by it.
+		<-expired
+		_ = conn.SetReadDeadline(time.Time{})
+	}
 	if err != nil {
 		return nil, nil, err
 	}

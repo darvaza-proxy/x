@@ -192,6 +192,7 @@ err := tls.Verify(cert, &tls.VerifyOptions{
 - `darvaza.org/core`: Core utilities.
 - `darvaza.org/slog`: Structured logging.
 - `darvaza.org/x/container`: Data structures.
+- `darvaza.org/x/sync`: Synchronisation primitives.
 - `github.com/ebitengine/purego`: macOS system certificate store FFI.
 - `github.com/zeebo/blake3`: Certificate hashing.
 - `golang.org/x/crypto/cryptobyte`: Low-level crypto parsing.

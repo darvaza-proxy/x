@@ -3,12 +3,14 @@ package sni
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net"
 	"sync"
-	"sync/atomic"
+	"time"
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	"darvaza.org/x/sync/workgroup"
 )
 
 var (
@@ -16,28 +18,30 @@ var (
 )
 
 // A Handler is a function that will take responsibility over a given
-// connection. The Provided Context is used to indicate when a shut down
+// connection. The provided Context is used to indicate when a shut down
 // has been initiated
 type Handler func(context.Context, net.Conn) error
 
 // The Dispatcher screens TCP connections and uses SNI to decide if
 // they should be handled by a dedicated system or passed to
-// the tls.Listener using it via Accept()
+// the tls.Listener using it via Accept().
 //
-// dispatcher := &sni.Dispatcher{
-// GetHandler: func() { ..... },
-// }
+//	dispatcher := &sni.Dispatcher{
+//		GetHandler: func(chi *tls.ClientHelloInfo) sni.Handler {
+//			if chi.ServerName == "example.com" {
+//				return exampleHandler
+//			}
+//			return nil // fall through to Accept
+//		},
+//	}
 //
-// conf := &tls.Config{...}
-// lsn, err := tls.NewListener(dispatcher, config)
+//	go dispatcher.Serve(rawListener)
+//	tlsListener := tls.NewListener(dispatcher, cfg)
 type Dispatcher struct {
-	ch chan accept
+	ch chan net.Conn
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	ln     net.Listener
-	log    slog.Logger
-	err    error
+	ln  net.Listener
+	log slog.Logger
 
 	// Logger to report errors
 	Logger slog.Logger
@@ -52,50 +56,55 @@ type Dispatcher struct {
 	// OnAccept is optionally used to configure the inbound net.Conn
 	OnAccept func(net.Conn) (net.Conn, error)
 
-	// OnError let's the use decide if we shut down on critical errors or not
-	// it also allows the user to act accordingly
+	// OnError is consulted on every error the Dispatcher meets, from the
+	// underlying listener's Accept and from connection handlers alike,
+	// once it has been logged, and decides whether it shuts the
+	// Dispatcher down. When unset, an Accept error terminates and a
+	// handler error is absorbed. An Accept error it waives is retried
+	// at a bounded pace. The underlying listener being closed always
+	// ends Serve cleanly and is not offered to it.
 	OnError func(err error) bool
 
-	wg core.WaitGroup
+	// wg owns the Dispatcher's lifecycle: its context is the one handlers
+	// receive, its cancellation is the shutdown, and its cause is the
+	// first fatal error.
+	wg workgroup.Group
 
-	mu        sync.Mutex
-	cancelled atomic.Bool
+	// mu guards ln; once gates init.
+	mu   sync.Mutex
+	once sync.Once
 }
 
-type accept struct {
-	conn net.Conn
-	err  error
-}
-
+// init realises the accept channel, the logger and the workgroup's
+// context, and runs at most once, before any use of the workgroup, so
+// Context is honoured whichever method is called first.
 func (d *Dispatcher) init() {
-	// Accept()
-	d.ch = make(chan accept)
+	d.once.Do(func() {
+		// Accept()
+		d.ch = make(chan net.Conn)
 
-	// Cancel()
-	ctx := d.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	d.ctx, d.cancel = context.WithCancel(ctx)
+		// Cancel()
+		d.wg.Parent = d.Context
+		_ = d.wg.Context()
 
-	// Logger
-	d.log = d.Logger
-
-	// Callbacks
-	d.wg.OnError(d.onError)
+		// Logger
+		d.log = d.Logger
+	})
 }
 
-// Serve starts processing the underlying net.Listener
+// Serve starts processing the underlying net.Listener. It returns
+// nil once the listener has been closed or the Dispatcher shut down,
+// and a fatal error from the listener's Accept otherwise. A handler's
+// fatal error cancels the Dispatcher but leaves Serve waiting on the
+// listener, so it is reported by [Dispatcher.Err] rather than here.
 func (d *Dispatcher) Serve(ln net.Listener) error {
 	if ln == nil {
 		return core.ErrInvalid
 	}
 
-	d.mu.Lock()
-	if d.ch == nil {
-		d.init()
-	}
+	d.init()
 
+	d.mu.Lock()
 	if d.ln != nil {
 		d.mu.Unlock()
 		return core.ErrExists
@@ -107,38 +116,108 @@ func (d *Dispatcher) Serve(ln net.Listener) error {
 }
 
 func (d *Dispatcher) run() error {
-	defer d.Close()
+	defer d.Cancel()
 
+	var delay time.Duration
 	for {
 		conn, err := d.ln.Accept()
 		if conn != nil {
+			delay = 0
 			d.spawnHandler(conn)
 			continue
 		}
 
-		if d.cancelled.Load() {
-			// bye
-			return nil
+		if stop, err := d.acceptError(err); stop {
+			return err
 		}
 
-		if err = d.catch(nil, err); err != nil {
-			// oops
-			return err
+		// OnError waived the error: pace the retry so a listener
+		// failing persistently cannot spin the loop.
+		delay = nextAcceptDelay(delay)
+		if !d.pause(delay) {
+			return nil
 		}
 	}
 }
 
-func (d *Dispatcher) spawnHandler(conn net.Conn) {
-	d.wg.GoCatch(
-		func() error {
-			return d.handle(conn)
-		},
-		func(err error) error {
-			return d.catch(conn.RemoteAddr(), err)
-		})
+// acceptError decides whether an error from the listener's Accept ends
+// Serve, and with what. A closed listener or a shut-down Dispatcher is
+// a clean end; anything else is offered to catch.
+func (d *Dispatcher) acceptError(err error) (bool, error) {
+	if d.wg.IsCancelled() || errors.Is(err, net.ErrClosed) {
+		// bye
+		return true, nil
+	}
+
+	// oops, unless OnError says otherwise
+	err = d.catch(nil, err)
+	return err != nil, err
 }
 
-func (d *Dispatcher) handle(conn net.Conn) error {
+// nextAcceptDelay paces the retries after an accept error OnError
+// waived, doubling from 5 ms up to a second the way
+// net/http.Server.Serve does. A successful Accept starts it over.
+func nextAcceptDelay(delay time.Duration) time.Duration {
+	const first, limit = 5 * time.Millisecond, time.Second
+	return min(max(2*delay, first), limit)
+}
+
+// pause waits delay before the next Accept, and reports false when the
+// shutdown arrives first.
+func (d *Dispatcher) pause(delay time.Duration) bool {
+	select {
+	case <-time.After(delay):
+		return true
+	case <-d.wg.Cancelled():
+		return false
+	}
+}
+
+// spawnHandler enrols the connection's handler in the workgroup. The
+// catch routes the outcome through catch, which decides whether the
+// Dispatcher terminates. A connection accepted after shutdown has
+// nobody to run it and is dropped.
+func (d *Dispatcher) spawnHandler(conn net.Conn) {
+	err := d.wg.GoCatch(
+		func(ctx context.Context) error {
+			return d.handle(ctx, conn)
+		},
+		func(_ context.Context, err error) error {
+			return d.catch(conn.RemoteAddr(), err)
+		})
+	if err != nil {
+		d.drop(conn)
+	}
+}
+
+// drop closes a connection the shutdown caught before anyone could take
+// it, and says so at debug level.
+func (d *Dispatcher) drop(conn net.Conn) {
+	_ = conn.Close()
+	d.logDebug(conn.RemoteAddr(), "dropped")
+}
+
+// logDebug records msg for peer at debug level, when enabled.
+func (d *Dispatcher) logDebug(peer net.Addr, msg string) {
+	if l, ok := d.debug(peer); ok {
+		l.Print(msg)
+	}
+}
+
+// logError records err at error level, naming the accept when it has
+// no peer.
+func (d *Dispatcher) logError(peer net.Addr, err error) {
+	l, ok := d.error(peer, err)
+	switch {
+	case !ok:
+	case peer == nil:
+		l.Printf("accept: %s", err)
+	default:
+		l.Print(err)
+	}
+}
+
+func (d *Dispatcher) handle(ctx context.Context, conn net.Conn) error {
 	if d.OnAccept != nil {
 		conn2, err := d.OnAccept(conn)
 		if err != nil {
@@ -153,15 +232,15 @@ func (d *Dispatcher) handle(conn net.Conn) error {
 		if l, ok := d.debug(conn.RemoteAddr()); ok {
 			l.Print("connected")
 		}
-		return d.defaultHandler(d.ctx, conn)
+		return d.defaultHandler(ctx, conn)
 	}
 
-	return d.handleCHI(conn)
+	return d.handleCHI(ctx, conn)
 }
 
-func (d *Dispatcher) handleCHI(conn net.Conn) error {
+func (d *Dispatcher) handleCHI(ctx context.Context, conn net.Conn) error {
 	// Get ClientHelloInfo
-	chi, conn2, err := PeekClientHelloInfo(d.ctx, conn)
+	chi, conn2, err := PeekClientHelloInfo(ctx, conn)
 	if err != nil {
 		_ = conn.Close()
 		return err
@@ -178,53 +257,54 @@ func (d *Dispatcher) handleCHI(conn net.Conn) error {
 		h = d.defaultHandler
 	}
 
-	return h(d.ctx, conn2)
+	return h(ctx, conn2)
 }
 
-func (d *Dispatcher) defaultHandler(_ context.Context, conn net.Conn) error {
-	d.ch <- accept{conn, nil}
+// defaultHandler hands the connection to Accept, or drops it when the
+// Dispatcher shuts down before a consumer collects it.
+func (d *Dispatcher) defaultHandler(ctx context.Context, conn net.Conn) error {
+	select {
+	case d.ch <- conn:
+	case <-ctx.Done():
+		d.drop(conn)
+	}
 	return nil
 }
 
+// catch logs an error and decides whether it terminates the
+// Dispatcher. A nil peer marks an error from the underlying listener's
+// Accept, terminating unless OnError objects; a handler's error is
+// absorbed unless OnError asks otherwise. A handler the shutdown itself
+// interrupted has not failed: its cancellation is recorded as a drop
+// and not offered to OnError. The returned error is the one the
+// Dispatcher terminates on, and nil when it carries on.
 func (d *Dispatcher) catch(peer net.Addr, err error) error {
-	if peer == nil {
-		// Accept
-		if l, ok := d.error(nil, err); ok {
-			l.Printf("accept: %s", err)
-		}
-		return err
-	}
-
-	if err != nil {
-		// don't propagate connection errors
-		if l, ok := d.error(peer, err); ok {
-			l.Print(err)
-		}
+	switch {
+	case err == nil:
+		d.logDebug(peer, "done")
+		return nil
+	case d.wg.IsCancelled() && errors.Is(err, context.Canceled):
+		d.logDebug(peer, "dropped")
 		return nil
 	}
 
-	if l, ok := d.debug(peer); ok {
-		l.Print("done")
+	d.logError(peer, err)
+
+	if !d.terminate(err, peer == nil) {
+		return nil
 	}
-	return nil
+
+	d.wg.Cancel(err)
+	return err
 }
 
-func (d *Dispatcher) onError(err error) error {
-	// catch considered this error to be fatal
-	// initiate shutdown unless the user objects
-	terminate := true
-
+// terminate asks OnError whether err shuts the Dispatcher down,
+// falling back to the class's default when the hook is unset.
+func (d *Dispatcher) terminate(err error, byDefault bool) bool {
 	if d.OnError != nil {
-		terminate = d.OnError(err)
+		return d.OnError(err)
 	}
-
-	if terminate {
-		d.Cancel()
-		return err
-	}
-
-	// ignored
-	return nil
+	return byDefault
 }
 
 // Shutdown initiates a shutdown and waits until the workers are done
@@ -232,41 +312,27 @@ func (d *Dispatcher) onError(err error) error {
 func (d *Dispatcher) Shutdown(ctx context.Context) error {
 	d.Cancel()
 
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		_ = d.wg.Wait()
-	}()
-
 	select {
-	case <-done:
-		return d.wg.Err()
+	case <-d.wg.Done():
+		return d.Err()
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 }
 
 // Accept returns a connection that wasn't dispatched through
-// the Handler provided by GetHandler
+// the Handler provided by GetHandler. Once the Dispatcher has been
+// shut down it fails with the fatal error that stopped it, or with
+// [net.ErrClosed] for a clean stop.
 func (d *Dispatcher) Accept() (net.Conn, error) {
-	d.mu.Lock()
-	if d.ch == nil {
-		d.init()
-	}
-	d.mu.Unlock()
+	d.init()
 
-	if msg := <-d.ch; msg.conn != nil {
-		return msg.conn, msg.err
+	select {
+	case conn := <-d.ch:
+		return conn, nil
+	case <-d.wg.Cancelled():
+		return nil, core.CoalesceError(d.Err(), net.ErrClosed)
 	}
-
-	err := d.Err()
-	if err == nil {
-		if d.cancelled.Load() {
-			return nil, context.Canceled
-		}
-		core.Panic("unreachable")
-	}
-	return nil, err
 }
 
 // Addr returns the address the underlying listener is using
@@ -287,32 +353,44 @@ func (d *Dispatcher) Close() error {
 	return d.Err()
 }
 
-// Err tells the first fatal error
+// Err tells the first fatal error, and nil after a clean shut down.
 func (d *Dispatcher) Err() error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.init()
 
-	return d.err
+	return filterCancelled(d.wg.Err())
 }
 
-// Wait waits until all workers are done
+// Wait waits until all workers are done, and reports as [Dispatcher.Err].
 func (d *Dispatcher) Wait() error {
-	return d.wg.Wait()
+	d.init()
+
+	return filterCancelled(d.wg.Wait())
 }
 
-// Cancel initiates a shut down. it will prevent
+// filterCancelled drops the cause a user-initiated shutdown leaves on
+// the workgroup, so only a fatal error is reported.
+func filterCancelled(err error) error {
+	if errors.Is(err, context.Canceled) {
+		return nil
+	}
+	return err
+}
+
+// Cancel initiates a shut down. It will prevent
 // new dispatches and cancel existing workers, but
 // the responsibility of closing the listener is on
 // the tls.Listener
 func (d *Dispatcher) Cancel() {
-	if d.cancelled.CompareAndSwap(false, true) {
-		d.cancel()
-	}
+	d.init()
+
+	d.wg.Cancel(nil)
 }
 
 // Cancelled tells if the Dispatcher has been shut down
 func (d *Dispatcher) Cancelled() bool {
-	return d.cancelled.Load()
+	d.init()
+
+	return d.wg.IsCancelled()
 }
 
 func (d *Dispatcher) debug(peer net.Addr) (slog.Logger, bool) {
