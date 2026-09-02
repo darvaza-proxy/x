@@ -60,6 +60,7 @@
     "hdrs",
     "highlevel",
     "hostport",
+    "IDNA",
     "ipnet",
     "laddr",
     "languagetool",

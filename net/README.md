@@ -125,10 +125,23 @@ client := reconnect.NewClient(cfg,
 
 * [`darvaza.org/core`][core-link]: Core utilities.
 * [`darvaza.org/slog`][slog-link]: Structured logging.
+* [`darvaza.org/slog/handlers/discard`][discard-link]: Discarding log
+  handler.
+* [`darvaza.org/x/fs`][fs-link]: File system utilities.
+* [`darvaza.org/x/sync`][sync-link]: Synchronisation primitives.
+* [`github.com/amery/defaults`][defaults-link]: Struct default values.
+* [`golang.org/x/net`][xnet-link]: IDNA host name conversion.
+* [`golang.org/x/sys`][xsys-link]: Platform socket control.
 * Standard library (net, syscall, context).
 
 [core-link]: https://pkg.go.dev/darvaza.org/core
 [slog-link]: https://pkg.go.dev/darvaza.org/slog
+[discard-link]: https://pkg.go.dev/darvaza.org/slog/handlers/discard
+[fs-link]: https://pkg.go.dev/darvaza.org/x/fs
+[sync-link]: https://pkg.go.dev/darvaza.org/x/sync
+[defaults-link]: https://pkg.go.dev/github.com/amery/defaults
+[xnet-link]: https://pkg.go.dev/golang.org/x/net
+[xsys-link]: https://pkg.go.dev/golang.org/x/sys
 
 ## Platform Support
 

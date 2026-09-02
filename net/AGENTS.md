@@ -168,6 +168,12 @@ client, err := reconnect.New(cfg)
 
 - `darvaza.org/core`: Core utilities.
 - `darvaza.org/slog`: Structured logging.
+- `darvaza.org/slog/handlers/discard`: Discarding log handler.
+- `darvaza.org/x/fs`: File system utilities.
+- `darvaza.org/x/sync`: Synchronisation primitives.
+- `github.com/amery/defaults`: Struct default values.
+- `golang.org/x/net`: IDNA host name conversion.
+- `golang.org/x/sys`: Platform socket control.
 - Standard library (net, syscall, context).
 
 ## Platform Support
