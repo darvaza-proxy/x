@@ -126,17 +126,19 @@ if info != nil {
 ### SNI-based Routing
 
 ```go
-// Create SNI dispatcher
-dispatcher := sni.NewDispatcher()
-
-// Add handlers for different domains
-dispatcher.Add("example.com", exampleHandler)
-dispatcher.Add("*.api.com", apiHandler)
-
-// Use in TLS config
-config := &tls.Config{
-    GetCertificate: dispatcher.GetCertificate,
+// GetHandler claims a connection for a dedicated Handler, or returns
+// nil to let it fall through to the TLS listener.
+dispatcher := &sni.Dispatcher{
+    GetHandler: func(chi *tls.ClientHelloInfo) sni.Handler {
+        if chi.ServerName == "example.com" {
+            return exampleHandler
+        }
+        return nil
+    },
 }
+
+go dispatcher.Serve(rawListener)  // feed it the raw net.Listener
+tlsListener := tls.NewListener(dispatcher, cfg)  // unclaimed ones land here
 ```
 
 ### Working with Certificate Pools
@@ -188,7 +190,12 @@ err := tls.Verify(cert, &tls.VerifyOptions{
 ## Dependencies
 
 - `darvaza.org/core`: Core utilities.
+- `darvaza.org/slog`: Structured logging.
+- `darvaza.org/x/container`: Data structures.
+- `github.com/ebitengine/purego`: macOS system certificate store FFI.
+- `github.com/zeebo/blake3`: Certificate hashing.
 - `golang.org/x/crypto/cryptobyte`: Low-level crypto parsing.
+- `golang.org/x/sys`: Windows system certificate store.
 - Standard library (crypto/tls, crypto/x509).
 
 ## Security Considerations
