@@ -59,14 +59,22 @@ func (c *Client) Reload() error {
 }
 
 // Connect launches the [Client], failing with [ErrRunning] when
-// called more than once. A nil return means the reconnection loop
-// has started, not that a connection is established — a failed
-// first dial is retried in the background like any other
-// disconnection. Calling it on a [Client] that has already been
-// shut down fails with [ErrClosed].
+// called again while it is running. A nil return means the
+// reconnection loop has started, not that a connection is
+// established — a failed first dial is retried in the background
+// like any other disconnection. Calling it on a [Client] that has
+// been shut down, whether or not it ever ran, fails with
+// [ErrClosed]; on one that stopped on a failure, with that failure.
+// A shutdown that lands during the call may instead surface as the
+// dial's own cancellation.
 func (c *Client) Connect() error {
-	// once
-	if !c.started.CompareAndSwap(false, true) {
+	switch {
+	case c.wg.IsCancelled():
+		// nothing to start, and not running either. Err is nil for
+		// a user-initiated shutdown, the closed case.
+		return core.CoalesceError(c.Err(), ErrClosed)
+	case !c.started.CompareAndSwap(false, true):
+		// once
 		return ErrRunning
 	}
 
@@ -76,34 +84,27 @@ func (c *Client) Connect() error {
 		return err
 	}
 
-	// Enrol the connection-closing watcher before the run loop so a
-	// Shutdown (or a cancelled parent context) can unblock an OnSession
-	// parked on a deadline-less Read: cancelling the context does not
-	// interrupt the read, but closing the live connection does.
+	// run cannot act on the group's context: it parks on a deadline-less
+	// Read that only closing the live connection unblocks. Enrol the
+	// pair as one task so the loop and its closing signal arrive
+	// together — enrolling them separately leaves a window where the
+	// signal is live against a loop that never started. A zero grace
+	// period leaves the handler's context unbounded; closeConn does not
+	// consult it.
 	//
-	// If the group is already cancelled the enrolment fails; close the
-	// freshly dialled connection so it does not leak, and return
-	// ErrClosed — Connect's documented shut-down sentinel and the same
-	// value the run spawn below returns. ErrClosed wraps the group's
+	// Enrolment fails when the group is already cancelled; close the
+	// freshly dialled connection so it does not leak, and report
+	// ErrClosed — Connect's documented shut-down sentinel — rather than
+	// the workgroup's internal error. ErrClosed wraps the group's
 	// errors.ErrClosed, so it satisfies a caller matching either; the
 	// bare err would only match the latter.
-	err = c.wg.Go(func(ctx context.Context) {
-		<-ctx.Done()
-		c.closeConn()
-	})
-	if err != nil {
-		unsafeClose(conn)
-		return ErrClosed
-	}
-
-	err = c.wg.Go(func(context.Context) {
+	err = c.wg.GoShutdown(func(context.Context) error {
 		c.run(conn)
-	})
+		return nil
+	}, func(context.Context) {
+		c.closeConn()
+	}, 0)
 	if err != nil {
-		// a concurrent Shutdown/terminate cancelled the group between
-		// the dial and the spawn; don't leak the freshly dialled
-		// connection, and report the client is shut down rather than
-		// leaking the workgroup's internal error.
 		unsafeClose(conn)
 		return ErrClosed
 	}
@@ -112,9 +113,9 @@ func (c *Client) Connect() error {
 }
 
 // closeConn closes the live connection, if any, ignoring the error.
-// It is how the cancellation watcher unblocks a session parked on a
-// blocking Read; the run loop still owns closing the connection on a
-// clean disconnection.
+// It is the shutdown handler paired with the run loop, and is how a
+// cancellation unblocks a session parked on a blocking Read; the run
+// loop still owns closing the connection on a clean disconnection.
 func (c *Client) closeConn() {
 	if conn, _ := c.getConn(); conn != nil {
 		unsafeClose(conn)
