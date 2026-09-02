@@ -14,18 +14,18 @@ including dependency order and procedures to ensure consistent releases.
 
 ```bash
 # Check current versions
-git tag --list | grep -E "^(package)/" | sort -V
+git tag --list '<pkg>/v*' | sort -V
 
 # Create signed annotated tag (requires a configured GPG/SSH signing key)
-git tag -s package/vX.Y.Z -m "Release message"
+git tag -s <pkg>/vX.Y.Z -F .tmp/tag-<pkg>-vX.Y.Z.txt
 
 # Push specific tags
-git push origin package/v1.0.0 package2/v2.0.0
+git push origin <pkg>/vX.Y.Z
 
 # Update a single internal dependency (avoid `make up`, which fans out
 # to every external dep)
-go -C package get darvaza.org/x/dependency@vX.Y.Z
-go -C package mod tidy
+go -C <pkg> get darvaza.org/x/<dep>@vX.Y.Z
+go -C <pkg> mod tidy
 ```
 
 ## Package Dependencies
@@ -92,7 +92,7 @@ Before starting the release process:
 - [ ] Check current versions:
 
   ```bash
-  git tag --list | grep -E "^(cmp|config|sync|fs|container|text|time)/" | sort -V
+  git tag --list '*/v*' | sort -V
   ```
 
 - [ ] Verify no uncommitted changes: `git status`
@@ -103,18 +103,28 @@ Before starting the release process:
 
    ```bash
    # List current tags
-   git tag --list | grep -E "^(cmp|config|sync|fs|container|text|time)/" | sort -V
+   git tag --list '<pkg>/v*' | sort -V
    ```
 
-2. Create signed annotated tags with comprehensive release notes:
+2. Create signed annotated tags. The tag message describes the release,
+   following the structure below:
 
    ```bash
-   # Create signed tag with release message inline
-   git tag -s cmp/v0.2.2 -m "darvaza.org/x/cmp v0.2.2
+   # Compose the message in a scratch file (.tmp/ is gitignored)
+   $EDITOR .tmp/tag-<pkg>-vX.Y.Z.txt
+
+   # Create the signed tag from the file
+   git tag -s <pkg>/vX.Y.Z -F .tmp/tag-<pkg>-vX.Y.Z.txt
+   ```
+
+   Each message file should follow the structure:
+
+   ```text
+   darvaza.org/x/<pkg> vX.Y.Z
 
    Brief description of the release
 
-   Changes since vX.Y.Z:
+   Changes since vA.B.C:
    - List of changes
    - Breaking changes should be clearly marked
    - New features
@@ -122,23 +132,13 @@ Before starting the release process:
 
    Dependencies:
    - darvaza.org/core vX.Y.Z
-   - Go 1.25 or later"
+   - Go 1.25 or later
    ```
 
-   For multiple packages, prefer message files in `.tmp/` (gitignored):
+3. Push all tags at once, one argument per tag:
 
    ```bash
-   # Compose the message in a scratch file
-   $EDITOR .tmp/tag-cmp-v0.2.2.txt
-
-   # Create the signed tag from the file
-   git tag -s cmp/v0.2.2 -F .tmp/tag-cmp-v0.2.2.txt
-   ```
-
-3. Push all tags at once:
-
-   ```bash
-   git push origin cmp/v0.2.2 config/v0.5.1 sync/v0.3.1 fs/v0.5.3 container/v0.3.2 text/v0.1.0 time/v0.1.0
+   git push origin <pkg>/vX.Y.Z
    ```
 
 4. Wait for pkg.go.dev to index the new versions (usually 5-10 minutes).
@@ -152,13 +152,7 @@ Before starting the release process:
    The following packages have been released:
 
    \`\`\`bash
-   go get darvaza.org/x/cmp@v0.2.2
-   go get darvaza.org/x/config@v0.5.1
-   go get darvaza.org/x/sync@v0.3.1
-   go get darvaza.org/x/fs@v0.5.3
-   go get darvaza.org/x/container@v0.3.2
-   go get darvaza.org/x/text@v0.1.0
-   go get darvaza.org/x/time@v0.1.0
+   go get darvaza.org/x/<pkg>@vX.Y.Z
    \`\`\`"
    ```
 
@@ -166,17 +160,12 @@ Before starting the release process:
 
 1. Update go.mod files in Tier 2 packages to use the new versions.
    Use targeted `go get` commands — avoid `make up`, which blanket-bumps
-   every external dependency:
+   every external dependency. Repeat for each internal dependency of
+   each Tier 2 package, as listed under [Release Tiers](#release-tiers):
 
    ```bash
-   go -C net get darvaza.org/x/fs@v0.5.3
-   go -C net mod tidy
-
-   go -C web get darvaza.org/x/fs@v0.5.3
-   go -C web mod tidy
-
-   go -C tls get darvaza.org/x/container@v0.3.2
-   go -C tls mod tidy
+   go -C <pkg> get darvaza.org/x/<dep>@vX.Y.Z
+   go -C <pkg> mod tidy
    ```
 
 2. Run a clean build to confirm compatibility:
@@ -185,15 +174,20 @@ Before starting the release process:
    make
    ```
 
-3. Commit the dependency updates with explicit paths (no `git add -A`):
+3. Commit the dependency updates with explicit paths (no `git add -A`),
+   reading the message from a scratch file as the tags do:
 
    ```bash
-   git commit -s -m "build: update internal dependencies for release
+   $EDITOR .tmp/commit-release-deps.txt
+   git commit -s -F .tmp/commit-release-deps.txt <pkg>/go.mod <pkg>/go.sum
+   ```
 
-   - net: update fs to v0.5.3
-   - web: update fs to v0.5.3
-   - tls: update container to v0.3.2" \
-     net/go.mod net/go.sum web/go.mod web/go.sum tls/go.mod tls/go.sum
+   The message lists each bump:
+
+   ```text
+   build: update internal dependencies for release
+
+   - <pkg>: update <dep> to vX.Y.Z
    ```
 
 ### 4. Tier 2 Release
@@ -201,39 +195,37 @@ Before starting the release process:
 1. Check current Tier 2 versions:
 
    ```bash
-   git tag --list | grep -E "^(net|web|tls)/" | sort -V
+   git tag --list '<pkg>/v*' | sort -V
    ```
 
 2. Create signed annotated tags for Tier 2 packages following the same
    pattern as Tier 1:
 
    ```bash
-   git tag -s net/v0.6.3 -F .tmp/tag-net-v0.6.3.txt
-   git tag -s web/v0.13.0 -F .tmp/tag-web-v0.13.0.txt
-   git tag -s tls/v0.6.1 -F .tmp/tag-tls-v0.6.1.txt
+   git tag -s <pkg>/vX.Y.Z -F .tmp/tag-<pkg>-vX.Y.Z.txt
    ```
 
    Each message file should follow the structure:
 
    ```text
-   darvaza.org/x/net v0.6.3
+   darvaza.org/x/<pkg> vX.Y.Z
 
    Release with updated dependencies
 
-   Changes since vX.Y.Z:
-   - Update darvaza.org/x/fs to v0.5.3
+   Changes since vA.B.C:
+   - Update darvaza.org/x/<dep> to vX.Y.Z
    - Other changes...
 
    Dependencies:
    - darvaza.org/core vX.Y.Z
-   - darvaza.org/x/fs v0.5.3
+   - darvaza.org/x/<dep> vX.Y.Z
    - Go 1.25 or later
    ```
 
-3. Push all Tier 2 tags:
+3. Push all Tier 2 tags at once, one argument per tag:
 
    ```bash
-   git push origin net/v0.6.3 web/v0.13.0 tls/v0.6.1
+   git push origin <pkg>/vX.Y.Z
    ```
 
 4. Document the complete release:
@@ -244,9 +236,7 @@ Before starting the release process:
    Tier 2 packages have been released:
 
    \`\`\`bash
-   go get darvaza.org/x/net@v0.6.3
-   go get darvaza.org/x/web@v0.13.0
-   go get darvaza.org/x/tls@v0.6.1
+   go get darvaza.org/x/<pkg>@vX.Y.Z
    \`\`\`
 
    All packages now require Go 1.25 or later."

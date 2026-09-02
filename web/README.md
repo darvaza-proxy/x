@@ -132,6 +132,19 @@ Cache-Control duration conventions:
 * Zero or sub-second → `"no-cache"`
 * One second or more → `"max-age=<seconds>"`
 
+## Dependencies
+
+* [`darvaza.org/core`][core-link]: Core utilities.
+* [`darvaza.org/x/fs`][fs-link]: File system utilities.
+* [`golang.org/x/net`][xnet-link]: IDNA host name conversion.
+* [`lukechampine.com/blake3`][blake3-link]: Asset checksums.
+* Standard library (net/http, encoding/json, mime).
+
+[core-link]: https://pkg.go.dev/darvaza.org/core
+[fs-link]: https://pkg.go.dev/darvaza.org/x/fs
+[xnet-link]: https://pkg.go.dev/golang.org/x/net
+[blake3-link]: https://pkg.go.dev/lukechampine.com/blake3
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
