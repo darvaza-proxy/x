@@ -168,6 +168,7 @@ go get darvaza.org/x/tls
 * [`darvaza.org/core`][core-link]: Core utilities.
 * [`darvaza.org/slog`][slog-link]: Structured logging.
 * [`darvaza.org/x/container`][container-link]: Data structures.
+* [`darvaza.org/x/sync`][sync-link]: Synchronisation primitives.
 * [`github.com/ebitengine/purego`][purego-link]: macOS system certificate
   store FFI.
 * [`github.com/zeebo/blake3`][blake3-link]: Certificate hashing.
@@ -178,6 +179,7 @@ go get darvaza.org/x/tls
 [core-link]: https://pkg.go.dev/darvaza.org/core
 [slog-link]: https://pkg.go.dev/darvaza.org/slog
 [container-link]: https://pkg.go.dev/darvaza.org/x/container
+[sync-link]: https://pkg.go.dev/darvaza.org/x/sync
 [purego-link]: https://pkg.go.dev/github.com/ebitengine/purego
 [blake3-link]: https://pkg.go.dev/github.com/zeebo/blake3
 [xcrypto-link]: https://pkg.go.dev/golang.org/x/crypto

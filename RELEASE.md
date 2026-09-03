@@ -8,7 +8,7 @@ including dependency order and procedures to ensure consistent releases.
 ### Release Order
 
 1. **Tier 1** (independent): cmp, config, sync, fs, container, text, time
-2. **Tier 2** (dependent): net (→fs, sync), web (→fs), tls (→container)
+2. **Tier 2** (dependent): net (→fs, sync), web (→fs), tls (→container, sync)
 
 ### Essential Commands
 
@@ -42,9 +42,9 @@ The following diagram shows the internal dependencies between packages:
 │   fs    │ │  sync   │ │ container │
 └────┬────┘ └────┬────┘ └─────┬─────┘
      │           │            │
-     ├───────┐   │            │
-     │       │   │            │
-     ▼       ▼   ▼            ▼
+     ├───────┐   ├────────┐   │
+     │       │   │        │   │
+     ▼       ▼   ▼        ▼   ▼
 ┌───────┐ ┌─────────┐  ┌───────────┐
 │  web  │ │   net   │  │    tls    │
 └───────┘ └─────────┘  └───────────┘
@@ -76,7 +76,7 @@ dependencies:
 
 - **darvaza.org/x/net** (depends on fs and sync)
 - **darvaza.org/x/web** (depends on fs)
-- **darvaza.org/x/tls** (depends on container)
+- **darvaza.org/x/tls** (depends on container and sync)
 
 ## Release Process
 

@@ -142,6 +142,7 @@ graph TB
     fs --> web
     sync --> net
     container --> tls
+    sync --> tls
     slog --> net
     slog --> tls
 
@@ -183,7 +184,7 @@ graph TB
 * **Tier 2 Packages**: Depend on Tier 1 packages
   * `net` depends on `fs` and `sync`
   * `web` depends on `fs`
-  * `tls` depends on `container`
+  * `tls` depends on `container` and `sync`
   * Must be released after their dependencies
 
 * **Higher-Level Packages**: Built on top of `x/` packages
