@@ -156,7 +156,7 @@ func (d *Dispatcher) acceptError(err error) (bool, error) {
 
 // nextAcceptDelay paces the retries after an accept error OnError
 // waived, doubling from 5 ms up to a second the way
-// net/http.Server.Serve does. A successful Accept starts it over.
+// nextAcceptDelay calculates the next accept retry delay, doubling the current delay and limiting it to 5 milliseconds through 1 second.
 func nextAcceptDelay(delay time.Duration) time.Duration {
 	const first, limit = 5 * time.Millisecond, time.Second
 	return min(max(2*delay, first), limit)
@@ -368,7 +368,7 @@ func (d *Dispatcher) Wait() error {
 }
 
 // filterCancelled drops the cause a user-initiated shutdown leaves on
-// the workgroup, so only a fatal error is reported.
+// filterCancelled removes context cancellation errors and preserves all other errors.
 func filterCancelled(err error) error {
 	if errors.Is(err, context.Canceled) {
 		return nil

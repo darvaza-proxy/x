@@ -22,7 +22,10 @@ func (c *Conn) Read(b []byte) (int, error) {
 // PeekClientHelloInfo extracts the ClientHelloInfo from a connection
 // still allowing a future handler have complete untouched access to
 // the stream. Cancelling ctx interrupts a read the peer is holding
-// open and fails the peek with the context's error.
+// PeekClientHelloInfo reads and parses a TLS ClientHello while preserving the
+// consumed bytes for subsequent reads from the returned connection. If the
+// context is canceled or parsing fails, it returns the error without a
+// replacement connection.
 func PeekClientHelloInfo(ctx context.Context,
 	conn net.Conn) (*tls.ClientHelloInfo, net.Conn, error) {
 	//
