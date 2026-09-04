@@ -3,12 +3,15 @@ package reconnect_test
 import (
 	"context"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"darvaza.org/core"
+	"darvaza.org/slog"
+	"darvaza.org/slog/handlers/mock"
 
 	"darvaza.org/x/net/reconnect"
 	"darvaza.org/x/sync/errors"
@@ -102,18 +105,11 @@ func TestClientShutdownUnblocksSession(t *testing.T) {
 	core.AssertMustNoError(t, err, "listen")
 	defer func() { _ = lsn.Close() }()
 
-	// accept and hold the peer open without ever writing, so the
-	// client's Read blocks until the connection is closed.
+	// the peer never writes, so the client's Read blocks until the
+	// connection is closed.
 	peerDone := make(chan struct{})
 	defer close(peerDone)
-	go func() {
-		conn, err := lsn.Accept()
-		if err != nil {
-			return
-		}
-		defer func() { _ = conn.Close() }()
-		<-peerDone
-	}()
+	go holdPeer(lsn, peerDone)
 
 	var c *reconnect.Client
 	var once sync.Once
@@ -341,11 +337,15 @@ func TestClientParentCancelCause(t *testing.T) {
 
 // TestClientGoAfterShutdownNoop verifies Go and GoCatch are no-ops
 // once the client is shut down: the worker is dropped rather than run
-// with an already-cancelled context.
+// with an already-cancelled context, and the drop is recorded at debug
+// level so a late submission is not lost silently.
 func TestClientGoAfterShutdownNoop(t *testing.T) {
+	logger := mock.NewLogger()
+
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  addrUnused,
+		Logger:  logger,
 	}
 
 	c, err := reconnect.New(cfg)
@@ -353,18 +353,189 @@ func TestClientGoAfterShutdownNoop(t *testing.T) {
 
 	// shut down before any work is submitted; with no workers Shutdown
 	// returns promptly and reports a clean, user-initiated stop.
-	core.AssertNoError(t, c.Shutdown(context.Background()), "Shutdown")
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 
 	var ran atomic.Bool
 	worker := func(context.Context) error {
 		ran.Store(true)
 		return nil
 	}
+	logger.Clear()
 	c.Go(worker)
 	c.GoCatch(worker, nil)
 
 	// the drop is synchronous, so neither worker can have run.
 	core.AssertFalse(t, ran.Load(), "worker after shutdown dropped")
+
+	// one debug record per dropped submission, carrying the
+	// workgroup's refusal as its error field.
+	msgs := logger.GetMessages()
+	core.AssertMustEqual(t, 2, len(msgs), "dropped records")
+	for i, msg := range msgs {
+		core.AssertEqual(t, slog.Debug, msg.Level, "record %d level", i)
+		field := core.AssertMustTypeIs[error](t, msg.Fields[slog.ErrorFieldName],
+			"record %d error field", i)
+		core.AssertErrorIs(t, field, errors.ErrClosed, "record %d cause", i)
+	}
+}
+
+// TestClientGo covers the worker paths of Go and GoCatch on a live
+// client: the outcome reaches the catch first and then the error
+// hooks, and only a fatal result stops the client.
+func TestClientGo(t *testing.T) {
+	t.Run("clean worker", runTestClientGoClean)
+	t.Run("absorbed error", runTestClientGoAbsorbed)
+	t.Run("worker panics", runTestClientGoWorkerPanic)
+	t.Run("catch panics", runTestClientGoCatchPanic)
+	t.Run("catch rewrites to fatal", runTestClientGoCatchFatal)
+}
+
+// newIdleClient returns a client that is never connected, so its
+// workgroup is live for Go and GoCatch without a remote to dial.
+func newIdleClient(t *testing.T, errs *errors.CompoundError) *reconnect.Client {
+	t.Helper()
+
+	cfg := &reconnect.Config{
+		Context: context.Background(),
+		Remote:  addrUnused,
+		OnError: newOnError(errs),
+	}
+
+	c, err := reconnect.New(cfg)
+	core.AssertMustNoError(t, err, "New")
+	return c
+}
+
+// runTestClientGoClean runs a worker that succeeds and leaves the
+// client running.
+func runTestClientGoClean(t *testing.T) {
+	t.Helper()
+
+	errs := new(errors.CompoundError)
+	c := newIdleClient(t, errs)
+
+	ran := make(chan struct{})
+	c.Go(func(context.Context) error {
+		close(ran)
+		return nil
+	})
+	assertClosedWithin(t, ran, "worker ran")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
+	core.AssertTrue(t, errs.OK(), "errors")
+}
+
+// runTestClientGoAbsorbed runs a worker that fails with a plain error
+// the catch passes through. The error reaches OnError and is otherwise
+// absorbed: Shutdown reports a clean stop rather than the worker's
+// error, which a terminated client would have recorded as its cause.
+func runTestClientGoAbsorbed(t *testing.T) {
+	t.Helper()
+
+	errWorker := errors.New("worker failed")
+	errs := new(errors.CompoundError)
+	c := newIdleClient(t, errs)
+
+	seen := make(chan struct{})
+	c.GoCatch(func(context.Context) error {
+		return errWorker
+	}, func(_ context.Context, err error) error {
+		defer close(seen)
+		return err
+	})
+	assertClosedWithin(t, seen, "catch ran")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
+	core.AssertErrorIs(t, errs.AsError(), errWorker, "OnError")
+}
+
+// runTestClientGoWorkerPanic runs a worker that panics. The recovered
+// panic takes the same route as a returned error: it reaches the catch
+// and then OnError, and is absorbed as non-fatal.
+func runTestClientGoWorkerPanic(t *testing.T) {
+	t.Helper()
+
+	errPanic := errors.New("worker panic sentinel")
+	errs := new(errors.CompoundError)
+	c := newIdleClient(t, errs)
+
+	var caught error
+	seen := make(chan struct{})
+	c.GoCatch(func(context.Context) error {
+		panic(errPanic)
+	}, func(_ context.Context, err error) error {
+		defer close(seen)
+		caught = err
+		return err
+	})
+	assertClosedWithin(t, seen, "catch ran")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
+	core.AssertErrorIs(t, caught, errPanic, "caught")
+	core.AssertErrorIs(t, errs.AsError(), errPanic, "OnError")
+}
+
+// runTestClientGoCatchPanic runs a catch that panics on a failing
+// worker. The recovered panic replaces the worker's error and takes the
+// worker's own route: it reaches OnError and is absorbed as non-fatal
+// instead of the workgroup cancelling the client on it.
+func runTestClientGoCatchPanic(t *testing.T) {
+	t.Helper()
+
+	errWorker := errors.New("worker failed")
+	errPanic := errors.New("catch panic sentinel")
+	errs := new(errors.CompoundError)
+	c := newIdleClient(t, errs)
+
+	seen := make(chan struct{})
+	c.GoCatch(func(context.Context) error {
+		return errWorker
+	}, func(context.Context, error) error {
+		close(seen)
+		panic(errPanic)
+	})
+	assertClosedWithin(t, seen, "catch ran")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
+	core.AssertErrorIs(t, errs.AsError(), errPanic, "OnError")
+	core.AssertNotErrorIs(t, errs.AsError(), errWorker, "OnError")
+}
+
+// runTestClientGoCatchFatal runs a worker whose plain failure the
+// catch rewrites into ErrDoNotReconnect. The rewritten error is what
+// the client acts on: it stops, as a fatal error demands, and reports
+// the stop as user-initiated.
+func runTestClientGoCatchFatal(t *testing.T) {
+	t.Helper()
+
+	errWorker := errors.New("worker failed")
+	errs := new(errors.CompoundError)
+	c := newIdleClient(t, errs)
+
+	var caught error
+	c.GoCatch(func(context.Context) error {
+		return errWorker
+	}, func(_ context.Context, err error) error {
+		caught = err
+		return reconnect.ErrDoNotReconnect
+	})
+	assertClosedWithin(t, c.Done(), "client stopped")
+
+	core.AssertErrorIs(t, caught, errWorker, "caught")
+	core.AssertNoError(t, c.Wait(), "Wait")
+	core.AssertErrorIs(t, errs.AsError(), reconnect.ErrDoNotReconnect,
+		"OnError")
+	core.AssertNotErrorIs(t, errs.AsError(), errWorker, "OnError")
 }
 
 // TestClientConnectReturnsClosed verifies Connect reports ErrClosed,
@@ -727,4 +898,209 @@ func TestClientDisconnectPanic(t *testing.T) {
 		"OnDisconnect panic reported via OnError")
 	core.AssertErrorIs(t, found, errDisconnectPanic, "panic payload")
 	core.AssertErrorIs(t, c.Wait(), errDisconnectPanic, "Wait")
+}
+
+// holdPeer accepts one connection on lsn and holds it open without
+// ever writing, until done is closed. A session against it stays live
+// instead of ending at once and driving a reconnect.
+func holdPeer(lsn net.Listener, done <-chan struct{}) {
+	conn, err := lsn.Accept()
+	if err != nil {
+		return
+	}
+	defer func() { _ = conn.Close() }()
+	<-done
+}
+
+// assertClosedWithin fails unless ch closes before the client-stop
+// timeout, turning an event that never happens into a clean failure
+// naming it rather than a hung suite.
+func assertClosedWithin(t *testing.T, ch <-chan struct{}, name string) {
+	t.Helper()
+
+	select {
+	case <-ch:
+	case <-time.After(clientStopTimeout):
+		t.Fatalf("%s: not observed in time", name)
+	}
+}
+
+// TestClientConnectOnce covers the entry guard. Connect starts the
+// client exactly once; a later call is refused without dialling again,
+// as ErrRunning while the client is live and as ErrClosed once it has
+// been shut down, whether or not it ever ran.
+func TestClientConnectOnce(t *testing.T) {
+	t.Run("while running", runTestClientConnectWhileRunning)
+	t.Run("after shutdown", runTestClientConnectAfterShutdown)
+	t.Run("never started", runTestClientConnectNeverStarted)
+}
+
+// runTestClientConnectNeverStarted refuses a first Connect against a
+// client shut down before it ever ran. The guard answers ErrClosed
+// before the one-shot check, so no dial is attempted.
+func runTestClientConnectNeverStarted(t *testing.T) {
+	t.Helper()
+
+	lsn, err := net.Listen("tcp", addrLoopbackAny)
+	core.AssertMustNoError(t, err, "listen")
+	defer func() { _ = lsn.Close() }()
+
+	go acceptAndDrop(lsn)
+
+	dials := new(atomic.Int32)
+
+	c, err := reconnect.New(&reconnect.Config{
+		Context: context.Background(),
+		Remote:  lsn.Addr().String(),
+
+		OnConnect: func(context.Context, net.Conn) error {
+			dials.Add(1)
+			return nil
+		},
+	})
+	core.AssertMustNoError(t, err, "New")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
+
+	core.AssertErrorIs(t, c.Connect(), reconnect.ErrClosed, "Connect")
+	core.AssertEqual(t, int32(0), dials.Load(), "dials")
+}
+
+// runTestClientConnectWhileRunning refuses a second Connect against a
+// live client. The session is held open so the call lands while the
+// client is genuinely running, which is what ErrRunning reports.
+func runTestClientConnectWhileRunning(t *testing.T) {
+	t.Helper()
+
+	lsn, err := net.Listen("tcp", addrLoopbackAny)
+	core.AssertMustNoError(t, err, "listen")
+	defer func() { _ = lsn.Close() }()
+
+	peerDone := make(chan struct{})
+	defer close(peerDone)
+	go holdPeer(lsn, peerDone)
+
+	dials := new(atomic.Int32)
+	established := make(chan struct{})
+
+	cfg := &reconnect.Config{
+		Context: context.Background(),
+		Remote:  lsn.Addr().String(),
+
+		OnConnect: func(context.Context, net.Conn) error {
+			dials.Add(1)
+			return nil
+		},
+		OnSession: func(ctx context.Context) error {
+			close(established)
+			<-ctx.Done()
+			return nil
+		},
+	}
+
+	c, err := reconnect.New(cfg)
+	core.AssertMustNoError(t, err, "New")
+	core.AssertMustNoError(t, c.Connect(), "Connect")
+
+	assertClosedWithin(t, established, "session established")
+
+	core.AssertErrorIs(t, c.Connect(), reconnect.ErrRunning, "second Connect")
+
+	// the guard returns before the dial, so the refused call leaves the
+	// remote untouched.
+	core.AssertEqual(t, int32(1), dials.Load(), "dials")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
+}
+
+// runTestClientConnectAfterShutdown refuses a Connect against a client
+// that ran and has since stopped. Shutdown waits for the workers, so
+// the client is stopped, not stopping, and ErrClosed is the answer
+// rather than ErrRunning.
+func runTestClientConnectAfterShutdown(t *testing.T) {
+	t.Helper()
+
+	lsn, err := net.Listen("tcp", addrLoopbackAny)
+	core.AssertMustNoError(t, err, "listen")
+	defer func() { _ = lsn.Close() }()
+
+	go acceptAndDrop(lsn)
+
+	dials := new(atomic.Int32)
+
+	cfg := &reconnect.Config{
+		Context: context.Background(),
+		Remote:  lsn.Addr().String(),
+
+		// stop after the first session instead of retrying, so the
+		// dial count below cannot grow before Shutdown lands.
+		WaitReconnect: reconnect.NewDoNotReconnectWaiter(nil),
+
+		OnConnect: func(context.Context, net.Conn) error {
+			dials.Add(1)
+			return nil
+		},
+	}
+
+	c, err := reconnect.New(cfg)
+	core.AssertMustNoError(t, err, "New")
+	core.AssertMustNoError(t, c.Connect(), "Connect")
+
+	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	defer cancel()
+	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
+
+	core.AssertErrorIs(t, c.Connect(), reconnect.ErrClosed,
+		"Connect after Shutdown")
+	core.AssertEqual(t, int32(1), dials.Load(), "dials")
+}
+
+// assertLogged fails unless logger recorded a message at level whose
+// text contains want.
+func assertLogged(t *testing.T, logger *mock.Logger, level slog.LogLevel, want string) {
+	t.Helper()
+
+	for _, msg := range logger.GetMessages() {
+		if msg.Level == level && strings.Contains(msg.Message, want) {
+			return
+		}
+	}
+	t.Errorf("no %v record containing %q", level, want)
+}
+
+// TestClientNoSessionHandler covers a client configured without
+// OnSession. Nobody owns the connection, so the session is recorded as
+// connected at info level and ended at once by the client itself, the
+// disconnection recorded the same way; the peer never closes its end.
+func TestClientNoSessionHandler(t *testing.T) {
+	lsn, err := net.Listen("tcp", addrLoopbackAny)
+	core.AssertMustNoError(t, err, "listen")
+	defer func() { _ = lsn.Close() }()
+
+	peerDone := make(chan struct{})
+	defer close(peerDone)
+	go holdPeer(lsn, peerDone)
+
+	logger := mock.NewLogger()
+	c, err := reconnect.New(&reconnect.Config{
+		Context: context.Background(),
+		Remote:  lsn.Addr().String(),
+		Logger:  logger,
+
+		// stop after the first session instead of retrying.
+		WaitReconnect: reconnect.NewDoNotReconnectWaiter(nil),
+	})
+	core.AssertMustNoError(t, err, "New")
+	core.AssertMustNoError(t, c.Connect(), "Connect")
+
+	// the session ends on its own and the waiter then stops the client.
+	assertClosedWithin(t, c.Done(), "client stopped")
+	core.AssertNoError(t, c.Wait(), "Wait")
+
+	assertLogged(t, logger, slog.Info, "connected")
+	assertLogged(t, logger, slog.Info, "disconnected")
 }
