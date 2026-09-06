@@ -213,11 +213,11 @@ func TestStreamSessionEcho(t *testing.T) {
 		"Send after shutdown")
 }
 
-// assertWaitReturns fails if the session does not finish winding down
-// within a short deadline, turning a regression that would otherwise
-// hang the suite into a clean failure.
-func assertWaitReturns(t *testing.T, s *reconnect.StreamSession[string, string],
-	name string) {
+// waitWithin bounds a blocking Wait with a deadline, turning a
+// regression that would otherwise hang the suite into a clean failure.
+// It returns Wait's result; asserting on it stays with the caller.
+func waitWithin(t *testing.T, s *reconnect.StreamSession[string, string],
+	name string) error {
 	t.Helper()
 
 	done := make(chan error, 1)
@@ -225,9 +225,143 @@ func assertWaitReturns(t *testing.T, s *reconnect.StreamSession[string, string],
 
 	select {
 	case err := <-done:
-		core.AssertNoError(t, err, name)
+		return err
 	case <-time.After(2 * time.Second):
 		t.Fatalf("%s: did not return", name)
+		return nil
+	}
+}
+
+// assertWaitReturns fails if the session does not finish winding down
+// cleanly within a short deadline.
+func assertWaitReturns(t *testing.T, s *reconnect.StreamSession[string, string],
+	name string) {
+	t.Helper()
+
+	core.AssertNoError(t, waitWithin(t, s, name), name)
+}
+
+// shutdownWithin shuts s down, bounded by a short deadline, and asserts
+// the cause it reports is the user-initiated cancellation.
+func shutdownWithin(t *testing.T, s *reconnect.StreamSession[string, string]) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	core.AssertErrorIs(t, s.Shutdown(ctx), context.Canceled, "Shutdown")
+}
+
+// newSpawnedSession returns a spawned session against a peer that holds
+// its end open until cleanup, and the channel its OnError reports on.
+func newSpawnedSession(t *testing.T) (*reconnect.StreamSession[string, string],
+	<-chan error) {
+	t.Helper()
+
+	c1, c2 := net.Pipe()
+	t.Cleanup(func() { _ = c2.Close() })
+
+	got := make(chan error, 1)
+	s := newStringSession(c1)
+	s.OnError = func(err error) {
+		select {
+		case got <- err:
+		default:
+		}
+	}
+	core.AssertMustNoError(t, s.Spawn(), "Spawn")
+	return s, got
+}
+
+// TestStreamSessionGo covers the session's own Go and GoCatch on a
+// live session: the worker runs under the session's context, and its
+// error ends the session unless a catch absorbs it.
+func TestStreamSessionGo(t *testing.T) {
+	t.Run("worker runs", runTestStreamSessionGoRuns)
+	t.Run("worker error ends the session", runTestStreamSessionGoFails)
+	t.Run("catch absorbs the error", runTestStreamSessionGoCatchAbsorbs)
+}
+
+// runTestStreamSessionGoRuns runs a worker under Go and checks it
+// received a live context, then shuts the session down cleanly.
+func runTestStreamSessionGoRuns(t *testing.T) {
+	t.Helper()
+
+	s, _ := newSpawnedSession(t)
+
+	ran := make(chan error, 1)
+	s.Go(func(ctx context.Context) error {
+		ran <- ctx.Err()
+		return nil
+	})
+
+	select {
+	case err := <-ran:
+		core.AssertNoError(t, err, "worker context")
+	case <-time.After(2 * time.Second):
+		t.Fatal("worker did not run")
+	}
+
+	shutdownWithin(t, s)
+	assertWaitReturns(t, s, "Wait")
+}
+
+// runTestStreamSessionGoFails runs a worker under Go that fails. With
+// no catch the error cancels the session: OnError receives it and
+// Wait reports it as the cause.
+func runTestStreamSessionGoFails(t *testing.T) {
+	t.Helper()
+
+	errWorker := errors.New("worker failed")
+	s, got := newSpawnedSession(t)
+
+	s.Go(func(context.Context) error {
+		return errWorker
+	})
+
+	select {
+	case err := <-got:
+		core.AssertErrorIs(t, err, errWorker, "OnError cause")
+	case <-time.After(2 * time.Second):
+		t.Fatal("OnError did not fire")
+	}
+
+	core.AssertErrorIs(t, waitWithin(t, s, "Wait"), errWorker, "Wait cause")
+}
+
+// runTestStreamSessionGoCatchAbsorbs runs a failing worker under
+// GoCatch with a catch that absorbs the error. The catch sees it, the
+// session stays live, and the later shutdown is clean.
+func runTestStreamSessionGoCatchAbsorbs(t *testing.T) {
+	t.Helper()
+
+	errWorker := errors.New("worker failed")
+	s, got := newSpawnedSession(t)
+
+	caught := make(chan error, 1)
+	s.GoCatch(func(context.Context) error {
+		return errWorker
+	}, func(_ context.Context, err error) error {
+		caught <- err
+		return nil
+	})
+
+	select {
+	case err := <-caught:
+		core.AssertErrorIs(t, err, errWorker, "caught")
+	case <-time.After(2 * time.Second):
+		t.Fatal("catch did not run")
+	}
+	core.AssertNoError(t, s.Err(), "Err")
+
+	shutdownWithin(t, s)
+	assertWaitReturns(t, s, "Wait")
+
+	// OnError saw the shutdown, not the absorbed error.
+	select {
+	case err := <-got:
+		core.AssertNotErrorIs(t, err, errWorker, "OnError cause")
+	case <-time.After(2 * time.Second):
+		t.Fatal("OnError did not fire on shutdown")
 	}
 }
 

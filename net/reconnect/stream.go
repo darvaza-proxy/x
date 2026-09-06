@@ -65,11 +65,11 @@ type StreamSession[Input, Output any] struct {
 
 // streamInitCancelHook, when non-nil, is invoked during init once
 // setDefaults has realised the workgroup context — the point where a
-// cancellation can first fire OnCancel. By then init has already wired the
-// OnError->OnCancel bridge (ahead of setDefaults), so a cancel here must
-// still reach OnError; regressing that order makes the seam's test go red.
-// It is a white-box test seam (see stream_private_test.go) and stays nil in
-// production.
+// cancellation can first fire OnCancel. By then init has already wired
+// onCancel (ahead of setDefaults), so a cancel here must still reach
+// OnError and release the session; regressing that order makes the seam's
+// test go red. It is a white-box test seam (see stream_private_test.go)
+// and stays nil in production.
 var streamInitCancelHook func(*workgroup.Group)
 
 func (s *StreamSession[Input, Output]) init() error {
@@ -84,17 +84,14 @@ func (s *StreamSession[Input, Output]) init() error {
 		return core.QuietWrap(fs.ErrInvalid, "missing Marshal/MarshalTo")
 	}
 
-	if fn := s.OnError; fn != nil {
-		// the former core.ErrGroup delivered the cancellation cause
-		// to OnError; OnCancel is its workgroup.Group equivalent. Wire
-		// it before setDefaults realises the workgroup context: that
-		// registers the context.AfterFunc cancel watcher, after which
-		// the group may fire OnCancel, and a bridge wired later would be
-		// read nil and drop the cause.
-		s.wg.OnCancel = func(_ context.Context, cause error) {
-			fn(cause)
-		}
-	}
+	// onCancel closes out, so the channels exist before anything can
+	// fire it. Wire it before setDefaults realises the workgroup
+	// context: that registers the context.AfterFunc cancel watcher,
+	// after which the group may fire OnCancel, and a handler wired
+	// later would be read nil and drop both the cause and the release.
+	s.in = make(chan Input)
+	s.out = make(chan Output, s.QueueSize)
+	s.wg.OnCancel = s.onCancel
 
 	s.setDefaults()
 
@@ -102,9 +99,23 @@ func (s *StreamSession[Input, Output]) init() error {
 		hook(&s.wg)
 	}
 
-	s.in = make(chan Input)
-	s.out = make(chan Output, s.QueueSize)
 	return nil
+}
+
+// onCancel is the group's OnCancel handler, run once on cancellation
+// from any source. It releases both ends of the session, which the
+// workers cannot do from the group's context: closing Conn unblocks a
+// reader parked on Scan, and closing out ends the writer's range and
+// turns a later Send into ErrClosed. It then forwards the cause to
+// OnError, the bridge the former core.ErrGroup provided; the release
+// comes first so a panicking hook cannot leave the workers parked.
+func (s *StreamSession[_, _]) onCancel(_ context.Context, cause error) {
+	_ = s.Conn.Close()
+	close(s.out)
+
+	if fn := s.OnError; fn != nil {
+		fn(cause)
+	}
 }
 
 // noopHook is the default for the optional read/write deadline hooks.
@@ -157,36 +168,30 @@ func doMarshalTo[T any](v T, w io.Writer, fn func(T) ([]byte, error)) error {
 
 // Spawn starts the [StreamSession]'s workers. It fails if the
 // session has already been started, or if Conn, Unmarshal, or
-// a marshalling function is missing.
+// a marshalling function is missing, and with [ErrClosed] if the
+// context was cancelled before the workers could be enrolled.
 func (s *StreamSession[_, _]) Spawn() error {
 	if err := s.init(); err != nil {
 		return err
 	}
 
-	s.goWithKill(s.runReader, s.killReader)
-	s.goWithKill(s.runWriter, s.killWriter)
-	return nil
-}
-
-// goWithKill supervises run and fires kill once the group's context is
-// cancelled, replacing the shutdown argument of the former
-// core.ErrGroup.Go so a worker blocked on I/O can unwind.
-//
-// The kill watcher is enrolled before run so an early cancellation —
-// the reader reaching EOF and winding the group down before the writer
-// is wired up — cannot drop it. If the group is already cancelled the
-// watcher cannot be enrolled, so run is never started and kill closes
-// the resource directly.
-func (s *StreamSession[_, _]) goWithKill(run WorkerFunc, kill func() error) {
-	if err := s.wg.Go(func(ctx context.Context) {
-		<-ctx.Done()
-		_ = kill()
-	}); err != nil {
-		_ = kill()
-		return
+	// The writer goes first: it ends only on the release, whereas the
+	// reader can reach EOF at once and cancel the group behind Spawn's
+	// back, which must not read as a failure to start. Either enrolment
+	// fails only when the group is already cancelled, with the reader
+	// not started; close the inbound stream it would have ended so a
+	// consumer does not park on it. The release is already under way
+	// for whatever did start.
+	err := s.wg.GoCatch(s.runWriter, nil)
+	if err == nil {
+		err = s.wg.GoCatch(s.runReader, nil)
+	}
+	if err != nil {
+		close(s.in)
+		return ErrClosed
 	}
 
-	_ = s.wg.GoCatch(run, nil)
+	return nil
 }
 
 func (s *StreamSession[_, _]) runReader(ctx context.Context) error {
@@ -210,7 +215,7 @@ func (s *StreamSession[_, _]) runReader(ctx context.Context) error {
 	}
 
 	// A clean EOF ends the inbound stream but does not cancel the group
-	// on its own; do it here so the writer and the kill watchers unwind
+	// on its own; do it here so the release runs and the writer unwinds
 	// instead of parking forever and leaving Wait to block.
 	s.wg.Cancel(nil)
 	return nil
@@ -236,10 +241,6 @@ func (s *StreamSession[_, _]) readerStep(ctx context.Context, raw []byte) error 
 	}
 
 	return s.SetReadDeadline()
-}
-
-func (s *StreamSession[_, _]) killReader() error {
-	return s.Conn.Close()
 }
 
 func (s *StreamSession[_, _]) runWriter(_ context.Context) error {
@@ -269,12 +270,9 @@ func (s *StreamSession[_, Output]) writeOne(req Output) error {
 	return s.UnsetWriteDeadline()
 }
 
-func (s *StreamSession[_, _]) killWriter() error {
-	close(s.out)
-	return nil
-}
-
-// Go spawns a goroutine within the session's context.
+// Go spawns a goroutine within the session's context. Submissions
+// after the session has been cancelled are no-ops: the worker is
+// dropped rather than run with an already-cancelled context.
 func (s *StreamSession[_, _]) Go(funcs ...WorkerFunc) {
 	mustStarted(s)
 
@@ -287,6 +285,8 @@ func (s *StreamSession[_, _]) Go(funcs ...WorkerFunc) {
 
 // GoCatch spawns a goroutine within the session's context,
 // and allows a catcher function to filter returned errors.
+// Submissions after the session has been cancelled are no-ops, as
+// with [StreamSession.Go].
 func (s *StreamSession[_, _]) GoCatch(run WorkerFunc, catch CatcherFunc) {
 	mustStarted(s)
 

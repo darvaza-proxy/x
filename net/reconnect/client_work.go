@@ -79,19 +79,7 @@ func (c *Client) GoCatch(run WorkerFunc, catch CatcherFunc) {
 }
 
 func (c *Client) spawnOne(run WorkerFunc, catch CatcherFunc) {
-	err := c.wg.Go(func(ctx context.Context) {
-		var catcher core.Catcher
-
-		err := catcher.Do(func() error {
-			return run(ctx)
-		})
-
-		if err != nil && catch != nil {
-			err = catch(ctx, err)
-		}
-
-		_ = c.handlePossiblyFatalError(nil, err)
-	})
+	err := c.wg.GoCatch(run, c.newWorkerCatch(catch))
 	if err != nil {
 		// the group is already shutting down; the worker is dropped
 		// rather than run with a cancelled context. Surface it at
@@ -100,6 +88,26 @@ func (c *Client) spawnOne(run WorkerFunc, catch CatcherFunc) {
 			l = l.WithField(slog.ErrorFieldName, err)
 			l.Print("worker submitted after shutdown; dropped")
 		}
+	}
+}
+
+// newWorkerCatch returns the catch the workgroup hands a worker's
+// outcome to. It always returns nil, so the group's own supervision
+// never cancels on a worker's result; the Client decides instead,
+// terminating through handlePossiblyFatalError on a fatal error and
+// absorbing anything else. The user's catch is supervised the same
+// way as the worker, so a panic in either takes the same route through
+// OnError rather than reaching the group as a recovered error.
+func (c *Client) newWorkerCatch(catch CatcherFunc) func(context.Context, error) error {
+	return func(ctx context.Context, err error) error {
+		if err != nil && catch != nil {
+			err = core.Catch(func() error {
+				return catch(ctx, err)
+			})
+		}
+
+		_ = c.handlePossiblyFatalError(nil, err)
+		return nil
 	}
 }
 
@@ -156,10 +164,10 @@ func (c *Client) runSession(conn net.Conn) error {
 	c.setConn(conn)
 
 	// A cancellation that landed in the window between the dial and here
-	// was consumed by the cancel watcher against a not-yet-stored conn, so
-	// it will not close this one. Don't hand a cancelled context to
-	// OnSession only for it to park on a read nothing will unblock; wind
-	// down instead.
+	// ran the shutdown handler against a not-yet-stored conn, and it runs
+	// only once, so nothing will close this one. Don't hand a cancelled
+	// context to OnSession only for it to park on a read nothing will
+	// unblock; wind down instead.
 	if c.ctx.Err() != nil {
 		return context.Cause(c.ctx)
 	}
