@@ -1,12 +1,12 @@
 module darvaza.org/x/fs
 
-go 1.25.0
+go 1.26.0
 
 require darvaza.org/core v0.21.2
 
 require (
 	github.com/gobwas/glob v0.2.3
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
