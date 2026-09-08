@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-GB
+reviews:
+  profile: assertive
+  path_instructions:
+    - path: "**/*_test.go"
+      instructions: >-
+        Tests follow darvaza.org/core's TESTING.md: tables of two or more
+        rows use a named case type, a factory taking fields in semantic
+        order, a `var _ core.TestCase` assertion and `core.RunTestCases`;
+        assertions use `core.Assert*` rather than `t.Errorf`; test files
+        use the external `_test` package unless unexported access is
+        required.
+  auto_review:
+    ignore_title_keywords:
+      - WIP
+      - DO NOT MERGE
+  tools:
+    markdownlint:
+      enabled: false
+    languagetool:
+      disabled_rules:
+        - ARROWS
+        - COMMA_PARENTHESIS_WHITESPACE
+        - EN_QUOTES
+        - EN_SPELLING_RULE
+        - MORFOLOGIK_RULE_EN
+        - MORFOLOGIK_RULE_EN_GB
+        - UPPERCASE_SENTENCE_START
+      enabled_rules:
+        - EN_A_VS_AN
+        - ENGLISH_WORD_REPEAT_RULE
+        - MISSING_COMMA
+        - MISSING_DETERMINER
+        - MISSING_HYPHEN
+      enabled_categories:
+        - GRAMMAR
+        - PUNCTUATION
+        - STYLE
