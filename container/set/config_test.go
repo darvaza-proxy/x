@@ -42,10 +42,10 @@ func testConfigEqualDifferentItemMatch(t *testing.T) {
 
 func testConfigEqualNilCallbacks(t *testing.T) {
 	full := testConfig()
-	var empty set.Config[int, int, testItem]
+	var empty, other set.Config[int, int, testItem]
 
 	// two configs with nil callbacks compare equal (both nil).
-	core.AssertTrue(t, empty.Equal(empty), "two empty configs")
+	core.AssertTrue(t, empty.Equal(other), "two empty configs")
 	// a nil callback never matches a non-nil one.
 	core.AssertFalse(t, empty.Equal(full), "empty versus full")
 	core.AssertFalse(t, full.Equal(empty), "full versus empty")
