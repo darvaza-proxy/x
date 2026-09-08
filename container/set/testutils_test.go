@@ -74,26 +74,30 @@ func makeHashCollisionItems() []testItem {
 	)
 }
 
-// assertGetAll verifies every item can be fetched back by key.
-func assertGetAll(t *testing.T, s *set.Set[int, int, testItem], items []testItem) {
-	t.Helper()
-	for _, item := range items {
-		v, err := s.Get(item.ID)
-		core.AssertNoError(t, err, "get %d", item.ID)
-		core.AssertEqual(t, item.ID, v.ID, "id %d", item.ID)
-	}
+// itemID is the accessor for assertSetContainsAllFn over testItem values.
+func itemID(v testItem) int {
+	return v.ID
 }
 
-// assertHasIDs verifies the set holds exactly the given IDs, checking the
-// count (so duplicates are caught) and membership of each through the
-// set's own hash (so a misplaced item is caught).
-func assertHasIDs(t *testing.T, s *set.Set[int, int, testItem], ids ...int) {
+// assertSetContainsAllFn verifies the set holds exactly the given values,
+// checking the count (so duplicates are caught) and membership of each
+// through the set's own hash (so a misplaced item is caught). accessor
+// maps a value to its ID.
+func assertSetContainsAllFn[T any](t *testing.T, s *set.Set[int, int, testItem],
+	accessor func(T) int, values ...T) {
 	t.Helper()
-	core.AssertEqual(t, len(ids), len(s.Values()), "count")
+	core.AssertEqual(t, len(values), len(s.Values()), "count")
 
-	for _, id := range ids {
+	for _, value := range values {
+		id := accessor(value)
 		v, err := s.Get(id)
 		core.AssertNoError(t, err, "get %d", id)
 		core.AssertEqual(t, id, v.ID, "id %d", id)
 	}
+}
+
+// assertSetContainsAll is assertSetContainsAllFn over the IDs themselves.
+func assertSetContainsAll(t *testing.T, s *set.Set[int, int, testItem], ids ...int) {
+	t.Helper()
+	assertSetContainsAllFn(t, s, func(id int) int { return id }, ids...)
 }

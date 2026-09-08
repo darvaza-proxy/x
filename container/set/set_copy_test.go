@@ -16,7 +16,7 @@ func testCopyIntoUninitialisedDst(t *testing.T) {
 	got := src.Copy(dst, nil)
 
 	core.AssertSame(t, dst, got, "dst returned")
-	assertHasIDs(t, dst, 1, 2)
+	assertSetContainsAll(t, dst, 1, 2)
 
 	// the copy must be independent: mutating src must not touch dst.
 	_, _ = src.Push(testItem{ID: 3, Name: nameThree})
@@ -40,7 +40,7 @@ func testCopyIntoCompatibleDst(t *testing.T) {
 
 	core.AssertSame(t, dst, got, "dst returned")
 	// union with ID 1 deduplicated, not doubled.
-	assertHasIDs(t, dst, 1, 2, 3, 11)
+	assertSetContainsAll(t, dst, 1, 2, 3, 11)
 }
 
 func testCopyIntoCompatibleDstFiltered(t *testing.T) {
@@ -55,7 +55,7 @@ func testCopyIntoCompatibleDstFiltered(t *testing.T) {
 	got := src.Copy(dst, func(v testItem) bool { return v.ID != 2 })
 
 	core.AssertSame(t, dst, got, "dst returned")
-	assertHasIDs(t, dst, 1, 3, 4)
+	assertSetContainsAll(t, dst, 1, 3, 4)
 }
 
 func testCopyIntoEmptyCompatibleDst(t *testing.T) {
@@ -67,7 +67,7 @@ func testCopyIntoEmptyCompatibleDst(t *testing.T) {
 	got := src.Copy(dst, nil)
 
 	core.AssertSame(t, dst, got, "dst returned")
-	assertHasIDs(t, dst, 1, 2)
+	assertSetContainsAll(t, dst, 1, 2)
 }
 
 func testCopyIntoIncompatibleDst(t *testing.T) {
@@ -80,7 +80,7 @@ func testCopyIntoIncompatibleDst(t *testing.T) {
 	got := src.Copy(dst, nil)
 
 	core.AssertSame(t, dst, got, "dst returned")
-	assertHasIDs(t, dst, 1, 3, 8)
+	assertSetContainsAll(t, dst, 1, 3, 8)
 }
 
 func testCopyIntoIncompatibleDstFiltered(t *testing.T) {
@@ -94,7 +94,7 @@ func testCopyIntoIncompatibleDstFiltered(t *testing.T) {
 	got := src.Copy(dst, func(v testItem) bool { return v.ID%2 == 0 })
 
 	core.AssertSame(t, dst, got, "dst returned")
-	assertHasIDs(t, dst, 2, 8)
+	assertSetContainsAll(t, dst, 2, 8)
 }
 
 func TestCopyIntoDestination(t *testing.T) {
@@ -113,7 +113,7 @@ func testCopySameSrcDst(t *testing.T) {
 	got := s.Copy(s, nil)
 
 	core.AssertSame(t, s, got, "source returned unchanged")
-	assertHasIDs(t, s, 1, 2)
+	assertSetContainsAll(t, s, 1, 2)
 }
 
 func testCopyNilSource(t *testing.T) {
@@ -123,7 +123,7 @@ func testCopyNilSource(t *testing.T) {
 	got := src.Copy(dst, nil)
 
 	core.AssertSame(t, dst, got, "dst returned unchanged")
-	assertHasIDs(t, dst, 1)
+	assertSetContainsAll(t, dst, 1)
 }
 
 func testCopyUninitialisedSource(t *testing.T) {
@@ -133,7 +133,7 @@ func testCopyUninitialisedSource(t *testing.T) {
 	got := src.Copy(dst, nil)
 
 	core.AssertSame(t, dst, got, "dst returned unchanged")
-	assertHasIDs(t, dst, 1)
+	assertSetContainsAll(t, dst, 1)
 }
 
 func TestCopyNoOp(t *testing.T) {

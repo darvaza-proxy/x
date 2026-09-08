@@ -13,14 +13,14 @@ func TestConfigNew(t *testing.T) {
 	s, err := testConfig().New(items...)
 	core.AssertMustNoError(t, err, "new")
 	core.AssertMustNotNil(t, s, "set")
-	assertGetAll(t, s, items)
+	assertSetContainsAllFn(t, s, itemID, items...)
 }
 
 func testConfigInitBasic(t *testing.T) {
 	var s set.Set[int, int, testItem]
 	items := makeTestItems()
 	core.AssertMustNoError(t, testConfig().Init(&s, items...), "init")
-	assertGetAll(t, &s, items)
+	assertSetContainsAllFn(t, &s, itemID, items...)
 }
 
 func testConfigInitTwice(t *testing.T) {
@@ -69,12 +69,12 @@ func TestPush(t *testing.T) {
 
 func testGetExisting(t *testing.T) {
 	items := makeTestItems()
-	assertGetAll(t, testConfig().Must(items...), items)
+	assertSetContainsAllFn(t, testConfig().Must(items...), itemID, items...)
 }
 
 func testGetCollisions(t *testing.T) {
 	items := makeHashCollisionItems()
-	assertGetAll(t, testConfig().Must(items...), items)
+	assertSetContainsAllFn(t, testConfig().Must(items...), itemID, items...)
 }
 
 func testGetNonExistent(t *testing.T) {
@@ -154,7 +154,7 @@ func TestPop(t *testing.T) {
 func TestReset(t *testing.T) {
 	items := makeTriple()
 	s := testConfig().Must(items...)
-	assertGetAll(t, s, items)
+	assertSetContainsAllFn(t, s, itemID, items...)
 
 	core.AssertMustNoError(t, s.Reset(), "reset")
 	for _, item := range items {
@@ -168,7 +168,7 @@ func TestClone(t *testing.T) {
 
 	s2 := s1.Clone()
 	core.AssertMustNotNil(t, s2, "clone")
-	assertGetAll(t, s2, items)
+	assertSetContainsAllFn(t, s2, itemID, items...)
 
 	_, _ = s1.Push(testItem{ID: 3, Name: nameThree})
 	core.AssertFalse(t, s2.Contains(3), "clone independent of original")
@@ -186,7 +186,7 @@ func testCopyFilter(t *testing.T) {
 func testCopyAll(t *testing.T) {
 	items := makeTriple()
 	s2 := testConfig().Must(items...).Copy(nil, nil)
-	assertGetAll(t, s2, items)
+	assertSetContainsAllFn(t, s2, itemID, items...)
 }
 
 func TestCopy(t *testing.T) {
@@ -196,7 +196,7 @@ func TestCopy(t *testing.T) {
 
 func TestValues(t *testing.T) {
 	s := testConfig().Must(makeTriple()...)
-	assertHasIDs(t, s, 1, 2, 3)
+	assertSetContainsAll(t, s, 1, 2, 3)
 }
 
 func testForEachAll(t *testing.T) {
@@ -364,8 +364,7 @@ func TestEmptySet(t *testing.T) {
 func TestHashCollisions(t *testing.T) {
 	items := makeHashCollisionItems()
 	s := testConfig().Must(items...)
-	assertGetAll(t, s, items)
-	assertHasIDs(t, s, 1, 11, 21, 31)
+	assertSetContainsAll(t, s, 1, 11, 21, 31)
 }
 
 // errKeyConfig is a valid Config whose ItemKey rejects negative IDs, used to
