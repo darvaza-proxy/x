@@ -195,7 +195,7 @@ Automated dual coverage reporting across all modules:
 GitHub Actions workflows:
 
 - **Build workflow** (`.github/workflows/build.yml`): Compiles every
-  module across Go 1.25 and 1.26. Host (Linux) `go vet` runs here via
+  module across Go 1.25, 1.26 and 1.27. Host (Linux) `go vet` runs here via
   `make`'s `tidy` step.
 - **Platforms workflow** (`.github/workflows/platforms.yml`):
   Cross-platform test and race, with the premium macOS and Windows
@@ -204,9 +204,9 @@ GitHub Actions workflows:
     `make vet`. Because `go vet` compiles every module's packages and
     tests without running them, it is the only compile check for the
     platforms CI cannot execute natively.
-  - `linux-test` (Go 1.25 and 1.26) and `linux-race` run the suites on
+  - `linux-test` (Go 1.25, 1.26 and 1.27) and `linux-race` run the suites on
     Linux.
-  - The native `test` (macOS, Windows × Go 1.25 and 1.26) and `race`
+  - The native `test` (macOS, Windows × Go 1.25, 1.26 and 1.27) and `race`
     (macOS, Windows) jobs declare `needs:` on the Linux gates, so a
     cross-compile break or a Linux failure skips them and spends no
     premium minutes. macOS installs the GNU userland and selects it
