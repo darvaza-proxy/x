@@ -1,6 +1,8 @@
 package mutex
 
 import (
+	"slices"
+
 	"darvaza.org/core"
 )
 
@@ -190,8 +192,8 @@ func doUnlockLoop[T Mutex](locks []T, unlock func(T) error) error {
 func doReverseUnlock[T Mutex](unlock func(T) error, locks []T) error {
 	var errs core.CompoundError
 
-	for i := len(locks) - 1; i >= 0; i-- {
-		if err := unlock(locks[i]); err != nil {
+	for _, mu := range slices.Backward(locks) {
+		if err := unlock(mu); err != nil {
 			_ = errs.AppendError(err)
 		}
 	}

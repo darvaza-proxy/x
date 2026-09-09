@@ -13,14 +13,14 @@ func TestConfigNew(t *testing.T) {
 	s, err := testConfig().New(items...)
 	core.AssertMustNoError(t, err, "new")
 	core.AssertMustNotNil(t, s, "set")
-	assertGetAll(t, s, items)
+	assertSetContainsAllFn(t, s, itemID, items...)
 }
 
 func testConfigInitBasic(t *testing.T) {
 	var s set.Set[int, int, testItem]
 	items := makeTestItems()
 	core.AssertMustNoError(t, testConfig().Init(&s, items...), "init")
-	assertGetAll(t, &s, items)
+	assertSetContainsAllFn(t, &s, itemID, items...)
 }
 
 func testConfigInitTwice(t *testing.T) {
@@ -35,7 +35,7 @@ func TestConfigInit(t *testing.T) {
 }
 
 func testConfigMustValid(t *testing.T) {
-	s := testConfig().Must(testItem{ID: 1, Name: "one"})
+	s := testConfig().Must(testItem{ID: 1, Name: nameOne})
 	core.AssertNotNil(t, s, "set")
 }
 
@@ -51,13 +51,13 @@ func TestConfigMust(t *testing.T) {
 
 func testPushNew(t *testing.T) {
 	s := testConfig().Must()
-	stored, err := s.Push(testItem{ID: 1, Name: "one"})
+	stored, err := s.Push(testItem{ID: 1, Name: nameOne})
 	core.AssertNoError(t, err, "push")
 	core.AssertEqual(t, 1, stored.ID, "stored id")
 }
 
 func testPushDuplicate(t *testing.T) {
-	s := testConfig().Must(testItem{ID: 1, Name: "one"})
+	s := testConfig().Must(testItem{ID: 1, Name: nameOne})
 	_, err := s.Push(testItem{ID: 1, Name: "duplicate"})
 	core.AssertErrorIs(t, err, set.ErrExist, "duplicate")
 }
@@ -69,12 +69,12 @@ func TestPush(t *testing.T) {
 
 func testGetExisting(t *testing.T) {
 	items := makeTestItems()
-	assertGetAll(t, testConfig().Must(items...), items)
+	assertSetContainsAllFn(t, testConfig().Must(items...), itemID, items...)
 }
 
 func testGetCollisions(t *testing.T) {
 	items := makeHashCollisionItems()
-	assertGetAll(t, testConfig().Must(items...), items)
+	assertSetContainsAllFn(t, testConfig().Must(items...), itemID, items...)
 }
 
 func testGetNonExistent(t *testing.T) {
@@ -120,7 +120,7 @@ func (tc containsTestCase) Test(t *testing.T) {
 func containsTestCases() []containsTestCase {
 	// IDs 1 and 11 share bucket 1, so the absent sibling 21 probes a
 	// populated bucket while 2 probes an empty one.
-	s := testConfig().Must(testItem{ID: 1, Name: "one"}, testItem{ID: 11, Name: "eleven"})
+	s := testConfig().Must(testItem{ID: 1, Name: nameOne}, testItem{ID: 11, Name: nameEleven})
 	return []containsTestCase{
 		newContainsTestCase("existing", s, 1, true),
 		newContainsTestCase("collision sibling", s, 11, true),
@@ -134,7 +134,7 @@ func TestContains(t *testing.T) {
 }
 
 func testPopExisting(t *testing.T) {
-	s := testConfig().Must(testItem{ID: 1, Name: "one"})
+	s := testConfig().Must(testItem{ID: 1, Name: nameOne})
 	v, err := s.Pop(1)
 	core.AssertNoError(t, err, "pop")
 	core.AssertEqual(t, 1, v.ID, "popped id")
@@ -154,7 +154,7 @@ func TestPop(t *testing.T) {
 func TestReset(t *testing.T) {
 	items := makeTriple()
 	s := testConfig().Must(items...)
-	assertGetAll(t, s, items)
+	assertSetContainsAllFn(t, s, itemID, items...)
 
 	core.AssertMustNoError(t, s.Reset(), "reset")
 	for _, item := range items {
@@ -168,9 +168,9 @@ func TestClone(t *testing.T) {
 
 	s2 := s1.Clone()
 	core.AssertMustNotNil(t, s2, "clone")
-	assertGetAll(t, s2, items)
+	assertSetContainsAllFn(t, s2, itemID, items...)
 
-	_, _ = s1.Push(testItem{ID: 3, Name: "three"})
+	_, _ = s1.Push(testItem{ID: 3, Name: nameThree})
 	core.AssertFalse(t, s2.Contains(3), "clone independent of original")
 }
 
@@ -186,7 +186,7 @@ func testCopyFilter(t *testing.T) {
 func testCopyAll(t *testing.T) {
 	items := makeTriple()
 	s2 := testConfig().Must(items...).Copy(nil, nil)
-	assertGetAll(t, s2, items)
+	assertSetContainsAllFn(t, s2, itemID, items...)
 }
 
 func TestCopy(t *testing.T) {
@@ -196,7 +196,7 @@ func TestCopy(t *testing.T) {
 
 func TestValues(t *testing.T) {
 	s := testConfig().Must(makeTriple()...)
-	assertHasIDs(t, s, 1, 2, 3)
+	assertSetContainsAll(t, s, 1, 2, 3)
 }
 
 func testForEachAll(t *testing.T) {
@@ -274,11 +274,16 @@ func testConfigEqualSame(t *testing.T) {
 	cfg1 := set.Config[int, int, testItem]{ItemKey: keyFn, Hash: hashFn, ItemMatch: matchFn}
 	cfg2 := set.Config[int, int, testItem]{ItemKey: keyFn, Hash: hashFn, ItemMatch: matchFn}
 
-	core.AssertTrue(t, cfg1.Equal(cfg2), "same functions")
+	core.AssertEqual(t, cfg1, cfg2, "config")
 }
 
 func testConfigEqualDifferent(t *testing.T) {
-	core.AssertFalse(t, testConfig().Equal(testConfig()), "different instances")
+	cfg1 := testConfig()
+	cfg2 := testConfig()
+	cfg2.Hash = func(k int) (int, error) { return k % 100, nil }
+	core.AssertMustNotSame(t, cfg1.Hash, cfg2.Hash, "hash")
+
+	core.AssertNotEqual(t, cfg1, cfg2, "config")
 }
 
 func TestConfigEqual(t *testing.T) {
@@ -359,8 +364,7 @@ func TestEmptySet(t *testing.T) {
 func TestHashCollisions(t *testing.T) {
 	items := makeHashCollisionItems()
 	s := testConfig().Must(items...)
-	assertGetAll(t, s, items)
-	assertHasIDs(t, s, 1, 11, 21, 31)
+	assertSetContainsAll(t, s, 1, 11, 21, 31)
 }
 
 // errKeyConfig is a valid Config whose ItemKey rejects negative IDs, used to
@@ -405,7 +409,7 @@ func testPopNilReceiver(t *testing.T) {
 
 func testPopHashCollisionMiss(t *testing.T) {
 	// ID 1 and 11 share hash 1; popping 11 finds the bucket but no match.
-	s := testConfig().Must(testItem{ID: 1, Name: "one"})
+	s := testConfig().Must(testItem{ID: 1, Name: nameOne})
 
 	_, err := s.Pop(11)
 
@@ -431,7 +435,7 @@ func testContainsUninitialised(t *testing.T) {
 
 func testPushUninitialised(t *testing.T) {
 	s := &set.Set[int, int, testItem]{}
-	_, err := s.Push(testItem{ID: 1, Name: "one"})
+	_, err := s.Push(testItem{ID: 1, Name: nameOne})
 	core.AssertErrorIs(t, err, core.ErrNotImplemented, "push on uninitialised")
 }
 

@@ -1,5 +1,7 @@
 # AGENTS.md
 
+<!-- cspell:words coderabbit -->
+
 This file provides guidance to AI agents when working with code in this
 repository. For developers and general project information, please refer to
 [README.md](README.md) first.
@@ -58,15 +60,17 @@ make generate
 
 ## Working with Individual Packages
 
-Each package has its own directory and can be worked on independently:
+Each package has its own directory and can be worked on independently,
+from the repository root:
 
 ```bash
-# Navigate to a specific package
-cd cmp/
+# Per-module make targets (build, test, tidy, race, coverage, vet, ...)
+make build-cmp
+make test-cmp
+make tidy-cmp
 
-# Run package-specific commands
-go test ./...
-go mod tidy
+# Run a go command against one module
+go -C cmp test ./...
 ```
 
 ## Architecture Principles
@@ -89,8 +93,8 @@ go mod tidy
 
 ### Code Quality Standards
 
-The project enforces strict linting rules via revive (configuration in each
-package's `internal/build/revive.toml`):
+The project enforces strict linting rules via revive (configuration in
+`internal/build/revive.toml`, shared by every module):
 
 - Max function length: 40 lines.
 - Max function results: 3.
@@ -102,8 +106,16 @@ Always run `make tidy` before committing to ensure proper formatting.
 
 ### Testing Patterns
 
-- Table-driven tests are preferred.
-- Helper functions like `S[T]()` create test slices.
+Tests follow the conventions in `darvaza.org/core`'s
+[TESTING.md](https://github.com/darvaza-proxy/core/blob/main/TESTING.md):
+
+- Tables of two or more rows use a named case type, a factory taking the
+  fields in semantic order, a `var _ core.TestCase` assertion and
+  `core.RunTestCases`.
+- Assertions use `core.Assert*` rather than `t.Errorf`; `core.S[T]()`
+  creates test slices.
+- Test files use the external `_test` package unless unexported access is
+  required.
 - Comprehensive coverage for generic functions is expected.
 
 ### Build System
@@ -129,7 +141,7 @@ The `internal/build/fix_whitespace.sh` script automatically:
 
 The build system includes automatic Markdown linting:
 
-- Detects markdownlint-cli via dlx.
+- Detects markdownlint-cli2 via dlx.
 - Configuration in `internal/build/markdownlint.json`.
 - 80-character prose line limit (120 in code blocks), strict formatting rules.
 - Selective HTML allowlist (comments, br, kbd, etc.).
@@ -141,8 +153,7 @@ Spell checking for both Markdown and Go source files:
 
 - Detects cspell via dlx.
 - British English configuration in `internal/build/cspell.json`.
-- New `check-spelling` target.
-- Integrated into `make tidy`.
+- `check-spelling` target, integrated into `make tidy`.
 - Custom word list for project-specific terminology.
 - Checks both documentation and code comments.
 
@@ -152,7 +163,7 @@ Grammar and style checking for Markdown files:
 
 - Detects LanguageTool via dlx.
 - British English configuration in `internal/build/languagetool.cfg`.
-- New `check-grammar` target.
+- `check-grammar` target, run on demand rather than by `make tidy`.
 - Checks for missing articles, punctuation, and proper hyphenation.
 
 ### ShellCheck Integration
@@ -160,8 +171,7 @@ Grammar and style checking for Markdown files:
 Shell script analysis for all `.sh` files:
 
 - Detects shellcheck via dlx.
-- New `check-shell` target.
-- Integrated into `make tidy`.
+- `check-shell` target, integrated into `make tidy`.
 - Uses inline disable directives for SC1007 (empty assignments) and SC3043
   (`local` usage).
 - Checks for common shell scripting issues and best practices.
@@ -170,7 +180,7 @@ Shell script analysis for all `.sh` files:
 
 Automated dual coverage reporting across all modules:
 
-- New `coverage` target runs tests with coverage profiling.
+- The `coverage` target runs tests with coverage profiling.
 - Uses `internal/build/make_coverage.sh` to orchestrate testing.
 - Generates both self-coverage and integration coverage perspectives.
 - Tests each module independently via generated `test-*` targets.
@@ -208,12 +218,11 @@ GitHub Actions workflows:
 Automated coverage reporting with monorepo support:
 
 - **Codecov workflow** (`.github/workflows/codecov.yml`): Coverage collection
-  and upload.
-- Enhanced `make_coverage.sh` generates:
-  - `codecov.yml`: Dynamic configuration with per-module flags.
-  - Module-specific coverage targets (80% default).
-  - Path mappings for accurate coverage attribution.
-  - `codecov.sh`: Upload script for bulk submission.
+  and upload, through `make clean-coverage codecov`.
+- `internal/build/make_codecov.sh` generates `codecov.sh`, the upload
+  script, from the module index: one upload per module, each carrying the
+  module's flag. There is no `codecov.yml`; Codecov detects the
+  configuration itself.
 - Supports both GitHub Actions and local coverage uploads.
 - PR comments show coverage changes per module.
 
@@ -316,7 +325,7 @@ compile check.
 - Each package maintains its own README.md and AGENTS.md.
 - The Makefile dynamically generates rules for subprojects.
 - Tool versions (golangci-lint, revive) are selected based on Go version.
-- These are utility libraries - no business logic, only reusable helpers.
+- These are utility libraries: no business logic, only reusable helpers.
 - Always use `pnpm` instead of `npm` for any JavaScript/TypeScript tooling.
 - Follow existing patterns when adding new functionality.
 
@@ -384,7 +393,8 @@ When creating or editing documentation files:
    - Add blank lines before and after lists, code blocks, and headings.
    - End files with exactly one newline character.
    - Avoid spaces inside emphasis markers (use `_text_` not `_ text _`).
-   - Follow all markdownlint rules (run `pnpm dlx markdownlint-cli *.md`).
+   - Follow all markdownlint rules; `make fmt` runs markdownlint with the
+     repository configuration.
 
 4. **Clarity and Context**:
    - Provide context for AI agents and developers alike.
@@ -398,7 +408,7 @@ When creating or editing documentation files:
 
 ### Pre-commit Checklist
 
-1. **ALWAYS run `make tidy` first** - Fix ALL issues before committing:
+1. **ALWAYS run `make tidy` first**, fixing ALL issues before committing:
    - Go code formatting and whitespace clean-up.
    - Markdown files checked with CSpell and markdownlint.
    - Shell scripts checked with ShellCheck.
@@ -413,31 +423,37 @@ When creating or editing documentation files:
 
 ### Grammar and Style Checking
 
-The project now includes integrated grammar checking via LanguageTool:
+The project includes integrated grammar checking via LanguageTool:
 
 ```bash
 # Run formatting and spell/shell checks
 make tidy
 
-# Run only grammar checks (Markdown and Go files)
+# Run only grammar checks (Markdown files)
 make check-grammar
 ```
 
-LanguageTool is automatically installed via npm (`pnpm dlx`) when available.
-It checks both Markdown documentation and Go source files (comments and
-strings). The following rules are disabled for technical documentation
-compatibility:
+LanguageTool runs through `pnpm dlx` when available. It checks the Markdown
+documentation; CSpell is what also covers Go source. The following rules
+are disabled for technical documentation compatibility:
 
-- COMMA_PARENTHESIS_WHITESPACE (conflicts with Markdown links).
 - ARROWS (used in code examples).
+- COMMA_PARENTHESIS_WHITESPACE (conflicts with Markdown links).
 - EN_QUOTES (technical docs use straight quotes).
-- MORFOLOGIK_RULE_EN_GB (flags technical terms).
+- EN_SPELLING_RULE, MORFOLOGIK_RULE_EN and MORFOLOGIK_RULE_EN_GB (spell
+  checkers that flag technical terms; CSpell covers spelling).
 - UPPERCASE_SENTENCE_START (conflicts with inline code).
+
+The `.coderabbit.yaml` at the repository root mirrors these rules, and the
+enabled ones, so CodeRabbit's own LanguageTool pass agrees with
+`make check-grammar`. Keep `.coderabbit.yaml` and
+`internal/build/languagetool.cfg` synchronised: a change to either belongs
+in both.
 
 Configuration files are located in `internal/build/`:
 
-- `markdownlint.json` - Markdown formatting rules.
-- `languagetool.cfg` - Grammar checking rules for British English.
+- `markdownlint.json`: Markdown formatting rules.
+- `languagetool.cfg`: Grammar checking rules for British English.
 
 ## Release Process
 

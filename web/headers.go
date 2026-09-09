@@ -9,6 +9,19 @@ import (
 	"darvaza.org/x/web/consts"
 )
 
+// HeaderProvider is implemented by a value that carries HTTP headers
+// of its own, such as an error contributing headers to the response it
+// produces.
+type HeaderProvider interface {
+	Header() http.Header
+}
+
+// HeadersProvider is the plural spelling of [HeaderProvider], accepted
+// from foreign types that name the method Headers.
+type HeadersProvider interface {
+	Headers() http.Header
+}
+
 // HasHeader reports whether hdr has any entry under key,
 // including a blank-valued entry. Distinguishes "no header
 // set" from "header set to a blank value", which

@@ -24,7 +24,7 @@ func TestRendererFunc(t *testing.T) {
 
 	// Test function call
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	err := fn(rw, req, http.StatusCreated, "test data")
 
 	core.AssertNoError(t, err, "RendererFunc call")
@@ -87,7 +87,7 @@ func TestRendererFuncSignature(t *testing.T) {
 	}
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 
 	err := fn(rw, req, 200, 42)
 	core.AssertNoError(t, err, "RendererFunc call")
@@ -131,7 +131,7 @@ func (tc renderWithCodeTestCase) Test(t *testing.T) {
 	}
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	req.Header.Set("Accept", tc.acceptHeader)
 
 	err = r.RenderWithCode(rw, req, tc.expectedCode, tc.expectedData)
@@ -200,7 +200,7 @@ func runTestRenderWithCodeEmptyRC(t *testing.T) {
 	}
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	req.Header.Set("Accept", "application/json")
 
 	err := r.RenderWithCode(rw, req, http.StatusOK, "test")
@@ -245,7 +245,7 @@ func testStatusCodeRendering(t *testing.T, expectedCode int) {
 	}
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	req.Header.Set("Accept", "application/json")
 
 	err = r.RenderWithCode(rw, req, expectedCode, "test")
@@ -279,7 +279,7 @@ func runTestJSONRenderer(t *testing.T) {
 
 	// Test that the renderer works
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	err := r.r[testJSONMediaType](rw, req, "test")
 	core.AssertNoError(t, err, "legacy renderer call")
 	core.AssertEqual(t, "LEGACY: test", rw.Body.String(), "response from legacy renderer")
@@ -303,7 +303,7 @@ func runTestJSONRendererWithCode(t *testing.T) {
 
 	// Test that the renderer works
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	err := r.rc[testJSONMediaType](rw, req, http.StatusCreated, "test")
 	core.AssertNoError(t, err, "code-aware renderer call")
 	core.AssertEqual(t, http.StatusCreated, rw.Code, "status code from code-aware renderer")
@@ -340,7 +340,7 @@ func runTestJSONAutoDetectionPriority(t *testing.T) {
 
 	// Test that it actually calls the code-aware version
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 
 	err := codeAwareRenderer(rw, req, http.StatusCreated, "test")
 	core.AssertNoError(t, err, "code-aware renderer call")

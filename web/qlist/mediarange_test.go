@@ -5,6 +5,18 @@ import (
 	"testing"
 )
 
+// Media types the BestMatch tables offer as supported and expect back. The
+// Accept headers driving those tables stay verbatim, as each is the input
+// under test rather than a fixture.
+const (
+	mimeJSON     = "application/json"
+	mimeXBEL     = "application/xbel+xml"
+	mimeXML      = "application/xml"
+	mimeAnyImage = "image/*"
+	mimeHTML     = "text/html"
+	mimeTextXML  = "text/xml"
+)
+
 // revive:disable:argument-limit
 func parsedEqual(test *testing.T, mime string,
 	t string, st string, q float32, attrs map[string]string) {
@@ -120,21 +132,21 @@ func doTestBestMatch(t *testing.T, supported []string, headers map[string]string
 }
 
 func TestBestMatch(t *testing.T) {
-	supported := []string{"application/xml", "application/xbel+xml"}
+	supported := []string{mimeXML, mimeXBEL}
 	headers := map[string]string{
-		"application/xbel+xml":      "application/xbel+xml",
-		"application/xbel+xml; q=1": "application/xbel+xml",
-		"application/xml; q=1":      "application/xml",
-		"application/*; q=1":        "application/xml",
-		"*/*":                       "application/xml",
+		"application/xbel+xml":      mimeXBEL,
+		"application/xbel+xml; q=1": mimeXBEL,
+		"application/xml; q=1":      mimeXML,
+		"application/*; q=1":        mimeXML,
+		"*/*":                       mimeXML,
 	}
 	doTestBestMatch(t, supported, headers)
 }
 
 func TestBestMatchDirect(t *testing.T) {
-	supported := []string{"application/xbel+xml", "text/xml"}
+	supported := []string{mimeXBEL, mimeTextXML}
 	headers := map[string]string{
-		"text/*;q=0.5,*/*; q=0.1":               "text/xml",
+		"text/*;q=0.5,*/*; q=0.1":               mimeTextXML,
 		"text/html,application/atom+xml; q=0.9": "",
 	}
 	doTestBestMatch(t, supported, headers)
@@ -142,19 +154,19 @@ func TestBestMatchDirect(t *testing.T) {
 
 func TestBestMatchAjax(t *testing.T) {
 	// Common AJAX scenario
-	supported := []string{"application/json", "text/html"}
+	supported := []string{mimeJSON, mimeHTML}
 	headers := map[string]string{
-		"application/json, text/javascript, */*": "application/json",
-		"application/json, text/html;q=0.9":      "application/json",
+		"application/json, text/javascript, */*": mimeJSON,
+		"application/json, text/html;q=0.9":      mimeJSON,
 	}
 	doTestBestMatch(t, supported, headers)
 }
 
 func TestSupportWildcards(t *testing.T) {
-	supported := []string{"image/*", "application/xml"}
+	supported := []string{mimeAnyImage, mimeXML}
 	headers := map[string]string{
-		"image/png": "image/*",
-		"image/*":   "image/*",
+		"image/png": mimeAnyImage,
+		"image/*":   mimeAnyImage,
 	}
 	doTestBestMatch(t, supported, headers)
 }
