@@ -34,6 +34,13 @@ the standard library.
   `Decimal` backing constraint.
 - **`ErrDivZero`**: the division-by-zero panic value, wrapping
   `core.ErrInvalid`.
+- **`ErrSyntax`**, **`ErrRange`**: the text-parsing errors, each a
+  `core.QuietWrap` over a `core.CompoundError` holding the `strconv`
+  sentinel of the same name and `core.ErrInvalid`, so `errors.Is`
+  matches either.
+- **`ParseError`**: the parse report, a defined type over
+  `strconv.NumError` with the package's own text; `Unwrap` returns the
+  sentinel. `errors.As` matches `*ParseError`, not the strconv type.
 
 Files:
 
@@ -46,7 +53,8 @@ Files:
   file.
 - `num/decimal.go`: `Decimal` and the `DecimalScaler` interface.
 - `num/doc.go`: package documentation.
-- `num/errors.go`: `ErrDivZero`.
+- `num/errors.go`: `ErrDivZero`, `ErrSyntax`, `ErrRange` and
+  `ParseError`.
 - `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
   and the Euclidean division helpers.
 - `num/format.go`: the shared side of `Format` and `GoString`, the verb
@@ -160,9 +168,11 @@ Files:
   one. Extend that matrix rather than hand-writing an expectation; every
   defect in this surface so far has survived a careful reading and died
   on the first run of the table.
-- The package has one sentinel, `ErrDivZero`, a `core.QuietWrap` of
-  `core.ErrInvalid`, and division by zero is the only failure: it
-  panics with that value. Arithmetic wraps on overflow and the
+- Every sentinel is a `core.QuietWrap` carrying a `num:` prefixed text
+  and matching `core.ErrInvalid`; the parsing pair also matches its
+  `strconv` counterpart through a `core.CompoundError`. Division by
+  zero panics with `ErrDivZero`; parsing returns a `ParseError` carrying
+  `ErrSyntax` or `ErrRange`. Arithmetic wraps on overflow and the
   constructors never fail.
 - Operations allocate nothing; keep it that way in the hot paths.
 

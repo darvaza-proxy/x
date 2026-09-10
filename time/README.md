@@ -91,6 +91,13 @@ the product in an intermediate wide enough that it cannot overflow
 before the division. `EuclideanDivMod` and `EuclideanMulDivMod`
 instead keep the remainder non-negative.
 
+Text that fails to parse is reported as a `ParseError`, the shape of
+`strconv.NumError` with the package's own text, carrying `ErrSyntax`
+or `ErrRange`. Each sentinel matches its `strconv` counterpart and
+`core.ErrInvalid` under `errors.Is`, so a caller can test for the
+package's sentinel, the standard library's, or the generic
+invalid-input condition.
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see

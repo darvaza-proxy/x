@@ -60,4 +60,9 @@
 // with [ErrDivZero]. Signed division truncates towards zero, with the
 // remainder taking the sign of the dividend; [EuclideanDivMod] and
 // [EuclideanMulDivMod] instead keep the remainder non-negative.
+//
+// Text that fails to parse is reported as a [ParseError] carrying
+// [ErrSyntax] or [ErrRange]. Each sentinel matches its strconv
+// counterpart and core.ErrInvalid under errors.Is, as ErrDivZero
+// matches ErrInvalid.
 package num
