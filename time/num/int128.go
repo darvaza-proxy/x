@@ -90,14 +90,15 @@ func (v Int128) Mul(w Int128) Int128 {
 	return Int128(v.bits().Mul(w.bits()))
 }
 
-// Div returns v/w, truncated towards zero. It panics when w is zero.
+// Div returns v/w, truncated towards zero. It panics with [ErrDivZero]
+// when w is zero.
 func (v Int128) Div(w Int128) Int128 {
 	q, _ := v.DivMod(w)
 	return q
 }
 
 // Mod returns the remainder of v/w, taking the sign of v. It panics
-// when w is zero.
+// with [ErrDivZero] when w is zero.
 func (v Int128) Mod(w Int128) Int128 {
 	_, r := v.DivMod(w)
 	return r
@@ -105,7 +106,8 @@ func (v Int128) Mod(w Int128) Int128 {
 
 // DivMod returns the quotient and remainder of v/w. The quotient is
 // truncated towards zero and the remainder takes the sign of v, so
-// that v == q*w + r with |r| < |w|. It panics when w is zero.
+// that v == q*w + r with |r| < |w|. It panics with [ErrDivZero] when w
+// is zero.
 func (v Int128) DivMod(w Int128) (q, r Int128) {
 	neg := v.IsNegative() != w.IsNegative()
 	uq, ur := v.Abs().bits().DivMod(w.Abs().bits())

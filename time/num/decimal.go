@@ -1,7 +1,7 @@
 package num
 
 // DecimalScaler is the scale parameter of [Decimal]: it yields a
-// fixed-point resolution — the number of sub-units in one whole unit — as
+// fixed-point resolution, the number of sub-units in one whole unit, as
 // a value of the backing integer type T. Milli32, Milli64 and Atto128 are
 // the instantiations this package provides.
 type DecimalScaler[T any] interface {
@@ -14,8 +14,8 @@ type DecimalScaler[T any] interface {
 // resolution, so Milli32, Milli64 and Atto128 are all instantiations of
 // it. The zero value is numeric zero.
 //
-// The operations that do not move the point — Add, Sub, Neg, Abs and the
-// comparisons — delegate straight to the backing integer. Mul and Div
+// The operations that do not move the point, Add, Sub, Neg, Abs and the
+// comparisons, delegate straight to the backing integer. Mul and Div
 // carry the scale through MulDivMod so the intermediate product cannot
 // overflow before the scale is applied; this caps the family at the
 // Int128 backing, whose product fits a 256-bit intermediate.
@@ -53,8 +53,8 @@ func (Decimal[T, S]) ulp() Decimal[T, S] {
 	return Decimal[T, S]{z.ulp()}
 }
 
-// one and ulp are reached only through the [Euclidean] interface — w.one()
-// and d.ulp() inside EuclideanDivMod and EuclideanMulDivMod — which
+// one and ulp are reached only through the [Euclidean] interface, as w.one()
+// and d.ulp() inside EuclideanDivMod and EuclideanMulDivMod, which
 // staticcheck's unused checker cannot follow from a type-parameter
 // constraint back to the generic method, so it reports them unused even at
 // full coverage. Naming them on a concrete instantiation marks them used;
@@ -113,7 +113,8 @@ func (d Decimal[T, S]) Mul(v Decimal[T, S]) Decimal[T, S] {
 
 // Div returns the fixed-point ratio, truncated towards zero at the
 // resolution. Unlike the integer types this is not the whole count
-// DivMod returns: 4.5/2.1 is 2.142..., not 2. It panics when v is zero.
+// DivMod returns: 4.5/2.1 is 2.142..., not 2. It panics with
+// [ErrDivZero] when v is zero.
 func (d Decimal[T, S]) Div(v Decimal[T, S]) Decimal[T, S] {
 	var s S
 	q, _ := d.v.MulDivMod(s.Scale(), v.v)
@@ -122,7 +123,7 @@ func (d Decimal[T, S]) Div(v Decimal[T, S]) Decimal[T, S] {
 
 // Mod returns the remainder of reducing d by whole multiples of v,
 // taking the sign of d with the result smaller in magnitude than v. It
-// panics when v is zero.
+// panics with [ErrDivZero] when v is zero.
 func (d Decimal[T, S]) Mod(v Decimal[T, S]) Decimal[T, S] {
 	_, r := d.DivMod(v)
 	return r
@@ -132,7 +133,7 @@ func (d Decimal[T, S]) Mod(v Decimal[T, S]) Decimal[T, S] {
 // d == q*v + r with q an integer-valued Decimal and |r| < |v|. The count
 // is truncated towards zero and r takes the sign of d; scaling the
 // count back up to a Decimal wraps if it exceeds the backing width. It
-// panics when v is zero.
+// panics with [ErrDivZero] when v is zero.
 //
 // This is ordinary integer division carried to fixed point: just as 5
 // DivMod 2 is (2, 1), 4.5 DivMod 2.1 is (2, 0.3). It differs from Div,

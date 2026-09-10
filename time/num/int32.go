@@ -67,14 +67,15 @@ func (v Int32) Mul(w Int32) Int32 {
 	return v * w
 }
 
-// Div returns v/w, truncated towards zero. It panics when w is zero.
+// Div returns v/w, truncated towards zero. It panics with [ErrDivZero]
+// when w is zero.
 func (v Int32) Div(w Int32) Int32 {
 	q, _ := v.DivMod(w)
 	return q
 }
 
 // Mod returns the remainder of v/w, taking the sign of v. It panics
-// when w is zero.
+// with [ErrDivZero] when w is zero.
 func (v Int32) Mod(w Int32) Int32 {
 	_, r := v.DivMod(w)
 	return r

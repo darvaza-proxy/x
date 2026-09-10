@@ -74,20 +74,22 @@ func (u Uint128) Mul(v Uint128) Uint128 {
 	return Uint128{hi: hi, lo: lo}
 }
 
-// Div returns u/v, truncated. It panics when v is zero.
+// Div returns u/v, truncated. It panics with [ErrDivZero] when v is
+// zero.
 func (u Uint128) Div(v Uint128) Uint128 {
 	q, _ := u.DivMod(v)
 	return q
 }
 
-// Mod returns the remainder of u/v. It panics when v is zero.
+// Mod returns the remainder of u/v. It panics with [ErrDivZero] when v
+// is zero.
 func (u Uint128) Mod(v Uint128) Uint128 {
 	_, r := u.DivMod(v)
 	return r
 }
 
 // DivMod returns the quotient and remainder of u/v, so that
-// u == q*v + r with r < v. It panics when v is zero.
+// u == q*v + r with r < v. It panics with [ErrDivZero] when v is zero.
 func (u Uint128) DivMod(v Uint128) (q, r Uint128) {
 	if v.IsZero() {
 		panic(ErrDivZero)

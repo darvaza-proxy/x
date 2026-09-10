@@ -3,7 +3,8 @@ package num
 // Euclidean is the constraint met by the types the Euclidean helpers
 // can correct, listing just the surface the correction needs rather
 // than the full [Signed] interface. The signed integers Int32, Int64
-// and Int128 and the Decimal instantiations over them qualify. The
+// and Int128 and the Decimal instantiations over them qualify, and so
+// does Uint128, on which the correction never fires. The
 // unexported step methods set how far the quotient moves: the two
 // coincide for the integers and differ for Decimal, whose DivMod
 // quotient moves in whole units while its MulDivMod quotient moves
@@ -52,7 +53,7 @@ func EuclideanDivMod[T Euclidean[T]](v, w T) (q, r T) {
 // the remainder always non-negative and less than |d|, forming the
 // product in the same wide intermediate as MulDivMod so it cannot
 // overflow before the division. The quotient wraps if it exceeds the
-// backing range; v*w == q*d + r holds whenever it does not — for
+// backing range; v*w == q*d + r holds whenever it does not, for
 // Decimal in backing sub-units, as with MulDivMod. It panics with
 // [ErrDivZero] when d is zero. As with [EuclideanDivMod], the bound
 // survives the most negative d, whose magnitude wraps.

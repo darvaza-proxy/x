@@ -17,7 +17,7 @@ the standard library.
   two-word layout, wrapping on overflow like Go's built-in operators.
 - **`Int32`**, **`Int64`**: the native integers wrapped into the same
   method surface, forming the `MulDivMod` product in a wider
-  intermediate — `int64` for `Int32`, `Int128` for `Int64`.
+  intermediate, `int64` for `Int32` and `Int128` for `Int64`.
 - **`Decimal[T, S]`**: signed fixed-point number backed by one of the
   signed integers, with the exported `DecimalScaler` supplying the
   resolution; `Milli32`, `Milli64` and `Atto128` are its
@@ -54,12 +54,11 @@ Files:
 
 ## Development Notes
 
-- Error handling follows `darvaza.org/core` conventions: sentinel
-  errors wrap `core.ErrInvalid` via `core.QuietWrap`, context is
-  added with `core.Wrap`/`core.Wrapf`, and constructor range
-  violations panic via `core.PanicWrapf` with specific error types.
-- Operations are designed to be zero-allocation where possible; avoid
-  introducing allocations in hot paths.
+- The package has one sentinel, `ErrDivZero`, a `core.QuietWrap` of
+  `core.ErrInvalid`, and division by zero is the only failure: it
+  panics with that value. Arithmetic wraps on overflow and the
+  constructors never fail.
+- Operations allocate nothing; keep it that way in the hot paths.
 
 ## Testing Patterns
 
