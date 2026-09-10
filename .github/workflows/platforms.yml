@@ -36,7 +36,7 @@ jobs:
     - uses: actions/checkout@v7
     - uses: actions/setup-go@v7
       with:
-        go-version: '1.26'
+        go-version: '1.27'
         cache: true
         cache-dependency-path: '**/go.sum'
     # make vet compiles every module's packages and tests for the target
@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ['1.25', '1.26']
+        go-version: ['1.25', '1.26', '1.27']
     steps:
     - uses: actions/checkout@v7
     - name: Set up Go ${{ matrix.go-version }}
@@ -75,7 +75,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26'
+        go-version: '1.27'
         cache: true
         cache-dependency-path: '**/go.sum'
     - name: Run tests with race detection
@@ -90,7 +90,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [depot-macos-latest, depot-windows-latest]
-        go-version: ['1.25', '1.26']
+        go-version: ['1.25', '1.26', '1.27']
         include:
           # macOS runners use the GNU tools installed below.
           - os: depot-macos-latest
@@ -138,7 +138,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26'
+        go-version: '1.27'
         cache: true
         cache-dependency-path: '**/go.sum'
     # macOS ships BSD userland; the build scripts need the GNU variants.
