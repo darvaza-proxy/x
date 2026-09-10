@@ -82,11 +82,11 @@ func (tc euclideanDivModCase[T]) Name() string { return tc.name }
 func (tc euclideanDivModCase[T]) Test(t *testing.T) {
 	t.Helper()
 	q, r := num.EuclideanDivMod(tc.v, tc.w)
-	assertSignedEqual(t, tc.wantQ, q, "quotient")
-	assertSignedEqual(t, tc.wantR, r, "remainder")
+	core.AssertEqual(t, tc.wantQ, q, "quotient")
+	core.AssertEqual(t, tc.wantR, r, "remainder")
 	assertEuclideanRange(t, tc.w, r)
 	// invariant: v == q*w + r
-	assertSignedEqual(t, tc.v, q.Mul(tc.w).Add(r), "identity")
+	core.AssertEqual(t, tc.v, q.Mul(tc.w).Add(r), "identity")
 }
 
 func euclideanDivModCases[T num.SignedEuclidean[T]](mk func(int64) T,
@@ -140,12 +140,12 @@ func (tc euclideanMulDivModCase[T]) Name() string { return tc.name }
 func (tc euclideanMulDivModCase[T]) Test(t *testing.T) {
 	t.Helper()
 	q, r := num.EuclideanMulDivMod(tc.v, tc.w, tc.d)
-	assertSignedEqual(t, tc.wantQ, q, "quotient")
-	assertSignedEqual(t, tc.wantR, r, "remainder")
+	core.AssertEqual(t, tc.wantQ, q, "quotient")
+	core.AssertEqual(t, tc.wantR, r, "remainder")
 	assertEuclideanRange(t, tc.d, r)
 	// the identity holds against the wrapped product, as in the
 	// truncated suite.
-	assertSignedEqual(t, tc.v.Mul(tc.w), q.Mul(tc.d).Add(r), "identity")
+	core.AssertEqual(t, tc.v.Mul(tc.w), q.Mul(tc.d).Add(r), "identity")
 }
 
 func euclideanMulDivModCases[T num.SignedEuclidean[T]](mk func(int64) T,
@@ -253,8 +253,8 @@ func (tc euclideanDecimalMulDivModCase[D]) Name() string { return tc.name }
 func (tc euclideanDecimalMulDivModCase[D]) Test(t *testing.T) {
 	t.Helper()
 	q, r := num.EuclideanMulDivMod(tc.v, tc.w, tc.d)
-	assertSignedEqual(t, tc.wantQ, q, "quotient")
-	assertSignedEqual(t, tc.wantR, r, "remainder")
+	core.AssertEqual(t, tc.wantQ, q, "quotient")
+	core.AssertEqual(t, tc.wantR, r, "remainder")
 	assertEuclideanRange(t, tc.d, r)
 }
 
