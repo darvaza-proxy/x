@@ -66,6 +66,10 @@ func uint128DivModTestCases() []uint128DivModTestCase {
 		newUint128DivModTestCase("self", u(42), u(42), u(1), u(0)),
 		newUint128DivModTestCase("high word", num.NewUint128(1, 0), u(2),
 			num.NewUint128(0, 1<<63), u(0)),
+		// a two-word divisor takes the long-division path; a one-word
+		// numerator runs it from a short bit length.
+		newUint128DivModTestCase("wide divisor", u(3), num.NewUint128(1, 0),
+			u(0), u(3)),
 		newUint128DivModTestCase("max by max", num.MaxUint128,
 			num.MaxUint128, u(1), u(0)),
 	}
@@ -118,6 +122,11 @@ func uint128MulDivModTestCases() []uint128MulDivModTestCase {
 		// product is exactly 2^128, so the quotient wraps to zero.
 		newUint128MulDivModTestCase("quotient wraps", num.NewUint128(1, 0),
 			num.NewUint128(1, 0), u(1), u(0)),
+		// 2^100 * 2^100 / 2^64 = 2^136 on the long-division path: the
+		// quotient bits above 128 are dropped, leaving zero.
+		newUint128MulDivModTestCase("quotient wraps wide divisor",
+			num.NewUint128(1<<36, 0), num.NewUint128(1<<36, 0),
+			num.NewUint128(1, 0), u(0)),
 		// (2^65-1)^2 = 2^130 - 2^66 + 1 makes both word-1 cross-term
 		// additions carry, so word 2 receives a carry of two; dividing by
 		// 2^64 surfaces that word in the quotient's high half, guarding the

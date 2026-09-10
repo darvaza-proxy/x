@@ -93,7 +93,7 @@ func (u Uint128) DivMod(v Uint128) (q, r Uint128) {
 		panic(ErrDivZero)
 	}
 	// promote to a 256-bit numerator with a zero high half and reuse
-	// the shift-subtract divider; the quotient fits in 128 bits.
+	// the wide divider; the quotient fits in 128 bits.
 	return u256{lo: u}.divMod128(v)
 }
 
@@ -124,6 +124,15 @@ func (u Uint128) Cmp(v Uint128) int {
 	default:
 		return 0
 	}
+}
+
+// bitLen returns the number of bits needed to represent u, zero for
+// zero.
+func (u Uint128) bitLen() int {
+	if u.hi != 0 {
+		return 64 + bits.Len64(u.hi)
+	}
+	return bits.Len64(u.lo)
 }
 
 // shl1 returns u shifted left by one bit with in as the new bit 0.
