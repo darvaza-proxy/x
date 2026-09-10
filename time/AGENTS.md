@@ -43,6 +43,13 @@ the standard library.
   `core.ErrInvalid`.
 - **`ErrPow10Range`**: the panic value of `Pow10` for an exponent
   outside the table.
+- **`ErrSyntax`**, **`ErrRange`**: the text-parsing errors, each a
+  `core.QuietWrap` over a `core.CompoundError` holding the `strconv`
+  sentinel of the same name and `core.ErrInvalid`, so `errors.Is`
+  matches either.
+- **`ParseError`**: the parse report, a defined type over
+  `strconv.NumError` with the package's own text; `Unwrap` returns the
+  sentinel. `errors.As` matches `*ParseError`, not the strconv type.
 
 Files:
 
@@ -56,7 +63,8 @@ Files:
   file.
 - `num/decimal.go`: `Decimal`, its constructors and its methods.
 - `num/doc.go`: package documentation.
-- `num/errors.go`: `ErrDivZero` and `ErrPow10Range`.
+- `num/errors.go`: `ErrDivZero`, `ErrPow10Range`, `ErrSyntax`,
+  `ErrRange` and `ParseError`.
 - `num/euclidean.go`: the `Euclidean` constraint and the Euclidean
   division helpers.
 - `num/format.go`: the shared side of `Format` and `GoString`, the verb
@@ -175,10 +183,13 @@ Files:
   one. Extend that matrix rather than hand-writing an expectation; every
   defect in this surface so far has survived a careful reading and died
   on the first run of the table.
-- Division by zero panics with `ErrDivZero`, a `core.QuietWrap` of
-  `core.ErrInvalid`; `Pow10` takes an exponent outside its table as the
-  caller's mistake and panics with `ErrPow10Range` through
-  `core.PanicFrom`, so the stack starts at the caller. Arithmetic wraps
+- Every sentinel is a `core.QuietWrap` carrying a `num:` prefixed text
+  and matching `core.ErrInvalid`; the parsing pair also matches its
+  `strconv` counterpart through a `core.CompoundError`. Division by
+  zero panics with `ErrDivZero`. `Pow10` takes an exponent outside its
+  table as the caller's mistake and panics with `ErrPow10Range` through
+  `core.PanicFrom`, so the stack starts at the caller. Parsing returns
+  a `ParseError` carrying `ErrSyntax` or `ErrRange`. Arithmetic wraps
   on overflow and the constructors never fail.
 - Operations allocate nothing; keep it that way in the hot paths.
 

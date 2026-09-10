@@ -66,4 +66,9 @@
 // [EuclideanMulDivMod] instead keep the remainder non-negative.
 // [Pow10] returns 10^n as a Uint128 up to 10^38, the largest power of
 // ten a Uint128 holds, and panics with [ErrPow10Range] past it.
+//
+// Text that fails to parse is reported as a [ParseError] carrying
+// [ErrSyntax] or [ErrRange]. Each sentinel matches its strconv
+// counterpart and core.ErrInvalid under errors.Is, as ErrDivZero
+// matches ErrInvalid.
 package num

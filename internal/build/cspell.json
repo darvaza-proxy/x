@@ -113,6 +113,7 @@
     "spki",
     "spsr",
     "stdlib",
+    "strconv",
     "stretchr",
     "stype",
     "subpackages",
