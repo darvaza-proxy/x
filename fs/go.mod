@@ -2,7 +2,7 @@ module darvaza.org/x/fs
 
 go 1.25.0
 
-require darvaza.org/core v0.21.2
+require darvaza.org/core v0.21.3
 
 require (
 	github.com/gobwas/glob v0.2.3
