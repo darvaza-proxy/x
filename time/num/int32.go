@@ -22,6 +22,11 @@ func (Int32) ulp() Int32 {
 	return 1
 }
 
+// AsInt32 takes a signed 32-bit value as an Int32, the conversion.
+func AsInt32(x int32) Int32 {
+	return Int32(x)
+}
+
 // IsZero reports whether v is zero.
 func (v Int32) IsZero() bool {
 	return v == 0

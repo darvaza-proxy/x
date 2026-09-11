@@ -27,6 +27,11 @@ func (Int64) ulp() Int64 {
 	return 1
 }
 
+// AsInt64 takes a signed 64-bit value as an Int64, the conversion.
+func AsInt64(x int64) Int64 {
+	return Int64(x)
+}
+
 // IsZero reports whether v is zero.
 func (v Int64) IsZero() bool {
 	return v == 0
@@ -107,7 +112,7 @@ func (v Int64) MulDivMod(w, d Int64) (q, r Int64) {
 	if d == 0 {
 		panic(ErrDivZero)
 	}
-	v128, w128, d128 := NewInt128(v.sys()), NewInt128(w.sys()), NewInt128(d.sys())
+	v128, w128, d128 := AsInt128(v.sys()), AsInt128(w.sys()), AsInt128(d.sys())
 	q128, r128 := v128.MulDivMod(w128, d128)
 	return Int64(q128.lo), Int64(r128.lo)
 }

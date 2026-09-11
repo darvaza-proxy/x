@@ -18,13 +18,15 @@ var (
 
 // decimalType carries what a fixed-point [num.Decimal] instantiation
 // needs to run the shared suite: how to build a value from a whole count
-// and a sub-unit fraction, its resolution (sub-units per whole unit), and
-// the smallest whole count whose Div by one sub-unit overflows the
-// backing width, with the wrapped result as a whole count and fraction.
-// The fraction rows are written as exact divisions of the scale, so one
-// set of cases fits every resolution.
+// and a sub-unit fraction, how to take a plain sub-unit count as a
+// value, its resolution (sub-units per whole unit), and the smallest
+// whole count whose Div by one sub-unit overflows the backing width,
+// with the wrapped result as a whole count and fraction. The fraction
+// rows are written as exact divisions of the scale, so one set of cases
+// fits every resolution.
 type decimalType[D num.Signed[D]] struct {
 	mk        func(whole, frac int64) D
+	as        func(units int64) D
 	scale     int64
 	big       int64
 	wrapWhole int64
@@ -78,6 +80,10 @@ func (dt decimalType[D]) testBasics(t *testing.T) {
 	core.AssertEqual(t, dt.mk(-1, half), dt.mk(1, half).Neg(), "neg")
 	// a fraction beyond one whole unit carries into the whole part.
 	core.AssertEqual(t, dt.mk(3, 0), dt.mk(1, 2*dt.scale), "carry")
+	// the cast takes the sub-unit count as it is, sign included.
+	core.AssertEqual(t, dt.mk(1, half), dt.as(dt.scale+half), "as positive")
+	core.AssertEqual(t, dt.mk(-1, half), dt.as(-dt.scale-half), "as negative")
+	core.AssertEqual(t, dt.mk(0, 0), dt.as(0), "as zero")
 }
 
 func (dt decimalType[D]) testDivZero(t *testing.T) {
@@ -328,6 +334,7 @@ func decimalMulDivModCases[D num.Signed[D]](mk func(whole, frac int64) D,
 func TestAtto128(t *testing.T) {
 	runDecimalTests(t, decimalType[num.Atto128]{
 		mk:    num.NewAtto128,
+		as:    func(atto int64) num.Atto128 { return num.AsAtto128(num.AsInt128(atto)) },
 		scale: 1e18,
 		// 341e36 is the first multiple of 10^36 past 2^128.
 		big:       341,
@@ -341,6 +348,7 @@ func TestMilli32(t *testing.T) {
 		mk: func(whole, frac int64) num.Milli32 {
 			return num.NewMilli32(int32(whole), int32(frac))
 		},
+		as:    func(milli int64) num.Milli32 { return num.AsMilli32(num.AsInt32(int32(milli))) },
 		scale: 1e3,
 		// 4295e6 is the first multiple of 10^6 past 2^32.
 		big:       4295,
@@ -352,6 +360,7 @@ func TestMilli32(t *testing.T) {
 func TestMilli64(t *testing.T) {
 	runDecimalTests(t, decimalType[num.Milli64]{
 		mk:    num.NewMilli64,
+		as:    func(milli int64) num.Milli64 { return num.AsMilli64(num.AsInt64(milli)) },
 		scale: 1e3,
 		// 18446744073710e6 is the first multiple of 10^6 past 2^64.
 		big:       18446744073710,

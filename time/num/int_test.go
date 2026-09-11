@@ -254,31 +254,46 @@ func signedCmpCases[T num.Signed[T]](mk func(int64) T, minVal,
 
 func TestInt32(t *testing.T) {
 	runSignedIntTests(t, signedIntType[num.Int32]{
-		mk:    func(x int64) num.Int32 { return num.Int32(x) },
+		mk:    func(x int64) num.Int32 { return num.AsInt32(int32(x)) },
 		wideA: 100000, // 1e5 * 1e5 / 1e3 = 1e7, product overflows int32.
 		wideB: 100000,
 		wideD: 1000,
 		wideQ: 10000000,
-		min:   num.Int32(math.MinInt32),
-		max:   num.Int32(math.MaxInt32),
+		min:   num.AsInt32(math.MinInt32),
+		max:   num.AsInt32(math.MaxInt32),
 	})
 }
 
 func TestInt64(t *testing.T) {
 	runSignedIntTests(t, signedIntType[num.Int64]{
-		mk:    func(x int64) num.Int64 { return num.Int64(x) },
+		mk:    num.AsInt64,
 		wideA: 1e12, // 1e12 * 1e12 / 1e6 = 1e18, product overflows int64.
 		wideB: 1e12,
 		wideD: 1e6,
 		wideQ: 1e18,
-		min:   num.Int64(math.MinInt64),
-		max:   num.Int64(math.MaxInt64),
+		min:   num.AsInt64(math.MinInt64),
+		max:   num.AsInt64(math.MaxInt64),
 	})
+}
+
+// TestInt128Constructors pins the sign-extending cast against the
+// two's-complement words form: the sign lives in the top bit of the
+// high word, and the low word is never sign-extended.
+func TestInt128Constructors(t *testing.T) {
+	core.AssertEqual(t, num.NewInt128(0, 5), num.AsInt128(5), "positive")
+	core.AssertEqual(t, num.NewInt128(maxWord, maxWord), num.AsInt128(-1),
+		"negative")
+	core.AssertEqual(t, num.NewInt128(maxWord, signBit),
+		num.AsInt128(math.MinInt64), "min int64")
+	core.AssertFalse(t, num.NewInt128(0, signBit).IsNegative(), "lo sign bit")
+	core.AssertTrue(t, num.NewInt128(signBit, 0).IsNegative(), "hi sign bit")
+	core.AssertEqual(t, num.NewInt128(signBit, 0), num.MinInt128, "min")
+	core.AssertEqual(t, num.ZeroInt128, num.AsInt128(0), "zero")
 }
 
 func TestInt128(t *testing.T) {
 	runSignedIntTests(t, signedIntType[num.Int128]{
-		mk:    num.NewInt128,
+		mk:    num.AsInt128,
 		wideA: 1e12, // 1e12 * 1e12 / 1e6 = 1e18, through the mul256 path.
 		wideB: 1e12,
 		wideD: 1e6,

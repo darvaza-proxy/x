@@ -283,31 +283,31 @@ func euclideanDecimalMulDivModCases[D num.SignedEuclidean[D]](
 
 func TestEuclideanInt32(t *testing.T) {
 	runEuclideanTests(t, signedIntType[num.Int32]{
-		mk:    func(x int64) num.Int32 { return num.Int32(x) },
+		mk:    func(x int64) num.Int32 { return num.AsInt32(int32(x)) },
 		wideA: 100000, // 1e5 * 1e5 / 1e3 = 1e7, product overflows int32.
 		wideB: 100000,
 		wideD: 1000,
 		wideQ: 10000000,
-		min:   num.Int32(math.MinInt32),
-		max:   num.Int32(math.MaxInt32),
+		min:   num.AsInt32(math.MinInt32),
+		max:   num.AsInt32(math.MaxInt32),
 	})
 }
 
 func TestEuclideanInt64(t *testing.T) {
 	runEuclideanTests(t, signedIntType[num.Int64]{
-		mk:    func(x int64) num.Int64 { return num.Int64(x) },
+		mk:    num.AsInt64,
 		wideA: 1e12, // 1e12 * 1e12 / 1e6 = 1e18, product overflows int64.
 		wideB: 1e12,
 		wideD: 1e6,
 		wideQ: 1e18,
-		min:   num.Int64(math.MinInt64),
-		max:   num.Int64(math.MaxInt64),
+		min:   num.AsInt64(math.MinInt64),
+		max:   num.AsInt64(math.MaxInt64),
 	})
 }
 
 func TestEuclideanInt128(t *testing.T) {
 	runEuclideanTests(t, signedIntType[num.Int128]{
-		mk:    num.NewInt128,
+		mk:    num.AsInt128,
 		wideA: 1e12, // 1e12 * 1e12 / 1e6 = 1e18, wide beyond 64 bits.
 		wideB: 1e12,
 		wideD: 1e6,

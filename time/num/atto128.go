@@ -32,5 +32,11 @@ type Atto128 = Decimal[Int128, atto128Scale]
 // NewAtto128(1, 2e18) yields 3.0. The combined magnitude wraps if it
 // exceeds the 128-bit range.
 func NewAtto128(whole, atto int64) Atto128 {
-	return newDecimal[Int128, atto128Scale](NewInt128(whole), NewInt128(atto))
+	return newDecimal[Int128, atto128Scale](AsInt128(whole), AsInt128(atto))
+}
+
+// AsAtto128 takes an Int128 as a count of atto-units (10^-18), so
+// AsAtto128(AsInt128(1e18)) is 1.0.
+func AsAtto128(atto Int128) Atto128 {
+	return Atto128{atto}
 }

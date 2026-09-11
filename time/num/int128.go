@@ -28,8 +28,16 @@ func (Int128) ulp() Int128 {
 	return Int128{lo: 1}
 }
 
-// NewInt128 sign-extends a signed 64-bit value into an Int128.
-func NewInt128(x int64) Int128 {
+// NewInt128 assembles an Int128 from its high and low 64-bit words.
+// The words are the bit pattern hi*2^64 + lo read as a two's-complement
+// integer, so the top bit of hi is the sign and lo is never
+// sign-extended: NewInt128(0, 1<<63) is 2^63, not -2^63.
+func NewInt128(hi, lo uint64) Int128 {
+	return Int128{hi: hi, lo: lo}
+}
+
+// AsInt128 sign-extends a signed 64-bit value into an Int128.
+func AsInt128(x int64) Int128 {
 	var hi uint64
 	if x < 0 {
 		hi = maxUint64

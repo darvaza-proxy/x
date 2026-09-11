@@ -31,6 +31,11 @@ func NewUint128(hi, lo uint64) Uint128 {
 	return Uint128{hi: hi, lo: lo}
 }
 
+// AsUint128 zero-extends an unsigned 64-bit value into a Uint128.
+func AsUint128(x uint64) Uint128 {
+	return Uint128{lo: x}
+}
+
 // IsZero reports whether u is zero.
 func (u Uint128) IsZero() bool {
 	return u.hi == 0 && u.lo == 0

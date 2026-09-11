@@ -54,6 +54,15 @@ Files:
 
 ## Development Notes
 
+- Constructors use two prefixes and every type follows them. `New` builds
+  from parts: `NewUint128(hi, lo)` and `NewInt128(hi, lo)` take the two
+  words, `NewMilli32`, `NewMilli64` and `NewAtto128` take whole units
+  and sub-units. `As` changes only the type of a value that already is
+  the count: `AsUint128` and `AsInt128` extend a native integer,
+  `AsMilli32`, `AsMilli64` and `AsAtto128` read the backing integer at
+  the resolution. `AsInt32` and `AsInt64` are the conversions of the
+  native types; `Int32` and `Int64` have no parts, so no `New`. A new
+  type gets both, or a comment saying why one is enough.
 - The package has one sentinel, `ErrDivZero`, a `core.QuietWrap` of
   `core.ErrInvalid`, and division by zero is the only failure: it
   panics with that value. Arithmetic wraps on overflow and the

@@ -51,3 +51,15 @@ func NewMilli32(whole, milli int32) Milli32 {
 func NewMilli64(whole, milli int64) Milli64 {
 	return newDecimal[Int64, milli64Scale](Int64(whole), Int64(milli))
 }
+
+// AsMilli32 takes an Int32 as a count of milli-units (10^-3), so
+// AsMilli32(1500) is 1.5.
+func AsMilli32(milli Int32) Milli32 {
+	return Milli32{milli}
+}
+
+// AsMilli64 takes an Int64 as a count of milli-units (10^-3), so
+// AsMilli64(1500) is 1.5.
+func AsMilli64(milli Int64) Milli64 {
+	return Milli64{milli}
+}
