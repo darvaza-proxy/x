@@ -1,6 +1,7 @@
 package num
 
 import (
+	"encoding"
 	"fmt"
 	"math/bits"
 )
@@ -12,6 +13,9 @@ var (
 	_ fmt.Formatter  = Int128{}
 	_ fmt.GoStringer = Int128{}
 	_ fmt.Stringer   = Int128{}
+
+	_ encoding.TextAppender  = Int128{}
+	_ encoding.TextMarshaler = Int128{}
 )
 
 // Int128 is a signed 128-bit integer in two's-complement form,
@@ -72,6 +76,19 @@ func (v Int128) GoString() string {
 // String returns v in decimal, the text %v prints.
 func (v Int128) String() string {
 	return string(v.doAppendText(nil))
+}
+
+// AppendText implements [encoding.TextAppender], appending v in
+// decimal, the text %v prints, to b. It allocates only when b lacks
+// the room, and the error is always nil.
+func (v Int128) AppendText(b []byte) ([]byte, error) {
+	return v.doAppendText(b), nil
+}
+
+// MarshalText implements [encoding.TextMarshaler], returning the
+// AppendText text.
+func (v Int128) MarshalText() ([]byte, error) {
+	return v.AppendText(nil)
 }
 
 // doAppendText writes v in decimal to dst, the sign before the

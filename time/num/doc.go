@@ -33,7 +33,10 @@
 // zero-filled past the resolution and rounded half away from zero below
 // it; '#' keeps the point a zero precision would drop. A verb a type
 // does not take prints in fmt's %!verb(type=value) form. String
-// returns the text of %v, so every type is a [fmt.Stringer] as well.
+// returns the text of %v, so every type is a [fmt.Stringer] as well;
+// AppendText writes it into a caller's buffer, allocating nothing
+// when the buffer has room, and MarshalText returns it, so every type
+// is an [encoding.TextAppender] and an [encoding.TextMarshaler] too.
 //
 // Arithmetic wraps on overflow, matching Go's built-in integer
 // operators, so Add, Sub and Mul never panic. Division by zero panics

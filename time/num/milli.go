@@ -1,6 +1,9 @@
 package num
 
-import "fmt"
+import (
+	"encoding"
+	"fmt"
+)
 
 var (
 	_ Signed[Milli32] = Milli32{}
@@ -15,6 +18,11 @@ var (
 	_ fmt.GoStringer = Milli64{}
 	_ fmt.Stringer   = Milli32{}
 	_ fmt.Stringer   = Milli64{}
+
+	_ encoding.TextAppender  = Milli32{}
+	_ encoding.TextAppender  = Milli64{}
+	_ encoding.TextMarshaler = Milli32{}
+	_ encoding.TextMarshaler = Milli64{}
 )
 
 // milli32Scale carries the milli (10^-3) resolution as an Int32, the
@@ -33,6 +41,10 @@ func (milli32Scale) asInt64(v Int32) (int64, bool) {
 	return int64(v), true
 }
 
+func (milli32Scale) doAppendText(dst []byte, v Int32) []byte {
+	return v.doAppendText(dst)
+}
+
 // milli64Scale carries the milli (10^-3) resolution as an Int64, the
 // backing of Milli64.
 type milli64Scale struct{}
@@ -47,6 +59,10 @@ func (milli64Scale) name() string {
 
 func (milli64Scale) asInt64(v Int64) (int64, bool) {
 	return v.sys(), true
+}
+
+func (milli64Scale) doAppendText(dst []byte, v Int64) []byte {
+	return v.doAppendText(dst)
 }
 
 // Milli32 is a signed fixed-point number with 3 fractional digits,

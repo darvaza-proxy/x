@@ -8,7 +8,7 @@ import (
 // DecimalScaler is the scale parameter of [Decimal]: it yields a
 // fixed-point resolution, the number of sub-units in one whole unit, as
 // a value of the backing integer type T. The unexported methods serve
-// GoString and are met only by the scalers of this package, so
+// the text forms and are met only by the scalers of this package, so
 // Milli32, Milli64 and Atto128 are the only instantiations.
 type DecimalScaler[T any] interface {
 	Scale() T
@@ -19,6 +19,9 @@ type DecimalScaler[T any] interface {
 	// asInt64 returns a backing value as a native int64 and whether
 	// it fits.
 	asInt64(v T) (int64, bool)
+	// doAppendText writes a backing value in decimal to dst and returns
+	// the extended buffer.
+	doAppendText(dst []byte, v T) []byte
 }
 
 // Decimal is a signed fixed-point number: a count of sub-units at a
@@ -105,6 +108,19 @@ func (d Decimal[T, S]) GoString() string {
 // %v prints.
 func (d Decimal[T, S]) String() string {
 	return string(d.doAppendText(nil))
+}
+
+// AppendText implements [encoding.TextAppender], appending d at full
+// resolution, the text %v prints, to b. It allocates only when b lacks
+// the room, and the error is always nil.
+func (d Decimal[T, S]) AppendText(b []byte) ([]byte, error) {
+	return d.doAppendText(b), nil
+}
+
+// MarshalText implements [encoding.TextMarshaler], returning the
+// AppendText text.
+func (d Decimal[T, S]) MarshalText() ([]byte, error) {
+	return d.AppendText(nil)
 }
 
 // doAppendText writes d at full resolution to dst, the sign before the
@@ -223,7 +239,7 @@ func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
 		}
 		f, width = q, prec
 	}
-	dst = fmt.Append(dst, whole)
+	dst = sc.doAppendText(dst, whole)
 	if prec == 0 {
 		return dst
 	}

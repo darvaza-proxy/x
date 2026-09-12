@@ -1,6 +1,7 @@
 package num
 
 import (
+	"encoding"
 	"fmt"
 	"strconv"
 )
@@ -12,6 +13,9 @@ var (
 	_ fmt.Formatter  = Int32(0)
 	_ fmt.GoStringer = Int32(0)
 	_ fmt.Stringer   = Int32(0)
+
+	_ encoding.TextAppender  = Int32(0)
+	_ encoding.TextMarshaler = Int32(0)
 )
 
 // Int32 is a signed 32-bit integer wrapping the native int32,
@@ -63,6 +67,25 @@ func (v Int32) GoString() string {
 // String returns v in decimal, the text %v prints.
 func (v Int32) String() string {
 	return strconv.FormatInt(int64(v), 10)
+}
+
+// AppendText implements [encoding.TextAppender], appending v in
+// decimal, the text %v prints, to b. It allocates only when b lacks
+// the room, and the error is always nil.
+func (v Int32) AppendText(b []byte) ([]byte, error) {
+	return v.doAppendText(b), nil
+}
+
+// MarshalText implements [encoding.TextMarshaler], returning the
+// AppendText text.
+func (v Int32) MarshalText() ([]byte, error) {
+	return v.AppendText(nil)
+}
+
+// doAppendText writes v in decimal to dst and returns the extended
+// buffer.
+func (v Int32) doAppendText(dst []byte) []byte {
+	return strconv.AppendInt(dst, int64(v), 10)
 }
 
 // IsZero reports whether v is zero.

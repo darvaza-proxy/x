@@ -1,6 +1,7 @@
 package num
 
 import (
+	"encoding"
 	"fmt"
 	"math/bits"
 	"strconv"
@@ -13,6 +14,9 @@ var (
 	_ fmt.Formatter  = Uint128{}
 	_ fmt.GoStringer = Uint128{}
 	_ fmt.Stringer   = Uint128{}
+
+	_ encoding.TextAppender  = Uint128{}
+	_ encoding.TextMarshaler = Uint128{}
 )
 
 // Uint128 is an unsigned 128-bit integer stored as a high and low
@@ -57,6 +61,19 @@ func (u Uint128) GoString() string {
 // String returns u in decimal, the text %v prints.
 func (u Uint128) String() string {
 	return string(u.doAppendText(nil))
+}
+
+// AppendText implements [encoding.TextAppender], appending u in
+// decimal, the text %v prints, to b. It allocates only when b lacks
+// the room, and the error is always nil.
+func (u Uint128) AppendText(b []byte) ([]byte, error) {
+	return u.doAppendText(b), nil
+}
+
+// MarshalText implements [encoding.TextMarshaler], returning the
+// AppendText text.
+func (u Uint128) MarshalText() ([]byte, error) {
+	return u.AppendText(nil)
 }
 
 // Format implements [fmt.Formatter] with the verbs d, v and s for

@@ -1,6 +1,7 @@
 package num_test
 
 import (
+	"encoding"
 	"fmt"
 	"math"
 	"testing"
@@ -12,15 +13,24 @@ import (
 
 var _ core.TestCase = textCase{}
 
-// textCase pins the String form of a value, which is the text %v
-// prints, so the same text must come back through fmt.
+// textValue is the text surface every type carries: the %v text by
+// name, appended into a caller's buffer, and as a marshalled form.
+type textValue interface {
+	fmt.Stringer
+	encoding.TextAppender
+	encoding.TextMarshaler
+}
+
+// textCase pins the text form of a value, which is the text %v
+// prints, so the same text must come back through fmt, String,
+// AppendText and MarshalText alike.
 type textCase struct {
-	in   fmt.Stringer
+	in   textValue
 	want string
 	name string
 }
 
-func newTextCase(name string, in fmt.Stringer, want string) textCase {
+func newTextCase(name string, in textValue, want string) textCase {
 	return textCase{name: name, in: in, want: want}
 }
 
@@ -30,6 +40,35 @@ func (tc textCase) Test(t *testing.T) {
 	t.Helper()
 	core.AssertEqual(t, tc.want, tc.in.String(), "String")
 	core.AssertEqual(t, tc.want, fmt.Sprint(tc.in), "fmt")
+	tc.testAppendText(t)
+	tc.testMarshalText(t)
+}
+
+// testAppendText checks AppendText writes the text after whatever the
+// buffer holds, and allocates nothing when the buffer has room.
+func (tc textCase) testAppendText(t *testing.T) {
+	t.Helper()
+	got, err := tc.in.AppendText(nil)
+	core.AssertNoError(t, err, "AppendText")
+	core.AssertEqual(t, tc.want, string(got), "AppendText")
+
+	got, err = tc.in.AppendText([]byte("x="))
+	core.AssertNoError(t, err, "AppendText prefix")
+	core.AssertEqual(t, "x="+tc.want, string(got), "AppendText prefix")
+
+	buf := make([]byte, 0, 64)
+	allocs := testing.AllocsPerRun(10, func() {
+		buf, _ = tc.in.AppendText(buf[:0])
+	})
+	core.AssertEqual(t, 0, allocs, "AppendText allocs")
+}
+
+// testMarshalText checks MarshalText returns the AppendText text.
+func (tc textCase) testMarshalText(t *testing.T) {
+	t.Helper()
+	got, err := tc.in.MarshalText()
+	core.AssertNoError(t, err, "MarshalText")
+	core.AssertEqual(t, tc.want, string(got), "MarshalText")
 }
 
 func textIntCases() []textCase {

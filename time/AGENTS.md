@@ -89,8 +89,14 @@ Files:
   the resolution's. Never reach for `math/big` for any of this.
 - `String` returns the `%v` text over the same digit generation, for
   the callers that ask for it by name; fmt never does, since a
-  `Formatter` takes precedence over a `Stringer`, so `TestText`
-  checks the two agree on every row.
+  `Formatter` takes precedence over a `Stringer`. The primitive under
+  both is the unexported `doAppendText` of each type; `AppendText` is
+  its exported form behind an always-nil error, and `MarshalText` is
+  `AppendText(nil)`. A `Decimal` reaches its backing's `doAppendText`
+  through the `DecimalScaler` hook, as it reaches `asInt64`, so the
+  whole count never goes through fmt. `TestText` checks the four agree
+  on every row and that `AppendText` allocates nothing into a buffer
+  with room.
 - fmt's padding has corners worth knowing, since the 128-bit writer
   reimplements them: the `0` flag is a precision on the digits, so it
   leaves room for the sign but pushes the base prefix outside the

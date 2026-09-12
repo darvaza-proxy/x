@@ -1,6 +1,9 @@
 package num
 
-import "fmt"
+import (
+	"encoding"
+	"fmt"
+)
 
 var (
 	_ Signed[Atto128]    = Atto128{}
@@ -9,6 +12,9 @@ var (
 	_ fmt.Formatter  = Atto128{}
 	_ fmt.GoStringer = Atto128{}
 	_ fmt.Stringer   = Atto128{}
+
+	_ encoding.TextAppender  = Atto128{}
+	_ encoding.TextMarshaler = Atto128{}
 )
 
 // atto128Scale carries the atto (10^-18) resolution as an Int128, the
@@ -25,6 +31,10 @@ func (atto128Scale) name() string {
 
 func (atto128Scale) asInt64(v Int128) (int64, bool) {
 	return v.asInt64()
+}
+
+func (atto128Scale) doAppendText(dst []byte, v Int128) []byte {
+	return v.doAppendText(dst)
 }
 
 // Atto128 is a signed fixed-point number with 18 fractional digits,
