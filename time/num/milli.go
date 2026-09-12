@@ -13,6 +13,8 @@ var (
 	_ fmt.Formatter  = Milli64{}
 	_ fmt.GoStringer = Milli32{}
 	_ fmt.GoStringer = Milli64{}
+	_ fmt.Stringer   = Milli32{}
+	_ fmt.Stringer   = Milli64{}
 )
 
 // milli32Scale carries the milli (10^-3) resolution as an Int32, the

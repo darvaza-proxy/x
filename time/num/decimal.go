@@ -101,6 +101,21 @@ func (d Decimal[T, S]) GoString() string {
 	return fmt.Sprintf("num.New%s(%d, %s)", s.name(), w, groupDigits(f))
 }
 
+// String returns d at full resolution, 1.500 for a Milli32, the text
+// %v prints.
+func (d Decimal[T, S]) String() string {
+	return string(d.doAppendText(nil))
+}
+
+// doAppendText writes d at full resolution to dst, the sign before the
+// magnitude, and returns the extended buffer.
+func (d Decimal[T, S]) doAppendText(dst []byte) []byte {
+	if d.IsNegative() {
+		dst = append(dst, '-')
+	}
+	return d.appendFixed(dst, d.fracWidth())
+}
+
 // Format implements [fmt.Formatter] with the verbs v and s printing the
 // value at full resolution, 1.500 for a Milli32, every digit the
 // resolution holds and nothing more whatever precision is asked for,

@@ -12,6 +12,7 @@ var (
 
 	_ fmt.Formatter  = Uint128{}
 	_ fmt.GoStringer = Uint128{}
+	_ fmt.Stringer   = Uint128{}
 )
 
 // Uint128 is an unsigned 128-bit integer stored as a high and low
@@ -51,6 +52,11 @@ func (u Uint128) GoString() string {
 		return fmt.Sprintf("num.AsUint128(%d)", u.lo)
 	}
 	return fmt.Sprintf("num.NewUint128(%#x, %#x)", u.hi, u.lo)
+}
+
+// String returns u in decimal, the text %v prints.
+func (u Uint128) String() string {
+	return string(u.doAppendText(nil))
 }
 
 // Format implements [fmt.Formatter] with the verbs d, v and s for

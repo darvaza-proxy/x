@@ -44,8 +44,8 @@ Files:
   and the Euclidean division helpers.
 - `num/format.go`: the shared side of `Format` and `GoString`, the verb
   tables, the sign, prefix and width padding, the base-10 chunking
-  constants and the digit grouping; each type's `Format`, `GoString`
-  and digit generation sit in its own file.
+  constants and the digit grouping; each type's `Format`, `GoString`,
+  `String` and digit generation sit in its own file.
 - `num/int128.go`: `Int128` and its operations.
 - `num/int32.go`: `Int32` and its operations.
 - `num/int64.go`: `Int64` and its operations.
@@ -87,6 +87,10 @@ Files:
   on the backing's minimum wraps while the whole count never can. Fraction
   rounding is half away from zero; the precision of `%f` is fmt's, not
   the resolution's. Never reach for `math/big` for any of this.
+- `String` returns the `%v` text over the same digit generation, for
+  the callers that ask for it by name; fmt never does, since a
+  `Formatter` takes precedence over a `Stringer`, so `TestText`
+  checks the two agree on every row.
 - fmt's padding has corners worth knowing, since the 128-bit writer
   reimplements them: the `0` flag is a precision on the digits, so it
   leaves room for the sign but pushes the base prefix outside the

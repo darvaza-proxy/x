@@ -8,6 +8,7 @@ var (
 
 	_ fmt.Formatter  = Atto128{}
 	_ fmt.GoStringer = Atto128{}
+	_ fmt.Stringer   = Atto128{}
 )
 
 // atto128Scale carries the atto (10^-18) resolution as an Int128, the

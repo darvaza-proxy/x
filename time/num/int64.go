@@ -1,6 +1,9 @@
 package num
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 var (
 	_ Signed[Int64]    = Int64(0)
@@ -8,6 +11,7 @@ var (
 
 	_ fmt.Formatter  = Int64(0)
 	_ fmt.GoStringer = Int64(0)
+	_ fmt.Stringer   = Int64(0)
 )
 
 // Int64 is a signed 64-bit integer wrapping the native int64,
@@ -59,6 +63,11 @@ func (v Int64) Format(s fmt.State, verb rune) {
 // for %#v.
 func (v Int64) GoString() string {
 	return fmt.Sprintf("num.AsInt64(%d)", v.sys())
+}
+
+// String returns v in decimal, the text %v prints.
+func (v Int64) String() string {
+	return strconv.FormatInt(v.sys(), 10)
 }
 
 // IsZero reports whether v is zero.

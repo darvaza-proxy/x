@@ -57,7 +57,8 @@ or `F` under another name, with the fraction digits the precision asks
 for, six without one, zero-filled past the resolution and rounded half
 away from zero below it; `#` keeps the point a zero precision would
 drop. A verb a type does not take prints in the `%!verb(type=value)`
-form.
+form. `String` returns the text of `%v`, so every type is a
+`fmt.Stringer` as well.
 
 Arithmetic wraps on overflow, matching Go's built-in integer
 operators, so `Add`, `Sub` and `Mul` never panic. Division by zero

@@ -11,6 +11,7 @@ var (
 
 	_ fmt.Formatter  = Int128{}
 	_ fmt.GoStringer = Int128{}
+	_ fmt.Stringer   = Int128{}
 )
 
 // Int128 is a signed 128-bit integer in two's-complement form,
@@ -66,6 +67,22 @@ func (v Int128) GoString() string {
 		return fmt.Sprintf("num.AsInt128(%d)", x)
 	}
 	return fmt.Sprintf("num.NewInt128(%#x, %#x)", v.hi, v.lo)
+}
+
+// String returns v in decimal, the text %v prints.
+func (v Int128) String() string {
+	return string(v.doAppendText(nil))
+}
+
+// doAppendText writes v in decimal to dst, the sign before the
+// magnitude, and returns the extended buffer. The magnitude is taken
+// as an unsigned 128-bit value, so MinInt128 renders as 2^127 rather
+// than wrapping.
+func (v Int128) doAppendText(dst []byte) []byte {
+	if v.IsNegative() {
+		dst = append(dst, '-')
+	}
+	return v.Abs().bits().doAppendText(dst)
 }
 
 // Format implements [fmt.Formatter] with the verbs d, v and s for
