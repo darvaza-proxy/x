@@ -5,6 +5,9 @@ import "fmt"
 var (
 	_ Signed[Int64]    = Int64(0)
 	_ Euclidean[Int64] = Int64(0)
+
+	_ fmt.Formatter  = Int64(0)
+	_ fmt.GoStringer = Int64(0)
 )
 
 // Int64 is a signed 64-bit integer wrapping the native int64,
@@ -32,6 +35,24 @@ func (Int64) ulp() Int64 {
 // AsInt64 takes a signed 64-bit value as an Int64, the conversion.
 func AsInt64(x int64) Int64 {
 	return Int64(x)
+}
+
+// Format implements [fmt.Formatter] with the verbs d, v and s for
+// decimal, x and X for hex, o and O for octal and b for binary, handed
+// to fmt over the native int64 so the flags, width and precision behave
+// as they do there; %#v prints the GoString form. Any other verb prints
+// as %!verb(num.Int64=value).
+func (v Int64) Format(s fmt.State, verb rune) {
+	switch {
+	case verb == 'v' && s.Flag('#'):
+		writeGoString(s, v.GoString())
+	case !isFormatVerb(verb):
+		writeBadVerb(s, verb, "num.Int64", func() {
+			_, _ = fmt.Fprintf(s, fmt.FormatString(s, 'd'), v.sys())
+		})
+	default:
+		_, _ = fmt.Fprintf(s, fmt.FormatString(s, nativeVerb(verb)), v.sys())
+	}
 }
 
 // GoString returns the constructor that rebuilds v, num.AsInt64(-5),

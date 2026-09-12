@@ -8,6 +8,9 @@ import (
 var (
 	_ Signed[Int128]    = Int128{}
 	_ Euclidean[Int128] = Int128{}
+
+	_ fmt.Formatter  = Int128{}
+	_ fmt.GoStringer = Int128{}
 )
 
 // Int128 is a signed 128-bit integer in two's-complement form,
@@ -63,6 +66,27 @@ func (v Int128) GoString() string {
 		return fmt.Sprintf("num.AsInt128(%d)", x)
 	}
 	return fmt.Sprintf("num.NewInt128(%#x, %#x)", v.hi, v.lo)
+}
+
+// Format implements [fmt.Formatter] with the verbs d, v and s for
+// decimal, x and X for hex, o and O for octal and b for binary, under
+// the flags, width and precision fmt gives its own integers; the sign
+// precedes the magnitude in every base, and %#v prints the GoString
+// form. Any other verb prints as %!verb(num.Int128=value).
+func (v Int128) Format(s fmt.State, verb rune) {
+	// the magnitude is taken as an unsigned 128-bit value, so
+	// MinInt128 renders as 2^127 rather than wrapping.
+	mag := v.Abs().bits()
+	switch {
+	case verb == 'v' && s.Flag('#'):
+		writeGoString(s, v.GoString())
+	case !isFormatVerb(verb):
+		writeBadVerb(s, verb, "num.Int128", func() {
+			writeNumber(s, 'd', v.IsNegative(), mag.doAppendText(nil))
+		})
+	default:
+		writeNumber(s, verb, v.IsNegative(), mag.appendDigits(nil, verb))
+	}
 }
 
 // IsZero reports whether v is zero.

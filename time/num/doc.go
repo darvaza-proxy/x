@@ -21,6 +21,19 @@
 // int64 prints as As over its backing integer,
 // num.AsAtto128(num.NewInt128(hi, lo)).
 //
+// Every other verb goes through [fmt.Formatter], so the types print
+// under fmt the way its own numbers do. The integers take d, v and s
+// for decimal, x and X for hex, o and O for octal and b for binary,
+// with the '+', ' ', '#', '-' and '0' flags, width and precision as
+// fmt defines them for an integer, the '+' of %+v included, which asks
+// for the field names of a struct and so adds no sign; the sign
+// precedes the magnitude in every base. A Decimal takes v and s at
+// full resolution, 1.500 for a Milli32, and f, or F under another name,
+// with the fraction digits the precision asks for, six without one,
+// zero-filled past the resolution and rounded half away from zero below
+// it; '#' keeps the point a zero precision would drop. A verb a type
+// does not take prints in fmt's %!verb(type=value) form.
+//
 // Arithmetic wraps on overflow, matching Go's built-in integer
 // operators, so Add, Sub and Mul never panic. Division by zero panics
 // with [ErrDivZero]. Signed division truncates towards zero, with the

@@ -1,8 +1,13 @@
 package num
 
+import "fmt"
+
 var (
 	_ Signed[Atto128]    = Atto128{}
 	_ Euclidean[Atto128] = Atto128{}
+
+	_ fmt.Formatter  = Atto128{}
+	_ fmt.GoStringer = Atto128{}
 )
 
 // atto128Scale carries the atto (10^-18) resolution as an Int128, the

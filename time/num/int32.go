@@ -5,6 +5,9 @@ import "fmt"
 var (
 	_ Signed[Int32]    = Int32(0)
 	_ Euclidean[Int32] = Int32(0)
+
+	_ fmt.Formatter  = Int32(0)
+	_ fmt.GoStringer = Int32(0)
 )
 
 // Int32 is a signed 32-bit integer wrapping the native int32,
@@ -27,6 +30,24 @@ func (Int32) ulp() Int32 {
 // AsInt32 takes a signed 32-bit value as an Int32, the conversion.
 func AsInt32(x int32) Int32 {
 	return Int32(x)
+}
+
+// Format implements [fmt.Formatter] with the verbs d, v and s for
+// decimal, x and X for hex, o and O for octal and b for binary, handed
+// to fmt over the native int32 so the flags, width and precision behave
+// as they do there; %#v prints the GoString form. Any other verb prints
+// as %!verb(num.Int32=value).
+func (v Int32) Format(s fmt.State, verb rune) {
+	switch {
+	case verb == 'v' && s.Flag('#'):
+		writeGoString(s, v.GoString())
+	case !isFormatVerb(verb):
+		writeBadVerb(s, verb, "num.Int32", func() {
+			_, _ = fmt.Fprintf(s, fmt.FormatString(s, 'd'), int32(v))
+		})
+	default:
+		_, _ = fmt.Fprintf(s, fmt.FormatString(s, nativeVerb(verb)), int32(v))
+	}
 }
 
 // GoString returns the constructor that rebuilds v, num.AsInt32(-5),

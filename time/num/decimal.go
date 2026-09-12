@@ -1,6 +1,9 @@
 package num
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // DecimalScaler is the scale parameter of [Decimal]: it yields a
 // fixed-point resolution, the number of sub-units in one whole unit, as
@@ -96,6 +99,122 @@ func (d Decimal[T, S]) GoString() string {
 	// frac is below the scale, which fits an int64 at every resolution.
 	f, _ := s.asInt64(frac)
 	return fmt.Sprintf("num.New%s(%d, %s)", s.name(), w, groupDigits(f))
+}
+
+// Format implements [fmt.Formatter] with the verbs v and s printing the
+// value at full resolution, 1.500 for a Milli32, every digit the
+// resolution holds and nothing more whatever precision is asked for,
+// and f, or F under another name, printing it with the fraction digits
+// the precision asks for, six without one, as fmt does for its floats:
+// zero-filled past the resolution, and below it rounded half away from
+// zero, where a float64 rounds half to even. The ' ', '-' and '0' flags
+// and the width apply as for a float, '#' keeps the point of a zero
+// precision, and '+' signs the value everywhere but under v, where fmt
+// gives it the struct-field meaning; %#v prints the GoString form. Any
+// other verb prints as %!verb(type=value).
+func (d Decimal[T, S]) Format(s fmt.State, verb rune) {
+	if verb == 'F' {
+		verb = 'f'
+	}
+	switch verb {
+	case 'v', 's', 'f':
+		if verb == 'v' && s.Flag('#') {
+			writeGoString(s, d.GoString())
+			return
+		}
+		d.writeFixed(s, verb)
+	default:
+		var sc S
+		// d prints the value as v does, at full resolution, but reads
+		// the flags as a bad verb leaves them, so '+' signs there.
+		writeBadVerb(s, verb, "num."+sc.name(), func() {
+			d.writeFixed(s, 'd')
+		})
+	}
+}
+
+// writeFixed writes d's sign, digits and padding to s under the flags,
+// width and precision verb was given.
+func (d Decimal[T, S]) writeFixed(s fmt.State, verb rune) {
+	f := numField{
+		digits: d.appendFormatted(s, verb),
+		sign:   formatSign(s, verb, d.IsNegative()),
+	}
+	f.zeros = padZeros(s, len(f.sign), len(f.digits))
+	f.writeTo(s)
+}
+
+// appendFormatted returns the magnitude of d with the fraction digits
+// verb asks for, keeping the point of a zero precision under '#' as
+// fmt does for a float.
+func (d Decimal[T, S]) appendFormatted(s fmt.State, verb rune) []byte {
+	prec := d.precision(s, verb)
+	dst := d.appendFixed(nil, prec)
+	if prec == 0 && s.Flag('#') {
+		dst = append(dst, '.')
+	}
+	return dst
+}
+
+// precision returns the fraction digits verb prints: the resolution
+// for v and s, and for f what the state asks, or six.
+func (d Decimal[T, S]) precision(s fmt.State, verb rune) int {
+	if verb != 'f' {
+		return d.fracWidth()
+	}
+	if p, ok := s.Precision(); ok {
+		return p
+	}
+	return 6
+}
+
+// fracWidth returns the fraction digits of the resolution, one fewer
+// than the digits of the scale.
+func (Decimal[T, S]) fracWidth() int {
+	var sc S
+	// every scale is a power of ten below 2^63, so it fits an int64.
+	scale, _ := sc.asInt64(sc.Scale())
+	width := 0
+	for scale > 1 {
+		scale /= 10
+		width++
+	}
+	return width
+}
+
+// appendFixed appends the magnitude of d with prec fraction digits,
+// zero-filled past the resolution and rounded half away from zero
+// below it, with a carry out of the fraction reaching the whole count.
+// The parts are taken as magnitudes one at a time, since the whole
+// count is always far from the backing's minimum even when d is not.
+func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
+	var sc S
+	whole, frac := d.parts()
+	whole = whole.Abs()
+	// the remainder is below the scale, so it fits an int64.
+	f, _ := sc.asInt64(frac)
+	if f < 0 {
+		f = -f
+	}
+	width := d.fracWidth()
+	if prec < width {
+		unit := pow10(width - prec)
+		q, r := f/unit, f%unit
+		if 2*r >= unit {
+			q++
+		}
+		if q == pow10(prec) {
+			q, whole = 0, whole.Add(whole.one())
+		}
+		f, width = q, prec
+	}
+	dst = fmt.Append(dst, whole)
+	if prec == 0 {
+		return dst
+	}
+	dst = append(dst, '.')
+	dst = appendPadded(dst, uint64(f), width)
+	return append(dst, strings.Repeat("0", prec-width)...)
 }
 
 // IsZero reports whether d is zero.

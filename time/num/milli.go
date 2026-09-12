@@ -1,11 +1,18 @@
 package num
 
+import "fmt"
+
 var (
 	_ Signed[Milli32] = Milli32{}
 	_ Signed[Milli64] = Milli64{}
 
 	_ Euclidean[Milli32] = Milli32{}
 	_ Euclidean[Milli64] = Milli64{}
+
+	_ fmt.Formatter  = Milli32{}
+	_ fmt.Formatter  = Milli64{}
+	_ fmt.GoStringer = Milli32{}
+	_ fmt.GoStringer = Milli64{}
 )
 
 // milli32Scale carries the milli (10^-3) resolution as an Int32, the
