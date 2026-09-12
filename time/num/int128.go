@@ -1,6 +1,9 @@
 package num
 
-import "math/bits"
+import (
+	"fmt"
+	"math/bits"
+)
 
 var (
 	_ Signed[Int128]    = Int128{}
@@ -43,6 +46,23 @@ func AsInt128(x int64) Int128 {
 		hi = maxUint64
 	}
 	return Int128{hi: hi, lo: uint64(x)}
+}
+
+// asInt64 returns v as a native int64 and whether it fits: the low
+// word sign-extended must give v back.
+func (v Int128) asInt64() (int64, bool) {
+	x := int64(v.lo)
+	return x, AsInt128(x) == v
+}
+
+// GoString returns the constructor call that rebuilds v for %#v:
+// AsInt128 over the value while it fits an int64, and NewInt128 over
+// both words in hex otherwise.
+func (v Int128) GoString() string {
+	if x, ok := v.asInt64(); ok {
+		return fmt.Sprintf("num.AsInt128(%d)", x)
+	}
+	return fmt.Sprintf("num.NewInt128(%#x, %#x)", v.hi, v.lo)
 }
 
 // IsZero reports whether v is zero.

@@ -1,5 +1,7 @@
 package num
 
+import "fmt"
+
 var (
 	_ Signed[Int32]    = Int32(0)
 	_ Euclidean[Int32] = Int32(0)
@@ -25,6 +27,12 @@ func (Int32) ulp() Int32 {
 // AsInt32 takes a signed 32-bit value as an Int32, the conversion.
 func AsInt32(x int32) Int32 {
 	return Int32(x)
+}
+
+// GoString returns the constructor that rebuilds v, num.AsInt32(-5),
+// for %#v.
+func (v Int32) GoString() string {
+	return fmt.Sprintf("num.AsInt32(%d)", int32(v))
 }
 
 // IsZero reports whether v is zero.

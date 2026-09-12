@@ -1,6 +1,9 @@
 package num
 
-import "math/bits"
+import (
+	"fmt"
+	"math/bits"
+)
 
 var (
 	_ Unsigned[Uint128]  = Uint128{}
@@ -34,6 +37,16 @@ func NewUint128(hi, lo uint64) Uint128 {
 // AsUint128 zero-extends an unsigned 64-bit value into a Uint128.
 func AsUint128(x uint64) Uint128 {
 	return Uint128{lo: x}
+}
+
+// GoString returns the constructor call that rebuilds u for %#v:
+// AsUint128 over the low word while the high word is zero, and
+// NewUint128 over both words in hex otherwise.
+func (u Uint128) GoString() string {
+	if u.hi == 0 {
+		return fmt.Sprintf("num.AsUint128(%d)", u.lo)
+	}
+	return fmt.Sprintf("num.NewUint128(%#x, %#x)", u.hi, u.lo)
 }
 
 // IsZero reports whether u is zero.

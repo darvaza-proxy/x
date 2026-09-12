@@ -1,11 +1,21 @@
 package num
 
+import "fmt"
+
 // DecimalScaler is the scale parameter of [Decimal]: it yields a
 // fixed-point resolution, the number of sub-units in one whole unit, as
-// a value of the backing integer type T. Milli32, Milli64 and Atto128 are
-// the instantiations this package provides.
+// a value of the backing integer type T. The unexported methods serve
+// GoString and are met only by the scalers of this package, so
+// Milli32, Milli64 and Atto128 are the only instantiations.
 type DecimalScaler[T any] interface {
 	Scale() T
+
+	// name returns the instantiation's type name, which its
+	// constructors carry as a suffix.
+	name() string
+	// asInt64 returns a backing value as a native int64 and whether
+	// it fits.
+	asInt64(v T) (int64, bool)
 }
 
 // Decimal is a signed fixed-point number: a count of sub-units at a
@@ -61,6 +71,32 @@ func (Decimal[T, S]) ulp() Decimal[T, S] {
 // a var initialiser is not an instrumented statement, so it costs no
 // coverage.
 var _ = Atto128{}.one().Add(Atto128{}.ulp())
+
+// parts splits d into its whole-unit count and the sub-unit remainder,
+// both in the backing type and both carrying the sign of d, so that
+// whole*scale + frac == d.
+func (d Decimal[T, S]) parts() (whole, frac T) {
+	var s S
+	return d.v.DivMod(s.Scale())
+}
+
+// GoString returns the constructor call that rebuilds d for %#v: the
+// New form over the whole-unit and sub-unit counts while the whole
+// count fits an int64, and the As form over the backing integer's own
+// %#v otherwise. Both counts carry the sign of d, so the call
+// rebuilds it whichever of them the constructor reads the sign from,
+// and a fraction of four digits or more is grouped in thousands.
+func (d Decimal[T, S]) GoString() string {
+	var s S
+	whole, frac := d.parts()
+	w, ok := s.asInt64(whole)
+	if !ok {
+		return fmt.Sprintf("num.As%s(%#v)", s.name(), d.v)
+	}
+	// frac is below the scale, which fits an int64 at every resolution.
+	f, _ := s.asInt64(frac)
+	return fmt.Sprintf("num.New%s(%d, %s)", s.name(), w, groupDigits(f))
+}
 
 // IsZero reports whether d is zero.
 func (d Decimal[T, S]) IsZero() bool {

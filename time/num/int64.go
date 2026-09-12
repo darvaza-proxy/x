@@ -1,5 +1,7 @@
 package num
 
+import "fmt"
+
 var (
 	_ Signed[Int64]    = Int64(0)
 	_ Euclidean[Int64] = Int64(0)
@@ -30,6 +32,12 @@ func (Int64) ulp() Int64 {
 // AsInt64 takes a signed 64-bit value as an Int64, the conversion.
 func AsInt64(x int64) Int64 {
 	return Int64(x)
+}
+
+// GoString returns the constructor that rebuilds v, num.AsInt64(-5),
+// for %#v.
+func (v Int64) GoString() string {
+	return fmt.Sprintf("num.AsInt64(%d)", v.sys())
 }
 
 // IsZero reports whether v is zero.

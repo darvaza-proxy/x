@@ -13,6 +13,14 @@ func (atto128Scale) Scale() Int128 {
 	return Int128{lo: attoScale}
 }
 
+func (atto128Scale) name() string {
+	return "Atto128"
+}
+
+func (atto128Scale) asInt64(v Int128) (int64, bool) {
+	return v.asInt64()
+}
+
 // Atto128 is a signed fixed-point number with 18 fractional digits,
 // backed by a 128-bit two's-complement integer counting atto-units
 // (10^-18). It is the widest instantiation of [Decimal]: the Int128

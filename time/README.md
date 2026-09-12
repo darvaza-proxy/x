@@ -39,6 +39,13 @@ or a backing integer read as a `Decimal` at its resolution. So
 1.5. `AsInt32` and `AsInt64` are the conversions of the native types
 under the same name; `Int32` and `Int64` have no parts, so no `New`.
 
+Under `%#v` every type prints as the call that rebuilds it, so a value
+dumped from a failing test pastes back into a row: `num.AsInt32(-5)`,
+`num.AsInt128(-42)`, `num.NewMilli32(1, 500)`. The `As` form gives way
+to the `New` form over the two words in hex once a value no longer fits
+the native word, and a `Decimal` whose whole count no longer fits an
+`int64` prints as `As` over its backing integer.
+
 Arithmetic wraps on overflow, matching Go's built-in integer
 operators, so `Add`, `Sub` and `Mul` never panic. Division by zero
 panics with `ErrDivZero`, which wraps `core.ErrInvalid`; signed

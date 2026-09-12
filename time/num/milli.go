@@ -16,12 +16,28 @@ func (milli32Scale) Scale() Int32 {
 	return Int32(milliScale)
 }
 
+func (milli32Scale) name() string {
+	return "Milli32"
+}
+
+func (milli32Scale) asInt64(v Int32) (int64, bool) {
+	return int64(v), true
+}
+
 // milli64Scale carries the milli (10^-3) resolution as an Int64, the
 // backing of Milli64.
 type milli64Scale struct{}
 
 func (milli64Scale) Scale() Int64 {
 	return Int64(milliScale)
+}
+
+func (milli64Scale) name() string {
+	return "Milli64"
+}
+
+func (milli64Scale) asInt64(v Int64) (int64, bool) {
+	return v.sys(), true
 }
 
 // Milli32 is a signed fixed-point number with 3 fractional digits,

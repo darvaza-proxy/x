@@ -42,6 +42,8 @@ Files:
 - `num/errors.go`: `ErrDivZero`.
 - `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
   and the Euclidean division helpers.
+- `num/format.go`: the digit grouping behind `GoString`; each type's
+  `GoString` sits in its own file.
 - `num/int128.go`: `Int128` and its operations.
 - `num/int32.go`: `Int32` and its operations.
 - `num/int64.go`: `Int64` and its operations.
@@ -63,6 +65,15 @@ Files:
   the resolution. `AsInt32` and `AsInt64` are the conversions of the
   native types; `Int32` and `Int64` have no parts, so no `New`. A new
   type gets both, or a comment saying why one is enough.
+- `GoString` prints the constructor call that rebuilds the value, the
+  `As` count form while the value fits the native word and the `New`
+  words form in hex beyond it; a `Decimal` prints both parts with its
+  sign, so the call holds under either sign rule of the constructor.
+  `DecimalScaler` carries the instantiation's name and the int64 fit
+  check through unexported methods, which closes the family to the
+  package's scalers; the constraints stay free of formatting methods,
+  and the `Decimal` fallback reaches its backing's form through `%#v`.
+  A new type or instantiation adds a row to the `GoString` table.
 - The package has one sentinel, `ErrDivZero`, a `core.QuietWrap` of
   `core.ErrInvalid`, and division by zero is the only failure: it
   panics with that value. Arithmetic wraps on overflow and the
