@@ -1,28 +1,11 @@
 package num
 
-import (
-	"encoding"
-	"fmt"
-)
-
 var (
 	_ Signed[Milli32] = Milli32{}
 	_ Signed[Milli64] = Milli64{}
 
-	_ Euclidean[Milli32] = Milli32{}
-	_ Euclidean[Milli64] = Milli64{}
-
-	_ fmt.Formatter  = Milli32{}
-	_ fmt.Formatter  = Milli64{}
-	_ fmt.GoStringer = Milli32{}
-	_ fmt.GoStringer = Milli64{}
-	_ fmt.Stringer   = Milli32{}
-	_ fmt.Stringer   = Milli64{}
-
-	_ encoding.TextAppender  = Milli32{}
-	_ encoding.TextAppender  = Milli64{}
-	_ encoding.TextMarshaler = Milli32{}
-	_ encoding.TextMarshaler = Milli64{}
+	_ Number[Milli32] = Milli32{}
+	_ Number[Milli64] = Milli64{}
 )
 
 // milli32Scale carries the milli (10^-3) resolution as an Int32, the
@@ -39,6 +22,10 @@ func (milli32Scale) name() string {
 
 func (milli32Scale) asInt64(v Int32) (int64, bool) {
 	return int64(v), true
+}
+
+func (milli32Scale) asInt128(v Int32) Int128 {
+	return AsInt128(int64(v))
 }
 
 func (milli32Scale) doAppendText(dst []byte, v Int32) []byte {
@@ -59,6 +46,10 @@ func (milli64Scale) name() string {
 
 func (milli64Scale) asInt64(v Int64) (int64, bool) {
 	return v.sys(), true
+}
+
+func (milli64Scale) asInt128(v Int64) Int128 {
+	return AsInt128(v.sys())
 }
 
 func (milli64Scale) doAppendText(dst []byte, v Int64) []byte {

@@ -1,21 +1,13 @@
 package num
 
 import (
-	"encoding"
 	"fmt"
 	"strconv"
 )
 
 var (
-	_ Signed[Int32]    = Int32(0)
-	_ Euclidean[Int32] = Int32(0)
-
-	_ fmt.Formatter  = Int32(0)
-	_ fmt.GoStringer = Int32(0)
-	_ fmt.Stringer   = Int32(0)
-
-	_ encoding.TextAppender  = Int32(0)
-	_ encoding.TextMarshaler = Int32(0)
+	_ Signed[Int32] = Int32(0)
+	_ Number[Int32] = Int32(0)
 )
 
 // Int32 is a signed 32-bit integer wrapping the native int32,
@@ -36,8 +28,54 @@ func (Int32) ulp() Int32 {
 }
 
 // AsInt32 takes a signed 32-bit value as an Int32, the conversion.
+//
+//revive:disable-next-line:confusing-naming misfiled Decimal method of the same name
 func AsInt32(x int32) Int32 {
 	return Int32(x)
+}
+
+// wide returns v as a count of whole units, on the way to another
+// type of the family.
+func (v Int32) wide() wide {
+	return wide{v: AsInt128(int64(v)), scale: unitScale128, ok: true}
+}
+
+// Int32 returns v unchanged, the conversion to its own type, which
+// always fits.
+func (v Int32) Int32() (Int32, bool) {
+	return v.wide().int32()
+}
+
+// Int64 returns v as an Int64, which always fits.
+func (v Int32) Int64() (Int64, bool) {
+	return v.wide().int64()
+}
+
+// Int128 returns v as an Int128, which always fits.
+func (v Int32) Int128() (Int128, bool) {
+	return v.wide().int128()
+}
+
+// Uint128 returns v as a Uint128 and whether it fits, which it does
+// when not negative; the bit pattern stays when it does not.
+func (v Int32) Uint128() (Uint128, bool) {
+	return v.wide().uint128()
+}
+
+// Milli32 returns v as whole units of a Milli32 and whether it fits;
+// the low 32 bits of the milli count stay when it does not.
+func (v Int32) Milli32() (Milli32, bool) {
+	return v.wide().milli32()
+}
+
+// Milli64 returns v as whole units of a Milli64, which always fits.
+func (v Int32) Milli64() (Milli64, bool) {
+	return v.wide().milli64()
+}
+
+// Atto128 returns v as whole units of an Atto128, which always fits.
+func (v Int32) Atto128() (Atto128, bool) {
+	return v.wide().atto128()
 }
 
 // Format implements [fmt.Formatter] with the verbs d, v and s for

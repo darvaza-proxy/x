@@ -19,6 +19,8 @@ type DecimalScaler[T any] interface {
 	// asInt64 returns a backing value as a native int64 and whether
 	// it fits.
 	asInt64(v T) (int64, bool)
+	// asInt128 returns a backing value widened to an Int128.
+	asInt128(v T) Int128
 	// doAppendText writes a backing value in decimal to dst and returns
 	// the extended buffer.
 	doAppendText(dst []byte, v T) []byte
@@ -77,6 +79,94 @@ func (Decimal[T, S]) ulp() Decimal[T, S] {
 // a var initialiser is not an instrumented statement, so it costs no
 // coverage.
 var _ = Atto128{}.one().Add(Atto128{}.ulp())
+
+// wide returns d as its count at its resolution, on the way to another
+// type of the family.
+func (d Decimal[T, S]) wide() wide {
+	var s S
+	return wide{v: s.asInt128(d.v), scale: s.asInt128(s.Scale()), ok: true}
+}
+
+// count returns the backing count of d read at unit scale, so the
+// narrowing of wide checks its size without rescaling it.
+func (d Decimal[T, S]) count() wide {
+	var s S
+	return wide{v: s.asInt128(d.v), scale: unitScale128, ok: true}
+}
+
+// AsInt32 returns the count of d, its backing integer, as an Int32 and
+// whether it fits, the low 32 bits kept when it does not: the inverse
+// of the As constructor.
+//
+//revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
+func (d Decimal[T, S]) AsInt32() (Int32, bool) {
+	return d.count().narrow32()
+}
+
+// AsInt64 returns the count of d, its backing integer, as an Int64 and
+// whether it fits, the low 64 bits kept when it does not: the inverse
+// of the As constructor.
+//
+//revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
+func (d Decimal[T, S]) AsInt64() (Int64, bool) {
+	return d.count().narrow64()
+}
+
+// AsInt128 returns the count of d, its backing integer, as an Int128,
+// which always fits: the inverse of the As constructor.
+//
+//revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
+func (d Decimal[T, S]) AsInt128() (Int128, bool) {
+	w := d.count()
+	return w.v, w.ok
+}
+
+// Int32 returns the whole units of d as an Int32, the fraction dropped
+// towards zero, and whether they fit; the low 32 bits stay when they
+// do not.
+func (d Decimal[T, S]) Int32() (Int32, bool) {
+	return d.wide().int32()
+}
+
+// Int64 returns the whole units of d as an Int64, the fraction dropped
+// towards zero, and whether they fit; the low 64 bits stay when they
+// do not.
+func (d Decimal[T, S]) Int64() (Int64, bool) {
+	return d.wide().int64()
+}
+
+// Int128 returns the whole units of d as an Int128, the fraction
+// dropped towards zero, which always fit.
+func (d Decimal[T, S]) Int128() (Int128, bool) {
+	return d.wide().int128()
+}
+
+// Uint128 returns the whole units of d as a Uint128, the fraction
+// dropped towards zero, and whether they fit, which they do when not
+// negative; the bit pattern stays when they do not.
+func (d Decimal[T, S]) Uint128() (Uint128, bool) {
+	return d.wide().uint128()
+}
+
+// Milli32 returns d at milli resolution as a Milli32, the digits below
+// it dropped towards zero, and whether the value fits; the low 32 bits
+// of the count stay when it does not.
+func (d Decimal[T, S]) Milli32() (Milli32, bool) {
+	return d.wide().milli32()
+}
+
+// Milli64 returns d at milli resolution as a Milli64, the digits below
+// it dropped towards zero, and whether the value fits; the low 64 bits
+// of the count stay when it does not.
+func (d Decimal[T, S]) Milli64() (Milli64, bool) {
+	return d.wide().milli64()
+}
+
+// Atto128 returns d at atto resolution as an Atto128 and whether the
+// value fits; the low 128 bits of the count stay when it does not.
+func (d Decimal[T, S]) Atto128() (Atto128, bool) {
+	return d.wide().atto128()
+}
 
 // parts splits d into its whole-unit count and the sub-unit remainder,
 // both in the backing type and both carrying the sign of d, so that

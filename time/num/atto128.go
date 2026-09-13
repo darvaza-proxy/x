@@ -1,20 +1,8 @@
 package num
 
-import (
-	"encoding"
-	"fmt"
-)
-
 var (
-	_ Signed[Atto128]    = Atto128{}
-	_ Euclidean[Atto128] = Atto128{}
-
-	_ fmt.Formatter  = Atto128{}
-	_ fmt.GoStringer = Atto128{}
-	_ fmt.Stringer   = Atto128{}
-
-	_ encoding.TextAppender  = Atto128{}
-	_ encoding.TextMarshaler = Atto128{}
+	_ Signed[Atto128] = Atto128{}
+	_ Number[Atto128] = Atto128{}
 )
 
 // atto128Scale carries the atto (10^-18) resolution as an Int128, the
@@ -31,6 +19,10 @@ func (atto128Scale) name() string {
 
 func (atto128Scale) asInt64(v Int128) (int64, bool) {
 	return v.asInt64()
+}
+
+func (atto128Scale) asInt128(v Int128) Int128 {
+	return v
 }
 
 func (atto128Scale) doAppendText(dst []byte, v Int128) []byte {

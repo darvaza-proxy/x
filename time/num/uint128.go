@@ -1,23 +1,12 @@
 package num
 
 import (
-	"encoding"
 	"fmt"
 	"math/bits"
 	"strconv"
 )
 
-var (
-	_ Unsigned[Uint128]  = Uint128{}
-	_ Euclidean[Uint128] = Uint128{}
-
-	_ fmt.Formatter  = Uint128{}
-	_ fmt.GoStringer = Uint128{}
-	_ fmt.Stringer   = Uint128{}
-
-	_ encoding.TextAppender  = Uint128{}
-	_ encoding.TextMarshaler = Uint128{}
-)
+var _ Number[Uint128] = Uint128{}
 
 // Uint128 is an unsigned 128-bit integer stored as a high and low
 // 64-bit word. The zero value is numeric zero.
@@ -46,6 +35,57 @@ func NewUint128(hi, lo uint64) Uint128 {
 // AsUint128 zero-extends an unsigned 64-bit value into a Uint128.
 func AsUint128(x uint64) Uint128 {
 	return Uint128{lo: x}
+}
+
+// wide returns u as a count of whole units, on the way to another
+// type of the family. The bits are read as an Int128, which holds
+// them while the top bit is clear.
+func (u Uint128) wide() wide {
+	v := Int128(u)
+	return wide{v: v, scale: unitScale128, ok: !v.IsNegative()}
+}
+
+// Int32 returns u as an Int32 and whether it fits; the low 32 bits
+// stay when it does not.
+func (u Uint128) Int32() (Int32, bool) {
+	return u.wide().int32()
+}
+
+// Int64 returns u as an Int64 and whether it fits; the low 64 bits
+// stay when it does not.
+func (u Uint128) Int64() (Int64, bool) {
+	return u.wide().int64()
+}
+
+// Int128 returns u as an Int128 and whether it fits, which it does
+// while the top bit is clear; the bit pattern stays when it does not.
+func (u Uint128) Int128() (Int128, bool) {
+	return u.wide().int128()
+}
+
+// Uint128 returns u unchanged, the conversion to its own type, which
+// always fits; it stays off the wide path, which reads a set top bit
+// as a sign.
+func (u Uint128) Uint128() (Uint128, bool) {
+	return u, true
+}
+
+// Milli32 returns u as whole units of a Milli32 and whether it fits;
+// the low 32 bits of the milli count stay when it does not.
+func (u Uint128) Milli32() (Milli32, bool) {
+	return u.wide().milli32()
+}
+
+// Milli64 returns u as whole units of a Milli64 and whether it fits;
+// the low 64 bits of the milli count stay when it does not.
+func (u Uint128) Milli64() (Milli64, bool) {
+	return u.wide().milli64()
+}
+
+// Atto128 returns u as whole units of an Atto128 and whether it fits;
+// the low 128 bits of the atto count stay when it does not.
+func (u Uint128) Atto128() (Atto128, bool) {
+	return u.wide().atto128()
 }
 
 // GoString returns the constructor call that rebuilds u for %#v:

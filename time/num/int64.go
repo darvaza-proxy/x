@@ -1,21 +1,13 @@
 package num
 
 import (
-	"encoding"
 	"fmt"
 	"strconv"
 )
 
 var (
-	_ Signed[Int64]    = Int64(0)
-	_ Euclidean[Int64] = Int64(0)
-
-	_ fmt.Formatter  = Int64(0)
-	_ fmt.GoStringer = Int64(0)
-	_ fmt.Stringer   = Int64(0)
-
-	_ encoding.TextAppender  = Int64(0)
-	_ encoding.TextMarshaler = Int64(0)
+	_ Signed[Int64] = Int64(0)
+	_ Number[Int64] = Int64(0)
 )
 
 // Int64 is a signed 64-bit integer wrapping the native int64,
@@ -41,8 +33,56 @@ func (Int64) ulp() Int64 {
 }
 
 // AsInt64 takes a signed 64-bit value as an Int64, the conversion.
+//
+//revive:disable-next-line:confusing-naming misfiled Decimal method of the same name
 func AsInt64(x int64) Int64 {
 	return Int64(x)
+}
+
+// wide returns v as a count of whole units, on the way to another
+// type of the family.
+func (v Int64) wide() wide {
+	return wide{v: AsInt128(v.sys()), scale: unitScale128, ok: true}
+}
+
+// Int32 returns v as an Int32 and whether it fits; the low 32 bits
+// stay when it does not.
+func (v Int64) Int32() (Int32, bool) {
+	return v.wide().int32()
+}
+
+// Int64 returns v unchanged, the conversion to its own type, which
+// always fits.
+func (v Int64) Int64() (Int64, bool) {
+	return v.wide().int64()
+}
+
+// Int128 returns v as an Int128, which always fits.
+func (v Int64) Int128() (Int128, bool) {
+	return v.wide().int128()
+}
+
+// Uint128 returns v as a Uint128 and whether it fits, which it does
+// when not negative; the bit pattern stays when it does not.
+func (v Int64) Uint128() (Uint128, bool) {
+	return v.wide().uint128()
+}
+
+// Milli32 returns v as whole units of a Milli32 and whether it fits;
+// the low 32 bits of the milli count stay when it does not.
+func (v Int64) Milli32() (Milli32, bool) {
+	return v.wide().milli32()
+}
+
+// Milli64 returns v as whole units of a Milli64 and whether it fits;
+// the low 64 bits of the milli count stay when it does not.
+func (v Int64) Milli64() (Milli64, bool) {
+	return v.wide().milli64()
+}
+
+// Atto128 returns v as whole units of an Atto128, which always fits.
+func (v Int64) Atto128() (Atto128, bool) {
+	return v.wide().atto128()
 }
 
 // Format implements [fmt.Formatter] with the verbs d, v and s for

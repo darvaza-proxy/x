@@ -13,6 +13,18 @@
 // AsInt32 and AsInt64 are the conversions of the native types under
 // the same name; Int32 and Int64 have no parts, so no New.
 //
+// Every type converts to every other through a method named for the
+// target, Int64 or Atto128, returning the value and whether it
+// fitted. The value is kept, not the count: an integer becomes whole
+// units and a Decimal is rescaled, so AsInt32(5).Atto128() is 5.0 and
+// NewMilli32(1, 500).Int64() is 1, the fraction digits below the
+// target's resolution dropped towards zero. The flag is false only
+// when the whole units do not fit the target, the result then keeping
+// the low bits as a Go conversion does. A Decimal reads its count
+// back through AsInt32, AsInt64 and AsInt128, the inverses of its As
+// constructor, each with a size check. [Number] names this whole
+// surface, the constraint for code generic over the family.
+//
 // Under %#v every type prints as the call that rebuilds it, so a value
 // dumped from a failing test pastes back into a row: num.AsInt32(-5),
 // num.AsInt128(-42), num.NewMilli32(1, 500). The As form gives way to
