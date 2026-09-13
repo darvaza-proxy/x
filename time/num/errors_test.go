@@ -1,6 +1,7 @@
 package num_test
 
 import (
+	"errors"
 	"strconv"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 )
 
 var (
+	_ core.TestCase = parseErrorCase{}
 	_ core.TestCase = parseErrorTextCase{}
 	_ core.TestCase = sentinelTestCase{}
 )
@@ -130,4 +132,112 @@ func parseErrorTextCases() []parseErrorTextCase {
 
 func TestParseErrorText(t *testing.T) {
 	core.RunTestCases(t, parseErrorTextCases())
+}
+
+// parseErrorCase pins what AsParseError reports for one error:
+// nil for a nil, typed or not, and otherwise a ParseError naming the
+// function and the text given, or those of the strconv.NumError or
+// ParseError in when none were, its cause reaching both the error the
+// row names and core.ErrInvalid, and ErrSyntax or ErrRange only when
+// the error the row names does.
+type parseErrorCase struct {
+	err       error
+	wantCause error
+	fn        string
+	s         string
+	wantFunc  string
+	wantNum   string
+	name      string
+}
+
+//revive:disable-next-line:argument-limit
+func newParseErrorCase(name, fn, s string, err error,
+	wantFunc, wantNum string, wantCause error) parseErrorCase {
+	return parseErrorCase{
+		name:      name,
+		fn:        fn,
+		s:         s,
+		err:       err,
+		wantFunc:  wantFunc,
+		wantNum:   wantNum,
+		wantCause: wantCause,
+	}
+}
+
+// newParseErrorCaseNil pins an error AsParseError answers with
+// nil, the function and text given as every parser gives them.
+func newParseErrorCaseNil(name string, err error) parseErrorCase {
+	return newParseErrorCase(name, "ParseInt32", "1", err, "", "", nil)
+}
+
+func (tc parseErrorCase) Name() string { return tc.name }
+
+func (tc parseErrorCase) Test(t *testing.T) {
+	t.Helper()
+	err := num.AsParseError(tc.fn, tc.s, tc.err)
+	if tc.wantCause == nil {
+		core.AssertNoError(t, err, "error")
+		return
+	}
+	p := core.AssertMustErrorAs[*num.ParseError](t, err, "report")
+	core.AssertEqual(t, tc.wantFunc, p.Func, "func")
+	core.AssertEqual(t, tc.wantNum, p.Num, "num")
+	core.AssertErrorIs(t, p.Err, tc.wantCause, "cause")
+	core.AssertErrorIs(t, p.Err, core.ErrInvalid, "invalid")
+	core.AssertEqual(t, errors.Is(tc.wantCause, num.ErrSyntax),
+		errors.Is(p.Err, num.ErrSyntax), "syntax")
+	core.AssertEqual(t, errors.Is(tc.wantCause, num.ErrRange),
+		errors.Is(p.Err, num.ErrRange), "range")
+}
+
+// newNumError builds the report strconv.ParseInt returns.
+func newNumError(s string, err error) *strconv.NumError {
+	return &strconv.NumError{Func: "ParseInt", Num: s, Err: err}
+}
+
+func parseErrorCases() []parseErrorCase {
+	errUnknown := errors.New("unknown")
+	report := &num.ParseError{Func: "ParseInt32", Num: "x", Err: num.ErrSyntax}
+	return []parseErrorCase{
+		newParseErrorCaseNil("nil", nil),
+		newParseErrorCaseNil("typed nil num error",
+			(*strconv.NumError)(nil)),
+		newParseErrorCaseNil("typed nil parse error",
+			(*num.ParseError)(nil)),
+		newParseErrorCase("strconv syntax", "ParseInt32", "x",
+			newNumError("x", strconv.ErrSyntax),
+			"ParseInt32", "x", num.ErrSyntax),
+		newParseErrorCase("strconv range", "ParseInt32", "9",
+			newNumError("9", strconv.ErrRange),
+			"ParseInt32", "9", num.ErrRange),
+		newParseErrorCase("strconv parts kept", "", "",
+			newNumError("9", strconv.ErrRange),
+			"ParseInt", "9", num.ErrRange),
+		newParseErrorCase("strconv without cause", "", "",
+			newNumError("9", nil),
+			"ParseInt", "9", core.ErrInvalid),
+		newParseErrorCase("bare strconv range", "ParseInt64", "9",
+			strconv.ErrRange, "ParseInt64", "9", num.ErrRange),
+		newParseErrorCase("bare strconv syntax", "ParseInt64", "x",
+			strconv.ErrSyntax, "ParseInt64", "x", num.ErrSyntax),
+		newParseErrorCase("own range", "ParseInt64", "9",
+			num.ErrRange, "ParseInt64", "9", num.ErrRange),
+		newParseErrorCase("own syntax", "ParseInt64", "x",
+			num.ErrSyntax, "ParseInt64", "x", num.ErrSyntax),
+		newParseErrorCase("invalid", "ParseInt64", "x",
+			core.ErrInvalid, "ParseInt64", "x", core.ErrInvalid),
+		newParseErrorCase("parse error parts kept", "", "",
+			report, "ParseInt32", "x", num.ErrSyntax),
+		newParseErrorCase("parse error renamed", "Parse", "x",
+			report, "Parse", "x", num.ErrSyntax),
+		newParseErrorCase("parse error without cause", "Parse", "x",
+			&num.ParseError{Func: report.Func, Num: report.Num},
+			"Parse", "x", core.ErrInvalid),
+		newParseErrorCase("unknown cause", "ParseInt32", "x",
+			errUnknown, "ParseInt32", "x", errUnknown),
+	}
+}
+
+func TestAsParseError(t *testing.T) {
+	core.RunTestCases(t, parseErrorCases())
 }

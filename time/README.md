@@ -94,11 +94,22 @@ instead keep the remainder non-negative. `Pow10` returns 10^n as a
 `Uint128` up to 10^38, the largest power of ten a `Uint128` holds, and
 panics with `ErrPow10Range` past it.
 
-`ParseError` reports a failed parse in the shape of `strconv.NumError`
-with the package's own text, carrying `ErrSyntax` or `ErrRange`. Each
-sentinel matches its `strconv` counterpart and `core.ErrInvalid` under
-`errors.Is`, so a caller can test for the package's sentinel, the
-standard library's, or the generic invalid-input condition.
+The native integers read their text back through `ParseInt32` and
+`ParseInt64`, in the shape of `strconv.ParseInt`: an optional sign and
+the digits, base 10 only, with no underscores, prefixes or spaces.
+Text in any other form fails with `ErrSyntax` and a zero value, and a
+number past the range with `ErrRange` and the nearest bound, both
+reported in a `ParseError`, the shape of `strconv.NumError` with the
+package's own text, naming the function and quoting the text.
+`AsParseError` builds that report for a parser outside the package,
+from strconv's own error or from the parts.
+`UnmarshalText` on the pointer reads the same grammar and stores the
+value, so `*Int32` and `*Int64` are `encoding.TextUnmarshaler`; a
+failure, the nil receiver included, comes back behind the method's
+name and leaves the receiver as it was. Each sentinel matches its
+`strconv` counterpart and `core.ErrInvalid` under `errors.Is`, so a
+caller can test for the package's sentinel, the standard library's, or
+the generic invalid-input condition.
 
 ## Development
 
