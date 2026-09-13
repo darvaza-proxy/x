@@ -127,6 +127,16 @@ func (v Int64) MarshalText() ([]byte, error) {
 	return v.AppendText(nil)
 }
 
+// MarshalJSON implements [json.Marshaler], returning the MarshalText
+// text as a JSON number while the magnitude is at most 2^53, safe for
+// a float64 consumer, and as a JSON string beyond it.
+func (v Int64) MarshalJSON() ([]byte, error) {
+	if isJSONSafeInt(v) {
+		return v.MarshalText()
+	}
+	return jsonString(v)
+}
+
 // doAppendText writes v in decimal to dst and returns the extended
 // buffer.
 func (v Int64) doAppendText(dst []byte) []byte {

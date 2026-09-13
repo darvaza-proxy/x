@@ -2,6 +2,7 @@ package num
 
 import (
 	"encoding"
+	"encoding/json"
 	"fmt"
 )
 
@@ -42,7 +43,7 @@ type Signed[T any] interface {
 // Number is the whole surface the family shares, the constraint a
 // generic consumer names to take any of its seven types: the
 // arithmetic of Unsigned with the Euclidean correction surface, which
-// closes it to this package, the fmt and encoding forms, and a
+// closes it to this package, the fmt, encoding and JSON forms, and a
 // conversion to every type of the family.
 //
 // The conversions keep the value, not the count: an integer becomes
@@ -59,6 +60,7 @@ type Number[T any] interface {
 
 	encoding.TextAppender
 	encoding.TextMarshaler
+	json.Marshaler
 
 	fmt.Formatter
 	fmt.GoStringer

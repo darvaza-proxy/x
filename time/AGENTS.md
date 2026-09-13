@@ -26,8 +26,8 @@ the standard library.
   method surface the family shares, including the fused `MulDivMod`
   wide multiply-divide.
 - **`Number[T]`**: the constraint naming the whole surface, `Unsigned`
-  with `Euclidean`, the fmt and encoding forms, and the conversion to
-  every type of the family, each `(T, bool)`.
+  with `Euclidean`, the fmt, encoding and JSON forms, and the
+  conversion to every type of the family, each `(T, bool)`.
 - **`EuclideanDivMod`**, **`EuclideanMulDivMod`**: division helpers
   correcting the remainder into `[0, |divisor|)`, constrained on
   `Euclidean`; `SignedEuclidean` combines it with `Signed` and is the
@@ -56,6 +56,9 @@ Files:
 - `num/int128.go`: `Int128` and its operations.
 - `num/int32.go`: `Int32` and its operations.
 - `num/int64.go`: `Int64` and its operations.
+- `num/json.go`: the quoted form and the two bounds under which
+  `MarshalJSON` emits a number; each type's `MarshalJSON` sits in its
+  own file.
 - `num/milli.go`: the `Milli32` and `Milli64` instantiations and their
   scales.
 - `num/num.go`: the `Unsigned`, `Signed` and `Number` constraints.
@@ -124,6 +127,15 @@ Files:
   whole count never goes through fmt. `TestText` checks the four agree
   on every row and that `AppendText` allocates nothing into a buffer
   with room.
+- `MarshalJSON` is the `MarshalText` text, bare while a `float64`
+  consumer reads the value back safely and quoted beyond that: an
+  integer at a magnitude of at most 2^53 through `Int64()`, a
+  `Decimal` at a count and a scale both below 10^15 through the
+  scaler's `asInt64`, which makes a `Milli32` always a number and an
+  `Atto128` never one, so its field type stays stable. Exactness in a
+  `float64` is the wrong test, since 2^60 is exact and 2^60+1 is not.
+  `TestJSON` reads each result back through the standard decoder to
+  check the token kind.
 - fmt's padding has corners worth knowing, since the 128-bit writer
   reimplements them: the `0` flag is a precision on the digits, so it
   leaves room for the sign but pushes the base prefix outside the

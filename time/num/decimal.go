@@ -213,6 +213,22 @@ func (d Decimal[T, S]) MarshalText() ([]byte, error) {
 	return d.AppendText(nil)
 }
 
+// MarshalJSON implements [json.Marshaler], returning the MarshalText
+// text as a JSON number while the count and the scale both sit below
+// 10^15, safe for a float64 consumer, and as a JSON string otherwise:
+// a Milli32 always a number, a Milli64 a number below a count of
+// 10^15, an Atto128 always a string.
+func (d Decimal[T, S]) MarshalJSON() ([]byte, error) {
+	var s S
+	if count, ok := s.asInt64(d.v); ok {
+		scale, _ := s.asInt64(s.Scale())
+		if isJSONSafeDecimal(count, scale) {
+			return d.MarshalText()
+		}
+	}
+	return jsonString(d)
+}
+
 // doAppendText writes d at full resolution to dst, the sign before the
 // magnitude, and returns the extended buffer.
 func (d Decimal[T, S]) doAppendText(dst []byte) []byte {

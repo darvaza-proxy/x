@@ -120,6 +120,12 @@ func (v Int32) MarshalText() ([]byte, error) {
 	return v.AppendText(nil)
 }
 
+// MarshalJSON implements [json.Marshaler], returning the MarshalText
+// text as a JSON number; every Int32 is safe for a float64 consumer.
+func (v Int32) MarshalJSON() ([]byte, error) {
+	return v.MarshalText()
+}
+
 // doAppendText writes v in decimal to dst and returns the extended
 // buffer.
 func (v Int32) doAppendText(dst []byte) []byte {

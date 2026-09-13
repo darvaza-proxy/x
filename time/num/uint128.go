@@ -116,6 +116,16 @@ func (u Uint128) MarshalText() ([]byte, error) {
 	return u.AppendText(nil)
 }
 
+// MarshalJSON implements [json.Marshaler], returning the MarshalText
+// text as a JSON number while the value is at most 2^53, safe for a
+// float64 consumer, and as a JSON string beyond it.
+func (u Uint128) MarshalJSON() ([]byte, error) {
+	if isJSONSafeInt(u) {
+		return u.MarshalText()
+	}
+	return jsonString(u)
+}
+
 // Format implements [fmt.Formatter] with the verbs d, v and s for
 // decimal, x and X for hex, o and O for octal and b for binary, under
 // the flags, width and precision fmt gives its own integers; %#v prints

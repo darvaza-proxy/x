@@ -75,7 +75,12 @@ form. `String` returns the text of `%v`, so every type is a
 `fmt.Stringer` as well; `AppendText` writes it into a caller's buffer,
 allocating nothing when the buffer has room, and `MarshalText` returns
 it, so every type is an `encoding.TextAppender` and an
-`encoding.TextMarshaler` too.
+`encoding.TextMarshaler` too. `MarshalJSON` emits the same text as a
+JSON number while the value is safe for a consumer reading a
+`float64`, an integer at a magnitude of at most 2^53 or a milli count
+below 10^15, and as a JSON string beyond that; an `Atto128` is always
+a string, so a field holding one keeps one JSON type. Every type is a
+`json.Marshaler`.
 
 Arithmetic wraps on overflow, matching Go's built-in integer
 operators, so `Add`, `Sub` and `Mul` never panic. Division by zero
