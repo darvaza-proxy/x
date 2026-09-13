@@ -126,6 +126,7 @@
     "trylock",
     "uintptr",
     "Uninitialised",
+    "Unmarshal",
     "unparking",
     "Unwrappable",
     "Updaters",

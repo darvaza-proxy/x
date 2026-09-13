@@ -40,6 +40,38 @@ func AsInt32(x int32) Int32 {
 	return Int32(x)
 }
 
+// ParseInt32 reads an Int32 from its decimal text, an optional sign
+// and the digits, as [strconv.ParseInt] reads an int32: base 10 only,
+// with no underscores, prefixes or spaces. Any other form fails with
+// [ErrSyntax] and a zero value, and a number past the range with
+// [ErrRange] and the nearest bound, both reported in a [ParseError].
+func ParseInt32(s string) (Int32, error) {
+	return doParseInt32(s)
+}
+
+// doParseInt32 reads s, a string or the bytes as given, as a signed
+// decimal at 32 bits through doParseInt. A failure keeps the value
+// doParseInt returns, zero or the nearest bound, and reports its cause
+// in a ParseError under ParseInt32's name, with a copy of s. It is
+// generic so ParseInt32 and UnmarshalText read through one body.
+func doParseInt32[S stringOrBytes](s S) (Int32, error) {
+	x, err := doParseInt(s, 32)
+	if err != nil {
+		return Int32(x), newParseError("ParseInt32", s, err)
+	}
+	return Int32(x), nil
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler], storing the
+// ParseInt32 value of the text in v. It fails as ParseInt32 does, and
+// with [core.ErrNilReceiver] on a nil v once the text parsed, the error
+// carrying the method's name in front of the cause; v is left as it
+// was on any failure.
+func (v *Int32) UnmarshalText(text []byte) error {
+	x, err := doParseInt32(text)
+	return unmarshalInto(v, x, err, "UnmarshalText")
+}
+
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int32) wide() wide {

@@ -52,6 +52,10 @@ the standard library.
   `strconv.NumError` that prints as strconv's does, ending with the
   sentinel's text; `Unwrap` returns the sentinel. `errors.As` matches
   `*ParseError`, not the strconv type.
+- **`ParseInt32`**, **`ParseInt64`**: the text parsers of the native
+  integers, reading what `strconv.ParseInt` reads at the type's width
+  through the package's own scanner; `UnmarshalText` on the pointer
+  stores their value.
 
 Files:
 
@@ -83,6 +87,11 @@ Files:
   scales.
 - `num/num.go`: the `Unsigned`, `Signed` and `Number` constraints and
   the `DecimalScaler` interface.
+- `num/parse.go`: the shared side of the parsers, the report they
+  build and the store step of the unmarshalers; each type's parser and
+  `UnmarshalText` sit in its own file.
+- `num/scan.go`: the `scanner` the parsers read their text with, and
+  the grammar of the native integers.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
 - `num/uint128.go`: `Uint128` and its operations.
@@ -190,8 +199,36 @@ Files:
   not each other's. Division by zero panics with `ErrDivZero`. `Pow10`
   takes an exponent outside its table as the caller's mistake and panics
   with `ErrPow10Range` through `core.PanicFrom`, so the stack starts at
-  the caller. Arithmetic wraps on overflow and the constructors never
+  the caller. Parsing returns a `ParseError` carrying `ErrSyntax` or
+  `ErrRange`. Arithmetic wraps on overflow and the constructors never
   fail.
+- The parsers read their own text, and strconv is the reference: they
+  take what it takes and fail as it fails. The whole input is the
+  number, base 10 only, no underscores, prefixes or spaces, a syntax
+  failure returns zero and a range failure the nearest bound, and the
+  report names the bare parser, `ParseInt32`. The report keeps a copy
+  of the text, as strconv's does, so the text does not escape through
+  it. The `scanner` reads the text a byte at a time in the style of
+  `text/lexer`'s `Cursor`, from a string or from the bytes as given,
+  so `UnmarshalText` converts nothing and a text that parses allocates
+  nothing, as the `allocs` rows of `TestParse` pin past the 32 bytes
+  the runtime converts on the stack. The grammar is read by the
+  scanner's methods, called directly so that the scanner stays on the
+  stack, and all but the one reading a magnitude are small enough to
+  inline. The native integers read the magnitude at the unsigned
+  width, a group of 19 digits at a time, and hold it to the sign's
+  bound, as `strconv.ParseInt` does over `ParseUint`. `UnmarshalText`
+  parses first and stores second, so a bad text reports its own
+  failure before a nil receiver reports `core.ErrNilReceiver`; both
+  come back through `core.Wrap` with the method's name in front, so
+  `errors.As` still finds the one `ParseError`, and a failed call
+  leaves the receiver as it was.
+  `TestParseMatchesStrconv` runs every text of `parseCorpus` against
+  `strconv.ParseInt` at both widths, through the parser and
+  `UnmarshalText` alike, comparing the value and the class of failure;
+  extend the corpus rather than hand-write an expectation.
+  `TestParseRoundTrip` parses the natives' table of `TestText` back, so
+  what they print reads back.
 - Operations allocate nothing; keep it that way in the hot paths.
 
 ## Testing Patterns
