@@ -32,14 +32,15 @@ var ErrRange = core.QuietWrap(
 	"num: value out of range")
 
 // ParseError reports a failed parse in the shape of a [strconv.NumError]:
-// the function that failed, the input it was given and the sentinel,
-// [ErrSyntax] or [ErrRange], which Unwrap returns so errors.Is reaches
-// it. Match it with errors.As against *ParseError; the strconv type is
-// not in the chain.
+// the function that failed, the input it was given and the cause,
+// [ErrSyntax] or [ErrRange] from the package's parsers and one matching
+// [core.ErrInvalid] from [AsParseError], which Unwrap returns so
+// errors.Is reaches it. Match it with errors.As against *ParseError;
+// the strconv type is not in the chain.
 type ParseError strconv.NumError
 
 // Error returns the report in the shape strconv gives it, without the
-// sentinel when it carries none, and nothing for a nil report.
+// cause when it carries none, and nothing for a nil report.
 func (e *ParseError) Error() string {
 	switch {
 	case e == nil:
@@ -51,7 +52,7 @@ func (e *ParseError) Error() string {
 	}
 }
 
-// Unwrap returns the sentinel, nil for a nil report.
+// Unwrap returns the cause, nil for a nil report.
 func (e *ParseError) Unwrap() error {
 	if e == nil {
 		return nil
