@@ -29,8 +29,7 @@ type Euclidean[T any] interface {
 // SignedEuclidean is the constraint met by signed types offering both
 // the full [Signed] surface and the [Euclidean] correction surface:
 // the signed integers Int32, Int64 and Int128 and the Decimal
-// instantiations over them. It is the constraint a [Decimal] backing
-// must meet.
+// instantiations over them.
 type SignedEuclidean[T any] interface {
 	Signed[T]
 	Euclidean[T]

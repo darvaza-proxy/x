@@ -20,8 +20,9 @@ the standard library.
   intermediate, `int64` for `Int32` and `Int128` for `Int64`.
 - **`Decimal[T, S]`**: signed fixed-point number backed by one of the
   signed integers, with the exported `DecimalScaler` supplying the
-  resolution; `Milli32`, `Milli64` and `Atto128` are its
-  instantiations.
+  resolution and the type name; `Milli32`, `Milli64` and `Atto128` are
+  its instantiations here, and any package may add one over the same
+  backings, building its values through `NewDecimal` and `AsDecimal`.
 - **`Unsigned[T]`**, **`Signed[T]`**: generic constraints naming the
   method surface the family shares, including the fused `MulDivMod`
   wide multiply-divide.
@@ -30,8 +31,9 @@ the standard library.
   conversion to every type of the family, each `(T, bool)`.
 - **`EuclideanDivMod`**, **`EuclideanMulDivMod`**: division helpers
   correcting the remainder into `[0, |divisor|)`, constrained on
-  `Euclidean`; `SignedEuclidean` combines it with `Signed` and is the
-  `Decimal` backing constraint.
+  `Euclidean`; `SignedEuclidean` combines it with `Signed`.
+  `SignedNumber` combines `Number` with `Signed` and is the `Decimal`
+  backing constraint.
 - **`ErrDivZero`**: the division-by-zero panic value, wrapping
   `core.ErrInvalid`.
 
@@ -44,7 +46,7 @@ Files:
   which rescales a count between resolutions and narrows it into the
   target; each type's `wide` and conversion methods sit in its own
   file.
-- `num/decimal.go`: `Decimal` and the `DecimalScaler` interface.
+- `num/decimal.go`: `Decimal`, its constructors and its methods.
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero`.
 - `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
@@ -61,7 +63,8 @@ Files:
   own file.
 - `num/milli.go`: the `Milli32` and `Milli64` instantiations and their
   scales.
-- `num/num.go`: the `Unsigned`, `Signed` and `Number` constraints.
+- `num/num.go`: the `Unsigned`, `Signed`, `Number` and `SignedNumber`
+  constraints and the `DecimalScaler` interface.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
 - `num/uint128.go`: `Uint128` and its operations.
@@ -101,10 +104,13 @@ Files:
   `As` count form while the value fits the native word and the `New`
   words form in hex beyond it; a `Decimal` prints both parts with its
   sign, so the call holds under either sign rule of the constructor.
-  `DecimalScaler` carries the instantiation's name and the int64 fit
-  check through unexported methods, which closes the family to the
-  package's scalers; the constraints stay free of formatting methods,
-  and the `Decimal` fallback reaches its backing's form through `%#v`.
+  `DecimalScaler` carries the instantiation's qualified name,
+  `num.Milli32`, and `GoString` derives the constructors it prints by
+  inserting `New` or `As` after the package qualifier, so a scaler of
+  another package is expected to provide that pair. The int64 fit check
+  is the backing's own `Int64()`, so the scaler has nothing unexported
+  and the constraints stay free of formatting methods; the `Decimal`
+  fallback reaches its backing's form through `%#v`.
   A new type or instantiation adds a row to the `GoString` table.
 - `Format` owns every verb, since fmt consults nothing else once a type
   has it: `%#v` is routed to `GoString` by hand. `Uint128` generates
@@ -122,16 +128,16 @@ Files:
   `Formatter` takes precedence over a `Stringer`. The primitive under
   both is the unexported `doAppendText` of each type; `AppendText` is
   its exported form behind an always-nil error, and `MarshalText` is
-  `AppendText(nil)`. A `Decimal` reaches its backing's `doAppendText`
-  through the `DecimalScaler` hook, as it reaches `asInt64`, so the
-  whole count never goes through fmt. `TestText` checks the four agree
+  `AppendText(nil)`. A `Decimal` writes its whole count through the
+  backing's `AppendText`, whose error is always nil, so the count never
+  goes through fmt. `TestText` checks the four agree
   on every row and that `AppendText` allocates nothing into a buffer
   with room.
 - `MarshalJSON` is the `MarshalText` text, bare while a `float64`
   consumer reads the value back safely and quoted beyond that: an
   integer at a magnitude of at most 2^53 through `Int64()`, a
   `Decimal` at a count and a scale both below 10^15 through the
-  scaler's `asInt64`, which makes a `Milli32` always a number and an
+  backing's `Int64()`, which makes a `Milli32` always a number and an
   `Atto128` never one, so its field type stays stable. Exactness in a
   `float64` is the wrong test, since 2^60 is exact and 2^60+1 is not.
   `TestJSON` reads each result back through the standard decoder to

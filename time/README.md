@@ -40,6 +40,9 @@ or a backing integer read as a `Decimal` at its resolution. So
 `NewAtto128(1, 500e15)` and `AsAtto128(AsInt128(1500e15))` are both
 1.5. `AsInt32` and `AsInt64` are the conversions of the native types
 under the same name; `Int32` and `Int64` have no parts, so no `New`.
+`Decimal` is open to other resolutions: a `DecimalScaler` of another
+package over one of the signed integers instantiates it, with
+`NewDecimal` and `AsDecimal` as the constructors behind its own.
 
 Every type converts to every other through a method named for the
 target, `Int64` or `Atto128`, returning the value and whether it

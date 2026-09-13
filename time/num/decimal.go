@@ -5,48 +5,30 @@ import (
 	"strings"
 )
 
-// DecimalScaler is the scale parameter of [Decimal]: it yields a
-// fixed-point resolution, the number of sub-units in one whole unit, as
-// a value of the backing integer type T. The unexported methods serve
-// the text forms and are met only by the scalers of this package, so
-// Milli32, Milli64 and Atto128 are the only instantiations.
-type DecimalScaler[T any] interface {
-	Scale() T
-
-	// name returns the instantiation's type name, which its
-	// constructors carry as a suffix.
-	name() string
-	// asInt64 returns a backing value as a native int64 and whether
-	// it fits.
-	asInt64(v T) (int64, bool)
-	// asInt128 returns a backing value widened to an Int128.
-	asInt128(v T) Int128
-	// doAppendText writes a backing value in decimal to dst and returns
-	// the extended buffer.
-	doAppendText(dst []byte, v T) []byte
-}
-
 // Decimal is a signed fixed-point number: a count of sub-units at a
 // metric resolution, backed by one of the signed integer types. The
 // backing type T fixes the width and the scale type S fixes the
 // resolution, so Milli32, Milli64 and Atto128 are all instantiations of
-// it. The zero value is numeric zero.
+// it, and a scaler of another package instantiates it at a resolution
+// of its own. The zero value is numeric zero.
 //
 // The operations that do not move the point, Add, Sub, Neg, Abs and the
 // comparisons, delegate straight to the backing integer. Mul and Div
 // carry the scale through MulDivMod so the intermediate product cannot
 // overflow before the scale is applied; this caps the family at the
 // Int128 backing, whose product fits a 256-bit intermediate.
-type Decimal[T SignedEuclidean[T], S DecimalScaler[T]] struct {
+type Decimal[T SignedNumber[T], S DecimalScaler[T]] struct {
 	v T
 }
 
-// newDecimal builds a Decimal from a whole-unit count and a sub-unit
-// fraction. The magnitudes combine as |whole|*scale + |frac|, with the
-// sign taken from whole, or from frac when whole is zero. frac need not
-// stay below one whole unit: it carries. The combined magnitude wraps if
-// it exceeds the backing width.
-func newDecimal[T SignedEuclidean[T], S DecimalScaler[T]](whole,
+// NewDecimal builds a Decimal from a whole-unit count and a sub-unit
+// fraction, the parts constructor behind NewMilli32, NewMilli64 and
+// NewAtto128 and the one an instantiation over another package's
+// scaler uses. The magnitudes combine as |whole|*scale + |frac|, with
+// the sign taken from whole, or from frac when whole is zero. frac need
+// not stay below one whole unit: it carries. The combined magnitude
+// wraps if it exceeds the backing width.
+func NewDecimal[T SignedNumber[T], S DecimalScaler[T]](whole,
 	frac T) Decimal[T, S] {
 	var s S
 	neg := whole.IsNegative() || (whole.IsZero() && frac.IsNegative())
@@ -55,6 +37,29 @@ func newDecimal[T SignedEuclidean[T], S DecimalScaler[T]](whole,
 		mag = mag.Neg()
 	}
 	return Decimal[T, S]{mag}
+}
+
+// AsDecimal takes a backing integer as a count of sub-units at the
+// resolution of S, the count constructor behind AsMilli32, AsMilli64
+// and AsAtto128 and the one an instantiation over another package's
+// scaler uses.
+func AsDecimal[T SignedNumber[T], S DecimalScaler[T]](count T) Decimal[T, S] {
+	return Decimal[T, S]{count}
+}
+
+// widen returns a backing integer as an Int128, which a signed backing
+// always fits.
+func widen[T SignedNumber[T]](v T) Int128 {
+	x, _ := v.Int128()
+	return x
+}
+
+// scaleInt64 returns the scale of S as a native int64, which every
+// scale fits: the resolution is a power of ten below 2^63.
+func scaleInt64[T SignedNumber[T], S DecimalScaler[T]]() int64 {
+	var s S
+	x, _ := s.Scale().Int64()
+	return x.sys()
 }
 
 // one returns the multiplicative unit, one whole at the resolution:
@@ -84,14 +89,13 @@ var _ = Atto128{}.one().Add(Atto128{}.ulp())
 // type of the family.
 func (d Decimal[T, S]) wide() wide {
 	var s S
-	return wide{v: s.asInt128(d.v), scale: s.asInt128(s.Scale()), ok: true}
+	return wide{v: widen(d.v), scale: widen(s.Scale()), ok: true}
 }
 
 // count returns the backing count of d read at unit scale, so the
 // narrowing of wide checks its size without rescaling it.
 func (d Decimal[T, S]) count() wide {
-	var s S
-	return wide{v: s.asInt128(d.v), scale: unitScale128, ok: true}
+	return wide{v: widen(d.v), scale: unitScale128, ok: true}
 }
 
 // AsInt32 returns the count of d, its backing integer, as an Int32 and
@@ -185,13 +189,14 @@ func (d Decimal[T, S]) parts() (whole, frac T) {
 func (d Decimal[T, S]) GoString() string {
 	var s S
 	whole, frac := d.parts()
-	w, ok := s.asInt64(whole)
+	w, ok := whole.Int64()
 	if !ok {
-		return fmt.Sprintf("num.As%s(%#v)", s.name(), d.v)
+		return fmt.Sprintf("%s(%#v)", constructorName(s.Name(), "As"), d.v)
 	}
 	// frac is below the scale, which fits an int64 at every resolution.
-	f, _ := s.asInt64(frac)
-	return fmt.Sprintf("num.New%s(%d, %s)", s.name(), w, groupDigits(f))
+	f, _ := frac.Int64()
+	return fmt.Sprintf("%s(%d, %s)", constructorName(s.Name(), "New"),
+		w.sys(), groupDigits(f.sys()))
 }
 
 // String returns d at full resolution, 1.500 for a Milli32, the text
@@ -219,10 +224,8 @@ func (d Decimal[T, S]) MarshalText() ([]byte, error) {
 // a Milli32 always a number, a Milli64 a number below a count of
 // 10^15, an Atto128 always a string.
 func (d Decimal[T, S]) MarshalJSON() ([]byte, error) {
-	var s S
-	if count, ok := s.asInt64(d.v); ok {
-		scale, _ := s.asInt64(s.Scale())
-		if isJSONSafeDecimal(count, scale) {
+	if count, ok := d.v.Int64(); ok {
+		if isJSONSafeDecimal(count.sys(), scaleInt64[T, S]()) {
 			return d.MarshalText()
 		}
 	}
@@ -264,7 +267,7 @@ func (d Decimal[T, S]) Format(s fmt.State, verb rune) {
 		var sc S
 		// d prints the value as v does, at full resolution, but reads
 		// the flags as a bad verb leaves them, so '+' signs there.
-		writeBadVerb(s, verb, "num."+sc.name(), func() {
+		writeBadVerb(s, verb, sc.Name(), func() {
 			d.writeFixed(s, 'd')
 		})
 	}
@@ -308,9 +311,7 @@ func (d Decimal[T, S]) precision(s fmt.State, verb rune) int {
 // fracWidth returns the fraction digits of the resolution, one fewer
 // than the digits of the scale.
 func (Decimal[T, S]) fracWidth() int {
-	var sc S
-	// every scale is a power of ten below 2^63, so it fits an int64.
-	scale, _ := sc.asInt64(sc.Scale())
+	scale := scaleInt64[T, S]()
 	width := 0
 	for scale > 1 {
 		scale /= 10
@@ -325,14 +326,11 @@ func (Decimal[T, S]) fracWidth() int {
 // The parts are taken as magnitudes one at a time, since the whole
 // count is always far from the backing's minimum even when d is not.
 func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
-	var sc S
 	whole, frac := d.parts()
 	whole = whole.Abs()
 	// the remainder is below the scale, so it fits an int64.
-	f, _ := sc.asInt64(frac)
-	if f < 0 {
-		f = -f
-	}
+	rem, _ := frac.Int64()
+	f := rem.Abs().sys()
 	width := d.fracWidth()
 	if prec < width {
 		unit := pow10(width - prec)
@@ -345,7 +343,8 @@ func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
 		}
 		f, width = q, prec
 	}
-	dst = sc.doAppendText(dst, whole)
+	// the error of AppendText is always nil.
+	dst, _ = whole.AppendText(dst)
 	if prec == 0 {
 		return dst
 	}

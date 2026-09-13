@@ -75,3 +75,32 @@ type Number[T any] interface {
 	Milli64() (Milli64, bool)
 	Atto128() (Atto128, bool)
 }
+
+// SignedNumber is the [Number] surface of a signed type of the family:
+// the signed integers Int32, Int64 and Int128 and the Decimal
+// instantiations over them. It is the constraint a [Decimal] backing
+// must meet, the integer then supplying the widening, the int64 fit
+// check and the text its Decimal forms need.
+type SignedNumber[T any] interface {
+	Number[T]
+	Signed[T]
+}
+
+// DecimalScaler is the scale parameter of [Decimal]: it yields a
+// fixed-point resolution, the number of sub-units in one whole unit, as
+// a value of the backing integer type T, and names the instantiation.
+// Any type may implement it, so a package may define a Decimal at a
+// resolution of its own over one of the signed integers, as this one
+// defines Milli32, Milli64 and Atto128; [NewDecimal] and [AsDecimal]
+// build the values of such an instantiation.
+type DecimalScaler[T any] interface {
+	// Scale returns the number of sub-units in one whole unit, a
+	// power of ten, so the fraction prints in decimal digits.
+	Scale() T
+	// Name returns the instantiation's type name as written from
+	// another package, num.Milli32. GoString derives the constructors
+	// it prints from it, New and As prefixed to the bare name in the
+	// same package, num.NewMilli32 and num.AsMilli32, so an
+	// implementation is expected to provide the pair.
+	Name() string
+}

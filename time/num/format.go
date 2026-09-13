@@ -39,6 +39,14 @@ func groupDigits(x int64) string {
 	return string(b)
 }
 
+// constructorName returns the constructor of a Decimal instantiation as
+// GoString prints it: the prefix, New or As, inserted after the package
+// qualifier of the type name, num.NewMilli32 for num.Milli32.
+func constructorName(typeName, prefix string) string {
+	i := strings.LastIndexByte(typeName, '.') + 1
+	return typeName[:i] + prefix + typeName[i:]
+}
+
 // decChunk is the largest power of ten fitting in a uint64. Peeling a
 // Uint128 by it yields base-10 groups of decChunkDigits digits each,
 // which strconv then formats one word at a time.
