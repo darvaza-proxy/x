@@ -9,16 +9,6 @@ import (
 	"darvaza.org/x/time/num"
 )
 
-// assertSignedEqual compares two values through core.AreEqual, which
-// honours their Equal method, so the shared suite constrains T only to
-// num.Signed and never to comparable.
-func assertSignedEqual[T num.Signed[T]](t *testing.T, expected, actual T,
-	name string) bool {
-	t.Helper()
-	ok, _ := core.AreEqual(expected, actual)
-	return core.AssertTrue(t, ok, "%s want %v got %v", name, expected, actual)
-}
-
 // signedIntType carries what a signed integer type needs to run the
 // shared suites, truncated and Euclidean alike: how to build a value
 // from an int64, its bounds, and a wide multiply exercising the
@@ -50,8 +40,7 @@ func (it signedIntType[T]) testDivMod(t *testing.T) {
 }
 
 func (it signedIntType[T]) testMulDivMod(t *testing.T) {
-	core.RunTestCases(t, signedMulDivModCases(it.mk,
-		it.wideA, it.wideB, it.wideD, it.wideQ))
+	core.RunTestCases(t, signedMulDivModCases(it))
 }
 
 func (it signedIntType[T]) testUnary(t *testing.T) {
@@ -79,8 +68,8 @@ func (it signedIntType[T]) testBasics(t *testing.T) {
 	core.AssertFalse(t, it.mk(1).IsZero(), "non-zero")
 	core.AssertFalse(t, it.min.IsZero(), "min non-zero")
 	// 5 - 3 == 2, and 3 - 5 == -2 across zero.
-	assertSignedEqual(t, it.mk(2), it.mk(5).Sub(it.mk(3)), "sub positive")
-	assertSignedEqual(t, it.mk(-2), it.mk(3).Sub(it.mk(5)), "sub crossing zero")
+	core.AssertEqual(t, it.mk(2), it.mk(5).Sub(it.mk(3)), "sub positive")
+	core.AssertEqual(t, it.mk(-2), it.mk(3).Sub(it.mk(5)), "sub crossing zero")
 }
 
 var (
@@ -117,12 +106,12 @@ func (tc signedDivModCase[T]) Test(t *testing.T) {
 	t.Helper()
 
 	q, r := tc.a.DivMod(tc.b)
-	assertSignedEqual(t, tc.wantQ, q, "quotient")
-	assertSignedEqual(t, tc.wantR, r, "remainder")
-	assertSignedEqual(t, tc.wantQ, tc.a.Div(tc.b), "div")
-	assertSignedEqual(t, tc.wantR, tc.a.Mod(tc.b), "mod")
+	core.AssertEqual(t, tc.wantQ, q, "quotient")
+	core.AssertEqual(t, tc.wantR, r, "remainder")
+	core.AssertEqual(t, tc.wantQ, tc.a.Div(tc.b), "div")
+	core.AssertEqual(t, tc.wantR, tc.a.Mod(tc.b), "mod")
 	// invariant: a == q*b + r
-	assertSignedEqual(t, tc.a, q.Mul(tc.b).Add(r), "identity")
+	core.AssertEqual(t, tc.a, q.Mul(tc.b).Add(r), "identity")
 }
 
 func signedDivModCases[T num.Signed[T]](mk func(int64) T,
@@ -160,14 +149,16 @@ func (tc signedMulDivModCase[T]) Name() string { return tc.name }
 func (tc signedMulDivModCase[T]) Test(t *testing.T) {
 	t.Helper()
 	q, r := tc.a.MulDivMod(tc.b, tc.d)
-	assertSignedEqual(t, tc.wantQ, q, "quotient")
+	core.AssertEqual(t, tc.wantQ, q, "quotient")
 	// the remainder is pinned by the identity a*b == q*d + r, which also
 	// fixes its sign.
-	assertSignedEqual(t, tc.a.Mul(tc.b), q.Mul(tc.d).Add(r), "identity")
+	core.AssertEqual(t, tc.a.Mul(tc.b), q.Mul(tc.d).Add(r), "identity")
 }
 
-func signedMulDivModCases[T num.Signed[T]](mk func(int64) T, wideA, wideB,
-	wideD, wideQ int64) []signedMulDivModCase[T] {
+func signedMulDivModCases[T num.SignedEuclidean[T]](
+	it signedIntType[T]) []signedMulDivModCase[T] {
+	mk := it.mk
+	wideA, wideB, wideD, wideQ := it.wideA, it.wideB, it.wideD, it.wideQ
 	return []signedMulDivModCase[T]{
 		newSignedMulDivModCase("pos", mk(7), mk(3), mk(5), mk(4)),
 		newSignedMulDivModCase("neg product", mk(-7), mk(3), mk(5), mk(-4)),
@@ -182,6 +173,9 @@ func signedMulDivModCases[T num.Signed[T]](mk func(int64) T, wideA, wideB,
 		// quotient proves the wider intermediate.
 		newSignedMulDivModCase("wide product", mk(wideA), mk(wideB), mk(wideD),
 			mk(wideQ)),
+		// max*2/1 exceeds the width: the quotient wraps to -2, as Mul does
+		// on the same product.
+		newSignedMulDivModCase("quotient wraps", it.max, mk(2), mk(1), mk(-2)),
 	}
 }
 
@@ -209,8 +203,8 @@ func (tc signedUnaryCase[T]) Name() string { return tc.name }
 
 func (tc signedUnaryCase[T]) Test(t *testing.T) {
 	t.Helper()
-	assertSignedEqual(t, tc.wantNeg, tc.in.Neg(), "neg")
-	assertSignedEqual(t, tc.wantAbs, tc.in.Abs(), "abs")
+	core.AssertEqual(t, tc.wantNeg, tc.in.Neg(), "neg")
+	core.AssertEqual(t, tc.wantAbs, tc.in.Abs(), "abs")
 	core.AssertEqual(t, tc.negative, tc.in.IsNegative(), "negative")
 }
 
@@ -260,31 +254,46 @@ func signedCmpCases[T num.Signed[T]](mk func(int64) T, minVal,
 
 func TestInt32(t *testing.T) {
 	runSignedIntTests(t, signedIntType[num.Int32]{
-		mk:    func(x int64) num.Int32 { return num.Int32(x) },
+		mk:    func(x int64) num.Int32 { return num.AsInt32(int32(x)) },
 		wideA: 100000, // 1e5 * 1e5 / 1e3 = 1e7, product overflows int32.
 		wideB: 100000,
 		wideD: 1000,
 		wideQ: 10000000,
-		min:   num.Int32(math.MinInt32),
-		max:   num.Int32(math.MaxInt32),
+		min:   num.AsInt32(math.MinInt32),
+		max:   num.AsInt32(math.MaxInt32),
 	})
 }
 
 func TestInt64(t *testing.T) {
 	runSignedIntTests(t, signedIntType[num.Int64]{
-		mk:    func(x int64) num.Int64 { return num.Int64(x) },
+		mk:    num.AsInt64,
 		wideA: 1e12, // 1e12 * 1e12 / 1e6 = 1e18, product overflows int64.
 		wideB: 1e12,
 		wideD: 1e6,
 		wideQ: 1e18,
-		min:   num.Int64(math.MinInt64),
-		max:   num.Int64(math.MaxInt64),
+		min:   num.AsInt64(math.MinInt64),
+		max:   num.AsInt64(math.MaxInt64),
 	})
+}
+
+// TestInt128Constructors pins the sign-extending cast against the
+// two's-complement words form: the sign lives in the top bit of the
+// high word, and the low word is never sign-extended.
+func TestInt128Constructors(t *testing.T) {
+	core.AssertEqual(t, num.NewInt128(0, 5), num.AsInt128(5), "positive")
+	core.AssertEqual(t, num.NewInt128(maxWord, maxWord), num.AsInt128(-1),
+		"negative")
+	core.AssertEqual(t, num.NewInt128(maxWord, signBit),
+		num.AsInt128(math.MinInt64), "min int64")
+	core.AssertFalse(t, num.NewInt128(0, signBit).IsNegative(), "lo sign bit")
+	core.AssertTrue(t, num.NewInt128(signBit, 0).IsNegative(), "hi sign bit")
+	core.AssertEqual(t, num.NewInt128(signBit, 0), num.MinInt128, "min")
+	core.AssertEqual(t, num.ZeroInt128, num.AsInt128(0), "zero")
 }
 
 func TestInt128(t *testing.T) {
 	runSignedIntTests(t, signedIntType[num.Int128]{
-		mk:    num.NewInt128,
+		mk:    num.AsInt128,
 		wideA: 1e12, // 1e12 * 1e12 / 1e6 = 1e18, through the mul256 path.
 		wideB: 1e12,
 		wideD: 1e6,

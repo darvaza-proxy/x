@@ -1,10 +1,13 @@
 package num
 
-import "math/bits"
+import (
+	"fmt"
+	"math/bits"
+)
 
 var (
-	_ Signed[Int128]    = Int128{}
-	_ Euclidean[Int128] = Int128{}
+	_ Signed[Int128] = Int128{}
+	_ Number[Int128] = Int128{}
 )
 
 // Int128 is a signed 128-bit integer in two's-complement form,
@@ -28,13 +31,148 @@ func (Int128) ulp() Int128 {
 	return Int128{lo: 1}
 }
 
-// NewInt128 sign-extends a signed 64-bit value into an Int128.
-func NewInt128(x int64) Int128 {
+// NewInt128 assembles an Int128 from its high and low 64-bit words.
+// The words are the bit pattern hi*2^64 + lo read as a two's-complement
+// integer, so the top bit of hi is the sign and lo is never
+// sign-extended: NewInt128(0, 1<<63) is 2^63, not -2^63.
+func NewInt128(hi, lo uint64) Int128 {
+	return Int128{hi: hi, lo: lo}
+}
+
+// AsInt128 sign-extends a signed 64-bit value into an Int128.
+//
+//revive:disable-next-line:confusing-naming misfiled Decimal method of the same name
+func AsInt128(x int64) Int128 {
 	var hi uint64
 	if x < 0 {
 		hi = maxUint64
 	}
 	return Int128{hi: hi, lo: uint64(x)}
+}
+
+// asInt64 returns v as a native int64 and whether it fits: the low
+// word sign-extended must give v back.
+func (v Int128) asInt64() (int64, bool) {
+	x := int64(v.lo)
+	return x, AsInt128(x) == v
+}
+
+// wide returns v as a count of whole units, on the way to another
+// type of the family.
+func (v Int128) wide() wide {
+	return wide{v: v, scale: unitScale128, ok: true}
+}
+
+// Int32 returns v as an Int32 and whether it fits; the low 32 bits
+// stay when it does not.
+func (v Int128) Int32() (Int32, bool) {
+	return v.wide().int32()
+}
+
+// Int64 returns v as an Int64 and whether it fits; the low 64 bits
+// stay when it does not.
+func (v Int128) Int64() (Int64, bool) {
+	return v.wide().int64()
+}
+
+// Int128 returns v unchanged, the conversion to its own type, which
+// always fits.
+func (v Int128) Int128() (Int128, bool) {
+	return v.wide().int128()
+}
+
+// Uint128 returns v as a Uint128 and whether it fits, which it does
+// when not negative; the bit pattern stays when it does not.
+func (v Int128) Uint128() (Uint128, bool) {
+	return v.wide().uint128()
+}
+
+// Milli32 returns v as whole units of a Milli32 and whether it fits;
+// the low 32 bits of the milli count stay when it does not.
+func (v Int128) Milli32() (Milli32, bool) {
+	return v.wide().milli32()
+}
+
+// Milli64 returns v as whole units of a Milli64 and whether it fits;
+// the low 64 bits of the milli count stay when it does not.
+func (v Int128) Milli64() (Milli64, bool) {
+	return v.wide().milli64()
+}
+
+// Atto128 returns v as whole units of an Atto128 and whether it fits;
+// the low 128 bits of the atto count stay when it does not.
+func (v Int128) Atto128() (Atto128, bool) {
+	return v.wide().atto128()
+}
+
+// GoString returns the constructor call that rebuilds v for %#v:
+// AsInt128 over the value while it fits an int64, and NewInt128 over
+// both words in hex otherwise.
+func (v Int128) GoString() string {
+	if x, ok := v.asInt64(); ok {
+		return fmt.Sprintf("num.AsInt128(%d)", x)
+	}
+	return fmt.Sprintf("num.NewInt128(%#x, %#x)", v.hi, v.lo)
+}
+
+// String returns v in decimal, the text %v prints.
+func (v Int128) String() string {
+	return string(v.doAppendText(nil))
+}
+
+// AppendText implements [encoding.TextAppender], appending v in
+// decimal, the text %v prints, to b. It allocates only when b lacks
+// the room, and the error is always nil.
+func (v Int128) AppendText(b []byte) ([]byte, error) {
+	return v.doAppendText(b), nil
+}
+
+// MarshalText implements [encoding.TextMarshaler], returning the
+// AppendText text.
+func (v Int128) MarshalText() ([]byte, error) {
+	return v.AppendText(nil)
+}
+
+// MarshalJSON implements [json.Marshaler], returning the MarshalText
+// text as a JSON number while the magnitude is at most 2^53, safe for
+// a float64 consumer, and as a JSON string beyond it.
+func (v Int128) MarshalJSON() ([]byte, error) {
+	if isJSONSafeInt(v) {
+		return v.MarshalText()
+	}
+	return jsonString(v)
+}
+
+// doAppendText writes v in decimal to dst, the sign before the
+// magnitude, and returns the extended buffer. The magnitude is taken
+// as an unsigned 128-bit value, so MinInt128 renders as 2^127 rather
+// than wrapping.
+func (v Int128) doAppendText(dst []byte) []byte {
+	if v.IsNegative() {
+		dst = append(dst, '-')
+	}
+	return v.Abs().bits().doAppendText(dst)
+}
+
+// Format implements [fmt.Formatter] with the verbs d, v and s for
+// decimal, x and X for hex, o and O for octal and b for binary, under
+// the flags, width and precision fmt gives its own integers; the sign
+// precedes the magnitude in every base, and %#v prints the GoString
+// form. Any other verb prints as %!verb(num.Int128=value).
+func (v Int128) Format(s fmt.State, verb rune) {
+	// the magnitude is taken as an unsigned 128-bit value, so
+	// MinInt128 renders as 2^127 rather than wrapping.
+	mag := v.Abs().bits()
+	switch {
+	case verb == 'v' && s.Flag('#'):
+		writeGoString(s, v.GoString())
+	case !isFormatVerb(verb):
+		writeBadVerb(s, verb, "num.Int128", func() {
+			writeNumber(s, 'd', v.IsNegative(), mag.doAppendText(nil))
+		})
+	default:
+		writeNumber(s, verb, v.IsNegative(), mag.appendDigits(nil, verb))
+	}
 }
 
 // IsZero reports whether v is zero.
@@ -90,14 +228,15 @@ func (v Int128) Mul(w Int128) Int128 {
 	return Int128(v.bits().Mul(w.bits()))
 }
 
-// Div returns v/w, truncated towards zero. It panics when w is zero.
+// Div returns v/w, truncated towards zero. It panics with [ErrDivZero]
+// when w is zero.
 func (v Int128) Div(w Int128) Int128 {
 	q, _ := v.DivMod(w)
 	return q
 }
 
 // Mod returns the remainder of v/w, taking the sign of v. It panics
-// when w is zero.
+// with [ErrDivZero] when w is zero.
 func (v Int128) Mod(w Int128) Int128 {
 	_, r := v.DivMod(w)
 	return r
@@ -105,7 +244,8 @@ func (v Int128) Mod(w Int128) Int128 {
 
 // DivMod returns the quotient and remainder of v/w. The quotient is
 // truncated towards zero and the remainder takes the sign of v, so
-// that v == q*w + r with |r| < |w|. It panics when w is zero.
+// that v == q*w + r with |r| < |w|. It panics with [ErrDivZero] when w
+// is zero.
 func (v Int128) DivMod(w Int128) (q, r Int128) {
 	neg := v.IsNegative() != w.IsNegative()
 	uq, ur := v.Abs().bits().DivMod(w.Abs().bits())

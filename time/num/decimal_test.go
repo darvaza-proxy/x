@@ -18,14 +18,19 @@ var (
 
 // decimalType carries what a fixed-point [num.Decimal] instantiation
 // needs to run the shared suite: how to build a value from a whole count
-// and a sub-unit fraction, its resolution (sub-units per whole unit), and
-// a whole count large enough that Div overflows the backing width. The
-// fraction rows are written as exact divisions of the scale, so one set
-// of cases fits every resolution.
+// and a sub-unit fraction, how to take a plain sub-unit count as a
+// value, its resolution (sub-units per whole unit), and the smallest
+// whole count whose Div by one sub-unit overflows the backing width,
+// with the wrapped result as a whole count and fraction. The fraction
+// rows are written as exact divisions of the scale, so one set of cases
+// fits every resolution.
 type decimalType[D num.Signed[D]] struct {
-	mk    func(whole, frac int64) D
-	scale int64
-	big   int64
+	mk        func(whole, frac int64) D
+	as        func(units int64) D
+	scale     int64
+	big       int64
+	wrapWhole int64
+	wrapFrac  int64
 }
 
 func runDecimalTests[D num.Signed[D]](t *testing.T, dt decimalType[D]) {
@@ -68,13 +73,17 @@ func (dt decimalType[D]) testBasics(t *testing.T) {
 	core.AssertTrue(t, dt.mk(1, half).Equal(dt.mk(1, half)), "equal")
 	core.AssertFalse(t, dt.mk(1, 0).Equal(dt.mk(2, 0)), "not equal")
 	// 4.0 - 2.5 == 1.5
-	assertSignedEqual(t, dt.mk(1, half), dt.mk(4, 0).Sub(dt.mk(2, half)), "sub")
+	core.AssertEqual(t, dt.mk(1, half), dt.mk(4, 0).Sub(dt.mk(2, half)), "sub")
 	core.AssertEqual(t, -1, dt.mk(1, 0).Cmp(dt.mk(2, 0)), "cmp less")
 	core.AssertEqual(t, 1, dt.mk(2, 0).Cmp(dt.mk(1, 0)), "cmp greater")
 	core.AssertEqual(t, 0, dt.mk(1, 0).Cmp(dt.mk(1, 0)), "cmp equal")
-	assertSignedEqual(t, dt.mk(-1, half), dt.mk(1, half).Neg(), "neg")
+	core.AssertEqual(t, dt.mk(-1, half), dt.mk(1, half).Neg(), "neg")
 	// a fraction beyond one whole unit carries into the whole part.
-	assertSignedEqual(t, dt.mk(3, 0), dt.mk(1, 2*dt.scale), "carry")
+	core.AssertEqual(t, dt.mk(3, 0), dt.mk(1, 2*dt.scale), "carry")
+	// the cast takes the sub-unit count as it is, sign included.
+	core.AssertEqual(t, dt.mk(1, half), dt.as(dt.scale+half), "as positive")
+	core.AssertEqual(t, dt.mk(-1, half), dt.as(-dt.scale-half), "as negative")
+	core.AssertEqual(t, dt.mk(0, 0), dt.as(0), "as zero")
 }
 
 func (dt decimalType[D]) testDivZero(t *testing.T) {
@@ -89,12 +98,15 @@ func (dt decimalType[D]) testDivZero(t *testing.T) {
 }
 
 // testOverflow drives a quotient past the backing width, which wraps
-// rather than panicking, matching the policy of Add and Mul.
+// rather than panicking, matching the policy of Add and Mul. big is the
+// first whole count to overflow, so the wrapped value is the excess
+// over the width.
 func (dt decimalType[D]) testOverflow(t *testing.T) {
 	t.Helper()
 	huge := dt.mk(dt.big, 0)
 	tiny := dt.mk(0, 1) // one sub-unit
-	core.AssertNoPanic(t, func() { huge.Div(tiny) }, "div overflow")
+	core.AssertEqual(t, dt.mk(dt.wrapWhole, dt.wrapFrac), huge.Div(tiny),
+		"div wraps")
 }
 
 // decimalSignCase checks how the constructor assigns the sign: from the
@@ -121,7 +133,7 @@ func (tc decimalSignCase[D]) Name() string { return tc.name }
 func (tc decimalSignCase[D]) Test(t *testing.T) {
 	t.Helper()
 	core.AssertEqual(t, tc.wantNeg, tc.in.IsNegative(), "negative")
-	assertSignedEqual(t, tc.wantAbs, tc.in.Abs(), "magnitude")
+	core.AssertEqual(t, tc.wantAbs, tc.in.Abs(), "magnitude")
 }
 
 func decimalSignCases[D num.Signed[D]](mk func(whole, frac int64) D,
@@ -157,7 +169,7 @@ func (tc decimalMulCase[D]) Name() string { return tc.name }
 
 func (tc decimalMulCase[D]) Test(t *testing.T) {
 	t.Helper()
-	assertSignedEqual(t, tc.want, tc.a.Mul(tc.b), "product")
+	core.AssertEqual(t, tc.want, tc.a.Mul(tc.b), "product")
 }
 
 func decimalMulCases[D num.Signed[D]](mk func(whole, frac int64) D,
@@ -190,7 +202,7 @@ func (tc decimalDivCase[D]) Name() string { return tc.name }
 
 func (tc decimalDivCase[D]) Test(t *testing.T) {
 	t.Helper()
-	assertSignedEqual(t, tc.want, tc.a.Div(tc.b), "quotient")
+	core.AssertEqual(t, tc.want, tc.a.Div(tc.b), "quotient")
 }
 
 func decimalDivCases[D num.Signed[D]](mk func(whole, frac int64) D,
@@ -232,11 +244,11 @@ func (tc decimalDivModCase[D]) Name() string { return tc.name }
 func (tc decimalDivModCase[D]) Test(t *testing.T) {
 	t.Helper()
 	q, r := tc.a.DivMod(tc.b)
-	assertSignedEqual(t, tc.wantQ, q, "count")
-	assertSignedEqual(t, tc.wantR, r, "remainder")
-	assertSignedEqual(t, tc.wantR, tc.a.Mod(tc.b), "mod")
+	core.AssertEqual(t, tc.wantQ, q, "count")
+	core.AssertEqual(t, tc.wantR, r, "remainder")
+	core.AssertEqual(t, tc.wantR, tc.a.Mod(tc.b), "mod")
 	// invariant: a == q*b + r (q*b is the fractional product).
-	assertSignedEqual(t, tc.a, q.Mul(tc.b).Add(r), "identity")
+	core.AssertEqual(t, tc.a, q.Mul(tc.b).Add(r), "identity")
 }
 
 func decimalDivModCases[D num.Signed[D]](mk func(whole, frac int64) D,
@@ -260,26 +272,37 @@ func decimalDivModCases[D num.Signed[D]](mk func(whole, frac int64) D,
 
 // decimalMulDivModCase exercises the scale-preserving fused
 // multiply-divide. The two scale factors of the product against the one
-// of the divisor leave the quotient at the original resolution.
+// of the divisor leave the quotient at the original resolution, while
+// the remainder lives in backing sub-units and takes the product's sign.
 type decimalMulDivModCase[D num.Signed[D]] struct {
 	a     D
 	b     D
 	d     D
 	wantQ D
+	wantR D
 	name  string
 }
 
+//revive:disable-next-line:argument-limit
 func newDecimalMulDivModCase[D num.Signed[D]](name string, a, b, d,
-	wantQ D) decimalMulDivModCase[D] {
-	return decimalMulDivModCase[D]{name: name, a: a, b: b, d: d, wantQ: wantQ}
+	wantQ, wantR D) decimalMulDivModCase[D] {
+	return decimalMulDivModCase[D]{
+		name:  name,
+		a:     a,
+		b:     b,
+		d:     d,
+		wantQ: wantQ,
+		wantR: wantR,
+	}
 }
 
 func (tc decimalMulDivModCase[D]) Name() string { return tc.name }
 
 func (tc decimalMulDivModCase[D]) Test(t *testing.T) {
 	t.Helper()
-	q, _ := tc.a.MulDivMod(tc.b, tc.d)
-	assertSignedEqual(t, tc.wantQ, q, "quotient")
+	q, r := tc.a.MulDivMod(tc.b, tc.d)
+	core.AssertEqual(t, tc.wantQ, q, "quotient")
+	core.AssertEqual(t, tc.wantR, r, "remainder")
 }
 
 func decimalMulDivModCases[D num.Signed[D]](mk func(whole, frac int64) D,
@@ -288,23 +311,35 @@ func decimalMulDivModCases[D num.Signed[D]](mk func(whole, frac int64) D,
 	return []decimalMulDivModCase[D]{
 		// 1.5 * 2.0 / 3.0 = 1.0
 		newDecimalMulDivModCase("value", mk(1, half), mk(2, 0), mk(3, 0),
-			mk(1, 0)),
+			mk(1, 0), mk(0, 0)),
 		// 6.0 * 2.0 / 4.0 = 3.0
-		newDecimalMulDivModCase("whole", mk(6, 0), mk(2, 0), mk(4, 0), mk(3, 0)),
+		newDecimalMulDivModCase("whole", mk(6, 0), mk(2, 0), mk(4, 0),
+			mk(3, 0), mk(0, 0)),
 		// -1.5 * 2.0 / 3.0 = -1.0
-		newDecimalMulDivModCase("neg product", mk(-1, half), mk(2, 0), mk(3, 0),
-			mk(-1, 0)),
-		// 1.0 * 1.0 / 3.0 truncates at the resolution.
+		newDecimalMulDivModCase("neg product", mk(-1, half), mk(2, 0),
+			mk(3, 0), mk(-1, 0), mk(0, 0)),
+		// 1.0 * 1.0 / 3.0 truncates at the resolution; every scale is a
+		// power of ten, so scale*scale mod 3*scale leaves one whole unit
+		// of backing remainder.
 		newDecimalMulDivModCase("truncated", mk(1, 0), mk(1, 0), mk(3, 0),
-			mk(0, third)),
+			mk(0, third), mk(1, 0)),
+		// the remainder takes the sign of the product, not of the divisor.
+		newDecimalMulDivModCase("truncated neg product", mk(-1, 0), mk(1, 0),
+			mk(3, 0), mk(0, -third), mk(-1, 0)),
+		newDecimalMulDivModCase("truncated neg divisor", mk(1, 0), mk(1, 0),
+			mk(-3, 0), mk(0, -third), mk(1, 0)),
 	}
 }
 
 func TestAtto128(t *testing.T) {
 	runDecimalTests(t, decimalType[num.Atto128]{
 		mk:    num.NewAtto128,
+		as:    func(atto int64) num.Atto128 { return num.AsAtto128(num.AsInt128(atto)) },
 		scale: 1e18,
-		big:   1e9,
+		// 341e36 is the first multiple of 10^36 past 2^128.
+		big:       341,
+		wrapWhole: 717633079061536536,
+		wrapFrac:  625392568231788544,
 	})
 }
 
@@ -313,15 +348,23 @@ func TestMilli32(t *testing.T) {
 		mk: func(whole, frac int64) num.Milli32 {
 			return num.NewMilli32(int32(whole), int32(frac))
 		},
+		as:    func(milli int64) num.Milli32 { return num.AsMilli32(num.AsInt32(int32(milli))) },
 		scale: 1e3,
-		big:   1e6,
+		// 4295e6 is the first multiple of 10^6 past 2^32.
+		big:       4295,
+		wrapWhole: 32,
+		wrapFrac:  704,
 	})
 }
 
 func TestMilli64(t *testing.T) {
 	runDecimalTests(t, decimalType[num.Milli64]{
 		mk:    num.NewMilli64,
+		as:    func(milli int64) num.Milli64 { return num.AsMilli64(num.AsInt64(milli)) },
 		scale: 1e3,
-		big:   1e13,
+		// 18446744073710e6 is the first multiple of 10^6 past 2^64.
+		big:       18446744073710,
+		wrapWhole: 448,
+		wrapFrac:  384,
 	})
 }
