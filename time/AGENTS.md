@@ -17,7 +17,7 @@ the standard library.
   two-word layout, wrapping on overflow like Go's built-in operators.
 - **`Int32`**, **`Int64`**: the native integers wrapped into the same
   method surface, forming the `MulDivMod` product in a wider
-  intermediate — `int64` for `Int32`, `Int128` for `Int64`.
+  intermediate, `int64` for `Int32` and `Int128` for `Int64`.
 - **`Decimal[T, S]`**: signed fixed-point number backed by one of the
   signed integers, with the exported `DecimalScaler` supplying the
   resolution; `Milli32`, `Milli64` and `Atto128` are its
@@ -25,6 +25,9 @@ the standard library.
 - **`Unsigned[T]`**, **`Signed[T]`**: generic constraints naming the
   method surface the family shares, including the fused `MulDivMod`
   wide multiply-divide.
+- **`Number[T]`**: the constraint naming the whole surface, `Unsigned`
+  with `Euclidean`, the fmt, encoding and JSON forms, and the
+  conversion to every type of the family, each `(T, bool)`.
 - **`EuclideanDivMod`**, **`EuclideanMulDivMod`**: division helpers
   correcting the remainder into `[0, |divisor|)`, constrained on
   `Euclidean`; `SignedEuclidean` combines it with `Signed` and is the
@@ -37,29 +40,131 @@ Files:
 - `num/atto128.go`: the `Atto128` instantiation and its scale.
 - `num/const.go`: word primitives, the fixed-point scale factors and
   the sentinel bounds (`MaxUint128`, `MinInt128`, …).
+- `num/convert.go`: the `wide` intermediate the conversions share,
+  which rescales a count between resolutions and narrows it into the
+  target; each type's `wide` and conversion methods sit in its own
+  file.
 - `num/decimal.go`: `Decimal` and the `DecimalScaler` interface.
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero`.
 - `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
   and the Euclidean division helpers.
+- `num/format.go`: the shared side of `Format` and `GoString`, the verb
+  tables, the sign, prefix and width padding, the base-10 chunking
+  constants and the digit grouping; each type's `Format`, `GoString`,
+  `String` and digit generation sit in its own file.
 - `num/int128.go`: `Int128` and its operations.
 - `num/int32.go`: `Int32` and its operations.
 - `num/int64.go`: `Int64` and its operations.
+- `num/json.go`: the quoted form and the two bounds under which
+  `MarshalJSON` emits a number; each type's `MarshalJSON` sits in its
+  own file.
 - `num/milli.go`: the `Milli32` and `Milli64` instantiations and their
   scales.
-- `num/num.go`: the `Unsigned` and `Signed` constraints.
+- `num/num.go`: the `Unsigned`, `Signed` and `Number` constraints.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
 - `num/uint128.go`: `Uint128` and its operations.
 
 ## Development Notes
 
-- Error handling follows `darvaza.org/core` conventions: sentinel
-  errors wrap `core.ErrInvalid` via `core.QuietWrap`, context is
-  added with `core.Wrap`/`core.Wrapf`, and constructor range
-  violations panic via `core.PanicWrapf` with specific error types.
-- Operations are designed to be zero-allocation where possible; avoid
-  introducing allocations in hot paths.
+- Constructors use two prefixes and every type follows them. `New` builds
+  from parts: `NewUint128(hi, lo)` and `NewInt128(hi, lo)` take the two
+  words, `NewMilli32`, `NewMilli64` and `NewAtto128` take whole units
+  and sub-units. `As` changes only the type of a value that already is
+  the count: `AsUint128` and `AsInt128` extend a native integer,
+  `AsMilli32`, `AsMilli64` and `AsAtto128` read the backing integer at
+  the resolution. `AsInt32` and `AsInt64` are the conversions of the
+  native types; `Int32` and `Int64` have no parts, so no `New`. A new
+  type gets both, or a comment saying why one is enough.
+- The conversions between the types are methods named for the target,
+  `Int32()` through `Atto128()` on every type, each `(T, bool)`, and
+  they keep the value where `As` keeps the count: `AsMilli32(1500)` is
+  1.5 and `AsInt32(1500).Milli32()` is 1500.0. Fraction digits below
+  the target's resolution drop towards zero with the flag true; the
+  flag is false only when the whole units do not fit, the result then
+  keeping the low bits, so a negative into `Uint128` is its bit
+  pattern. `Decimal` alone has `AsInt32`, `AsInt64` and `AsInt128`,
+  the count with a size check, the inverses of its constructor; they
+  stay off `Number`, as does `sys`. Every conversion takes one path:
+  the receiver widens into a `wide`, an `Int128` count at a scale,
+  `at` rescales it, multiplying towards a finer resolution and
+  detecting the wrap by dividing back, or dividing towards a coarser
+  one, and the target narrows it with a fit check. `Uint128` widens
+  with the flag already clear when its top bit is set, since the bits
+  read as a negative `Int128` from then on. `TestConvert` pins every
+  cell of the matrix by hand, the flag declared per row, and asserts
+  the round trip where nothing truncates; `TestCount` pins the count
+  accessors. A new type adds its `wide`, its seven methods, a `wide`
+  method named for it, and a row per cell.
+- `GoString` prints the constructor call that rebuilds the value, the
+  `As` count form while the value fits the native word and the `New`
+  words form in hex beyond it; a `Decimal` prints both parts with its
+  sign, so the call holds under either sign rule of the constructor.
+  `DecimalScaler` carries the instantiation's name and the int64 fit
+  check through unexported methods, which closes the family to the
+  package's scalers; the constraints stay free of formatting methods,
+  and the `Decimal` fallback reaches its backing's form through `%#v`.
+  A new type or instantiation adds a row to the `GoString` table.
+- `Format` owns every verb, since fmt consults nothing else once a type
+  has it: `%#v` is routed to `GoString` by hand. `Uint128` generates
+  the digits, base 10 by peeling 10^19 chunks and the power-of-two
+  bases by shifting the words; `Int128` prints its sign and hands the
+  magnitude over; `Int32` and `Int64` hand the native value to fmt with
+  `fmt.FormatString`, under the verb they were given rather than a
+  decimal rewrite of it, so their flags cannot drift from fmt's;
+  `Decimal` prints its parts as magnitudes one at a time, since `Abs`
+  on the backing's minimum wraps while the whole count never can. Fraction
+  rounding is half away from zero; the precision of `%f` is fmt's, not
+  the resolution's. Never reach for `math/big` for any of this.
+- `String` returns the `%v` text over the same digit generation, for
+  the callers that ask for it by name; fmt never does, since a
+  `Formatter` takes precedence over a `Stringer`. The primitive under
+  both is the unexported `doAppendText` of each type; `AppendText` is
+  its exported form behind an always-nil error, and `MarshalText` is
+  `AppendText(nil)`. A `Decimal` reaches its backing's `doAppendText`
+  through the `DecimalScaler` hook, as it reaches `asInt64`, so the
+  whole count never goes through fmt. `TestText` checks the four agree
+  on every row and that `AppendText` allocates nothing into a buffer
+  with room.
+- `MarshalJSON` is the `MarshalText` text, bare while a `float64`
+  consumer reads the value back safely and quoted beyond that: an
+  integer at a magnitude of at most 2^53 through `Int64()`, a
+  `Decimal` at a count and a scale both below 10^15 through the
+  scaler's `asInt64`, which makes a `Milli32` always a number and an
+  `Atto128` never one, so its field type stays stable. Exactness in a
+  `float64` is the wrong test, since 2^60 is exact and 2^60+1 is not.
+  `TestJSON` reads each result back through the standard decoder to
+  check the token kind.
+- fmt's padding has corners worth knowing, since the 128-bit writer
+  reimplements them: the `0` flag is a precision on the digits, so it
+  leaves room for the sign but pushes the base prefix outside the
+  width; a precision replaces that flag; the octal `0` prefix is not
+  added when a zero already leads the digits, while `%#O` carries both
+  prefixes; a zero value under precision zero prints as padding alone,
+  the sign dropped with the digits; and the `+` of `%+v` reaches a
+  `Formatter` as the `+` flag although fmt means the field names of a
+  struct by it, so nothing signs under `v`.
+- The two paths a `Formatter` takes over from fmt keep fmt's rules as
+  well. `%#v` pads and truncates the `GoString` text as fmt pads and
+  truncates any string, which is why it hands it back under `%s` rather
+  than writing it plainly; and the `%!verb` form prints the value inside
+  the brackets under the flags, width and precision the bad verb was
+  given, which reach it unmunged, so `%+12t` signs and pads that value
+  while nothing around it is padded.
+- `TestFormatMatchesFmt` asserts the whole of this against fmt itself,
+  over a matrix of formats and values: the integers against the native
+  of the same value, the `s` verb against the `d` it prints as, `%#v`
+  against a bare `GoStringer`, the `%!verb` form against the native it
+  brackets, and a `Decimal` against the `float64` of a value exact in
+  one. Extend that matrix rather than hand-writing an expectation; every
+  defect in this surface so far has survived a careful reading and died
+  on the first run of the table.
+- The package has one sentinel, `ErrDivZero`, a `core.QuietWrap` of
+  `core.ErrInvalid`, and division by zero is the only failure: it
+  panics with that value. Arithmetic wraps on overflow and the
+  constructors never fail.
+- Operations allocate nothing; keep it that way in the hot paths.
 
 ## Testing Patterns
 

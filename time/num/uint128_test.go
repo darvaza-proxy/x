@@ -8,12 +8,18 @@ import (
 	"darvaza.org/x/time/num"
 )
 
-// maxWord is the largest uint64, the all-ones 64-bit word.
-const maxWord = ^uint64(0)
+// Word constants shared by the 128-bit tests.
+const (
+	// maxWord is the largest uint64, the all-ones 64-bit word.
+	maxWord = ^uint64(0)
+	// signBit is the top bit of a 64-bit word: the sign of a
+	// two's-complement word, or 2^63 read as a magnitude.
+	signBit uint64 = 1 << 63
+)
 
-// u builds a Uint128 from a single low word, for readable small values.
+// u is the short form of AsUint128, keeping the rows readable.
 func u(lo uint64) num.Uint128 {
-	return num.NewUint128(0, lo)
+	return num.AsUint128(lo)
 }
 
 var (
@@ -65,7 +71,11 @@ func uint128DivModTestCases() []uint128DivModTestCase {
 		newUint128DivModTestCase("by one", u(100), u(1), u(100), u(0)),
 		newUint128DivModTestCase("self", u(42), u(42), u(1), u(0)),
 		newUint128DivModTestCase("high word", num.NewUint128(1, 0), u(2),
-			num.NewUint128(0, 1<<63), u(0)),
+			num.NewUint128(0, signBit), u(0)),
+		// a two-word divisor takes the long-division path; a one-word
+		// numerator runs it from a short bit length.
+		newUint128DivModTestCase("wide divisor", u(3), num.NewUint128(1, 0),
+			u(0), u(3)),
 		newUint128DivModTestCase("max by max", num.MaxUint128,
 			num.MaxUint128, u(1), u(0)),
 	}
@@ -118,6 +128,11 @@ func uint128MulDivModTestCases() []uint128MulDivModTestCase {
 		// product is exactly 2^128, so the quotient wraps to zero.
 		newUint128MulDivModTestCase("quotient wraps", num.NewUint128(1, 0),
 			num.NewUint128(1, 0), u(1), u(0)),
+		// 2^100 * 2^100 / 2^64 = 2^136 on the long-division path: the
+		// quotient bits above 128 are dropped, leaving zero.
+		newUint128MulDivModTestCase("quotient wraps wide divisor",
+			num.NewUint128(1<<36, 0), num.NewUint128(1<<36, 0),
+			num.NewUint128(1, 0), u(0)),
 		// (2^65-1)^2 = 2^130 - 2^66 + 1 makes both word-1 cross-term
 		// additions carry, so word 2 receives a carry of two; dividing by
 		// 2^64 surfaces that word in the quotient's high half, guarding the
@@ -225,6 +240,15 @@ func uint128CmpTestCases() []uint128CmpTestCase {
 
 func TestUint128Cmp(t *testing.T) {
 	core.RunTestCases(t, uint128CmpTestCases())
+}
+
+// TestUint128Constructors pins the cast against the words form: the
+// value lands in the low word with a zero high word.
+func TestUint128Constructors(t *testing.T) {
+	core.AssertEqual(t, num.NewUint128(0, 5), num.AsUint128(5), "small")
+	core.AssertEqual(t, num.NewUint128(0, maxWord), num.AsUint128(maxWord),
+		"max word")
+	core.AssertEqual(t, num.ZeroUint128, num.AsUint128(0), "zero")
 }
 
 func TestUint128IsZero(t *testing.T) {

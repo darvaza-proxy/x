@@ -1,8 +1,13 @@
 package num
 
+import (
+	"fmt"
+	"strconv"
+)
+
 var (
-	_ Signed[Int32]    = Int32(0)
-	_ Euclidean[Int32] = Int32(0)
+	_ Signed[Int32] = Int32(0)
+	_ Number[Int32] = Int32(0)
 )
 
 // Int32 is a signed 32-bit integer wrapping the native int32,
@@ -20,6 +25,111 @@ func (Int32) one() Int32 {
 // quotient step; for an integer it equals one.
 func (Int32) ulp() Int32 {
 	return 1
+}
+
+// AsInt32 takes a signed 32-bit value as an Int32, the conversion.
+//
+//revive:disable-next-line:confusing-naming misfiled Decimal method of the same name
+func AsInt32(x int32) Int32 {
+	return Int32(x)
+}
+
+// wide returns v as a count of whole units, on the way to another
+// type of the family.
+func (v Int32) wide() wide {
+	return wide{v: AsInt128(int64(v)), scale: unitScale128, ok: true}
+}
+
+// Int32 returns v unchanged, the conversion to its own type, which
+// always fits.
+func (v Int32) Int32() (Int32, bool) {
+	return v.wide().int32()
+}
+
+// Int64 returns v as an Int64, which always fits.
+func (v Int32) Int64() (Int64, bool) {
+	return v.wide().int64()
+}
+
+// Int128 returns v as an Int128, which always fits.
+func (v Int32) Int128() (Int128, bool) {
+	return v.wide().int128()
+}
+
+// Uint128 returns v as a Uint128 and whether it fits, which it does
+// when not negative; the bit pattern stays when it does not.
+func (v Int32) Uint128() (Uint128, bool) {
+	return v.wide().uint128()
+}
+
+// Milli32 returns v as whole units of a Milli32 and whether it fits;
+// the low 32 bits of the milli count stay when it does not.
+func (v Int32) Milli32() (Milli32, bool) {
+	return v.wide().milli32()
+}
+
+// Milli64 returns v as whole units of a Milli64, which always fits.
+func (v Int32) Milli64() (Milli64, bool) {
+	return v.wide().milli64()
+}
+
+// Atto128 returns v as whole units of an Atto128, which always fits.
+func (v Int32) Atto128() (Atto128, bool) {
+	return v.wide().atto128()
+}
+
+// Format implements [fmt.Formatter] with the verbs d, v and s for
+// decimal, x and X for hex, o and O for octal and b for binary, handed
+// to fmt over the native int32 so the flags, width and precision behave
+// as they do there; %#v prints the GoString form. Any other verb prints
+// as %!verb(num.Int32=value).
+func (v Int32) Format(s fmt.State, verb rune) {
+	switch {
+	case verb == 'v' && s.Flag('#'):
+		writeGoString(s, v.GoString())
+	case !isFormatVerb(verb):
+		writeBadVerb(s, verb, "num.Int32", func() {
+			_, _ = fmt.Fprintf(s, fmt.FormatString(s, 'd'), int32(v))
+		})
+	default:
+		_, _ = fmt.Fprintf(s, fmt.FormatString(s, nativeVerb(verb)), int32(v))
+	}
+}
+
+// GoString returns the constructor that rebuilds v, num.AsInt32(-5),
+// for %#v.
+func (v Int32) GoString() string {
+	return fmt.Sprintf("num.AsInt32(%d)", int32(v))
+}
+
+// String returns v in decimal, the text %v prints.
+func (v Int32) String() string {
+	return strconv.FormatInt(int64(v), 10)
+}
+
+// AppendText implements [encoding.TextAppender], appending v in
+// decimal, the text %v prints, to b. It allocates only when b lacks
+// the room, and the error is always nil.
+func (v Int32) AppendText(b []byte) ([]byte, error) {
+	return v.doAppendText(b), nil
+}
+
+// MarshalText implements [encoding.TextMarshaler], returning the
+// AppendText text.
+func (v Int32) MarshalText() ([]byte, error) {
+	return v.AppendText(nil)
+}
+
+// MarshalJSON implements [json.Marshaler], returning the MarshalText
+// text as a JSON number; every Int32 is safe for a float64 consumer.
+func (v Int32) MarshalJSON() ([]byte, error) {
+	return v.MarshalText()
+}
+
+// doAppendText writes v in decimal to dst and returns the extended
+// buffer.
+func (v Int32) doAppendText(dst []byte) []byte {
+	return strconv.AppendInt(dst, int64(v), 10)
 }
 
 // IsZero reports whether v is zero.
@@ -67,14 +177,15 @@ func (v Int32) Mul(w Int32) Int32 {
 	return v * w
 }
 
-// Div returns v/w, truncated towards zero. It panics when w is zero.
+// Div returns v/w, truncated towards zero. It panics with [ErrDivZero]
+// when w is zero.
 func (v Int32) Div(w Int32) Int32 {
 	q, _ := v.DivMod(w)
 	return q
 }
 
 // Mod returns the remainder of v/w, taking the sign of v. It panics
-// when w is zero.
+// with [ErrDivZero] when w is zero.
 func (v Int32) Mod(w Int32) Int32 {
 	_, r := v.DivMod(w)
 	return r

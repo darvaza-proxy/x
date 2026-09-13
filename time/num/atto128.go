@@ -1,8 +1,8 @@
 package num
 
 var (
-	_ Signed[Atto128]    = Atto128{}
-	_ Euclidean[Atto128] = Atto128{}
+	_ Signed[Atto128] = Atto128{}
+	_ Number[Atto128] = Atto128{}
 )
 
 // atto128Scale carries the atto (10^-18) resolution as an Int128, the
@@ -11,6 +11,22 @@ type atto128Scale struct{}
 
 func (atto128Scale) Scale() Int128 {
 	return Int128{lo: attoScale}
+}
+
+func (atto128Scale) name() string {
+	return "Atto128"
+}
+
+func (atto128Scale) asInt64(v Int128) (int64, bool) {
+	return v.asInt64()
+}
+
+func (atto128Scale) asInt128(v Int128) Int128 {
+	return v
+}
+
+func (atto128Scale) doAppendText(dst []byte, v Int128) []byte {
+	return v.doAppendText(dst)
 }
 
 // Atto128 is a signed fixed-point number with 18 fractional digits,
@@ -32,5 +48,11 @@ type Atto128 = Decimal[Int128, atto128Scale]
 // NewAtto128(1, 2e18) yields 3.0. The combined magnitude wraps if it
 // exceeds the 128-bit range.
 func NewAtto128(whole, atto int64) Atto128 {
-	return newDecimal[Int128, atto128Scale](NewInt128(whole), NewInt128(atto))
+	return newDecimal[Int128, atto128Scale](AsInt128(whole), AsInt128(atto))
+}
+
+// AsAtto128 takes an Int128 as a count of atto-units (10^-18), so
+// AsAtto128(AsInt128(1e18)) is 1.0.
+func AsAtto128(atto Int128) Atto128 {
+	return Atto128{atto}
 }
