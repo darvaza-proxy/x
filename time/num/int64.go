@@ -39,6 +39,26 @@ func AsInt64(x int64) Int64 {
 	return Int64(x)
 }
 
+// ParseInt64 reads an Int64 from its decimal text, an optional sign
+// and the digits, as strconv.ParseInt reads an int64: base 10 only,
+// with no underscores, prefixes or spaces. Any other form fails with
+// [ErrSyntax] and a zero value, and a number past the range with
+// [ErrRange] and the nearest bound, both reported in a [ParseError].
+func ParseInt64(s string) (Int64, error) {
+	x, err := strconv.ParseInt(s, 10, 64)
+	return Int64(x), AsParseError("ParseInt64", s, err)
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler], storing the
+// ParseInt64 value of the text in v. It fails as ParseInt64 does, and
+// with core.ErrNilReceiver on a nil v once the text parsed, the error
+// carrying the method's name in front of the cause; v is left as it
+// was on any failure.
+func (v *Int64) UnmarshalText(text []byte) error {
+	x, err := ParseInt64(string(text))
+	return unmarshalInto(v, x, err, "UnmarshalText")
+}
+
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int64) wide() wide {

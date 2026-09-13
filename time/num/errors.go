@@ -27,17 +27,18 @@ var ErrRange = core.QuietWrap(
 	"num: value out of range")
 
 // ParseError reports a failed parse in the shape of a [strconv.NumError]:
-// the function that failed, the input it was given and the sentinel,
-// [ErrSyntax] or [ErrRange], which Unwrap returns so errors.Is reaches
-// it. Match it with errors.As against *ParseError; the strconv type is
-// not in the chain.
+// the function that failed, the input it was given and the cause,
+// [ErrSyntax] or [ErrRange] from the package's parsers and in any case
+// one matching [core.ErrInvalid], which Unwrap returns so errors.Is
+// reaches it. Match it with errors.As against *ParseError; the strconv
+// type is not in the chain.
 type ParseError strconv.NumError
 
 func (e *ParseError) Error() string {
 	return e.Func + ": parsing " + strconv.Quote(e.Num) + ": " + e.Err.Error()
 }
 
-// Unwrap returns the sentinel.
+// Unwrap returns the cause.
 func (e *ParseError) Unwrap() error {
 	return e.Err
 }

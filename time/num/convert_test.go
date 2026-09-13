@@ -70,8 +70,10 @@ func newConvCaseOverflow[S num.Number[S], D num.Number[D]](name string, in S,
 	return convCase[S, D]{name: name, in: in, want: want}
 }
 
+//revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (tc convCase[S, D]) Name() string { return tc.name }
 
+//revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (tc convCase[S, D]) Test(t *testing.T) {
 	t.Helper()
 	got, ok := convertTo[D](tc.in)

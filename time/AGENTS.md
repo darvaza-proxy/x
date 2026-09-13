@@ -42,7 +42,20 @@ the standard library.
   matches either.
 - **`ParseError`**: the parse report, a defined type over
   `strconv.NumError` with the package's own text; `Unwrap` returns the
-  sentinel. `errors.As` matches `*ParseError`, not the strconv type.
+  cause, `ErrSyntax` or `ErrRange` from the package's parsers and in
+  any case one matching `core.ErrInvalid`. `errors.As` matches
+  `*ParseError`, not the strconv type.
+- **`AsParseError`**: the report builder, for the package's parsers and
+  for one outside it: a function name, the text and the failure, which
+  may be strconv's own `NumError` or a `ParseError`, opened for its
+  cause and for the name and text an empty argument leaves to it. The
+  cause comes out as the package's own, strconv's sentinels translated,
+  an error already matching `core.ErrInvalid` kept and anything else
+  compounded with it. Nil in, a typed nil included, is nil out.
+- **`ParseInt32`**, **`ParseInt64`**: the text parsers of the native
+  integers, `strconv.ParseInt` at the type's width with the failure
+  translated into a `ParseError`; `UnmarshalText` on the pointer
+  stores their value.
 
 Files:
 
@@ -73,6 +86,10 @@ Files:
   scales.
 - `num/num.go`: the `Unsigned`, `Signed`, `Number` and `SignedNumber`
   constraints and the `DecimalScaler` interface.
+- `num/parse.go`: the shared side of the parsers, `AsParseError` with
+  the cause translation under it and the store step of the
+  unmarshalers; each type's `Parse` function and `UnmarshalText` sit
+  in its own file.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
 - `num/uint128.go`: `Uint128` and its operations.
@@ -181,6 +198,21 @@ Files:
   zero panics with `ErrDivZero`; parsing returns a `ParseError` carrying
   `ErrSyntax` or `ErrRange`. Arithmetic wraps on overflow and the
   constructors never fail.
+- The parsers behave as strconv does wherever strconv fits: the whole
+  input is the number, base 10 only, no underscores, prefixes or
+  spaces, a syntax failure returns zero and a range failure the
+  nearest bound. The native integers hand the text to
+  `strconv.ParseInt` at their width and pass its `NumError` through
+  `AsParseError` under the bare parser name, `ParseInt32`, which opens
+  it and reports its sentinel as the package's own. `UnmarshalText`
+  parses first and stores second, so a bad text reports its own
+  failure before a nil receiver reports `core.ErrNilReceiver`; both
+  come back through `core.Wrap` with the method's name in front, so
+  `errors.As` still finds the one `ParseError`, and a failed call
+  leaves the receiver as it was. `TestParseMatchesStrconv` runs every
+  text of `parseCorpus` against `strconv.ParseInt` at both widths,
+  comparing the value and the class of failure; extend the corpus
+  rather than hand-write an expectation.
 - Operations allocate nothing; keep it that way in the hot paths.
 
 ## Testing Patterns
