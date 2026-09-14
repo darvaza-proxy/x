@@ -154,25 +154,25 @@ func (u Uint128) appendDigits(dst []byte, verb rune) []byte {
 
 // doAppendText writes the base-10 digits of u to dst and returns the
 // extended buffer. A value below 2^64 formats in a single pass; a wider
-// one is peeled into base-decChunk groups, most significant first, with
-// the trailing groups zero-padded to decChunkDigits. The 128-bit range
-// spans at most 39 digits, so three groups always suffice.
+// one is divided into base-decGroup groups, most significant first,
+// with the trailing groups zero-padded to decGroupDigits. The 128-bit
+// range spans at most 39 digits, so three groups always suffice.
 func (u Uint128) doAppendText(dst []byte) []byte {
 	if u.hi == 0 {
 		return strconv.AppendUint(dst, u.lo, 10)
 	}
-	div := Uint128{lo: decChunk}
-	var chunk [3]uint64
+	div := Uint128{lo: decGroup}
+	var group [3]uint64
 	n := 0
 	for rest := u; !rest.IsZero(); {
 		var r Uint128
 		rest, r = rest.DivMod(div)
-		chunk[n] = r.lo
+		group[n] = r.lo
 		n++
 	}
-	dst = strconv.AppendUint(dst, chunk[n-1], 10)
+	dst = strconv.AppendUint(dst, group[n-1], 10)
 	for i := n - 2; i >= 0; i-- {
-		dst = appendPadded(dst, chunk[i], decChunkDigits)
+		dst = appendPadded(dst, group[i], decGroupDigits)
 	}
 	return dst
 }

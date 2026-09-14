@@ -19,10 +19,10 @@ import (
 // and precision meaning what they mean there. An unsupported verb
 // prints the %!verb(type=value) form fmt uses.
 
-// groupDigits returns x in decimal with an underscore every three
+// groupThousands returns x in decimal with an underscore every three
 // digits from the right, so an eighteen-digit atto fraction reads in
 // thousands. Fewer than four digits are left alone.
-func groupDigits(x int64) string {
+func groupThousands(x int64) string {
 	var buf [20]byte
 	digits := strconv.AppendInt(buf[:0], x, 10)
 	b := make([]byte, 0, len(digits)+len(digits)/3)
@@ -39,13 +39,15 @@ func groupDigits(x int64) string {
 	return string(b)
 }
 
-// decChunk is the largest power of ten fitting in a uint64. Peeling a
-// Uint128 by it yields base-10 groups of decChunkDigits digits each,
-// which strconv then formats one word at a time.
-const decChunk uint64 = 1e19
+// decGroup is the largest power of ten fitting in a uint64, the scale
+// of one group of decGroupDigits decimal digits. Dividing a Uint128 by
+// it repeatedly yields its digits a group at a time, each of which
+// strconv then formats as one word.
+const decGroup uint64 = 1e19
 
-// decChunkDigits is the number of decimal digits in decChunk.
-const decChunkDigits = 19
+// decGroupDigits is the number of decimal digits in a group, the
+// exponent of decGroup.
+const decGroupDigits = 19
 
 // appendPadded appends v in base 10 to dst, left-padded with zeros to at
 // least width digits.

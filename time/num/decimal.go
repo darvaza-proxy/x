@@ -191,7 +191,7 @@ func (d Decimal[T, S]) GoString() string {
 	}
 	// frac is below the scale, which fits an int64 at every resolution.
 	f, _ := s.asInt64(frac)
-	return fmt.Sprintf("num.New%s(%d, %s)", s.name(), w, groupDigits(f))
+	return fmt.Sprintf("num.New%s(%d, %s)", s.name(), w, groupThousands(f))
 }
 
 // String returns d at full resolution, 1.500 for a Milli32, the text
