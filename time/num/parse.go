@@ -74,6 +74,70 @@ func parseCause(err error) error {
 	}
 }
 
+// splitSign cuts a leading sign off s, reporting whether it was a
+// minus. The rest is the magnitude, empty for a sign on its own, which
+// the digit reader then refuses.
+func splitSign(s string) (neg bool, mag string) {
+	switch {
+	case len(s) > 0 && s[0] == '-':
+		return true, s[1:]
+	case len(s) > 0 && s[0] == '+':
+		return false, s[1:]
+	default:
+		return false, s
+	}
+}
+
+// splitGroup cuts the leading group of digits off s: decGroupDigits of
+// them, or fewer when the length is not a multiple of that, so every
+// group after the first is full and is added on at the one scale,
+// decGroup. An empty s gives an empty head, for strconv to refuse.
+func splitGroup(s string) (head, tail string) {
+	n := len(s) % decGroupDigits
+	if n == 0 && s != "" {
+		n = decGroupDigits
+	}
+	return s[:n], s[n:]
+}
+
+// addGroup adds a group of digits to the magnitude read so far,
+// u*scale + d for the scale the group's length gives, and reports
+// whether the sum fits 128 bits; MaxUint128 stands in when it does not.
+func addGroup(u Uint128, scale, d uint64) (Uint128, bool) {
+	p := mul256(u, Uint128{lo: scale})
+	sum := p.lo.Add(Uint128{lo: d})
+	if !p.hi.IsZero() || sum.Cmp(p.lo) < 0 {
+		return MaxUint128, false
+	}
+	return sum, true
+}
+
+// leadingDigits reads the run of decimal digits leading s, returning
+// its value and its length. s is a group strconv refused, so the run
+// is at most decGroupDigits-1 long and its value fits a uint64.
+func leadingDigits(s string) (d uint64, n int) {
+	for n < len(s) && '0' <= s[n] && s[n] <= '9' {
+		d = d*10 + uint64(s[n]-'0')
+		n++
+	}
+	return d, n
+}
+
+// refuseGroup answers for a group strconv refused with err: a group of
+// at most decGroupDigits bytes fits a uint64, so it is empty or holds a
+// byte that is not a digit. strconv reads one digit at a time and
+// reports the failure it meets first, so the answer is
+// [strconv.ErrRange] with MaxUint128 when the digits before that byte
+// already take the magnitude past 128 bits, and err itself with zero
+// otherwise.
+func refuseGroup(u Uint128, group string, err error) (Uint128, error) {
+	d, n := leadingDigits(group)
+	if _, ok := addGroup(u, uint64(pow10(n)), d); !ok {
+		return MaxUint128, strconv.ErrRange
+	}
+	return Uint128{}, err
+}
+
 // unmarshalInto finishes an UnmarshalText method: it stores the parsed
 // value x in p when the parse succeeded and p is not nil, and
 // otherwise returns the parse failure, or [core.ErrNilReceiver] once

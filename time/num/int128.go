@@ -1,8 +1,10 @@
 package num
 
 import (
+	"errors"
 	"fmt"
 	"math/bits"
+	"strconv"
 )
 
 var (
@@ -48,6 +50,47 @@ func AsInt128(x int64) Int128 {
 		hi = maxUint64
 	}
 	return Int128{hi: hi, lo: uint64(x)}
+}
+
+// ParseInt128 reads an Int128 from its decimal text, an optional sign
+// and the digits, as strconv.ParseInt reads an int64: base 10 only,
+// with no underscores, prefixes or spaces. Any other form fails with
+// [ErrSyntax] and a zero value, and a number past the range with
+// [ErrRange] and the nearest bound, MaxInt128 or MinInt128, both
+// reported in a [ParseError].
+func ParseInt128(s string) (Int128, error) {
+	neg, mag := splitSign(s)
+	u, err := doParseUint128(mag)
+	if errors.Is(err, strconv.ErrSyntax) {
+		return Int128{}, AsParseError("ParseInt128", s, err)
+	}
+	// as strconv.ParseInt has it over ParseUint, the magnitude is read
+	// at the full unsigned width and then held to the sign's bound:
+	// Int128 says whether it fits below 2^127, and a negative value
+	// reaches one further, to 2^127 itself, the bits of MinInt128,
+	// which Neg leaves as they are. A magnitude past 128 bits stands at
+	// MaxUint128 and fits neither way.
+	v, ok := u.Int128()
+	switch {
+	case !neg && !ok:
+		return MaxInt128, AsParseError("ParseInt128", s, strconv.ErrRange)
+	case neg && !ok && u != MinInt128.bits():
+		return MinInt128, AsParseError("ParseInt128", s, strconv.ErrRange)
+	case neg:
+		return v.Neg(), nil
+	default:
+		return v, nil
+	}
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler], storing the
+// ParseInt128 value of the text in v. It fails as ParseInt128 does,
+// and with core.ErrNilReceiver on a nil v once the text parsed, the
+// error carrying the method's name in front of the cause; v is left as
+// it was on any failure.
+func (v *Int128) UnmarshalText(text []byte) error {
+	x, err := ParseInt128(string(text))
+	return unmarshalInto(v, x, err, "UnmarshalText")
 }
 
 // asInt64 returns v as a native int64 and whether it fits: the low

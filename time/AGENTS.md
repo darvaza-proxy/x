@@ -56,6 +56,10 @@ the standard library.
   integers, `strconv.ParseInt` at the type's width with the failure
   translated into a `ParseError`; `UnmarshalText` on the pointer
   stores their value.
+- **`ParseUint128`**, **`ParseInt128`**: the text parsers of the
+  128-bit integers, the digits over `strconv.ParseUint` a group at a
+  time, with the optional sign on `Int128` alone and `UnmarshalText`
+  on the pointer likewise.
 
 Files:
 
@@ -86,10 +90,10 @@ Files:
   scales.
 - `num/num.go`: the `Unsigned`, `Signed`, `Number` and `SignedNumber`
   constraints and the `DecimalScaler` interface.
-- `num/parse.go`: the shared side of the parsers, `AsParseError` with
-  the cause translation under it and the store step of the
-  unmarshalers; each type's `Parse` function and `UnmarshalText` sit
-  in its own file.
+- `num/parse.go`: the shared side of the parsers, the sign split, the
+  digit groups behind `doParseUint128`, `AsParseError` with the cause
+  translation under it and the store step of the unmarshalers; each
+  type's `Parse` function and `UnmarshalText` sit in its own file.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
 - `num/uint128.go`: `Uint128` and its operations.
@@ -204,15 +208,34 @@ Files:
   nearest bound. The native integers hand the text to
   `strconv.ParseInt` at their width and pass its `NumError` through
   `AsParseError` under the bare parser name, `ParseInt32`, which opens
-  it and reports its sentinel as the package's own. `UnmarshalText`
-  parses first and stores second, so a bad text reports its own
-  failure before a nil receiver reports `core.ErrNilReceiver`; both
-  come back through `core.Wrap` with the method's name in front, so
-  `errors.As` still finds the one `ParseError`, and a failed call
-  leaves the receiver as it was. `TestParseMatchesStrconv` runs every
-  text of `parseCorpus` against `strconv.ParseInt` at both widths,
-  comparing the value and the class of failure; extend the corpus
-  rather than hand-write an expectation.
+  it and reports its sentinel as the package's own. The 128-bit
+  integers keep to strconv's shape, with the unexported
+  `doParseUint128` as the primitive under both, speaking strconv's own
+  errors: `ParseUint128` wraps its answer under its name and takes no
+  sign; `ParseInt128` splits the sign, reads the magnitude at the full
+  unsigned width through it and then holds it to the sign's bound, the
+  `Int128()` conversion for a positive value and one further, 2^127,
+  for a negative one so `MinInt128` parses back, as `strconv.ParseInt`
+  does over `ParseUint`. The magnitude is read in groups of 19 digits
+  cut from the right, each read by `strconv.ParseUint`, which is the
+  digit check, and added to the magnitude read so far, multiplied by
+  10^19, with the overflow caught in a 256-bit product. A text both
+  malformed and too long reports the failure strconv meets first,
+  reading one digit at a time: the range once the digits before the
+  bad byte pass 128 bits, the syntax otherwise. `UnmarshalText` parses
+  first and stores second, so a bad text reports its own failure
+  before a nil receiver reports `core.ErrNilReceiver`; both come back
+  through `core.Wrap` with the method's name in front, so `errors.As`
+  still finds the one `ParseError`, and a failed call leaves the
+  receiver as it was. `TestParseMatchesStrconv` runs every text of
+  `parseCorpus` against strconv: the natives against
+  `strconv.ParseInt` at their width, comparing the value and the class
+  of failure, and the 128-bit integers against the 64-bit parser of
+  their kind, `strconv.ParseUint` or `strconv.ParseInt`, comparing the
+  syntax verdict and the value while strconv has one; extend the
+  corpus rather than hand-write an expectation. `TestParseRoundTrip`
+  parses the text tables of `TestText` back, so a new type that prints
+  also reads.
 - Operations allocate nothing; keep it that way in the hot paths.
 
 ## Testing Patterns

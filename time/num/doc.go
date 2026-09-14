@@ -64,17 +64,18 @@
 // remainder taking the sign of the dividend; [EuclideanDivMod] and
 // [EuclideanMulDivMod] instead keep the remainder non-negative.
 //
-// The native integers read their text back through ParseInt32 and
-// ParseInt64, in the shape of strconv.ParseInt: an optional sign and
-// the digits, base 10 only, with no underscores, prefixes or spaces.
-// Text in any other form fails with [ErrSyntax] and a zero value, and a
-// number past the range with [ErrRange] and the nearest bound, both
-// reported in a [ParseError] naming the function and quoting the text;
-// [AsParseError] builds that report for a parser outside the package.
-// UnmarshalText on the pointer reads the same grammar and stores the
-// value, so *Int32 and *Int64 are [encoding.TextUnmarshaler]; a
-// failure, the nil receiver included, comes back behind the method's
-// name and leaves the receiver as it was. Each sentinel matches its
-// strconv counterpart and core.ErrInvalid under errors.Is, as
-// ErrDivZero matches ErrInvalid.
+// The integers read their text back through ParseInt32, ParseInt64,
+// ParseInt128 and ParseUint128, in the shape of strconv.ParseInt and
+// strconv.ParseUint: an optional sign, which Uint128 does not take,
+// and the digits, base 10 only, with no underscores, prefixes or
+// spaces. Text in any other form fails with [ErrSyntax] and a zero
+// value, and a number past the range with [ErrRange] and the nearest
+// bound, both reported in a [ParseError] naming the function and
+// quoting the text; [AsParseError] builds that report for a parser
+// outside the package. UnmarshalText on the pointer reads the same
+// grammar and stores the value, so the pointer to each is an
+// [encoding.TextUnmarshaler]; a failure, the nil receiver included,
+// comes back behind the method's name and leaves the receiver as it
+// was. Each sentinel matches its strconv counterpart and
+// core.ErrInvalid under errors.Is, as ErrDivZero matches ErrInvalid.
 package num

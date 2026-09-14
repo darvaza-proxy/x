@@ -37,6 +37,53 @@ func AsUint128(x uint64) Uint128 {
 	return Uint128{lo: x}
 }
 
+// ParseUint128 reads a Uint128 from its decimal text, the digits alone,
+// as strconv.ParseUint reads a uint64: base 10 only, with no sign,
+// underscores, prefixes or spaces. Any other form fails with
+// [ErrSyntax] and a zero value, and a number past the range with
+// [ErrRange] and MaxUint128, both reported in a [ParseError].
+func ParseUint128(s string) (Uint128, error) {
+	u, err := doParseUint128(s)
+	return u, AsParseError("ParseUint128", s, err)
+}
+
+// doParseUint128 reads the decimal digits of s, and nothing else, into
+// a Uint128 with strconv's own errors, for ParseUint128 and for
+// ParseInt128 once the sign is off. The text is cut into groups of
+// decGroupDigits from the right, each read by strconv.ParseUint, which
+// is the digit check, and added to the magnitude read so far by
+// addGroup; a refused group answers in strconv's reading order through
+// refuseGroup, and a magnitude past 128 bits fails with
+// strconv.ErrRange and MaxUint128.
+func doParseUint128(s string) (Uint128, error) {
+	var u Uint128
+	for rest := s; ; {
+		var head string
+		head, rest = splitGroup(rest)
+		d, err := strconv.ParseUint(head, 10, 64)
+		if err != nil {
+			return refuseGroup(u, head, err)
+		}
+		var ok bool
+		if u, ok = addGroup(u, decGroup, d); !ok {
+			return MaxUint128, strconv.ErrRange
+		}
+		if rest == "" {
+			return u, nil
+		}
+	}
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler], storing the
+// ParseUint128 value of the text in u. It fails as ParseUint128 does,
+// and with core.ErrNilReceiver on a nil u once the text parsed, the
+// error carrying the method's name in front of the cause; u is left as
+// it was on any failure.
+func (u *Uint128) UnmarshalText(text []byte) error {
+	x, err := ParseUint128(string(text))
+	return unmarshalInto(u, x, err, "UnmarshalText")
+}
+
 // wide returns u as a count of whole units, on the way to another
 // type of the family. The bits are read as an Int128, which holds
 // them while the top bit is clear.
