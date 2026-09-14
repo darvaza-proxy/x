@@ -47,13 +47,14 @@ func constructorName(typeName, prefix string) string {
 	return typeName[:i] + prefix + typeName[i:]
 }
 
-// decChunk is the largest power of ten fitting in a uint64. Peeling a
-// Uint128 by it yields base-10 groups of decChunkDigits digits each,
-// which strconv then formats one word at a time.
-const decChunk uint64 = 1e19
+// decGroup is the largest power of ten fitting in a uint64, the scale
+// of one group of decGroupDigits decimal digits. Dividing a Uint128 by
+// it repeatedly yields its digits a group at a time, each of which
+// strconv then formats as one word.
+const decGroup uint64 = 1e19
 
-// decChunkDigits is the number of decimal digits in decChunk.
-const decChunkDigits = 19
+// decGroupDigits is the number of decimal digits in decGroup.
+const decGroupDigits = 19
 
 // appendPadded appends v in base 10 to dst, left-padded with zeros to at
 // least width digits.

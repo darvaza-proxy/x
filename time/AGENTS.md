@@ -60,9 +60,9 @@ Files:
 - `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
   and the Euclidean division helpers.
 - `num/format.go`: the shared side of `Format` and `GoString`, the verb
-  tables, the sign, prefix and width padding, the base-10 chunking
-  constants and the digit grouping; each type's `Format`, `GoString`,
-  `String` and digit generation sit in its own file.
+  tables, the sign, prefix and width padding, the base-10 digit group
+  constants and the thousands grouping; each type's `Format`,
+  `GoString`, `String` and digit generation sit in its own file.
 - `num/int128.go`: `Int128` and its operations.
 - `num/int32.go`: `Int32` and its operations.
 - `num/int64.go`: `Int64` and its operations.
@@ -122,15 +122,16 @@ Files:
   A new type or instantiation adds a row to the `GoString` table.
 - `Format` owns every verb, since fmt consults nothing else once a type
   has it: `%#v` is routed to `GoString` by hand. `Uint128` generates
-  the digits, base 10 by peeling 10^19 chunks and the power-of-two
-  bases by shifting the words; `Int128` prints its sign and hands the
-  magnitude over; `Int32` and `Int64` hand the native value to fmt with
-  `fmt.FormatString`, under the verb they were given rather than a
-  decimal rewrite of it, so their flags cannot drift from fmt's;
-  `Decimal` prints its parts as magnitudes one at a time, since `Abs`
-  on the backing's minimum wraps while the whole count never can. Fraction
-  rounding is half away from zero; the precision of `%f` is fmt's, not
-  the resolution's. Never reach for `math/big` for any of this.
+  the digits, base 10 in groups of 19 divided out by 10^19 and the
+  power-of-two bases by shifting the words; `Int128` prints its sign
+  and hands the magnitude over; `Int32` and `Int64` hand the native
+  value to fmt with `fmt.FormatString`, under the verb they were given
+  rather than a decimal rewrite of it, so their flags cannot drift from
+  fmt's; `Decimal` prints its parts as magnitudes one at a time, since
+  `Abs` on the backing's minimum wraps while the whole count never can.
+  Fraction rounding is half away from zero; the precision of `%f` is
+  fmt's, not the resolution's. Never reach for `math/big` for any of
+  this.
 - `String` returns the `%v` text over the same digit generation, for
   the callers that ask for it by name; fmt never does, since a
   `Formatter` takes precedence over a `Stringer`. The primitive under

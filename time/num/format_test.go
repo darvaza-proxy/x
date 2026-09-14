@@ -50,15 +50,15 @@ func formatUint128Cases() []formatCase {
 		newFormatCase("low word", u(42), "%d", "42"),
 		newFormatCase("v", u(42), "%v", "42"),
 		newFormatCase("s", u(42), "%s", "42"),
-		// the chunked path: 2^64 straddles the 10^19 chunk, the maximum
-		// fills all three chunks.
+		// the grouped path: 2^64 straddles the 10^19 group, the maximum
+		// fills all three groups.
 		newFormatCase("two to the 64", num.NewUint128(1, 0), "%d",
 			"18446744073709551616"),
 		newFormatCase("max", num.MaxUint128, "%d",
 			"340282366920938463463374607431768211455"),
-		// 2*10^19 is one chunk of 2 over a chunk of zeros, which must keep
+		// 2*10^19 is one group of 2 over a group of zeros, which must keep
 		// its width.
-		newFormatCase("zero chunk", u(1e19).Add(u(1e19)), "%d",
+		newFormatCase("zero group", u(1e19).Add(u(1e19)), "%d",
 			"20000000000000000000"),
 		newFormatCase("hex", num.NewUint128(1, 0), "%x", "10000000000000000"),
 		newFormatCase("hex upper", u(255), "%X", "FF"),
