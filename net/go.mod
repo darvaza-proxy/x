@@ -1,6 +1,6 @@
 module darvaza.org/x/net
 
-go 1.25.0
+go 1.26.0
 
 require (
 	darvaza.org/core v0.21.2
@@ -13,7 +13,7 @@ require (
 
 require (
 	golang.org/x/net v0.57.0
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
