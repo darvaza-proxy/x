@@ -1,5 +1,7 @@
 package num_test
 
+// cspell:words centi
+
 import (
 	"math"
 	"testing"
@@ -12,7 +14,167 @@ import (
 var (
 	_ core.TestCase = convCase[num.Int32, num.Int64]{}
 	_ core.TestCase = countCase[num.Int32]{}
+	_ core.TestCase = decimalFromInt128Case[num.Int64, centi64Scale]{}
+	_ core.TestCase = fromInt128Case[num.Int32]{}
 )
+
+// fromInt128Case pins NewFromInt128 into D against the conversion
+// method named for D, the transpose of the Int128 row of the matrix.
+// A value that fits is what the method gives, with its flag true; one
+// that does not is the nearest bound with ErrRange, where the method
+// answers false and keeps the low bits instead.
+type fromInt128Case[D num.Number[D]] struct {
+	wantErr error
+	want    D
+	name    string
+	in      num.Int128
+}
+
+func newFromInt128Case[D num.Number[D]](name string, in num.Int128,
+	want D) fromInt128Case[D] {
+	return fromInt128Case[D]{name: name, in: in, want: want}
+}
+
+func newFromInt128CaseRange[D num.Number[D]](name string, in num.Int128,
+	want D) fromInt128Case[D] {
+	return fromInt128Case[D]{name: name, in: in, want: want,
+		wantErr: num.ErrRange}
+}
+
+func (tc fromInt128Case[D]) Name() string { return tc.name }
+
+func (tc fromInt128Case[D]) Test(t *testing.T) {
+	t.Helper()
+	got, err := num.NewFromInt128[D](tc.in)
+	core.AssertEqual(t, tc.want, got, "value")
+	m, ok := convertTo[D](tc.in)
+	if tc.wantErr == nil {
+		core.AssertNoError(t, err, "error")
+		core.AssertTrue(t, ok, "method ok")
+		core.AssertEqual(t, m, got, "transpose")
+		return
+	}
+	core.AssertErrorIs(t, err, tc.wantErr, "error")
+	core.AssertFalse(t, ok, "method ok")
+}
+
+func fromInt128IntCases() []core.TestCase {
+	pastInt64 := num.AsInt128(math.MaxInt64).Add(num.AsInt128(1))
+	return core.S[core.TestCase](
+		newFromInt128Case("to int32", num.AsInt128(-5), num.AsInt32(-5)),
+		newFromInt128Case("max to int32", num.AsInt128(math.MaxInt32),
+			num.AsInt32(math.MaxInt32)),
+		newFromInt128CaseRange("past int32 max", num.AsInt128(math.MaxInt32+1),
+			num.AsInt32(math.MaxInt32)),
+		newFromInt128CaseRange("past int32 min", num.AsInt128(math.MinInt32-1),
+			num.AsInt32(math.MinInt32)),
+		newFromInt128CaseRange("int128 min to int32", num.MinInt128,
+			num.AsInt32(math.MinInt32)),
+		newFromInt128Case("min to int64", num.AsInt128(math.MinInt64),
+			num.AsInt64(math.MinInt64)),
+		newFromInt128CaseRange("past int64 max", pastInt64,
+			num.AsInt64(math.MaxInt64)),
+		newFromInt128CaseRange("int128 min to int64", num.MinInt128,
+			num.AsInt64(math.MinInt64)),
+		newFromInt128Case("self min", num.MinInt128, num.MinInt128),
+		newFromInt128Case("self max", num.MaxInt128, num.MaxInt128),
+		newFromInt128Case("to uint128", num.AsInt128(5), u(5)),
+		newFromInt128Case("max to uint128", num.MaxInt128,
+			num.NewUint128(maxWord>>1, maxWord)),
+		newFromInt128CaseRange("negative to uint128", num.AsInt128(-1),
+			num.ZeroUint128),
+		newFromInt128CaseRange("int128 min to uint128", num.MinInt128,
+			num.ZeroUint128),
+	)
+}
+
+func fromInt128DecimalCases() []core.TestCase {
+	// the whole units at the edge of each resolution.
+	const milli32Whole = math.MaxInt32 / 1000
+	const milli64Whole = math.MaxInt64 / 1000
+	attoWhole := num.MaxInt128.Div(num.AsInt128(1e18))
+	one := num.AsInt128(1)
+	return core.S[core.TestCase](
+		newFromInt128Case("to milli32", num.AsInt128(-5), num.NewMilli32(-5, 0)),
+		newFromInt128Case("milli32 whole max", num.AsInt128(milli32Whole),
+			num.NewMilli32(milli32Whole, 0)),
+		newFromInt128CaseRange("past milli32 whole", num.AsInt128(milli32Whole+1),
+			num.AsMilli32(math.MaxInt32)),
+		newFromInt128CaseRange("past milli32 whole min",
+			num.AsInt128(-milli32Whole-1), num.AsMilli32(math.MinInt32)),
+		newFromInt128CaseRange("int128 min to milli32", num.MinInt128,
+			num.AsMilli32(math.MinInt32)),
+		newFromInt128Case("int32 min to milli64", num.AsInt128(math.MinInt32),
+			num.NewMilli64(math.MinInt32, 0)),
+		newFromInt128Case("milli64 whole max", num.AsInt128(milli64Whole),
+			num.NewMilli64(milli64Whole, 0)),
+		newFromInt128CaseRange("past milli64 whole", num.AsInt128(milli64Whole+1),
+			num.AsMilli64(math.MaxInt64)),
+		newFromInt128CaseRange("int128 max to milli64", num.MaxInt128,
+			num.AsMilli64(math.MaxInt64)),
+		newFromInt128Case("to atto128", num.AsInt128(-5), num.NewAtto128(-5, 0)),
+		newFromInt128Case("atto128 whole max", attoWhole,
+			num.AsAtto128(attoWhole.Mul(num.AsInt128(1e18)))),
+		newFromInt128CaseRange("past atto128 whole", attoWhole.Add(one),
+			num.AsAtto128(num.MaxInt128)),
+		newFromInt128CaseRange("past atto128 whole min", attoWhole.Neg().Sub(one),
+			num.AsAtto128(num.MinInt128)),
+		newFromInt128CaseRange("int128 min to atto128", num.MinInt128,
+			num.AsAtto128(num.MinInt128)),
+	)
+}
+
+func TestNewFromInt128(t *testing.T) {
+	t.Run("integers", runTestNewFromInt128Int)
+	t.Run("decimals", runTestNewFromInt128Decimal)
+}
+
+func runTestNewFromInt128Int(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, fromInt128IntCases())
+}
+
+func runTestNewFromInt128Decimal(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, fromInt128DecimalCases())
+}
+
+// decimalFromInt128Case pins NewDecimalFromInt128 into an
+// instantiation named by its type arguments, the route a Decimal over
+// a scaler of another package takes: whole units in, the bound of the
+// backing with ErrRange when they do not fit at the resolution.
+type decimalFromInt128Case[T num.SignedNumber[T], S num.DecimalScaler[T]] struct {
+	wantErr error
+	want    num.Decimal[T, S]
+	name    string
+	in      num.Int128
+}
+
+func newDecimalFromInt128Case[T num.SignedNumber[T], S num.DecimalScaler[T]](
+	name string, in num.Int128, want num.Decimal[T, S]) decimalFromInt128Case[T, S] {
+	return decimalFromInt128Case[T, S]{name: name, in: in, want: want}
+}
+
+func newDecimalFromInt128CaseRange[T num.SignedNumber[T], S num.DecimalScaler[T]](
+	name string, in num.Int128, want num.Decimal[T, S]) decimalFromInt128Case[T, S] {
+	return decimalFromInt128Case[T, S]{name: name, in: in, want: want,
+		wantErr: num.ErrRange}
+}
+
+//revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
+func (tc decimalFromInt128Case[T, S]) Name() string { return tc.name }
+
+//revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
+func (tc decimalFromInt128Case[T, S]) Test(t *testing.T) {
+	t.Helper()
+	got, err := num.NewDecimalFromInt128[T, S](tc.in)
+	core.AssertEqual(t, tc.want, got, "value")
+	if tc.wantErr == nil {
+		core.AssertNoError(t, err, "error")
+		return
+	}
+	core.AssertErrorIs(t, err, tc.wantErr, "error")
+}
 
 // convertTo converts v to D through the method named for D, the one
 // cell of the conversion matrix a row pins. D is one of the seven

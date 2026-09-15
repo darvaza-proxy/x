@@ -26,7 +26,12 @@
 // the low bits as a Go conversion does. A Decimal reads its count
 // back through AsInt32, AsInt64 and AsInt128, the inverses of its As
 // constructor, each with a size check. [Number] names this whole
-// surface, the constraint for code generic over the family.
+// surface, the constraint for code generic over the family, and
+// [NewFromInt128] is its way back in: whole units as any type of the
+// family named by its type argument, the transpose of Int128, giving
+// the nearest bound with [ErrRange] where they do not fit;
+// [NewDecimalFromInt128] builds a Decimal named by its type arguments
+// the same way, one over a scaler of another package included.
 //
 // Under %#v every type prints as the call that rebuilds it, so a value
 // dumped from a failing test pastes back into a row: num.AsInt32(-5),

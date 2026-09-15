@@ -29,6 +29,12 @@ the standard library.
 - **`Number[T]`**: the constraint naming the whole surface, `Unsigned`
   with `Euclidean`, the fmt, encoding and JSON forms, and the
   conversion to every type of the family, each `(T, bool)`.
+- **`NewFromInt128`**, **`NewDecimalFromInt128`**: the generic
+  factories, whole units as a type named by its type arguments, the
+  first over a closed switch on the seven types of the package and the
+  second through the scaler, so an instantiation of another package
+  takes it; the nearest bound with `ErrRange` where the units do not
+  fit, `errors.ErrUnsupported` for a type the switch does not know.
 - **`EuclideanDivMod`**, **`EuclideanMulDivMod`**: division helpers
   correcting the remainder into `[0, |divisor|)`, constrained on
   `Euclidean`; `SignedEuclidean` combines it with `Signed`.
@@ -66,10 +72,12 @@ Files:
 - `num/atto128.go`: the `Atto128` instantiation and its scale.
 - `num/const.go`: word primitives, the fixed-point scale factors and
   the sentinel bounds (`MaxUint128`, `MinInt128`, …).
-- `num/convert.go`: the `wide` intermediate the conversions share,
-  which rescales a count between resolutions and narrows it into the
-  target; each type's `wide` and conversion methods sit in its own
-  file.
+- `num/convert.go`: `NewFromInt128` and `NewDecimalFromInt128`, with
+  the range rule under them, a conversion's value when it fitted and
+  the bound on the side of the input with `ErrRange` when it did not;
+  then the `wide` intermediate the conversions share, which rescales a
+  count between resolutions and narrows it into the target. Each
+  type's `wide` and conversion methods sit in its own file.
 - `num/decimal.go`: `Decimal`, its constructors and its methods.
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero`, `ErrSyntax`, `ErrRange` and

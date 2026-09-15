@@ -1,5 +1,10 @@
 package num
 
+import (
+	"errors"
+	"math"
+)
+
 // The scale factors as Int128 counts, the resolutions a conversion
 // moves between.
 var (
@@ -7,6 +12,103 @@ var (
 	milliScale128 = Int128{lo: milliScale}
 	attoScale128  = Int128{lo: attoScale}
 )
+
+// NewFromInt128 returns whole units as a T, any type of the family: the
+// way into a type that generic code names only by its type argument,
+// and the transpose of the Int128 row of the conversion matrix. A value
+// that fits is the one the conversion method named for T gives,
+// [Int128.Int32] for an Int32 or [Int128.Milli32] for a Milli32, the
+// fraction of a Decimal zero. One that does not fit at the resolution
+// of T is the nearest bound, math.MaxInt32 or math.MinInt32 for an
+// Int32 and zero for a negative into Uint128, with [ErrRange], the
+// value strconv returns on a range failure. T is one of the seven
+// types of the package; a Decimal over a scaler of another package is
+// [errors.ErrUnsupported] here, and [NewDecimalFromInt128] builds it.
+func NewFromInt128[T Number[T]](v Int128) (T, error) {
+	var out T
+	var err error
+	switch p := any(&out).(type) {
+	case *Int32:
+		*p, err = rangedInt32(v)
+	case *Int64:
+		*p, err = rangedInt64(v)
+	case *Int128:
+		*p = v
+	case *Uint128:
+		*p, err = rangedUint128(v)
+	case *Milli32:
+		*p, err = NewDecimalFromInt128[Int32, milli32Scale](v)
+	case *Milli64:
+		*p, err = NewDecimalFromInt128[Int64, milli64Scale](v)
+	case *Atto128:
+		*p, err = NewDecimalFromInt128[Int128, atto128Scale](v)
+	default:
+		err = errors.ErrUnsupported
+	}
+	return out, err
+}
+
+// NewDecimalFromInt128 returns whole units as a Decimal over T and S:
+// the way into an instantiation named by its type arguments, the one a
+// Decimal over a scaler of another package takes, and the constructor
+// behind the Decimal arms of [NewFromInt128]. The units are scaled to
+// the resolution of S and the count narrowed into T; a value past the
+// bound of T at that resolution is that bound with [ErrRange], as
+// NewFromInt128 has it.
+func NewDecimalFromInt128[T SignedNumber[T], S DecimalScaler[T]](v Int128) (Decimal[T, S], error) {
+	var s S
+	w := v.wide().at(widen(s.Scale()))
+	if !w.ok {
+		// the count wrapped past 128 bits, so it is past T as well.
+		// The Int128 bound on the side of v narrows into the bound of
+		// T, with ErrRange, or is that bound already when T is Int128,
+		// so the outcome is ErrRange either way.
+		c, _ := NewFromInt128[T](bound(v, MinInt128, MaxInt128))
+		return AsDecimal[T, S](c), ErrRange
+	}
+	c, err := NewFromInt128[T](w.v)
+	return AsDecimal[T, S](c), err
+}
+
+// ranged returns the conversion of v into a target when it fitted, and
+// the bound of the target on the side of v with ErrRange when it did
+// not.
+func ranged[T Number[T]](v Int128, conv func(Int128) (T, bool), lo, hi T) (T, error) {
+	if x, ok := conv(v); ok {
+		return x, nil
+	}
+	return bound(v, lo, hi), ErrRange
+}
+
+// bound returns the bound of a target on the side of v: lo when v is
+// negative, hi otherwise.
+func bound[T Number[T]](v Int128, lo, hi T) T {
+	if v.IsNegative() {
+		return lo
+	}
+	return hi
+}
+
+// rangedInt32 returns v as an Int32, or the nearest bound with ErrRange
+// when it does not fit.
+func rangedInt32(v Int128) (Int32, error) {
+	return ranged(v, Int128.Int32, math.MinInt32, math.MaxInt32)
+}
+
+// rangedInt64 returns v as an Int64, or the nearest bound with ErrRange
+// when it does not fit.
+func rangedInt64(v Int128) (Int64, error) {
+	return ranged(v, Int128.Int64, math.MinInt64, math.MaxInt64)
+}
+
+// rangedUint128 returns v as a Uint128, or zero with ErrRange when v is
+// negative, the only side it can miss on.
+func rangedUint128(v Int128) (Uint128, error) {
+	if x, ok := v.Uint128(); ok {
+		return x, nil
+	}
+	return ZeroUint128, ErrRange
+}
 
 // wide is a value in transit between two types of the family: its
 // count of sub-units widened to an Int128, the scale of that count,

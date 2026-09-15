@@ -3,6 +3,7 @@ package num_test
 // cspell:words centi
 
 import (
+	"errors"
 	"math"
 	"testing"
 
@@ -121,6 +122,39 @@ func TestCenti64Text(t *testing.T) {
 	t.Run("go string", runTestCenti64GoString)
 	t.Run("json", runTestCenti64JSON)
 	t.Run("convert", runTestCenti64Convert)
+	t.Run("from int128", runTestCenti64FromInt128)
+}
+
+func centi64FromInt128Cases() []core.TestCase {
+	// the whole units at the edge of the resolution.
+	const whole = math.MaxInt64 / 100
+	return core.S[core.TestCase](
+		newDecimalFromInt128Case[num.Int64, centi64Scale]("one",
+			num.AsInt128(1), NewCenti64(1, 0)),
+		newDecimalFromInt128Case[num.Int64, centi64Scale]("negative",
+			num.AsInt128(-5), NewCenti64(-5, 0)),
+		newDecimalFromInt128Case[num.Int64, centi64Scale]("whole max",
+			num.AsInt128(whole), NewCenti64(whole, 0)),
+		newDecimalFromInt128CaseRange[num.Int64, centi64Scale]("past whole",
+			num.AsInt128(whole+1), AsCenti64(math.MaxInt64)),
+		newDecimalFromInt128CaseRange[num.Int64, centi64Scale]("past whole min",
+			num.AsInt128(-whole-1), AsCenti64(math.MinInt64)),
+		newDecimalFromInt128CaseRange[num.Int64, centi64Scale]("int128 max",
+			num.MaxInt128, AsCenti64(math.MaxInt64)),
+	)
+}
+
+// runTestCenti64FromInt128 builds the outside instantiation from whole
+// units through the Decimal factory, which reaches it through its type
+// arguments, and checks the family factory refuses it, since its
+// switch knows only the seven types of the package.
+func runTestCenti64FromInt128(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, centi64FromInt128Cases())
+
+	got, err := num.NewFromInt128[Centi64](num.AsInt128(1))
+	core.AssertErrorIs(t, err, errors.ErrUnsupported, "error")
+	core.AssertEqual(t, Centi64{}, got, "value")
 }
 
 func runTestCenti64Text(t *testing.T) {
