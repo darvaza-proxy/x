@@ -1,6 +1,6 @@
 module darvaza.org/x/net
 
-go 1.25.0
+go 1.26.0
 
 require (
 	darvaza.org/core v0.21.2
@@ -12,11 +12,11 @@ require (
 )
 
 require (
-	golang.org/x/net v0.57.0
-	golang.org/x/sys v0.47.0
+	golang.org/x/net v0.59.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
 	github.com/gobwas/glob v0.2.3 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 )
