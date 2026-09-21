@@ -191,11 +191,8 @@ func TestClientConnLiveSession(t *testing.T) {
 	core.AssertMustNoError(t, err, "New")
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("session did not run")
-	}
+	core.AssertMustClosed(t, done, waitTimeout, "session ran")
 
+	core.AssertMustClosed(t, c.Done(), waitTimeout, "client stopped")
 	core.AssertNoError(t, c.Wait(), "Wait")
 }

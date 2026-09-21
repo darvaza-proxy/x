@@ -10,9 +10,10 @@ import (
 	"darvaza.org/x/sync/workgroup"
 )
 
-// streamStopTimeout bounds every wait in this file, so a session that
-// never answers fails the test instead of hanging the suite.
-const streamStopTimeout = 2 * time.Second
+// waitTimeout bounds every wait on the code under test in the white-box
+// tests, so a regression that never answers fails the test instead of
+// hanging the suite.
+const waitTimeout = 2 * time.Second
 
 // TestStreamSessionOnErrorFiresOnInitWindowCancel guards the handler
 // ordering: if onCancel is wired after setDefaults realises the workgroup
@@ -54,27 +55,23 @@ func TestStreamSessionOnErrorFiresOnInitWindowCancel(t *testing.T) {
 	core.AssertErrorIs(t, s.Spawn(), ErrClosed, "Spawn")
 
 	// the cancellation observed during init must still reach OnError.
-	select {
-	case err := <-got:
-		core.AssertErrorIs(t, err, wantErr, "OnError cause")
-	case <-time.After(streamStopTimeout):
-		t.Fatal("OnError did not fire for an in-init-window cancellation")
-	}
+	errs := core.AssertMustReceives(t, got, 1, waitTimeout, "OnError")
+	core.AssertErrorIs(t, errs[0], wantErr, "OnError cause")
 
 	// the inbound stream is closed on the never-started reader's behalf,
-	// and the session winds down without hanging.
-	select {
-	case _, ok := <-s.Recv():
-		core.AssertFalse(t, ok, "Recv after refused Spawn")
-	case <-time.After(streamStopTimeout):
-		t.Fatal("Recv did not close after a refused Spawn")
-	}
+	// with nothing delivered: the first thing a consumer sees is the end.
+	// The goroutine bounds the receive, which blocks until that end
+	// arrives.
+	ended := make(chan bool, 1)
+	go func() {
+		_, ok := <-s.Recv()
+		ended <- ok
+	}()
+	gotOK := core.AssertMustReceives(t, ended, 1, waitTimeout,
+		"Recv returned")
+	core.AssertFalse(t, gotOK[0], "Recv after refused Spawn")
 
 	done := make(chan error, 1)
 	go func() { done <- s.Wait() }()
-	select {
-	case <-done:
-	case <-time.After(streamStopTimeout):
-		t.Fatal("Wait did not return")
-	}
+	core.AssertMustReceives(t, done, 1, waitTimeout, "Wait")
 }

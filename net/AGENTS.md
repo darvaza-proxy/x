@@ -81,6 +81,12 @@ Tests focus on:
 - Platform-specific behaviour.
 - Concurrent access patterns.
 
+For tests that wait on a channel, use `core.AssertClosed` for one that
+signals by closing and `core.AssertReceives` for one that carries
+values, rather than a `select` against `time.After`. A wait whose value
+goes back to the caller still needs its own goroutine; `waitWithin` and
+`nextWithin` in `reconnect` are the pattern.
+
 ## Common Usage Patterns
 
 ### Advanced Port Binding

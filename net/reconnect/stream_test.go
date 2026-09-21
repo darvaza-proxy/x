@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"testing"
-	"time"
 
 	"darvaza.org/core"
 	"darvaza.org/x/fs"
@@ -161,13 +160,8 @@ func nextWithin(t *testing.T, s *reconnect.StreamSession[string, string],
 		res <- result{value: v, ok: ok}
 	}()
 
-	select {
-	case r := <-res:
-		return r.value, r.ok
-	case <-time.After(2 * time.Second):
-		t.Fatalf("%s: Next did not return", name)
-		return "", false
-	}
+	got := core.AssertMustReceives(t, res, 1, waitTimeout, name)
+	return got[0].value, got[0].ok
 }
 
 // echoPeer copies conn's inbound byte stream straight back to it until
@@ -199,7 +193,7 @@ func TestStreamSessionEcho(t *testing.T) {
 
 	// clean shutdown stops the workers and reports the cancellation
 	// cause; Wait then returns nil for a user-initiated stop.
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertErrorIs(t, s.Shutdown(ctx), context.Canceled, "Shutdown")
 	core.AssertNoError(t, s.Wait(), "Wait")
@@ -223,13 +217,8 @@ func waitWithin(t *testing.T, s *reconnect.StreamSession[string, string],
 	done := make(chan error, 1)
 	go func() { done <- s.Wait() }()
 
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(2 * time.Second):
-		t.Fatalf("%s: did not return", name)
-		return nil
-	}
+	got := core.AssertMustReceives(t, done, 1, waitTimeout, name)
+	return got[0]
 }
 
 // assertWaitReturns fails if the session does not finish winding down
@@ -246,7 +235,7 @@ func assertWaitReturns(t *testing.T, s *reconnect.StreamSession[string, string],
 func shutdownWithin(t *testing.T, s *reconnect.StreamSession[string, string]) {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertErrorIs(t, s.Shutdown(ctx), context.Canceled, "Shutdown")
 }
@@ -294,12 +283,8 @@ func runTestStreamSessionGoRuns(t *testing.T) {
 		return nil
 	})
 
-	select {
-	case err := <-ran:
-		core.AssertNoError(t, err, "worker context")
-	case <-time.After(2 * time.Second):
-		t.Fatal("worker did not run")
-	}
+	errs := core.AssertMustReceives(t, ran, 1, waitTimeout, "worker ran")
+	core.AssertNoError(t, errs[0], "worker context")
 
 	shutdownWithin(t, s)
 	assertWaitReturns(t, s, "Wait")
@@ -318,12 +303,8 @@ func runTestStreamSessionGoFails(t *testing.T) {
 		return errWorker
 	})
 
-	select {
-	case err := <-got:
-		core.AssertErrorIs(t, err, errWorker, "OnError cause")
-	case <-time.After(2 * time.Second):
-		t.Fatal("OnError did not fire")
-	}
+	errs := core.AssertMustReceives(t, got, 1, waitTimeout, "OnError")
+	core.AssertErrorIs(t, errs[0], errWorker, "OnError cause")
 
 	core.AssertErrorIs(t, waitWithin(t, s, "Wait"), errWorker, "Wait cause")
 }
@@ -345,24 +326,16 @@ func runTestStreamSessionGoCatchAbsorbs(t *testing.T) {
 		return nil
 	})
 
-	select {
-	case err := <-caught:
-		core.AssertErrorIs(t, err, errWorker, "caught")
-	case <-time.After(2 * time.Second):
-		t.Fatal("catch did not run")
-	}
+	errs := core.AssertMustReceives(t, caught, 1, waitTimeout, "catch ran")
+	core.AssertErrorIs(t, errs[0], errWorker, "caught")
 	core.AssertNoError(t, s.Err(), "Err")
 
 	shutdownWithin(t, s)
 	assertWaitReturns(t, s, "Wait")
 
 	// OnError saw the shutdown, not the absorbed error.
-	select {
-	case err := <-got:
-		core.AssertNotErrorIs(t, err, errWorker, "OnError cause")
-	case <-time.After(2 * time.Second):
-		t.Fatal("OnError did not fire on shutdown")
-	}
+	errs = core.AssertMustReceives(t, got, 1, waitTimeout, "OnError")
+	core.AssertNotErrorIs(t, errs[0], errWorker, "OnError cause")
 }
 
 // TestStreamSessionReaderEOF verifies a clean remote EOF ends the
@@ -411,23 +384,12 @@ func TestStreamSessionOnErrorFiresOnParentCancel(t *testing.T) {
 	wantErr := errors.New("parent cancelled")
 	cancel(wantErr)
 
-	select {
-	case err := <-got:
-		core.AssertErrorIs(t, err, wantErr, "OnError cause")
-	case <-time.After(2 * time.Second):
-		t.Fatal("OnError did not fire")
-	}
+	errs := core.AssertMustReceives(t, got, 1, waitTimeout, "OnError")
+	core.AssertErrorIs(t, errs[0], wantErr, "OnError cause")
 
 	// the cause recorded by the parent cancellation is what Wait
 	// surfaces once the workers wind down.
-	done := make(chan error, 1)
-	go func() { done <- s.Wait() }()
-	select {
-	case err := <-done:
-		core.AssertErrorIs(t, err, wantErr, "Wait cause")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Wait did not return")
-	}
+	core.AssertErrorIs(t, waitWithin(t, s, "Wait"), wantErr, "Wait cause")
 }
 
 // TestStreamSessionShutdownUnblocksReader verifies a shutdown frees a
@@ -454,13 +416,10 @@ func TestStreamSessionShutdownUnblocksReader(t *testing.T) {
 	core.AssertMustNoError(t, s.Spawn(), "Spawn")
 
 	go func() { _, _ = c2.Write([]byte("stuck\n")) }()
-	select {
-	case <-reading:
-	case <-time.After(2 * time.Second):
-		t.Fatal("reader did not reach the delivery point")
-	}
+	core.AssertMustReceives(t, reading, 1, waitTimeout,
+		"reader at delivery point")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertErrorIs(t, s.Shutdown(ctx), context.Canceled, "Shutdown")
 	assertWaitReturns(t, s, "Wait after shutdown")
