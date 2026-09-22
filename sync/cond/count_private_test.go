@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"darvaza.org/core"
-	"darvaza.org/x/sync/internal/synctesting"
 )
 
 // countTestTimeout and countOpenGuard mirror the bounds declared in
@@ -103,12 +102,12 @@ func TestCountWaitFnAbortDuringAcquire(t *testing.T) {
 		gotErr = c.WaitFnAbort(abort, nil)
 	}()
 
-	synctesting.AssertMustOpen(t, done, countOpenGuard,
+	core.AssertMustOpen(t, done, countOpenGuard,
 		"WaitFnAbort blocks while token is held externally")
 
 	close(abort)
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitFnAbort returned after abort during Acquire")
 	core.AssertErrorIs(t, gotErr, context.Canceled,
 		"WaitFnAbort returns context.Canceled on abort during Acquire")
