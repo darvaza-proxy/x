@@ -7,7 +7,6 @@ import (
 	"darvaza.org/core"
 	"darvaza.org/x/sync/cond"
 	"darvaza.org/x/sync/errors"
-	"darvaza.org/x/sync/internal/synctesting"
 )
 
 // countZeroStateTestCase exercises IsNil and IsClosed for the same
@@ -373,12 +372,12 @@ func TestCountZeroWait(t *testing.T) {
 		gotErr = c.Wait()
 	}()
 
-	synctesting.AssertMustOpen(t, done, countOpenGuard,
+	core.AssertMustOpen(t, done, countOpenGuard,
 		"Wait blocks while value is non-zero")
 
 	c.Dec()
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"Wait returns after counter reaches zero")
 	core.AssertNoError(t, gotErr, "Wait result")
 }
@@ -416,7 +415,7 @@ func TestCountZeroWaitContextSuccess(t *testing.T) {
 
 	c.Dec()
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitContext returned")
 	core.AssertNoError(t, gotErr, "WaitContext result")
 }
@@ -439,7 +438,7 @@ func TestCountZeroWaitContextCancelled(t *testing.T) {
 
 	cancel()
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitContext returned after cancel")
 	core.AssertErrorIs(t, gotErr, context.Canceled,
 		"WaitContext returns ctx.Err()")
@@ -479,7 +478,7 @@ func TestCountZeroWaitAbortSuccess(t *testing.T) {
 
 	c.Dec()
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitAbort returned")
 	core.AssertNoError(t, gotErr, "WaitAbort result")
 }
@@ -502,7 +501,7 @@ func TestCountZeroWaitAbortAborted(t *testing.T) {
 
 	close(abort)
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitAbort returned after abort")
 	core.AssertErrorIs(t, gotErr, context.Canceled,
 		"WaitAbort returns context.Canceled on abort")
@@ -528,11 +527,11 @@ func TestCountZeroBroadcastOnZero(t *testing.T) {
 
 	c.Dec()
 	c.Dec()
-	synctesting.AssertMustOpen(t, done, countOpenGuard,
+	core.AssertMustQuiet(t, done, countOpenGuard,
 		"waiters block while value is non-zero")
 
 	c.Dec()
 
-	synctesting.AssertMustReadersReady(t, done, waiters,
+	core.AssertMustReceives(t, done, waiters,
 		countTestTimeout, "all waiters wake after zero")
 }

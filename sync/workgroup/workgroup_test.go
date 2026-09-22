@@ -9,7 +9,6 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/x/sync/errors"
-	"darvaza.org/x/sync/internal/synctesting"
 	"darvaza.org/x/sync/workgroup"
 )
 
@@ -81,7 +80,7 @@ func runTestContextCancelledByParent(t *testing.T) {
 	ctx := wg.Context()
 
 	cancel()
-	synctesting.AssertEventually(t,
+	core.AssertEventually(t,
 		func() bool { return errors.Is(ctx.Err(), context.Canceled) },
 		100*time.Millisecond, "ctx cancelled")
 }
@@ -156,7 +155,7 @@ func runTestIsCancelledTrueAfterParent(t *testing.T) {
 
 	wg := workgroup.New(parentCtx)
 	cancel()
-	synctesting.AssertEventually(t, wg.IsCancelled, 100*time.Millisecond, "cancelled")
+	core.AssertEventually(t, wg.IsCancelled, 100*time.Millisecond, "cancelled")
 }
 
 // TestGroup_Cancelled tests the Cancelled method.
@@ -171,7 +170,7 @@ func runTestCancelledReturnsChannel(t *testing.T) {
 	wg := workgroup.New(context.Background())
 	ch := wg.Cancelled()
 	core.AssertNotNil(t, ch, "channel")
-	synctesting.AssertOpen(t, ch, 10*time.Millisecond, "initial open")
+	core.AssertOpen(t, ch, 10*time.Millisecond, "initial open")
 }
 
 func runTestCancelledPanicsOnNil(t *testing.T) {
@@ -187,7 +186,7 @@ func runTestCancelledChannelClosedAfterCancel(t *testing.T) {
 	ch := wg.Cancelled()
 
 	wg.Cancel(nil)
-	synctesting.AssertClosed(t, ch, 100*time.Millisecond, "closed after cancel")
+	core.AssertClosed(t, ch, 100*time.Millisecond, "closed after cancel")
 }
 
 // TestGroup_Done tests the Done method.
@@ -216,7 +215,7 @@ func runTestDonePanicsOnNil(t *testing.T) {
 func runTestDoneChannelClosedWhenNoTasks(t *testing.T) {
 	t.Helper()
 	wg := workgroup.New(context.Background())
-	synctesting.AssertClosed(t, wg.Done(), 100*time.Millisecond, "no tasks")
+	core.AssertClosed(t, wg.Done(), 100*time.Millisecond, "no tasks")
 }
 
 func runTestDoneChannelClosedAfterTasks(t *testing.T) {
@@ -228,8 +227,8 @@ func runTestDoneChannelClosedAfterTasks(t *testing.T) {
 	})
 
 	ch := wg.Done()
-	synctesting.AssertMustOpen(t, ch, 10*time.Millisecond, "open while task runs")
-	synctesting.AssertClosed(t, ch, 200*time.Millisecond, "closed after task")
+	core.AssertMustOpen(t, ch, 10*time.Millisecond, "open while task runs")
+	core.AssertClosed(t, ch, 200*time.Millisecond, "closed after task")
 }
 
 func runTestDoneMultipleCallsSameChannel(t *testing.T) {
@@ -410,7 +409,7 @@ func runTestOnCancelHandlerFires(t *testing.T) {
 	}
 
 	wg.Cancel(nil)
-	synctesting.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
+	core.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
 		"handler fired")
 	core.AssertNoError(t, wg.Wait(), "wait")
 }
@@ -430,7 +429,7 @@ func runTestOnCancelReceivesLiveContext(t *testing.T) {
 	}
 
 	wg.Cancel(nil)
-	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+	core.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
 		"handler ran")
 	core.AssertNoError(t, observedErr, "ctx.Err() inside handler")
 	core.AssertNoError(t, wg.Wait(), "wait")
@@ -456,7 +455,7 @@ func runTestOnCancelContextRetainsValues(t *testing.T) {
 	}
 
 	wg.Cancel(nil)
-	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+	core.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
 		"handler ran")
 	if got, ok := core.AssertTypeIs[string](t, received, "value type"); ok {
 		core.AssertEqual(t, testVal, got, "value carried into handler")
@@ -477,7 +476,7 @@ func runTestOnCancelReceivesCause(t *testing.T) {
 	}
 
 	wg.Cancel(customErr)
-	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+	core.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
 		"handler ran")
 	core.AssertErrorIs(t, received, customErr, "cause")
 	core.AssertErrorIs(t, wg.Wait(), customErr, "wait err")
@@ -495,7 +494,7 @@ func runTestOnCancelReceivesContextCanceledForNilCause(t *testing.T) {
 	}
 
 	wg.Cancel(nil)
-	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+	core.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
 		"handler ran")
 	core.AssertErrorIs(t, received, context.Canceled, "cause")
 	core.AssertNoError(t, wg.Wait(), "wait")
@@ -511,7 +510,7 @@ func runTestOnCancelNotCalledWithoutCancel(t *testing.T) {
 	}
 
 	core.AssertNoError(t, wg.Wait(), "wait")
-	synctesting.AssertOpen(t, handlerRan, 50*time.Millisecond,
+	core.AssertOpen(t, handlerRan, 50*time.Millisecond,
 		"handler not called")
 }
 
@@ -546,7 +545,7 @@ func runTestOnCancelHandlerPanicContained(t *testing.T) {
 	}
 
 	wg.Cancel(nil)
-	synctesting.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
+	core.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
 		"handler ran")
 	core.AssertNoError(t, wg.Wait(), "wait returns after contained panic")
 }
@@ -561,7 +560,7 @@ func runTestOnCancelFiresOnClose(t *testing.T) {
 	}
 
 	core.AssertNoError(t, wg.Close(), "close")
-	synctesting.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
+	core.AssertMustClosed(t, handlerRan, 100*time.Millisecond,
 		"handler fired before Close returned")
 }
 
@@ -580,7 +579,7 @@ func runTestOnCancelFiresOnParentCancel(t *testing.T) {
 	}
 
 	cancel()
-	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+	core.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
 		"handler ran on parent cancel")
 	core.AssertErrorIs(t, received, context.Canceled, "cause")
 	core.AssertNoError(t, wg.Wait(), "wait")
@@ -602,7 +601,7 @@ func runTestOnCancelReceivesParentCancelCause(t *testing.T) {
 	}
 
 	cancel(customErr)
-	synctesting.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
+	core.AssertMustClosed(t, receivedCh, 100*time.Millisecond,
 		"handler ran on parent cancel")
 	core.AssertErrorIs(t, received, customErr, "cause")
 	core.AssertErrorIs(t, wg.Wait(), customErr, "wait err")
@@ -696,7 +695,7 @@ func runTestGoNilFunc(t *testing.T) {
 		_ = wg.Wait()
 		close(done)
 	}()
-	synctesting.AssertClosed(t, done, 100*time.Millisecond, "wait immediate")
+	core.AssertClosed(t, done, 100*time.Millisecond, "wait immediate")
 }
 
 func runTestGoExecutesTask(t *testing.T) {
@@ -796,7 +795,7 @@ func runTestIntegrationConcurrentCancel(t *testing.T) {
 		}), "Go")
 	}
 
-	synctesting.AssertMustEventually(t,
+	core.AssertMustEventually(t,
 		func() bool { return started.Load() == numTasks },
 		200*time.Millisecond, "all started")
 
@@ -1003,7 +1002,7 @@ func (fx *concurrentGoFixture) enrol() {
 // as the canceller's failure instead of parking the test; the Group is
 // cancelled either way so the tasks do not wait out their fallback.
 func (fx *concurrentGoFixture) cancel() {
-	synctesting.AssertClosed(fx.t, fx.ready, concurrentTaskBlock,
+	core.AssertClosed(fx.t, fx.ready, concurrentTaskBlock,
 		"round ready")
 	fx.wg.Cancel(errConcurrentCancel)
 }
@@ -1095,7 +1094,7 @@ func runTestConcurrentDoneChannels(t *testing.T) {
 		core.AssertSame(t, channels[0], channels[i], "channel %d", i)
 	}
 
-	synctesting.AssertMustClosed(t, channels[0], 200*time.Millisecond,
+	core.AssertMustClosed(t, channels[0], 200*time.Millisecond,
 		"shared Done across %d goroutines", numGoroutines)
 	core.AssertNoError(t, wg.Wait(), "wait")
 }
@@ -1141,7 +1140,7 @@ func runOneDoneGeneration(t *testing.T, wg *workgroup.Group, i int,
 	if prev != nil {
 		core.AssertNotSame(t, prev, ch, "fresh generation iter %d", i)
 	}
-	synctesting.AssertMustOpen(t, ch, 10*time.Millisecond,
+	core.AssertMustOpen(t, ch, 10*time.Millisecond,
 		"open while task runs iter %d", i)
 
 	for k, got := range concurrentFetchDone(wg, doneGenFetchers) {
@@ -1149,7 +1148,7 @@ func runOneDoneGeneration(t *testing.T, wg *workgroup.Group, i int,
 	}
 
 	close(release)
-	synctesting.AssertMustClosed(t, ch, 100*time.Millisecond,
+	core.AssertMustClosed(t, ch, 100*time.Millisecond,
 		"closed on drain iter %d", i)
 	core.AssertNoError(t, wg.Wait(), "wait iter %d", i)
 	return ch
@@ -1367,7 +1366,7 @@ func runTestFenceCancelBeforeWaitWaitsForHandler(t *testing.T) {
 	}
 
 	wg.Cancel(nil)
-	synctesting.AssertMustClosed(t, handlerEntered, 100*time.Millisecond,
+	core.AssertMustClosed(t, handlerEntered, 100*time.Millisecond,
 		"handler entered")
 
 	waitDone := make(chan struct{})
@@ -1377,11 +1376,11 @@ func runTestFenceCancelBeforeWaitWaitsForHandler(t *testing.T) {
 	}()
 
 	// Wait must be blocked while the handler is held in `release`.
-	synctesting.AssertOpen(t, waitDone, 50*time.Millisecond,
+	core.AssertOpen(t, waitDone, 50*time.Millisecond,
 		"wait blocked on handler")
 
 	close(release)
-	synctesting.AssertMustClosed(t, waitDone, 100*time.Millisecond,
+	core.AssertMustClosed(t, waitDone, 100*time.Millisecond,
 		"wait completed after handler")
 }
 
@@ -1397,17 +1396,17 @@ func runTestFenceCancelBeforeWaitDoneWaitsForHandler(t *testing.T) {
 	}
 
 	wg.Cancel(nil)
-	synctesting.AssertMustClosed(t, handlerEntered, 100*time.Millisecond,
+	core.AssertMustClosed(t, handlerEntered, 100*time.Millisecond,
 		"handler entered")
 
 	doneCh := wg.Done()
 
 	// Done channel must remain open while the handler is held.
-	synctesting.AssertOpen(t, doneCh, 50*time.Millisecond,
+	core.AssertOpen(t, doneCh, 50*time.Millisecond,
 		"done channel blocked on handler")
 
 	close(release)
-	synctesting.AssertMustClosed(t, doneCh, 100*time.Millisecond,
+	core.AssertMustClosed(t, doneCh, 100*time.Millisecond,
 		"done channel closed after handler")
 }
 
@@ -1620,7 +1619,7 @@ func runTestGoCatchNilFunc(t *testing.T) {
 		_ = wg.Wait()
 		close(done)
 	}()
-	synctesting.AssertClosed(t, done, 100*time.Millisecond, "wait immediate")
+	core.AssertClosed(t, done, 100*time.Millisecond, "wait immediate")
 }
 
 func runTestGoCatchSuccessfulTask(t *testing.T) {
@@ -1786,7 +1785,7 @@ func runTestGoShutdownServerPattern(t *testing.T) {
 		time.Second,
 	), "GoShutdown")
 
-	synctesting.AssertMustEventually(t, served.Load, 100*time.Millisecond,
+	core.AssertMustEventually(t, served.Load, 100*time.Millisecond,
 		"server started")
 	wg.Cancel(nil)
 	core.AssertNoError(t, wg.Wait(), "wait after shutdown stopped fn")
@@ -1997,10 +1996,10 @@ func runTestGoShutdownWatcherMode(t *testing.T) {
 		func(_ context.Context) { close(shutdownRan) }, time.Second),
 		"GoShutdown")
 
-	synctesting.AssertMustOpen(t, shutdownRan, 50*time.Millisecond,
+	core.AssertMustOpen(t, shutdownRan, 50*time.Millisecond,
 		"shutdown waits for cancellation")
 	wg.Cancel(nil)
-	synctesting.AssertMustClosed(t, shutdownRan, 100*time.Millisecond,
+	core.AssertMustClosed(t, shutdownRan, 100*time.Millisecond,
 		"shutdown ran on cancel")
 	core.AssertNoError(t, wg.Wait(), "wait")
 }
@@ -2044,7 +2043,7 @@ func runTestGoShutdownBothNil(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() { _ = wg.Wait(); close(done) }()
-	synctesting.AssertClosed(t, done, 100*time.Millisecond, "wait immediate")
+	core.AssertClosed(t, done, 100*time.Millisecond, "wait immediate")
 }
 
 // goShutdownCancelledCase exercises one GoShutdown enrolment arm against

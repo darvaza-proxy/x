@@ -61,18 +61,16 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 
 #### internal/synctesting Package (test-only)
 
-Timing-aware Assert* helpers for tests that wait on channels or
-synchronisation primitives. Consumed by sibling test suites in `sync/`
-via the `internal/` visibility boundary; not part of the public API.
+Benchmark reporting for the TryLock-style benchmarks. Consumed by
+sibling test suites in `sync/` via the `internal/` visibility boundary;
+not part of the public API. Channel and timing assertions come from
+`darvaza.org/core`.
 
-- **`WaitForCond`**: pure-primitive predicate polling.
-- **`AssertEventually`/`AssertMustEventually`**: wait for a predicate
-  to become true within a budget.
-- **`AssertClosed`/`AssertMustClosed`**: wait for a channel to become
-  readable (close-to-signal idiom).
-- **`AssertOpen`/`AssertMustOpen`**: assert a channel stays open.
-- **`AssertReadersReady`/`AssertMustReadersReady`**: collect n values
-  from a channel within a shared timeout; close-before-n is failure.
+- **`ReportTryMetrics`**: report the attempts-per-acquisition,
+  acquisitions-per-second and nanoseconds-per-attempt ratios of a
+  TryLock benchmark.
+- **`MetricReporter`**: the `*testing.B` subset `ReportTryMetrics`
+  needs, taken as an interface so a test can record what was emitted.
 
 ## Architecture Notes
 
@@ -106,9 +104,11 @@ Tests focus on:
 - Performance benchmarks (especially for spinlock and count).
 - Edge cases (nil receivers, double initialization).
 
-For tests that wait on channels or synchronisation primitives, use the
-timing-aware helpers in `internal/synctesting` rather than ad-hoc
-`time.After` or polling loops.
+For tests that wait on channels or synchronisation primitives, use
+`core.AssertEventually`, `core.AssertClosed`, `core.AssertQuiet` and
+`core.AssertReceives` rather than ad-hoc `time.After` or polling loops.
+`AssertQuiet` is the one for a signal that must be withheld: `AssertOpen`
+consumes the value and passes.
 
 ## Common Usage Patterns
 

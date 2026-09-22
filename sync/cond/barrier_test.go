@@ -7,7 +7,6 @@ import (
 	"darvaza.org/core"
 	"darvaza.org/x/sync/cond"
 	"darvaza.org/x/sync/errors"
-	"darvaza.org/x/sync/internal/synctesting"
 )
 
 // barrierTestTimeout caps each foreground synchronisation step. Generous
@@ -280,7 +279,7 @@ func TestBarrierAcquireRelease(t *testing.T) {
 	token := <-b.Acquire()
 	core.AssertMustNotNil(t, token, "first acquire")
 
-	synctesting.AssertOpen(t, b.Acquire(), barrierOpenGuard,
+	core.AssertQuiet(t, b.Acquire(), barrierOpenGuard,
 		"second acquire blocked while held")
 
 	b.Release(token)
@@ -317,7 +316,7 @@ func TestBarrierBroadcast(t *testing.T) {
 
 	b.Broadcast()
 
-	synctesting.AssertClosed(t, original, barrierTestTimeout,
+	core.AssertClosed(t, original, barrierTestTimeout,
 		"original token closed after Broadcast")
 
 	replacement := b.Token()
@@ -335,12 +334,14 @@ func TestBarrierSignaled(t *testing.T) {
 	ch := b.Signaled()
 	core.AssertMustNotNil(t, ch, "Signaled channel")
 
-	synctesting.AssertOpen(t, ch, barrierOpenGuard,
-		"Signaled open before Broadcast")
+	// the Token carries Signal's sends as well as Broadcast's close, so
+	// nothing at all may arrive before the Broadcast.
+	core.AssertQuiet(t, ch, barrierOpenGuard,
+		"Signaled quiet before Broadcast")
 
 	b.Broadcast()
 
-	synctesting.AssertClosed(t, ch, barrierTestTimeout,
+	core.AssertClosed(t, ch, barrierTestTimeout,
 		"Signaled closed after Broadcast")
 }
 
@@ -356,12 +357,12 @@ func TestBarrierWait(t *testing.T) {
 		close(done)
 	}()
 
-	synctesting.AssertOpen(t, done, barrierOpenGuard,
+	core.AssertOpen(t, done, barrierOpenGuard,
 		"Wait blocks before Broadcast")
 
 	b.Broadcast()
 
-	synctesting.AssertClosed(t, done, barrierTestTimeout,
+	core.AssertClosed(t, done, barrierTestTimeout,
 		"Wait returns after Broadcast")
 }
 
@@ -369,11 +370,17 @@ func TestBarrierWait(t *testing.T) {
 // false with no waiter, true once a waiter has parked on the Token
 // receive, and false on a closed Barrier. The polling loop bounds the
 // inherent race between starting the waiter goroutine and the Token
-// receive.
+// receive. A woken waiter leaves the Token open, since closing it is
+// Broadcast's job.
 func TestBarrierSignal(t *testing.T) {
 	b := cond.NewBarrier()
 
 	core.AssertEqual(t, false, b.Signal(), "Signal without waiter")
+
+	// the live Token, held so the check after the Signal reads the same
+	// channel the waiter parks on: Signaled re-reads the current one,
+	// which Broadcast would have replaced.
+	ch := b.Signaled()
 
 	waited := make(chan struct{})
 	go func() {
@@ -381,12 +388,14 @@ func TestBarrierSignal(t *testing.T) {
 		close(waited)
 	}()
 
-	signaled := synctesting.WaitForCond(b.Signal, barrierTestTimeout,
-		synctesting.PollStep)
-	core.AssertTrue(t, signaled, "Signal eventually succeeds with waiter")
+	core.AssertEventually(t, b.Signal, barrierTestTimeout,
+		"Signal eventually succeeds with waiter")
 
-	synctesting.AssertClosed(t, waited, barrierTestTimeout,
+	core.AssertClosed(t, waited, barrierTestTimeout,
 		"waiter released after Signal")
+
+	core.AssertQuiet(t, ch, barrierOpenGuard,
+		"Token quiet after Signal")
 
 	_ = b.Close()
 	core.AssertEqual(t, false, b.Signal(), "Signal after Close")
@@ -445,7 +454,7 @@ func TestBarrierWaitAfterClose(t *testing.T) {
 		close(done)
 	}()
 
-	synctesting.AssertOpen(t, done, barrierOpenGuard,
+	core.AssertOpen(t, done, barrierOpenGuard,
 		"Wait on closed Barrier blocks (current design)")
 }
 
@@ -491,7 +500,7 @@ func TestBarrierConcurrent(t *testing.T) {
 		}()
 	}
 
-	synctesting.AssertReadersReady(t, done, n, barrierTestTimeout,
+	core.AssertReceives(t, done, n, barrierTestTimeout,
 		"all goroutines acquire-release")
 
 	token, ok := b.TryAcquire()
@@ -529,7 +538,7 @@ func TestBarrierConcurrentClose(t *testing.T) {
 		}()
 	}
 
-	synctesting.AssertMustReadersReady(t, started, goroutines,
+	core.AssertMustReceives(t, started, goroutines,
 		barrierTestTimeout, "Close goroutines started")
 
 	// Both goroutines have signalled started; give them time to
@@ -538,7 +547,7 @@ func TestBarrierConcurrentClose(t *testing.T) {
 
 	b.Release(token)
 
-	synctesting.AssertMustEventually(t, func() bool {
+	core.AssertMustEventually(t, func() bool {
 		return len(results) == goroutines
 	}, barrierTestTimeout, "both Close goroutines return")
 
@@ -569,11 +578,11 @@ func TestTokenWait(t *testing.T) {
 		close(done)
 	}()
 
-	synctesting.AssertOpen(t, done, barrierOpenGuard,
+	core.AssertOpen(t, done, barrierOpenGuard,
 		"Wait blocks before close")
 
 	close(token)
 
-	synctesting.AssertClosed(t, done, barrierTestTimeout,
+	core.AssertClosed(t, done, barrierTestTimeout,
 		"Wait returns after close")
 }

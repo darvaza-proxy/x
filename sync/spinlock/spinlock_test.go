@@ -129,12 +129,12 @@ func TestSpinLock_LockBlocks(t *testing.T) {
 		close(done)
 	}()
 
-	synctesting.AssertMustOpen(t, done, spinlockOpenGuard,
+	core.AssertMustOpen(t, done, spinlockOpenGuard,
 		"Lock blocks while the spinlock is held")
 
 	sl.Unlock()
 
-	synctesting.AssertMustClosed(t, done, spinlockTestTimeout,
+	core.AssertMustClosed(t, done, spinlockTestTimeout,
 		"Lock acquires once the spinlock is released")
 
 	// release the goroutine's acquisition
@@ -158,7 +158,7 @@ func TestSpinLock_TryLockDoesNotBlock(t *testing.T) {
 		close(done)
 	}()
 
-	synctesting.AssertMustClosed(t, done, spinlockTestTimeout,
+	core.AssertMustClosed(t, done, spinlockTestTimeout,
 		"TryLock returns while the spinlock is held")
 	core.AssertFalse(t, acquired.Load(),
 		"TryLock while held by another goroutine")

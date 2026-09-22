@@ -10,7 +10,6 @@ import (
 	"darvaza.org/x/sync/atomic"
 	"darvaza.org/x/sync/cond"
 	"darvaza.org/x/sync/errors"
-	"darvaza.org/x/sync/internal/synctesting"
 )
 
 // countTestTimeout caps each foreground synchronisation step. Generous
@@ -502,12 +501,12 @@ func TestCountWait(t *testing.T) {
 		close(done)
 	}()
 
-	synctesting.AssertMustOpen(t, done, countOpenGuard,
+	core.AssertMustOpen(t, done, countOpenGuard,
 		"Wait blocks while value is non-zero")
 
 	c.Dec()
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"Wait returns after counter reaches zero")
 }
 
@@ -524,11 +523,11 @@ func TestCountWaitFn(t *testing.T) {
 	}()
 
 	c.Add(3) // 8 — predicate still false
-	synctesting.AssertMustOpen(t, done, countOpenGuard,
+	core.AssertMustOpen(t, done, countOpenGuard,
 		"WaitFn blocks while predicate is false")
 
 	c.Add(2) // 10 — predicate now true
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitFn returns once predicate holds")
 }
 
@@ -574,7 +573,7 @@ func TestCountWaitFnContextSuccess(t *testing.T) {
 
 	c.Dec()
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitFnContext returned")
 	core.AssertNoError(t, gotErr, "WaitFnContext result")
 }
@@ -596,7 +595,7 @@ func TestCountWaitFnContextCancelled(t *testing.T) {
 
 	cancel()
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitFnContext returned after cancel")
 	core.AssertErrorIs(t, gotErr, context.Canceled,
 		"WaitFnContext returns ctx.Err()")
@@ -637,7 +636,7 @@ func TestCountWaitFnAbortSuccess(t *testing.T) {
 
 	c.Dec()
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitFnAbort returned")
 	core.AssertNoError(t, gotErr, "WaitFnAbort result")
 }
@@ -660,7 +659,7 @@ func TestCountWaitFnAbortAborted(t *testing.T) {
 
 	close(abort)
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"WaitFnAbort returned after abort")
 	core.AssertErrorIs(t, gotErr, context.Canceled,
 		"WaitFnAbort returns context.Canceled on abort")
@@ -684,12 +683,10 @@ func TestCountSignal(t *testing.T) {
 		})
 	}()
 
-	signaled := synctesting.WaitForCond(c.Signal, countTestTimeout,
-		synctesting.PollStep)
-	core.AssertTrue(t, signaled,
+	core.AssertEventually(t, c.Signal, countTestTimeout,
 		"Signal eventually wakes the parked waiter")
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"predicate ran after Signal")
 
 	_ = c.Close()
@@ -734,7 +731,7 @@ func TestCountBroadcast(t *testing.T) {
 		go broadcastWaiter(c, bit, allMask, &notified, ready, allNotified)
 	}
 
-	synctesting.AssertMustReadersReady(t, ready, numWaiters,
+	core.AssertMustReceives(t, ready, numWaiters,
 		countTestTimeout, "all waiters ready")
 
 	// Let the waiters park inside WaitFn before broadcasting; the
@@ -743,7 +740,7 @@ func TestCountBroadcast(t *testing.T) {
 
 	c.Broadcast()
 
-	synctesting.AssertMustClosed(t, allNotified, countTestTimeout,
+	core.AssertMustClosed(t, allNotified, countTestTimeout,
 		"all waiters notified")
 	core.AssertEqual(t, allMask, notified.Load(),
 		"all bits set in notified mask")
@@ -764,11 +761,11 @@ func TestCountBroadcastCondition(t *testing.T) {
 	}()
 
 	c.Inc() // 1 — 1 % 10 != 0, no broadcast
-	synctesting.AssertMustOpen(t, done, countOpenGuard,
+	core.AssertMustOpen(t, done, countOpenGuard,
 		"waiter not woken by non-broadcast Inc")
 
 	c.Add(9) // 10 — 10 % 10 == 0, broadcast
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"waiter woken by broadcast condition")
 }
 
@@ -809,7 +806,7 @@ func TestCountMultipleBroadcastConditions(t *testing.T) {
 		})
 	}()
 
-	synctesting.AssertMustClosed(t, readyCh, countTestTimeout,
+	core.AssertMustClosed(t, readyCh, countTestTimeout,
 		"waiter entered predicate")
 	// Let the waiter park at the barrier receive between predicate
 	// re-runs before firing the first transition.
@@ -828,13 +825,13 @@ func TestCountMultipleBroadcastConditions(t *testing.T) {
 	for _, step := range steps {
 		prev := notified.Load()
 		step.op(c)
-		synctesting.AssertMustEventually(t, func() bool {
+		core.AssertMustEventually(t, func() bool {
 			return notified.Load() > prev
 		}, countTestTimeout, "notified incremented after "+step.name)
 	}
 
 	_ = c.Close()
-	synctesting.AssertMustClosed(t, waiter, countTestTimeout,
+	core.AssertMustClosed(t, waiter, countTestTimeout,
 		"waiter exited on Close")
 }
 
@@ -858,19 +855,19 @@ func TestCountNoBroadcastConditions(t *testing.T) {
 		})
 	}()
 
-	synctesting.AssertMustClosed(t, readyCh, countTestTimeout,
+	core.AssertMustClosed(t, readyCh, countTestTimeout,
 		"waiter entered predicate")
 	time.Sleep(countOpenGuard)
 
 	prev := notified.Load()
 	c.Inc()
-	synctesting.AssertMustEventually(t, func() bool {
+	core.AssertMustEventually(t, func() bool {
 		return notified.Load() > prev
 	}, countTestTimeout,
 		"notified incremented after Inc with no broadcast conditions")
 
 	_ = c.Close()
-	synctesting.AssertMustClosed(t, waiter, countTestTimeout,
+	core.AssertMustClosed(t, waiter, countTestTimeout,
 		"waiter exited on Close")
 }
 
@@ -886,12 +883,12 @@ func TestCountResetWithWaiters(t *testing.T) {
 		close(done)
 	}()
 
-	synctesting.AssertMustOpen(t, done, countOpenGuard,
+	core.AssertMustOpen(t, done, countOpenGuard,
 		"WaitFn blocks before Reset")
 
 	core.AssertMustNoError(t, c.Reset(0), "Reset to zero")
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"waiter woken after Reset to zero")
 }
 
@@ -928,7 +925,7 @@ func TestCountConcurrentIncDec(t *testing.T) {
 		go decLoop(c, numOperations, done)
 	}
 
-	synctesting.AssertMustReadersReady(t, done, numGoroutines*2,
+	core.AssertMustReceives(t, done, numGoroutines*2,
 		countTestTimeout, "all goroutines finished")
 
 	core.AssertEqual(t, 0, c.Value(),
@@ -958,7 +955,7 @@ func TestCountConcurrentReadWriteSignal(t *testing.T) {
 		_ = c.Signal()
 	}
 
-	synctesting.AssertMustClosed(t, done, countTestTimeout,
+	core.AssertMustClosed(t, done, countTestTimeout,
 		"concurrent writer completed")
 }
 
@@ -1024,7 +1021,7 @@ func TestCountStress(t *testing.T) {
 		go stressUpdater(ctx, c, numUpdates, done)
 	}
 
-	synctesting.AssertMustReadersReady(t, done, numWaiters+numUpdaters,
+	core.AssertMustReceives(t, done, numWaiters+numUpdaters,
 		6*time.Second, "all goroutines finished")
 
 	core.AssertEqual(t, numUpdaters*numUpdates, c.Value(),

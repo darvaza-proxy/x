@@ -131,12 +131,12 @@ func runTestRLockBlocksWriter(t *testing.T) {
 		s.Unlock()
 	}()
 
-	synctesting.AssertMustOpen(t, writerDone, semaphoreOpenGuard,
+	core.AssertMustOpen(t, writerDone, semaphoreOpenGuard,
 		"writer blocked while reader holds lock")
 
 	s.RUnlock()
 
-	synctesting.AssertMustClosed(t, writerDone, semaphoreTestTimeout,
+	core.AssertMustClosed(t, writerDone, semaphoreTestTimeout,
 		"writer proceeds after reader released")
 }
 
@@ -463,14 +463,14 @@ func runTestWriterAfterReaders(t *testing.T) {
 		defer s.Unlock()
 	}()
 
-	synctesting.AssertMustOpen(t, writerDone, semaphoreOpenGuard,
+	core.AssertMustOpen(t, writerDone, semaphoreOpenGuard,
 		"writer blocked while readers hold lock")
 
 	s.RUnlock()
 	s.RUnlock()
 	s.RUnlock()
 
-	synctesting.AssertMustClosed(t, writerDone, semaphoreTestTimeout,
+	core.AssertMustClosed(t, writerDone, semaphoreTestTimeout,
 		"writer proceeds after all readers released")
 }
 
@@ -491,12 +491,12 @@ func runTestReadersAfterWriter(t *testing.T) {
 		}()
 	}
 
-	synctesting.AssertMustOpen(t, readersDone, semaphoreOpenGuard,
+	core.AssertMustQuiet(t, readersDone, semaphoreOpenGuard,
 		"readers blocked while writer holds lock")
 
 	s.Unlock()
 
-	synctesting.AssertMustReadersReady(t, readersDone, numReaders,
+	core.AssertMustReceives(t, readersDone, numReaders,
 		semaphoreTestTimeout, "all readers acquire after writer released")
 }
 
@@ -521,10 +521,10 @@ func runTestCancelExclusiveWait(t *testing.T) {
 		gotErr = s.LockContext(ctx)
 	}()
 
-	synctesting.AssertMustOpen(t, done, semaphoreOpenGuard,
+	core.AssertMustOpen(t, done, semaphoreOpenGuard,
 		"LockContext blocks while lock held")
 	cancel()
-	synctesting.AssertMustClosed(t, done, semaphoreTestTimeout,
+	core.AssertMustClosed(t, done, semaphoreTestTimeout,
 		"LockContext unblocked by cancel")
 	core.AssertErrorIs(t, gotErr, context.Canceled, "LockContext cancelled")
 }
@@ -544,10 +544,10 @@ func runTestCancelReadWait(t *testing.T) {
 		gotErr = s.RLockContext(ctx)
 	}()
 
-	synctesting.AssertMustOpen(t, done, semaphoreOpenGuard,
+	core.AssertMustOpen(t, done, semaphoreOpenGuard,
 		"RLockContext blocks while writer holds lock")
 	cancel()
-	synctesting.AssertMustClosed(t, done, semaphoreTestTimeout,
+	core.AssertMustClosed(t, done, semaphoreTestTimeout,
 		"RLockContext unblocked by cancel")
 	core.AssertErrorIs(t, gotErr, context.Canceled, "RLockContext cancelled")
 }
@@ -697,14 +697,14 @@ func runTestManyReadLocks(t *testing.T) {
 		s.Unlock()
 	}()
 
-	synctesting.AssertMustOpen(t, writerDone, semaphoreOpenGuard,
+	core.AssertMustOpen(t, writerDone, semaphoreOpenGuard,
 		"writer blocked while 1000 readers hold lock")
 
 	for range numLocks {
 		s.RUnlock()
 	}
 
-	synctesting.AssertMustClosed(t, writerDone, semaphoreTestTimeout,
+	core.AssertMustClosed(t, writerDone, semaphoreTestTimeout,
 		"writer proceeds after all readers released")
 }
 
