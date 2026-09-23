@@ -6,8 +6,8 @@ darvaza.org/slog/handlers/discard v0.8.0 h1:H3O0IWdsddPBYbk4r7KQFlEpeZWFh44+r4uW
 darvaza.org/slog/handlers/discard v0.8.0/go.mod h1:8iBKzh6I3/hzDEbBQtMl15onsU7TwV/SvuXk0BLT7Bw=
 darvaza.org/x/fs v0.8.0 h1:Agcktosw89p2nb13Fa3FRqXKOLxRw49fBaxpgEsd3wg=
 darvaza.org/x/fs v0.8.0/go.mod h1:EwIeIRGB3xPCBaq0R0f7+1un9kdhWgCmeBarUxUewOM=
-darvaza.org/x/sync v0.5.1 h1:zKIINbjtKx8Su5qmthCQ8hS71iACTUnlhrofYGXlFd4=
-darvaza.org/x/sync v0.5.1/go.mod h1:app0MAeFkfB4enN5cvY42d/R1hbKChj1pYYZXudo8Mc=
+darvaza.org/x/sync v0.5.2 h1:rrY+tQhWoFIBk7MEZ4uen3O3BEOXFhxmdVaPww7btIc=
+darvaza.org/x/sync v0.5.2/go.mod h1:z5/6DL4azUixaTSjNqRyy63nuKcvJXFFiKyxOk4/3LE=
 github.com/amery/defaults v0.1.0 h1:4AhTgLUnj8BPjVRBzg4+/cSCwPWPT6+yWCM4rD6Feyc=
 github.com/amery/defaults v0.1.0/go.mod h1:duOYkvd60q8XOL1+vdSHx5ABTGDMU2iFKr5xJnMEpBk=
 github.com/gobwas/glob v0.2.3 h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y=

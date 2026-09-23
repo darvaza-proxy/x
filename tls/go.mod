@@ -6,7 +6,7 @@ require (
 	darvaza.org/core v0.22.1
 	darvaza.org/slog v0.10.0
 	darvaza.org/x/container v0.5.1
-	darvaza.org/x/sync v0.5.1
+	darvaza.org/x/sync v0.5.2
 )
 
 require (
