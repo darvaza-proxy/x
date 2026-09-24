@@ -38,6 +38,11 @@ const addrUnused = "127.0.0.1:1"
 // up a real listener the client can dial.
 const addrLoopbackAny = "127.0.0.1:0"
 
+// waitTimeout bounds every wait on the code under test in this package,
+// so a regression that never answers fails the test instead of hanging
+// the suite.
+const waitTimeout = 2 * time.Second
+
 // acceptAndDrop accepts every connection on lsn and closes it at once,
 // until lsn is closed. Sessions that end themselves only need the
 // listener backlog kept drained.
@@ -86,6 +91,7 @@ func TestClientOnSessionPanic(t *testing.T) {
 
 	// the panic is not fatal, so the do-not-reconnect waiter stops
 	// the client and Wait reports a user-initiated shutdown.
+	core.AssertMustClosed(t, c.Done(), waitTimeout, "client stopped")
 	core.AssertNoError(t, c.Wait(), "Wait")
 
 	// the sentinel only reaches OnError if the panic was recovered and
@@ -135,13 +141,13 @@ func TestClientShutdownUnblocksSession(t *testing.T) {
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
 	// the session is established and about to block on Read.
-	<-reading
+	core.AssertMustClosed(t, reading, waitTimeout, "session reading")
 
 	// Shutdown's own deadline bounds the wait and, on success, only
 	// returns once the workers are done — so it both proves the parked
 	// Read was released and fails cleanly (DeadlineExceeded) on a
 	// regression rather than hanging the suite on an unbounded Wait.
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 }
@@ -204,14 +210,8 @@ func runTestClientDeadlineStopsReconnecting(t *testing.T) {
 	core.AssertMustNoError(t, err, "New")
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
-	var stopped bool
-	select {
-	case <-c.Done():
-		stopped = true
-	case <-time.After(5 * time.Second):
-	}
-
-	core.AssertMustTrue(t, stopped, "stopped after context deadline")
+	core.AssertMustClosed(t, c.Done(), waitTimeout,
+		"stopped after context deadline")
 }
 
 func TestClientContextDeadline(t *testing.T) {
@@ -259,14 +259,8 @@ func TestClientWaiterErrorStops(t *testing.T) {
 	core.AssertMustNoError(t, err, "New")
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
-	var stopped bool
-	select {
-	case <-c.Done():
-		stopped = true
-	case <-time.After(2 * time.Second):
-	}
-
-	core.AssertMustTrue(t, stopped, "stopped after waiter error")
+	core.AssertMustClosed(t, c.Done(), waitTimeout,
+		"stopped after waiter error")
 
 	// the waiter is consulted exactly once and its error ends the
 	// client; a regression would spin it without bound.
@@ -314,22 +308,11 @@ func TestClientParentCancelCause(t *testing.T) {
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
 	// once the session is live, cancel the parent with a custom cause.
-	var ready bool
-	select {
-	case <-sessionReady:
-		ready = true
-	case <-time.After(2 * time.Second):
-	}
-	core.AssertMustTrue(t, ready, "session started")
+	core.AssertMustClosed(t, sessionReady, waitTimeout, "session started")
 	cancel(errParentCause)
 
-	var stopped bool
-	select {
-	case <-c.Done():
-		stopped = true
-	case <-time.After(2 * time.Second):
-	}
-	core.AssertMustTrue(t, stopped, "stopped after parent cancel")
+	core.AssertMustClosed(t, c.Done(), waitTimeout,
+		"stopped after parent cancel")
 
 	core.AssertErrorIs(t, c.Wait(), errParentCause, "Wait")
 	core.AssertErrorIs(t, c.Err(), errParentCause, "Err")
@@ -353,7 +336,7 @@ func TestClientGoAfterShutdownNoop(t *testing.T) {
 
 	// shut down before any work is submitted; with no workers Shutdown
 	// returns promptly and reports a clean, user-initiated stop.
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	ctx, cancel := core.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 
@@ -421,9 +404,9 @@ func runTestClientGoClean(t *testing.T) {
 		close(ran)
 		return nil
 	})
-	assertClosedWithin(t, ran, "worker ran")
+	core.AssertMustClosed(t, ran, waitTimeout, "worker ran")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	ctx, cancel := core.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 	core.AssertTrue(t, errs.OK(), "errors")
@@ -447,9 +430,9 @@ func runTestClientGoAbsorbed(t *testing.T) {
 		defer close(seen)
 		return err
 	})
-	assertClosedWithin(t, seen, "catch ran")
+	core.AssertMustClosed(t, seen, waitTimeout, "catch ran")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	ctx, cancel := core.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 	core.AssertErrorIs(t, errs.AsError(), errWorker, "OnError")
@@ -474,9 +457,9 @@ func runTestClientGoWorkerPanic(t *testing.T) {
 		caught = err
 		return err
 	})
-	assertClosedWithin(t, seen, "catch ran")
+	core.AssertMustClosed(t, seen, waitTimeout, "catch ran")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	ctx, cancel := core.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 	core.AssertErrorIs(t, caught, errPanic, "caught")
@@ -502,9 +485,9 @@ func runTestClientGoCatchPanic(t *testing.T) {
 		close(seen)
 		panic(errPanic)
 	})
-	assertClosedWithin(t, seen, "catch ran")
+	core.AssertMustClosed(t, seen, waitTimeout, "catch ran")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	ctx, cancel := core.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 	core.AssertErrorIs(t, errs.AsError(), errPanic, "OnError")
@@ -529,7 +512,7 @@ func runTestClientGoCatchFatal(t *testing.T) {
 		caught = err
 		return reconnect.ErrDoNotReconnect
 	})
-	assertClosedWithin(t, c.Done(), "client stopped")
+	core.AssertMustClosed(t, c.Done(), waitTimeout, "client stopped")
 
 	core.AssertErrorIs(t, caught, errWorker, "caught")
 	core.AssertNoError(t, c.Wait(), "Wait")
@@ -686,23 +669,6 @@ func newReconnectWaiter(permit int32, stop error) (
 	return fn, calls
 }
 
-// clientStopTimeout bounds how long a stopped client may take to close
-// its Done channel before the wait is treated as a hang.
-const clientStopTimeout = 2 * time.Second
-
-// assertStopped fails unless the client's Done channel closes before
-// ctx expires, turning a stuck client into a clean failure rather than
-// a hung suite.
-func assertStopped(ctx context.Context, t *testing.T, c *reconnect.Client) {
-	t.Helper()
-
-	select {
-	case <-c.Done():
-	case <-ctx.Done():
-		t.Fatal("client did not stop in time")
-	}
-}
-
 // countMatchingErrors reports how many errors in errs match target.
 func countMatchingErrors(errs []error, target error) int {
 	var n int
@@ -750,9 +716,7 @@ func TestClientReconnectDialFails(t *testing.T) {
 	core.AssertMustNoError(t, err, "New")
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
-	defer cancel()
-	assertStopped(ctx, t, c)
+	core.AssertMustClosed(t, c.Done(), waitTimeout, "client stopped")
 
 	// two waiter calls: one permitting the failed reconnect dial, one
 	// stopping the loop. A single call would mean the dial — and so
@@ -800,9 +764,7 @@ func TestClientReconnectSucceeds(t *testing.T) {
 	core.AssertMustNoError(t, err, "New")
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
-	defer cancel()
-	assertStopped(ctx, t, c)
+	core.AssertMustClosed(t, c.Done(), waitTimeout, "client stopped")
 
 	// the permitted waiter call let tryReconnect redial successfully,
 	// so a second session ran before the waiter stopped the client.
@@ -843,9 +805,7 @@ func TestClientConnectFatalRejection(t *testing.T) {
 
 	// the client is terminated, and the fatal error was observed by
 	// OnError on its way through handlePossiblyFatalError.
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
-	defer cancel()
-	assertStopped(ctx, t, c)
+	core.AssertMustClosed(t, c.Done(), waitTimeout, "client stopped")
 	core.AssertEqual(t, 1,
 		countMatchingErrors(errs.Errors(), reconnect.ErrDoNotReconnect),
 		"fatal rejection reported")
@@ -886,15 +846,12 @@ func TestClientDisconnectPanic(t *testing.T) {
 	core.AssertMustNoError(t, err, "New")
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
-	defer cancel()
-	assertStopped(ctx, t, c)
+	core.AssertMustClosed(t, c.Done(), waitTimeout, "client stopped")
 
 	// the recovered panic is reported through OnError as a PanicError
 	// and recorded as the termination cause. The type match matters:
 	// it proves the error travelled through run's deferred recover.
-	var found *core.PanicError
-	core.AssertMustTrue(t, errors.As(errs.AsError(), &found),
+	found := core.AssertMustErrorAs[*core.PanicError](t, errs.AsError(),
 		"OnDisconnect panic reported via OnError")
 	core.AssertErrorIs(t, found, errDisconnectPanic, "panic payload")
 	core.AssertErrorIs(t, c.Wait(), errDisconnectPanic, "Wait")
@@ -910,19 +867,6 @@ func holdPeer(lsn net.Listener, done <-chan struct{}) {
 	}
 	defer func() { _ = conn.Close() }()
 	<-done
-}
-
-// assertClosedWithin fails unless ch closes before the client-stop
-// timeout, turning an event that never happens into a clean failure
-// naming it rather than a hung suite.
-func assertClosedWithin(t *testing.T, ch <-chan struct{}, name string) {
-	t.Helper()
-
-	select {
-	case <-ch:
-	case <-time.After(clientStopTimeout):
-		t.Fatalf("%s: not observed in time", name)
-	}
 }
 
 // TestClientConnectOnce covers the entry guard. Connect starts the
@@ -960,7 +904,7 @@ func runTestClientConnectNeverStarted(t *testing.T) {
 	})
 	core.AssertMustNoError(t, err, "New")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	ctx, cancel := core.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 
@@ -1004,7 +948,7 @@ func runTestClientConnectWhileRunning(t *testing.T) {
 	core.AssertMustNoError(t, err, "New")
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
-	assertClosedWithin(t, established, "session established")
+	core.AssertMustClosed(t, established, waitTimeout, "session established")
 
 	core.AssertErrorIs(t, c.Connect(), reconnect.ErrRunning, "second Connect")
 
@@ -1012,7 +956,7 @@ func runTestClientConnectWhileRunning(t *testing.T) {
 	// remote untouched.
 	core.AssertEqual(t, int32(1), dials.Load(), "dials")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	ctx, cancel := core.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 }
@@ -1050,7 +994,7 @@ func runTestClientConnectAfterShutdown(t *testing.T) {
 	core.AssertMustNoError(t, err, "New")
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
-	ctx, cancel := core.WithTimeout(context.Background(), clientStopTimeout)
+	ctx, cancel := core.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertNoError(t, c.Shutdown(ctx), "Shutdown")
 
@@ -1098,7 +1042,7 @@ func TestClientNoSessionHandler(t *testing.T) {
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
 	// the session ends on its own and the waiter then stops the client.
-	assertClosedWithin(t, c.Done(), "client stopped")
+	core.AssertMustClosed(t, c.Done(), waitTimeout, "client stopped")
 	core.AssertNoError(t, c.Wait(), "Wait")
 
 	assertLogged(t, logger, slog.Info, "connected")

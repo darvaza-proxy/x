@@ -5,7 +5,6 @@ import (
 	"net"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"darvaza.org/core"
 )
@@ -72,11 +71,7 @@ func TestClientRunSessionSkipsCancelledSession(t *testing.T) {
 	core.AssertMustNoError(t, c.Connect(), "Connect")
 
 	// the cancelled context winds the client down.
-	select {
-	case <-c.Done():
-	case <-time.After(2 * time.Second):
-		t.Fatal("client did not stop")
-	}
+	core.AssertMustClosed(t, c.Done(), waitTimeout, "client stopped")
 
 	// OnSession must not run once the context is already cancelled.
 	core.AssertFalse(t, entered.Load(),
