@@ -25,7 +25,7 @@ func (milli32Scale) asInt64(v Int32) (int64, bool) {
 }
 
 func (milli32Scale) asInt128(v Int32) Int128 {
-	return AsInt128(int64(v))
+	return v.asInt128()
 }
 
 // milli64Scale carries the milli (10^-3) resolution as an Int64, the
@@ -45,7 +45,7 @@ func (milli64Scale) asInt64(v Int64) (int64, bool) {
 }
 
 func (milli64Scale) asInt128(v Int64) Int128 {
-	return AsInt128(v.sys())
+	return v.asInt128()
 }
 
 // Milli32 is a signed fixed-point number with 3 fractional digits,

@@ -29,7 +29,7 @@ func (unitScale) asInt64(v Int64) (int64, bool) {
 }
 
 func (unitScale) asInt128(v Int64) Int128 {
-	return AsInt128(v.sys())
+	return v.asInt128()
 }
 
 // unitDecimal is a Decimal at a scale of one.

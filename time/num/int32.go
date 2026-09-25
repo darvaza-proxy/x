@@ -15,6 +15,11 @@ var (
 // surface as Int128. The zero value is numeric zero.
 type Int32 int32
 
+// asInt128 returns v sign-extended to an Int128.
+func (v Int32) asInt128() Int128 {
+	return AsInt128(int64(v))
+}
+
 // one returns the multiplicative unit, the [EuclideanDivMod] quotient
 // step.
 func (Int32) one() Int32 {
@@ -37,7 +42,7 @@ func AsInt32(x int32) Int32 {
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int32) wide() wide {
-	return wide{v: AsInt128(int64(v)), scale: unitScale128, ok: true}
+	return wide{v: v.asInt128(), scale: unitScale128, ok: true}
 }
 
 // Int32 returns v unchanged, the conversion to its own type, which
