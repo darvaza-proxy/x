@@ -29,8 +29,8 @@
 // dumped from a failing test pastes back into a row: num.AsInt32(-5),
 // num.AsInt128(-42), num.NewMilli32(1, 500). The As form gives way to
 // the New form over the two words in hex once a value no longer fits
-// the native word, and a Decimal whose whole count no longer fits an
-// int64 prints as As over its backing integer,
+// the native word, and a Decimal whose whole count or fraction no
+// longer fits an int64 prints as As over its backing integer,
 // num.AsAtto128(num.NewInt128(hi, lo)).
 //
 // Every other verb goes through [fmt.Formatter], so the types print

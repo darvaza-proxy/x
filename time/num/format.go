@@ -220,11 +220,11 @@ func writeNumber(s fmt.State, verb rune, neg bool, digits []byte) {
 	f.writeTo(s)
 }
 
-// pow10 returns 10^n for 0 <= n <= 18.
-func pow10(n int) int64 {
-	p := int64(1)
+// pow10 returns 10^n as a Uint128, for 0 <= n <= 38.
+func pow10(n int) Uint128 {
+	p := Uint128{lo: 1}
 	for range n {
-		p *= 10
+		p = p.Mul(Uint128{lo: 10})
 	}
 	return p
 }
