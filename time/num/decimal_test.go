@@ -14,6 +14,7 @@ var (
 	_ core.TestCase = decimalDivCase[num.Atto128]{}
 	_ core.TestCase = decimalDivModCase[num.Atto128]{}
 	_ core.TestCase = decimalMulDivModCase[num.Atto128]{}
+	_ core.TestCase = decimalULPCase[num.Atto128]{}
 )
 
 // decimalType carries what a fixed-point [num.Decimal] instantiation
@@ -330,6 +331,49 @@ func decimalMulDivModCases[D num.Signed[D]](mk func(whole, frac int64) D,
 		newDecimalMulDivModCase("truncated neg divisor", mk(1, 0), mk(1, 0),
 			mk(-3, 0), mk(0, -third), mk(1, 0)),
 	}
+}
+
+// decimalULPCase pins the ULP of an instantiation, one sub-unit, and
+// that reading it allocates nothing.
+type decimalULPCase[D num.SignedEuclidean[D]] struct {
+	want D
+	name string
+}
+
+func newDecimalULPCase[D num.SignedEuclidean[D]](name string,
+	want D) decimalULPCase[D] {
+	return decimalULPCase[D]{name: name, want: want}
+}
+
+func (tc decimalULPCase[D]) Name() string { return tc.name }
+
+func (tc decimalULPCase[D]) Test(t *testing.T) {
+	t.Helper()
+	var d D
+	core.AssertEqual(t, tc.want, d.ULP(), "ULP")
+	allocs := testing.AllocsPerRun(10, func() { d.ULP() })
+	core.AssertEqual(t, 0, allocs, "ULP allocs")
+}
+
+// decimalULPCases cover the package's instantiations, the test
+// scalers over the package's backings, and the outside backings of one
+// and two words.
+func decimalULPCases() []core.TestCase {
+	return core.S[core.TestCase](
+		newDecimalULPCase("milli32", num.AsMilli32(num.AsInt32(1))),
+		newDecimalULPCase("milli64", num.AsMilli64(num.AsInt64(1))),
+		newDecimalULPCase("atto128", num.AsAtto128(num.AsInt128(1))),
+		newDecimalULPCase("centi64", AsCenti64(num.AsInt64(1))),
+		newDecimalULPCase("unit64", AsUnit64(num.AsInt64(1))),
+		newDecimalULPCase("zepto128", AsZepto128(num.AsInt128(1))),
+		newDecimalULPCase("outside centi", AsOutsideCenti(1)),
+		newDecimalULPCase("outside plain centi",
+			AsOutsidePlainCenti(num.AsInt128(1))),
+	)
+}
+
+func TestDecimalULP(t *testing.T) {
+	core.RunTestCases(t, decimalULPCases())
 }
 
 func TestAtto128(t *testing.T) {

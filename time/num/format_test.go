@@ -511,8 +511,15 @@ func (tc goSyntaxCrossCase) Test(t *testing.T) {
 // format rather than the value.
 func crossTypes() []any {
 	return core.S[any](
-		num.AsInt32(-42), num.AsInt64(-42), num.AsInt128(-42),
-		num.MaxUint128, num.NewMilli32(1, 500), num.NewAtto128(1, 500e15),
+		num.AsInt32(-42),
+		num.AsInt64(-42),
+		num.AsInt128(-42),
+		num.MaxUint128,
+		num.NewMilli32(1, 500),
+		num.NewAtto128(1, 500e15),
+		NewOutsideCenti(1, 50),
+		AsUnit64(math.MinInt64),
+		NewZepto128(1, 5),
 	)
 }
 
@@ -600,6 +607,12 @@ func badVerbDecimalSubjects() []badVerbSubject {
 			".3f"),
 		newBadVerbSubject("num.Atto128", num.NewAtto128(1, 500e15), 1.5,
 			".18f"),
+		newBadVerbSubject("num_test.OutsideCenti", NewOutsideCenti(-1, -50),
+			-1.5, ".2f"),
+		newBadVerbSubject("num_test.Unit64", AsUnit64(math.MinInt64),
+			float64(math.MinInt64), ".0f"),
+		newBadVerbSubject("num_test.Zepto128", newZepto128Milli(-1500),
+			-1.5, ".21f"),
 	)
 }
 

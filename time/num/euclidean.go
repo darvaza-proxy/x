@@ -2,13 +2,11 @@ package num
 
 // Euclidean is the constraint met by the types the Euclidean helpers
 // can correct, listing just the surface the correction needs rather
-// than the full [Signed] interface. The signed integers Int32, Int64
-// and Int128 and the Decimal instantiations over them qualify, and so
-// does Uint128, on which the correction never fires. The
-// step methods One and ULP set how far the quotient moves: the two
-// coincide for the integers and differ for Decimal, whose DivMod
-// quotient moves in whole units while its MulDivMod quotient moves
-// in sub-units.
+// than the full [Signed] interface. An unsigned type qualifies as
+// well, the correction never firing on it. The step methods One and
+// ULP set how far the quotient moves: the two coincide for the
+// integers and differ for Decimal, whose DivMod quotient moves in
+// whole units while its MulDivMod quotient moves in sub-units.
 type Euclidean[T any] interface {
 	IsNegative() bool
 	Abs() T
@@ -27,10 +25,7 @@ type Euclidean[T any] interface {
 }
 
 // SignedEuclidean is the constraint met by signed types offering both
-// the full [Signed] surface and the [Euclidean] correction surface:
-// the signed integers Int32, Int64 and Int128 and the Decimal
-// instantiations over them. It is the constraint a [Decimal] backing
-// must meet.
+// the full [Signed] surface and the [Euclidean] correction surface.
 type SignedEuclidean[T any] interface {
 	Signed[T]
 	Euclidean[T]

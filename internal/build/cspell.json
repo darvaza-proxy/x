@@ -19,6 +19,7 @@
     "Bitmask",
     "cacerts",
     "carryforward",
+    "centi",
     "certpool",
     "Chtimes",
     "Clapis",
@@ -134,7 +135,8 @@
     "Wrapf",
     "WSAE",
     "xbel",
-    "zeebo"
+    "zeebo",
+    "zepto"
   ],
   "ignorePaths": [
     "**/*.lock",
