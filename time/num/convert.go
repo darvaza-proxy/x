@@ -47,7 +47,7 @@ func (w wide) at(scale Int128) wide {
 // when it does not fit.
 func (w wide) narrow32() (Int32, bool) {
 	x := Int32(w.v.lo)
-	return x, w.ok && AsInt128(int64(x)) == w.v
+	return x, w.ok && x.asInt128() == w.v
 }
 
 // narrow64 returns the count as an Int64, keeping the low 64 bits
