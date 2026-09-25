@@ -113,8 +113,9 @@ Files:
   and hands the magnitude over; `Int32` and `Int64` hand the native
   value to fmt with `fmt.FormatString`, under the verb they were given
   rather than a decimal rewrite of it, so their flags cannot drift from
-  fmt's; `Decimal` prints its parts as magnitudes one at a time, since
-  `Abs` on the backing's minimum wraps while the whole count never can.
+  fmt's; `Decimal` prints its parts as magnitudes one at a time, the
+  whole count's as an unsigned 128-bit value, as `Int128` takes its own,
+  which keeps the backing's minimum where `Abs` wraps.
   Fraction rounding is half away from zero; the precision of `%f` is
   fmt's, not the resolution's. Never reach for `math/big` for any of
   this.
@@ -123,11 +124,10 @@ Files:
   `Formatter` takes precedence over a `Stringer`. The primitive under
   both is the unexported `doAppendText` of each type; `AppendText` is
   its exported form behind an always-nil error, and `MarshalText` is
-  `AppendText(nil)`. A `Decimal` reaches its backing's `doAppendText`
-  through the `DecimalScaler` hook, as it reaches `asInt64`, so the
-  whole count never goes through fmt. `TestText` checks the four agree
-  on every row and that `AppendText` allocates nothing into a buffer
-  with room.
+  `AppendText(nil)`. A `Decimal` writes its whole count through the
+  `doAppendText` of `Uint128`, so the count never goes through fmt.
+  `TestText` checks the four agree on every row and that `AppendText`
+  allocates nothing into a buffer with room.
 - `MarshalJSON` is the `MarshalText` text, bare while a `float64`
   consumer reads the value back safely and quoted beyond that: an
   integer at a magnitude of at most 2^53 through `Int64()`, a

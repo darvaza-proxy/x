@@ -21,9 +21,6 @@ type DecimalScaler[T any] interface {
 	asInt64(v T) (int64, bool)
 	// asInt128 returns a backing value widened to an Int128.
 	asInt128(v T) Int128
-	// doAppendText writes a backing value in decimal to dst and returns
-	// the extended buffer.
-	doAppendText(dst []byte, v T) []byte
 }
 
 // Decimal is a signed fixed-point number: a count of sub-units at a
@@ -322,12 +319,13 @@ func (Decimal[T, S]) fracWidth() int {
 // appendFixed appends the magnitude of d with prec fraction digits,
 // zero-filled past the resolution and rounded half away from zero
 // below it, with a carry out of the fraction reaching the whole count.
-// The parts are taken as magnitudes one at a time, since the whole
-// count is always far from the backing's minimum even when d is not.
+// The parts are taken as magnitudes one at a time, the whole count's
+// as an unsigned 128-bit value, which keeps even the backing's minimum
+// where Abs would wrap.
 func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
 	var sc S
 	whole, frac := d.parts()
-	whole = whole.Abs()
+	mag := sc.asInt128(whole).Abs().bits()
 	// the remainder is below the scale, so it fits an int64.
 	f, _ := sc.asInt64(frac)
 	if f < 0 {
@@ -341,11 +339,11 @@ func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
 			q++
 		}
 		if q == pow10(prec) {
-			q, whole = 0, whole.Add(whole.one())
+			q, mag = 0, mag.Add(mag.one())
 		}
 		f, width = q, prec
 	}
-	dst = sc.doAppendText(dst, whole)
+	dst = mag.doAppendText(dst)
 	if prec == 0 {
 		return dst
 	}

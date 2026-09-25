@@ -25,10 +25,6 @@ func (atto128Scale) asInt128(v Int128) Int128 {
 	return v
 }
 
-func (atto128Scale) doAppendText(dst []byte, v Int128) []byte {
-	return v.doAppendText(dst)
-}
-
 // Atto128 is a signed fixed-point number with 18 fractional digits,
 // backed by a 128-bit two's-complement integer counting atto-units
 // (10^-18). It is the widest instantiation of [Decimal]: the Int128
