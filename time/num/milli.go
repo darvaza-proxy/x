@@ -28,10 +28,6 @@ func (milli32Scale) asInt128(v Int32) Int128 {
 	return AsInt128(int64(v))
 }
 
-func (milli32Scale) doAppendText(dst []byte, v Int32) []byte {
-	return v.doAppendText(dst)
-}
-
 // milli64Scale carries the milli (10^-3) resolution as an Int64, the
 // backing of Milli64.
 type milli64Scale struct{}
@@ -50,10 +46,6 @@ func (milli64Scale) asInt64(v Int64) (int64, bool) {
 
 func (milli64Scale) asInt128(v Int64) Int128 {
 	return AsInt128(v.sys())
-}
-
-func (milli64Scale) doAppendText(dst []byte, v Int64) []byte {
-	return v.doAppendText(dst)
 }
 
 // Milli32 is a signed fixed-point number with 3 fractional digits,
