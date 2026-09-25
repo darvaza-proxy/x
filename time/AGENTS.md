@@ -18,10 +18,11 @@ the standard library.
 - **`Int32`**, **`Int64`**: the native integers wrapped into the same
   method surface, forming the `MulDivMod` product in a wider
   intermediate, `int64` for `Int32` and `Int128` for `Int64`.
-- **`Decimal[T, S]`**: signed fixed-point number backed by one of the
-  signed integers, with the exported `DecimalScaler` supplying the
-  resolution; `Milli32`, `Milli64` and `Atto128` are its
-  instantiations.
+- **`Decimal[T, S]`**: signed fixed-point number backed by a signed
+  integer, with the exported `DecimalScaler` supplying the resolution
+  and the qualified name; `Milli32`, `Milli64` and `Atto128` are its
+  instantiations, built through `NewDecimal` and `AsDecimal`, which
+  another package calls over a backing and a scaler of its own.
 - **`Unsigned[T]`**, **`Signed[T]`**: generic constraints naming the
   method surface the family shares, including the fused `MulDivMod`
   wide multiply-divide.
@@ -30,8 +31,13 @@ the standard library.
   the conversion to every type of the family, each `(T, bool)`.
 - **`EuclideanDivMod`**, **`EuclideanMulDivMod`**: division helpers
   correcting the remainder into `[0, |divisor|)`, constrained on
-  `Euclidean`; `SignedEuclidean` combines it with `Signed` and is the
-  `Decimal` backing constraint.
+  `Euclidean`; `SignedEuclidean` combines it with `Signed`. A `Decimal`
+  backing needs only `Signed`: `Decimal` finds the backing's unit and
+  its `Int128` widening through a type switch over the package's
+  integers. Any other backing takes the scale divided by itself for its
+  unit, and its widening falls back to a read one bit at a time, by
+  division by a two built from the value divided by itself, so neither
+  boxes the backing.
 - **`ErrDivZero`**: the division-by-zero panic value, wrapping
   `core.ErrInvalid`.
 
@@ -44,7 +50,7 @@ Files:
   which rescales a count between resolutions and narrows it into the
   target; each type's `wide` and conversion methods sit in its own
   file.
-- `num/decimal.go`: `Decimal` and the `DecimalScaler` interface.
+- `num/decimal.go`: `Decimal`, its constructors and its methods.
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero`.
 - `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
@@ -61,7 +67,8 @@ Files:
   own file.
 - `num/milli.go`: the `Milli32` and `Milli64` instantiations and their
   scales.
-- `num/num.go`: the `Unsigned`, `Signed` and `Number` constraints.
+- `num/num.go`: the `Unsigned`, `Signed` and `Number` constraints and
+  the `DecimalScaler` interface.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
 - `num/uint128.go`: `Uint128` and its operations.
@@ -101,10 +108,11 @@ Files:
   `As` count form while the value fits the native word and the `New`
   words form in hex beyond it; a `Decimal` prints both parts with its
   sign, so the call holds under either sign rule of the constructor.
-  `DecimalScaler` carries the instantiation's name and the widening to
-  an `Int128` through unexported methods, which closes the family to the
-  package's scalers; the constraints stay free of formatting methods,
-  and the `Decimal` fallback reaches its backing's form through `%#v`.
+  `DecimalScaler`'s `Name` carries the qualified name, `num.Milli32`,
+  from which `GoString` derives the `New` and `As` constructors after
+  the qualifier and `Format` its bad-verb label; the constraints stay
+  free of formatting methods, and the `Decimal` fallback reaches its
+  backing's form through `%#v`.
   A new type or instantiation adds a row to the `GoString` table.
 - `Format` owns every verb, since fmt consults nothing else once a type
   has it: `%#v` is routed to `GoString` by hand. `Uint128` generates

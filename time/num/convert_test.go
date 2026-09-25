@@ -16,7 +16,9 @@ var (
 
 // convertTo converts v to D through the method named for D, the one
 // cell of the conversion matrix a row pins. D is one of the seven
-// types of the family, so the switch always finds its arm.
+// types of the family, or OutsideCenti, which no method targets and
+// is reached through outsideCentiOf for the way back, so the switch
+// always finds its arm.
 func convertTo[D num.Number[D], S num.Number[S]](v S) (D, bool) {
 	var out D
 	var ok bool
@@ -35,8 +37,10 @@ func convertTo[D num.Number[D], S num.Number[S]](v S) (D, bool) {
 		*p, ok = v.Milli64()
 	case *num.Atto128:
 		*p, ok = v.Atto128()
+	case *OutsideCenti:
+		*p, ok = outsideCentiOf(v)
 	default:
-		// D is one of the seven, so no arm is left over.
+		// D is one of the eight, so no arm is left over.
 	}
 	return out, ok
 }

@@ -16,12 +16,8 @@ func (milli32Scale) Scale() Int32 {
 	return Int32(milliScale)
 }
 
-func (milli32Scale) name() string {
-	return "Milli32"
-}
-
-func (milli32Scale) asInt128(v Int32) Int128 {
-	return v.asInt128()
+func (milli32Scale) Name() string {
+	return "num.Milli32"
 }
 
 // milli64Scale carries the milli (10^-3) resolution as an Int64, the
@@ -32,12 +28,8 @@ func (milli64Scale) Scale() Int64 {
 	return Int64(milliScale)
 }
 
-func (milli64Scale) name() string {
-	return "Milli64"
-}
-
-func (milli64Scale) asInt128(v Int64) Int128 {
-	return v.asInt128()
+func (milli64Scale) Name() string {
+	return "num.Milli64"
 }
 
 // Milli32 is a signed fixed-point number with 3 fractional digits,
@@ -56,7 +48,7 @@ type Milli64 = Decimal[Int64, milli64Scale]
 // zero. milli need not stay below one whole unit: it carries. The
 // combined magnitude wraps if it exceeds the 32-bit range.
 func NewMilli32(whole, milli int32) Milli32 {
-	return newDecimal[Int32, milli32Scale](Int32(whole), Int32(milli))
+	return NewDecimal[Int32, milli32Scale](Int32(whole), Int32(milli))
 }
 
 // NewMilli64 builds a Milli64 from a whole-unit count and a milli-unit
@@ -65,17 +57,17 @@ func NewMilli32(whole, milli int32) Milli32 {
 // zero. milli need not stay below one whole unit: it carries. The
 // combined magnitude wraps if it exceeds the 64-bit range.
 func NewMilli64(whole, milli int64) Milli64 {
-	return newDecimal[Int64, milli64Scale](Int64(whole), Int64(milli))
+	return NewDecimal[Int64, milli64Scale](Int64(whole), Int64(milli))
 }
 
 // AsMilli32 takes an Int32 as a count of milli-units (10^-3), so
 // AsMilli32(1500) is 1.5.
 func AsMilli32(milli Int32) Milli32 {
-	return Milli32{milli}
+	return AsDecimal[Int32, milli32Scale](milli)
 }
 
 // AsMilli64 takes an Int64 as a count of milli-units (10^-3), so
 // AsMilli64(1500) is 1.5.
 func AsMilli64(milli Int64) Milli64 {
-	return Milli64{milli}
+	return AsDecimal[Int64, milli64Scale](milli)
 }

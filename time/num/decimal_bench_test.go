@@ -9,27 +9,33 @@ import (
 )
 
 // BenchmarkDecimalAppendText measures AppendText into a buffer with
-// room on each Decimal instantiation of the package: the primitive
-// under String, MarshalText and %v, which allocates nothing.
+// room on each Decimal instantiation of the package, and on
+// OutsideCenti, whose backing widens through the fallback: the
+// primitive under String, MarshalText and %v, which allocates nothing.
 func BenchmarkDecimalAppendText(b *testing.B) {
 	b.Run("Milli32", runBenchmarkAppendText(num.NewMilli32(1234, 567)))
 	b.Run("Milli64", runBenchmarkAppendText(num.NewMilli64(1234, 567)))
 	b.Run("Atto128", runBenchmarkAppendText(
 		num.NewAtto128(1234, 567_890_123_456_789_012)))
+	b.Run("OutsideCenti", runBenchmarkAppendText(NewOutsideCenti(1234, 56)))
 }
 
 // BenchmarkDecimalFormat measures %.2f through fmt on each Decimal
-// instantiation of the package, which rounds the fraction.
+// instantiation of the package, which rounds the fraction, and on
+// OutsideCenti, whose backing widens through the fallback and whose
+// two digits need no rounding.
 func BenchmarkDecimalFormat(b *testing.B) {
 	b.Run("Milli32", runBenchmarkFormat(num.NewMilli32(1234, 567)))
 	b.Run("Milli64", runBenchmarkFormat(num.NewMilli64(1234, 567)))
 	b.Run("Atto128", runBenchmarkFormat(
 		num.NewAtto128(1234, 567_890_123_456_789_012)))
+	b.Run("OutsideCenti", runBenchmarkFormat(NewOutsideCenti(1234, 56)))
 }
 
 // BenchmarkDecimalEuclideanMulDivMod measures EuclideanMulDivMod on each
-// Decimal instantiation of the package, over a product whose truncated
-// remainder is negative, so the correction runs.
+// Decimal instantiation of the package, and on OutsideCenti, whose ULP
+// comes from the scale divided by itself, over a product whose
+// truncated remainder is negative, so the correction runs.
 func BenchmarkDecimalEuclideanMulDivMod(b *testing.B) {
 	b.Run("Milli32", runBenchmarkEuclideanMulDivMod(
 		num.NewMilli32(-1234, -567), num.NewMilli32(3, 0),
@@ -40,6 +46,9 @@ func BenchmarkDecimalEuclideanMulDivMod(b *testing.B) {
 	b.Run("Atto128", runBenchmarkEuclideanMulDivMod(
 		num.NewAtto128(-1234, -567_890_123_456_789_012),
 		num.NewAtto128(3, 0), num.NewAtto128(11, 0)))
+	b.Run("OutsideCenti", runBenchmarkEuclideanMulDivMod(
+		NewOutsideCenti(-1234, -56), NewOutsideCenti(3, 0),
+		NewOutsideCenti(11, 0)))
 }
 
 // runBenchmarkAppendText returns a benchmark of AppendText on v into a

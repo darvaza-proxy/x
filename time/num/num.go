@@ -77,3 +77,22 @@ type Number[T any] interface {
 	Milli64() (Milli64, bool)
 	Atto128() (Atto128, bool)
 }
+
+// DecimalScaler is the scale parameter of [Decimal]: it yields a
+// fixed-point resolution, the number of sub-units in one whole unit, as
+// a value of the backing integer type T, and names the instantiation.
+// Any type may implement it, so a package may define a Decimal at a
+// resolution of its own, as this one defines Milli32, Milli64 and
+// Atto128; [NewDecimal] and [AsDecimal] build the values of such an
+// instantiation. Decimal stores no scaler and calls Scale and Name on
+// the zero value, so they depend on nothing but the type.
+type DecimalScaler[T any] interface {
+	// Scale returns the number of sub-units in one whole unit, a
+	// power of ten.
+	Scale() T
+	// Name returns the instantiation's type name as written from
+	// another package, num.Milli32. The printed forms carry it, and
+	// %#v prints it as a call to num.NewMilli32 or num.AsMilli32, so
+	// an implementation should provide that pair.
+	Name() string
+}
