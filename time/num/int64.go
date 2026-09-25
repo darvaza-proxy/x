@@ -20,6 +20,11 @@ func (v Int64) sys() int64 {
 	return int64(v)
 }
 
+// asInt128 returns v sign-extended to an Int128.
+func (v Int64) asInt128() Int128 {
+	return AsInt128(v.sys())
+}
+
 // one returns the multiplicative unit, the [EuclideanDivMod] quotient
 // step.
 func (Int64) one() Int64 {
@@ -42,7 +47,7 @@ func AsInt64(x int64) Int64 {
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int64) wide() wide {
-	return wide{v: AsInt128(v.sys()), scale: unitScale128, ok: true}
+	return wide{v: v.asInt128(), scale: unitScale128, ok: true}
 }
 
 // Int32 returns v as an Int32 and whether it fits; the low 32 bits
@@ -223,8 +228,7 @@ func (v Int64) MulDivMod(w, d Int64) (q, r Int64) {
 	if d == 0 {
 		panic(ErrDivZero)
 	}
-	v128, w128, d128 := AsInt128(v.sys()), AsInt128(w.sys()), AsInt128(d.sys())
-	q128, r128 := v128.MulDivMod(w128, d128)
+	q128, r128 := v.asInt128().MulDivMod(w.asInt128(), d.asInt128())
 	return Int64(q128.lo), Int64(r128.lo)
 }
 
