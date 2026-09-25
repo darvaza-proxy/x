@@ -79,6 +79,44 @@ func stateStart(p *parser) (lexer.StateFn[*parser], error) {
 err := lexer.Run(&parser{Cursor: lexer.New(line)}, stateStart)
 ```
 
+### `versionsort`
+
+Orders strings by version: every run of decimal digits compares by the
+number it writes, so `ttyS10` follows `ttyS9`, and the text between
+compares a character at a time.
+
+* `Compare[S core.String](a, b S) int` — the comparison, ready for
+  `slices.SortFunc` and usable on any type over `string`. Strings that
+  tie on every rule, such as `ttyS1` and `ttyS01`, or `tty` and `tty0`,
+  fall back to their bytes, so only equal strings compare as 0.
+
+```go
+names := []string{"eth10", "eth2", "enp10s0", "enp2s0"}
+slices.SortFunc(names, versionsort.Compare)
+// [enp2s0 enp10s0 eth2 eth10]
+```
+
+Text ranks, from first to last:
+
+* A tilde, ahead of even the end of the string, so `1.0~rc1` sorts
+  before `1.0`.
+* The end of the string, and a digit, so `1.0` sorts before `1.0a` and
+  `tty1` before `ttyS0`.
+* Letters, by code point. Letters are Unicode letters, so `é` sorts
+  before `-`.
+* Every other character, by code point, so `dma_heap` sorts before
+  `dm-0`.
+* A byte that is not valid UTF-8, by value.
+
+Numbers compare by value, however long, and a string that ends where the
+other goes on with a number counts as having a zero there. Digits are
+ASCII only.
+
+The empty string sorts first, ahead of a tilde. Strings are not
+normalised: a letter followed by a combining accent sorts apart from the
+same accented letter written as one character. Dots and file suffixes
+are ordinary characters.
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see

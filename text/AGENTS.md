@@ -50,6 +50,26 @@ Files:
 * `lexer/cursor_test.go` and `lexer/run_test.go` — table-driven tests
   via `core.TestCase` plus scenario tests via `t.Run`.
 
+### `versionsort`
+
+The version string comparison.
+
+* `Compare[S core.String](a, b S) int` — digit runs compare by the number
+  they write, however long, and a string that ends where the other goes
+  on with a number counts as having a zero there. Text compares a
+  character at a time: a tilde first, ahead of the end of the string;
+  then the end and a digit; then Unicode letters and then every other
+  character, each by code point; invalid UTF-8 bytes last. Digits are
+  ASCII only, strings are not normalised, the empty string sorts first,
+  and strings that tie on every rule fall back to their bytes.
+
+Files:
+
+* `versionsort/doc.go` — package overview.
+* `versionsort/versionsort.go` — the comparison.
+* `versionsort/versionsort_test.go` — rows per rule, a named type over
+  `string`, and a mixed list of device and interface names.
+
 ## Architecture Notes
 
 * **Single-use buffer.** `buffer.Buffer` exists for the write-many-
@@ -62,9 +82,9 @@ Files:
   to `(*strings.Builder)(nil)` and leak across `interface{}`
   boundaries. The check is load-bearing — do not strip as
   "redundant".
-* **Encoding is hidden.** Callers see runes and strings, never bytes.
-  Adding byte-level escape hatches is deferred until a real caller
-  needs one.
+* **Encoding is hidden.** Callers of `buffer` and `lexer` see runes and
+  strings, never bytes. Adding byte-level escape hatches is deferred
+  until a real caller needs one.
 * **Generic state-function machine.** `StateFn[P]` keeps the caller's
   parser state type opaque to the package while still allowing free
   functions (rather than methods) to serve as states.

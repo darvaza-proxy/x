@@ -61,7 +61,8 @@ including mutexes, semaphores, barriers, and workgroups.
 ### Text
 
 [darvaza.org/x/text][x-text] provides shared text-processing primitives,
-including a state-function lexer toolkit.
+including a state-function lexer toolkit and a version sort for
+strings.
 
 ### Time
 
