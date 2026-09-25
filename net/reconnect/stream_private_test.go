@@ -73,5 +73,6 @@ func TestStreamSessionOnErrorFiresOnInitWindowCancel(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() { done <- s.Wait() }()
-	core.AssertMustReceives(t, done, 1, waitTimeout, "Wait")
+	errs = core.AssertMustReceives(t, done, 1, waitTimeout, "Wait")
+	core.AssertErrorIs(t, errs[0], wantErr, "Wait cause")
 }

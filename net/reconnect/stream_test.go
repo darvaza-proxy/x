@@ -83,8 +83,8 @@ func (tc streamSpawnTestCase) Test(t *testing.T) {
 	if tc.started {
 		core.AssertMustNoError(t, tc.session.Spawn(), "initial Spawn")
 		t.Cleanup(func() {
-			_ = tc.session.Close()
-			_ = tc.session.Wait()
+			core.AssertNoError(t, tc.session.Close(), "Close")
+			assertWaitReturns(t, tc.session, "Wait")
 		})
 	}
 
@@ -193,13 +193,11 @@ func TestStreamSessionEcho(t *testing.T) {
 
 	// clean shutdown stops the workers and reports the cancellation
 	// cause; Wait then returns nil for a user-initiated stop.
-	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
-	defer cancel()
-	core.AssertErrorIs(t, s.Shutdown(ctx), context.Canceled, "Shutdown")
-	core.AssertNoError(t, s.Wait(), "Wait")
+	shutdownWithin(t, s)
+	assertWaitReturns(t, s, "Wait")
 
 	// the inbound channel is closed once the reader stops.
-	_, ok = s.Next()
+	_, ok = nextWithin(t, s, "Next after shutdown")
 	core.AssertFalse(t, ok, "Next after shutdown")
 
 	// Send after shutdown fails with the package sentinel.
