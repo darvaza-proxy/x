@@ -20,10 +20,6 @@ func (milli32Scale) name() string {
 	return "Milli32"
 }
 
-func (milli32Scale) asInt64(v Int32) (int64, bool) {
-	return int64(v), true
-}
-
 func (milli32Scale) asInt128(v Int32) Int128 {
 	return v.asInt128()
 }
@@ -38,10 +34,6 @@ func (milli64Scale) Scale() Int64 {
 
 func (milli64Scale) name() string {
 	return "Milli64"
-}
-
-func (milli64Scale) asInt64(v Int64) (int64, bool) {
-	return v.sys(), true
 }
 
 func (milli64Scale) asInt128(v Int64) Int128 {

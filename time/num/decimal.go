@@ -2,6 +2,7 @@ package num
 
 import (
 	"fmt"
+	"math/bits"
 	"strings"
 )
 
@@ -16,9 +17,6 @@ type DecimalScaler[T any] interface {
 	// name returns the instantiation's type name, which its
 	// constructors carry as a suffix.
 	name() string
-	// asInt64 returns a backing value as a native int64 and whether
-	// it fits.
-	asInt64(v T) (int64, bool)
 	// asInt128 returns a backing value widened to an Int128.
 	asInt128(v T) Int128
 }
@@ -166,20 +164,19 @@ func (d Decimal[T, S]) parts() (whole, frac T) {
 }
 
 // GoString returns the constructor call that rebuilds d for %#v: the
-// New form over the whole-unit and sub-unit counts while the whole
-// count fits an int64, and the As form over the backing integer's own
-// %#v otherwise. Both counts carry the sign of d, so the call
-// rebuilds it whichever of them the constructor reads the sign from,
-// and a fraction of four digits or more is grouped in thousands.
+// New form over the whole-unit and sub-unit counts while both fit an
+// int64, and the As form over the backing integer's own %#v otherwise.
+// Both counts carry the sign of d, so the call rebuilds it whichever
+// of them the constructor reads the sign from, and a fraction of four
+// digits or more is grouped in thousands.
 func (d Decimal[T, S]) GoString() string {
 	var s S
 	whole, frac := d.parts()
-	w, ok := s.asInt64(whole)
-	if !ok {
+	w, wok := s.asInt128(whole).asInt64()
+	f, fok := s.asInt128(frac).asInt64()
+	if !wok || !fok {
 		return fmt.Sprintf("num.As%s(%#v)", s.name(), d.v)
 	}
-	// frac is below the scale, which fits an int64 at every resolution.
-	f, _ := s.asInt64(frac)
 	return fmt.Sprintf("num.New%s(%d, %s)", s.name(), w, groupThousands(f))
 }
 
@@ -209,11 +206,10 @@ func (d Decimal[T, S]) MarshalText() ([]byte, error) {
 // 10^15, an Atto128 always a string.
 func (d Decimal[T, S]) MarshalJSON() ([]byte, error) {
 	var s S
-	if count, ok := s.asInt64(d.v); ok {
-		scale, _ := s.asInt64(s.Scale())
-		if isJSONSafeDecimal(count, scale) {
-			return d.MarshalText()
-		}
+	count, ok := s.asInt128(d.v).asInt64()
+	scale, sok := s.asInt128(s.Scale()).asInt64()
+	if ok && sok && isJSONSafeDecimal(count, scale) {
+		return d.MarshalText()
 	}
 	return jsonString(d)
 }
@@ -294,44 +290,35 @@ func (d Decimal[T, S]) precision(s fmt.State, verb rune) int {
 	return 6
 }
 
-// fracWidth returns the fraction digits of the resolution, one fewer
-// than the digits of the scale.
+// fracWidth returns the fraction digits of the resolution, the exponent
+// of the scale. Every power of ten below 2^128 has a bit length of its
+// own, and scaling that length by 1233/4096, a hair below log10(2),
+// gives the exponent exactly for each of them.
 func (Decimal[T, S]) fracWidth() int {
 	var sc S
-	// every scale is a power of ten below 2^63, so it fits an int64.
-	scale, _ := sc.asInt64(sc.Scale())
-	width := 0
-	for scale > 1 {
-		scale /= 10
-		width++
-	}
-	return width
+	return sc.asInt128(sc.Scale()).bits().bitLen() * 1233 >> 12
 }
 
 // appendFixed appends the magnitude of d with prec fraction digits,
 // zero-filled past the resolution and rounded half away from zero
 // below it, with a carry out of the fraction reaching the whole count.
-// The parts are taken as magnitudes one at a time, the whole count's
-// as an unsigned 128-bit value, which keeps even the backing's minimum
-// where Abs would wrap.
+// The parts are taken as magnitudes one at a time, each as an unsigned
+// 128-bit value, which keeps even the backing's minimum where Abs
+// would wrap and holds a fraction of any width the scale gives.
 func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
 	var sc S
 	whole, frac := d.parts()
 	mag := sc.asInt128(whole).Abs().bits()
-	// the remainder is below the scale, so it fits an int64.
-	f, _ := sc.asInt64(frac)
-	if f < 0 {
-		f = -f
-	}
+	f := sc.asInt128(frac).Abs().bits()
 	width := d.fracWidth()
 	if prec < width {
 		unit := pow10(width - prec)
-		q, r := f/unit, f%unit
-		if 2*r >= unit {
-			q++
+		q, r := f.DivMod(unit)
+		if r.Add(r).Cmp(unit) >= 0 {
+			q = q.Add(q.One())
 		}
-		if q == pow10(prec) {
-			q, mag = 0, mag.Add(mag.One())
+		if q.Equal(pow10(prec)) {
+			q, mag = ZeroUint128, mag.Add(mag.One())
 		}
 		f, width = q, prec
 	}
@@ -340,7 +327,12 @@ func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
 		return dst
 	}
 	dst = append(dst, '.')
-	dst = appendPadded(dst, uint64(f), width)
+	// the fraction is below 2^127, so its top word is below decGroup and
+	// one word division splits it at the nineteenth digit from the right.
+	// Up to nineteen digits wide the upper part is zero and takes no room.
+	hi, lo := bits.Div64(f.hi, f.lo, decGroup)
+	dst = appendPadded(dst, hi, width-decGroupDigits)
+	dst = appendPadded(dst, lo, min(width, decGroupDigits))
 	return append(dst, strings.Repeat("0", prec-width)...)
 }
 

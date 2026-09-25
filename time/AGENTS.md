@@ -101,8 +101,8 @@ Files:
   `As` count form while the value fits the native word and the `New`
   words form in hex beyond it; a `Decimal` prints both parts with its
   sign, so the call holds under either sign rule of the constructor.
-  `DecimalScaler` carries the instantiation's name and the int64 fit
-  check through unexported methods, which closes the family to the
+  `DecimalScaler` carries the instantiation's name and the widening to
+  an `Int128` through unexported methods, which closes the family to the
   package's scalers; the constraints stay free of formatting methods,
   and the `Decimal` fallback reaches its backing's form through `%#v`.
   A new type or instantiation adds a row to the `GoString` table.
@@ -113,9 +113,9 @@ Files:
   and hands the magnitude over; `Int32` and `Int64` hand the native
   value to fmt with `fmt.FormatString`, under the verb they were given
   rather than a decimal rewrite of it, so their flags cannot drift from
-  fmt's; `Decimal` prints its parts as magnitudes one at a time, the
-  whole count's as an unsigned 128-bit value, as `Int128` takes its own,
-  which keeps the backing's minimum where `Abs` wraps.
+  fmt's; `Decimal` prints its parts as unsigned 128-bit magnitudes one
+  at a time, as `Int128` takes its own, which keeps the backing's
+  minimum where `Abs` wraps and holds a fraction past an int64.
   Fraction rounding is half away from zero; the precision of `%f` is
   fmt's, not the resolution's. Never reach for `math/big` for any of
   this.
@@ -131,8 +131,8 @@ Files:
 - `MarshalJSON` is the `MarshalText` text, bare while a `float64`
   consumer reads the value back safely and quoted beyond that: an
   integer at a magnitude of at most 2^53 through `Int64()`, a
-  `Decimal` at a count and a scale both below 10^15 through the
-  scaler's `asInt64`, which makes a `Milli32` always a number and an
+  `Decimal` at a count and a scale both below 10^15, each read through
+  its `Int128` widening, which makes a `Milli32` always a number and an
   `Atto128` never one, so its field type stays stable. Exactness in a
   `float64` is the wrong test, since 2^60 is exact and 2^60+1 is not.
   `TestJSON` reads each result back through the standard decoder to

@@ -17,10 +17,6 @@ func (atto128Scale) name() string {
 	return "Atto128"
 }
 
-func (atto128Scale) asInt64(v Int128) (int64, bool) {
-	return v.asInt64()
-}
-
 func (atto128Scale) asInt128(v Int128) Int128 {
 	return v
 }
