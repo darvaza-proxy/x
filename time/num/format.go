@@ -49,10 +49,14 @@ const decGroup uint64 = 1e19
 const decGroupDigits = 19
 
 // appendPadded appends v in base 10 to dst, left-padded with zeros to at
-// least width digits.
+// least width digits. A zero is all padding, so it takes exactly width
+// digits, none at all at width zero.
 func appendPadded(dst []byte, v uint64, width int) []byte {
 	var tmp [20]byte
-	s := strconv.AppendUint(tmp[:0], v, 10)
+	var s []byte
+	if v != 0 {
+		s = strconv.AppendUint(tmp[:0], v, 10)
+	}
 	for pad := width - len(s); pad > 0; pad-- {
 		dst = append(dst, '0')
 	}
