@@ -239,6 +239,14 @@ func writeGoString(s fmt.State, gs string) {
 	_, _ = fmt.Fprintf(s, fmt.FormatString(s, 's'), gs)
 }
 
+// constructorName returns the constructor of a qualified type name,
+// prefix inserted after the package qualifier: num.Milli32 and New make
+// num.NewMilli32.
+func constructorName(typeName, prefix string) string {
+	i := strings.LastIndexByte(typeName, '.') + 1
+	return typeName[:i] + prefix + typeName[i:]
+}
+
 // writeBadVerb writes the %!verb(type=value) form fmt prints for a verb
 // a type does not take, calling write for the value. fmt prints that
 // value under the flags, width and precision the bad verb was given,
