@@ -89,11 +89,25 @@ compares a character at a time.
   `slices.SortFunc` and usable on any type over `string`. Strings that
   tie on every rule, such as `ttyS1` and `ttyS01`, or `tty` and `tty0`,
   fall back to their bytes, so only equal strings compare as 0.
+* `Sort[S core.String](a []S)` — sorts a slice of strings in place.
+* `SortBy[S core.String, T any](a []T, fn func(T) S)` — sorts any slice
+  in place by the string `fn` gives each element. The sort is stable, so
+  elements whose strings are equal keep their order. `fn` is called once
+  per element, and a nil `fn` leaves the slice as it is.
 
 ```go
 names := []string{"eth10", "eth2", "enp10s0", "enp2s0"}
-slices.SortFunc(names, versionsort.Compare)
+versionsort.Sort(names)
 // [enp2s0 enp10s0 eth2 eth10]
+
+type link struct {
+    name  string
+    index int
+}
+
+links := []link{{"eth10", 3}, {"eth2", 2}}
+versionsort.SortBy(links, func(l link) string { return l.name })
+// [{eth2 2} {eth10 3}]
 ```
 
 Text ranks, from first to last:

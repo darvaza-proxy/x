@@ -2,6 +2,7 @@ package versionsort
 
 import (
 	"cmp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -26,6 +27,40 @@ func Compare[S core.String](a, b S) int {
 		return d
 	}
 	return strings.Compare(sa, sb)
+}
+
+// Sort sorts a slice of strings by version, in place.
+func Sort[S core.String](a []S) {
+	slices.SortFunc(a, Compare[S])
+}
+
+// SortBy sorts a slice by the version string fn gives each element, in
+// place. The sort is stable, so elements whose strings are equal keep
+// their order. fn is called once per element. A nil fn leaves the slice
+// as it is.
+func SortBy[S core.String, T any](a []T, fn func(T) S) {
+	if fn == nil {
+		return
+	}
+
+	entries := make([]keyed[S, T], len(a))
+	for i, v := range a {
+		entries[i] = keyed[S, T]{key: fn(v), value: v}
+	}
+
+	slices.SortStableFunc(entries, func(x, y keyed[S, T]) int {
+		return Compare(x.key, y.key)
+	})
+
+	for i, e := range entries {
+		a[i] = e.value
+	}
+}
+
+// keyed pairs an element with the version string SortBy sorts it by.
+type keyed[S core.String, T any] struct {
+	key   S
+	value T
 }
 
 // compareVersion compares two strings a run at a time, the text before

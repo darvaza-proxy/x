@@ -25,4 +25,8 @@
 // are not normalised: a letter followed by a combining accent is two
 // characters, and sorts apart from the same accented letter written as
 // one. Dots and file suffixes are ordinary characters.
+//
+// [Compare] suits [slices.SortFunc] and the like. [Sort] sorts a slice of
+// strings in place, and [SortBy] sorts any slice by the string a function
+// gives each element, keeping elements with equal strings in their order.
 package versionsort
