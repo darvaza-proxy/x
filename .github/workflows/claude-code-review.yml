@@ -6,15 +6,21 @@ on:
 
 jobs:
   claude-review:
+    # The action refuses bot actors, and the plugin skips a pull
+    # request Claude has already commented on, so Claude's own pushes
+    # are not reviewed.
     if: |
       github.actor != 'renovate[bot]' &&
+      github.actor != 'claude[bot]' &&
       !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: depot-ubuntu-latest
     permissions:
+      # Claude posts through the Claude GitHub App's token, not this
+      # job's, so the job itself only reads.
       contents: read
-      pull-requests: write
-      issues: write
+      pull-requests: read
+      issues: read
       id-token: write
 
     steps:
@@ -26,8 +32,76 @@ jobs:
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
+        env:
+          # The plugin starts its subagents in the background and ends
+          # its turn to wait for them, but the action stops at the first
+          # result, abandoning them (anthropics/claude-code-action#1499).
+          # Run them in the foreground instead.
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          # Without --comment the plugin prints its review to the log
+          # and posts nothing.
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
+          # The action starts the inline-comment server only when this
+          # names it. The plugin's own allowed-tools grants the rest.
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+
+      # The model often reaches for commands it was not granted and
+      # works around the refusal, so a refusal is reported, not fatal.
+      - name: Report permission denials
+        if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          # shellcheck disable=SC2166
+          if [ -z "$EXECUTION_FILE" -o ! -f "$EXECUTION_FILE" ]; then
+            echo 'No execution file; the action did not get far enough to produce one.'
+            exit 0
+          fi
+          jq -r '
+            [.. | objects | select(has("permission_denials")) | .permission_denials[]]
+            | unique_by(.tool_use_id)
+            | .[] | "::warning title=Tool call refused::\(.tool_name)  \(.tool_input | tostring)"' \
+            "$EXECUTION_FILE"
+
+      # The last background_tasks_changed record lists the tasks still
+      # running when the session ended; any left over were abandoned.
+      - name: Fail on abandoned background tasks
+        if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          # shellcheck disable=SC2166
+          if [ -z "$EXECUTION_FILE" -o ! -f "$EXECUTION_FILE" ]; then
+            echo 'No execution file; the action did not get far enough to produce one.'
+            exit 0
+          fi
+          outstanding=$(jq -s '[.. | objects
+            | select(.subtype? == "background_tasks_changed")
+            | .tasks | length] | last // 0' "$EXECUTION_FILE")
+          if [ "$outstanding" -gt 0 ]; then
+            echo "The session ended with $outstanding background task(s) still running."
+            exit 1
+          fi
+          echo 'No background tasks left running.'
+
+      # The action reports success whether or not a review was posted,
+      # and skips the review on a pull request that changes this
+      # workflow.
+      - name: Warn when the review posted nothing
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --jq '.[].user.login' > authors.txt
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/comments" --jq '.[].user.login' >> authors.txt
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/reviews" --jq '.[].user.login' >> authors.txt
+          if grep -qi claude authors.txt; then
+            echo 'Review present.'
+            exit 0
+          fi
+          echo '::warning title=No review posted::The job finished without posting a review.'

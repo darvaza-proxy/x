@@ -22,7 +22,9 @@ jobs:
       )
     runs-on: depot-ubuntu-latest
     permissions:
-      contents: read
+      # Claude pushes its commits; with read, the push is refused and
+      # the job still succeeds.
+      contents: write
       pull-requests: write
       issues: write
       id-token: write
@@ -32,11 +34,56 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          # Left in place, this job's token is what Claude pushes with,
+          # and a push by github-actions[bot] waits for approval
+          # before it starts any workflow.
+          persist-credentials: false
+
+      # The same toolchain as the build workflow, at the lowest Go it
+      # supports, so that make runs every check it runs there.
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.25'
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v6
+        with:
+          version: '11'
 
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
+        env:
+          # Work Claude hands to a background task is abandoned when
+          # its turn ends, since the action stops at the first result
+          # (anthropics/claude-code-action#1499).
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
+          claude_args: '--allowedTools "Bash(make:*)"'
+
+      # The last background_tasks_changed record lists the tasks still
+      # running when the session ended; any left over were abandoned.
+      - name: Fail on abandoned background tasks
+        if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          # shellcheck disable=SC2166
+          if [ -z "$EXECUTION_FILE" -o ! -f "$EXECUTION_FILE" ]; then
+            echo 'No execution file; the action did not get far enough to produce one.'
+            exit 0
+          fi
+          outstanding=$(jq -s '[.. | objects
+            | select(.subtype? == "background_tasks_changed")
+            | .tasks | length] | last // 0' "$EXECUTION_FILE")
+          if [ "$outstanding" -gt 0 ]; then
+            echo "The session ended with $outstanding background task(s) still running."
+            exit 1
+          fi
+          echo 'No background tasks left running.'
