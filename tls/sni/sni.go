@@ -8,7 +8,7 @@ import (
 )
 
 /*  type ClientHelloInfo struct {
-	Vers                             uint16
+	Version                          uint16
 	CipherSuites                     []uint16
 	CompressionMethods               []uint8
 	ServerName                       string
@@ -48,7 +48,7 @@ func GetInfo(buf []byte) *ClientHelloInfo {
 	}
 	// Lower than TLS13,
 	if len(msg.SupportedVersions) == 0 {
-		msg.SupportedVersions = append(msg.SupportedVersions, msg.Vers)
+		msg.SupportedVersions = append(msg.SupportedVersions, msg.Version)
 	}
 	return msg
 }
@@ -64,7 +64,7 @@ license that can be found in the LICENSE file.*/
 // guide application logic in the GetCertificate and GetConfigForClient callbacks.
 type ClientHelloInfo struct { //nolint:govet // fieldalignment: TLS protocol struct; field order follows the wire format
 	raw                              []byte
-	Vers                             uint16
+	Version                          uint16
 	random                           []byte
 	sessionID                        []byte
 	CipherSuites                     []uint16
@@ -80,7 +80,7 @@ type ClientHelloInfo struct { //nolint:govet // fieldalignment: TLS protocol str
 	secureRenegotiationSupported     bool
 	secureRenegotiation              []byte
 	ALPNProtocols                    []string
-	scts                             bool
+	sctRequested                     bool
 	SupportedVersions                []uint16
 	cookie                           []byte
 	keyShares                        []keyShare
@@ -98,31 +98,25 @@ func readUint16LengthPrefixed(s *cryptobyte.String, out *[]byte) bool {
 	return s.ReadUint16LengthPrefixed((*cryptobyte.String)(out))
 }
 
-//revive:disable:cognitive-complexity
-//revive:disable:cyclomatic
+//revive:disable-next-line:cognitive-complexity,cyclomatic
 func (m *ClientHelloInfo) unmarshal(data []byte) bool {
-	//revive:enable:cognitive-complexity
-	//revive:enable:cyclomatic
 	*m = ClientHelloInfo{raw: data}
 	s := cryptobyte.String(data)
 
 	if !s.Skip(4) || // message type and uint24 length field
-		!s.ReadUint16(&m.Vers) || !s.ReadBytes(&m.random, 32) ||
+		!s.ReadUint16(&m.Version) || !s.ReadBytes(&m.random, 32) ||
 		!readUint8LengthPrefixed(&s, &m.sessionID) {
 		return false
 	}
-	// TODO: Fix revive
-	//revive:disable:unexported-naming
-	var CipherSuites cryptobyte.String
-	//revive:enable:unexported-naming
-	if !s.ReadUint16LengthPrefixed(&CipherSuites) {
+	var suites cryptobyte.String
+	if !s.ReadUint16LengthPrefixed(&suites) {
 		return false
 	}
 	m.CipherSuites = []uint16{}
 	m.secureRenegotiationSupported = false
-	for !CipherSuites.Empty() {
+	for !suites.Empty() {
 		var suite uint16
-		if !CipherSuites.ReadUint16(&suite) {
+		if !suites.ReadUint16(&suite) {
 			return false
 		}
 		if suite == scsvRenegotiation {
@@ -143,11 +137,8 @@ func (m *ClientHelloInfo) unmarshal(data []byte) bool {
 	return m.unmarshalExtensions(s)
 }
 
-// revive:disable:cognitive-complexity
-// revive:disable:cyclomatic
+//revive:disable-next-line:cognitive-complexity,cyclomatic
 func (m *ClientHelloInfo) unmarshalExtensions(s cryptobyte.String) bool {
-	// revive:enable:cognitive-complexity
-	// revive:enable:cyclomatic
 	var extensions cryptobyte.String
 	if !s.ReadUint16LengthPrefixed(&extensions) || !s.Empty() {
 		return false
@@ -212,9 +203,8 @@ func (m *ClientHelloInfo) unmarshalExtensions(s cryptobyte.String) bool {
 	return true
 }
 
-// revive:disable:cognitive-complexity
+//revive:disable-next-line:cognitive-complexity
 func (m *ClientHelloInfo) unmarshalServerName(extData *cryptobyte.String) bool {
-	// revive:enable:cognitive-complexity
 	// RFC 6066, Section 3
 	var nameList cryptobyte.String
 	if !extData.ReadUint16LengthPrefixed(&nameList) || nameList.Empty() {
@@ -291,34 +281,34 @@ func (m *ClientHelloInfo) unmarshalSessionTicket(extData *cryptobyte.String) boo
 
 func (m *ClientHelloInfo) unmarshalSignatureAlgorithms(extData *cryptobyte.String) bool {
 	// RFC 5246, Section 7.4.1.4.1
-	var sigAndAlgs cryptobyte.String
-	if !extData.ReadUint16LengthPrefixed(&sigAndAlgs) || sigAndAlgs.Empty() {
+	var schemes cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&schemes) || schemes.Empty() {
 		return false
 	}
-	for !sigAndAlgs.Empty() {
-		var sigAndAlg uint16
-		if !sigAndAlgs.ReadUint16(&sigAndAlg) {
+	for !schemes.Empty() {
+		var scheme uint16
+		if !schemes.ReadUint16(&scheme) {
 			return false
 		}
 		m.SupportedSignatureAlgorithms = append(
-			m.SupportedSignatureAlgorithms, SignatureScheme(sigAndAlg))
+			m.SupportedSignatureAlgorithms, SignatureScheme(scheme))
 	}
 	return true
 }
 
 func (m *ClientHelloInfo) unmarshalSignatureAlgorithmsCert(extData *cryptobyte.String) bool {
 	// RFC 8446, Section 4.2.3
-	var sigAndAlgs cryptobyte.String
-	if !extData.ReadUint16LengthPrefixed(&sigAndAlgs) || sigAndAlgs.Empty() {
+	var schemes cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&schemes) || schemes.Empty() {
 		return false
 	}
-	for !sigAndAlgs.Empty() {
-		var sigAndAlg uint16
-		if !sigAndAlgs.ReadUint16(&sigAndAlg) {
+	for !schemes.Empty() {
+		var scheme uint16
+		if !schemes.ReadUint16(&scheme) {
 			return false
 		}
 		m.SupportedSignatureAlgorithmsCert = append(
-			m.SupportedSignatureAlgorithmsCert, SignatureScheme(sigAndAlg))
+			m.SupportedSignatureAlgorithmsCert, SignatureScheme(scheme))
 	}
 	return true
 }
@@ -351,28 +341,22 @@ func (m *ClientHelloInfo) unmarshalALPN(extData *cryptobyte.String) bool {
 
 func (m *ClientHelloInfo) unmarshalSCT(_ *cryptobyte.String) bool {
 	// RFC 6962, Section 3.3.1
-	m.scts = true
+	m.sctRequested = true
 	return true
 }
 
 func (m *ClientHelloInfo) unmarshalSupportedVersions(extData *cryptobyte.String) bool {
 	// RFC 8446, Section 4.2.1
-	// TODO: Fix revive
-	//revive:disable:unexported-naming
-	var VersList cryptobyte.String
-	//revive:enable:unexported-naming
-	if !extData.ReadUint8LengthPrefixed(&VersList) || VersList.Empty() {
+	var versions cryptobyte.String
+	if !extData.ReadUint8LengthPrefixed(&versions) || versions.Empty() {
 		return false
 	}
-	for !VersList.Empty() {
-		// TODO: Fix revive
-		//revive:disable:unexported-naming
-		var Vers uint16
-		//revive:enable:unexported-naming
-		if !VersList.ReadUint16(&Vers) {
+	for !versions.Empty() {
+		var version uint16
+		if !versions.ReadUint16(&version) {
 			return false
 		}
-		m.SupportedVersions = append(m.SupportedVersions, Vers)
+		m.SupportedVersions = append(m.SupportedVersions, version)
 	}
 	return true
 }
@@ -415,11 +399,8 @@ func (m *ClientHelloInfo) unmarshalPSKModes(extData *cryptobyte.String) bool {
 	return readUint8LengthPrefixed(extData, &m.pskModes)
 }
 
-// revive:disable:cognitive-complexity
-// revive:disable:cyclomatic
+//revive:disable-next-line:cognitive-complexity,cyclomatic
 func (m *ClientHelloInfo) unmarshalPreSharedKey(extData *cryptobyte.String) bool {
-	// revive:enable:cognitive-complexity
-	// revive:enable:cyclomatic
 	// RFC 8446, Section 4.2.11
 	var identities cryptobyte.String
 	if !extData.ReadUint16LengthPrefixed(&identities) || identities.Empty() {

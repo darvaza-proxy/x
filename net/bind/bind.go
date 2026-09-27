@@ -211,11 +211,9 @@ func (cfg *Config) tryListen(pass int, addrs []net.IP, port int) (
 	return cfg.tryListenPort(addrs, port)
 }
 
-// revive:disable:cognitive-complexity
-
+//revive:disable-next-line:cognitive-complexity
 func (cfg *Config) tryListenPort(addrs []net.IP, port int) (
 	[]*net.TCPListener, []*net.UDPConn, error) {
-	// revive:enable:cognitive-complexity
 	var ok bool
 
 	n := len(addrs)

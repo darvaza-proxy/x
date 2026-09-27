@@ -17,10 +17,9 @@ const (
 	mimeTextXML  = "text/xml"
 )
 
-// revive:disable:argument-limit
+//revive:disable-next-line:argument-limit
 func parsedEqual(test *testing.T, mime string,
 	t string, st string, q float32, attrs map[string]string) {
-	// revive:enable:argument-limit
 	r, err := ParseMediaRange(mime)
 	_, file, line, _ := runtime.Caller(1)
 	if err != nil {
@@ -103,9 +102,8 @@ func TestParseMediaRange(t *testing.T) {
 }
 
 func TestRFC2616Example(t *testing.T) {
-	// revive:disable:line-length-limit
+	//revive:disable-next-line:line-length-limit
 	accept := "text/*;q=0.3, text/html;q=0.7, text/html;level=1, text/html;level=2;q=0.4, * /*;q=0.5"
-	// revive:enable:line-length-limit
 	cond := map[string]float32{
 		"text/html;level=1": 1.0,
 		"text/html":         0.7,

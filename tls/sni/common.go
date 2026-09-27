@@ -1,5 +1,7 @@
 package sni
 
+// cspell:words RSASSA
+
 //revive:disable:var-naming
 //revive:disable:exported
 var cipherSuites = map[uint16]string{
@@ -23,14 +25,14 @@ var cipherSuites = map[uint16]string{
 	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:           "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA",
 	TLS_RSA_WITH_3DES_EDE_CBC_SHA:                 "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
 }
-var tlsversions = map[uint16]string{
+var tlsVersions = map[uint16]string{
 	VersionTLS10: "TLS 1.0",
 	VersionTLS11: "TLS 1.1",
 	VersionTLS12: "TLS 1.2",
 	VersionTLS13: "TLS 1.3",
 	VersionSSL30: "SSL 3.0",
 }
-var signaturealgos = map[SignatureScheme]string{
+var signatureAlgos = map[SignatureScheme]string{
 	PKCS1WithSHA256:        "PKCS1WithSHA256",
 	PKCS1WithSHA384:        "PKCS1WithSHA384",
 	PKCS1WithSHA512:        "PKCS1WithSHA512",
@@ -66,7 +68,7 @@ func CipherSuites(u []uint16) []string {
 
 // VersionName will return the name of the TLS/SSL version
 func VersionName(u uint16) string {
-	if m, ok := tlsversions[u]; ok {
+	if m, ok := tlsVersions[u]; ok {
 		return m
 	}
 	return "Unknown"
@@ -77,7 +79,7 @@ func VersionName(u uint16) string {
 func SupportedVersions(u []uint16) []string {
 	result := make([]string, 0)
 	for _, k := range u {
-		if m, ok := tlsversions[k]; ok {
+		if m, ok := tlsVersions[k]; ok {
 			result = append(result, m)
 		} else {
 			result = append(result, "Unknown")
@@ -104,7 +106,7 @@ func CompressionMethods(u []uint8) []string {
 func SignatureAlgos(u []SignatureScheme) []string {
 	result := make([]string, 0)
 	for _, k := range u {
-		if m, ok := signaturealgos[k]; ok {
+		if m, ok := signatureAlgos[k]; ok {
 			result = append(result, m)
 		} else {
 			result = append(result, "Unknown")
