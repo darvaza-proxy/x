@@ -1,5 +1,7 @@
 package sni
 
+// cspell:words ulfheim
+
 import (
 	"fmt"
 	"testing"
@@ -66,7 +68,7 @@ func Test_GetInfo13(t *testing.T) {
 func testGetInfo(t *testing.T, ci *ClientHelloInfo, serverName string) {
 	_, _ = fmt.Println()
 	_, _ = fmt.Println()
-	_, _ = fmt.Println("Version is:", VersionName(ci.Vers))
+	_, _ = fmt.Println("Version is:", VersionName(ci.Version))
 	_, _ = fmt.Println("Cipher Suites:", CipherSuites(ci.CipherSuites))
 	_, _ = fmt.Println("Compression Methods:", CompressionMethods(ci.CompressionMethods))
 	_, _ = fmt.Println("Supported Algos:", SignatureAlgos(ci.SupportedSignatureAlgorithms))
