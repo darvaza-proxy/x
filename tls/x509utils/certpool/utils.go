@@ -72,10 +72,8 @@ func deleteMapListMatchFn[K, V comparable](m map[K]*list.List[V], keys []K, eq f
 	}
 }
 
-// revive:disable:flag-parameter
+//revive:disable-next-line:flag-parameter
 func newCertAdder(pool *CertPool, caOnly bool, errs *core.CompoundError) x509utils.DecodePEMBlockFunc {
-	// revive:enable:flag-parameter
-
 	return func(_ fs.FS, fileName string, block *pem.Block) bool {
 		cert, err := x509utils.BlockToCertificate(block)
 		switch {

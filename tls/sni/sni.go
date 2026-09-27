@@ -98,11 +98,8 @@ func readUint16LengthPrefixed(s *cryptobyte.String, out *[]byte) bool {
 	return s.ReadUint16LengthPrefixed((*cryptobyte.String)(out))
 }
 
-//revive:disable:cognitive-complexity
-//revive:disable:cyclomatic
+//revive:disable-next-line:cognitive-complexity,cyclomatic
 func (m *ClientHelloInfo) unmarshal(data []byte) bool {
-	//revive:enable:cognitive-complexity
-	//revive:enable:cyclomatic
 	*m = ClientHelloInfo{raw: data}
 	s := cryptobyte.String(data)
 
@@ -143,11 +140,8 @@ func (m *ClientHelloInfo) unmarshal(data []byte) bool {
 	return m.unmarshalExtensions(s)
 }
 
-// revive:disable:cognitive-complexity
-// revive:disable:cyclomatic
+//revive:disable-next-line:cognitive-complexity,cyclomatic
 func (m *ClientHelloInfo) unmarshalExtensions(s cryptobyte.String) bool {
-	// revive:enable:cognitive-complexity
-	// revive:enable:cyclomatic
 	var extensions cryptobyte.String
 	if !s.ReadUint16LengthPrefixed(&extensions) || !s.Empty() {
 		return false
@@ -212,9 +206,8 @@ func (m *ClientHelloInfo) unmarshalExtensions(s cryptobyte.String) bool {
 	return true
 }
 
-// revive:disable:cognitive-complexity
+//revive:disable-next-line:cognitive-complexity
 func (m *ClientHelloInfo) unmarshalServerName(extData *cryptobyte.String) bool {
-	// revive:enable:cognitive-complexity
 	// RFC 6066, Section 3
 	var nameList cryptobyte.String
 	if !extData.ReadUint16LengthPrefixed(&nameList) || nameList.Empty() {
@@ -415,11 +408,8 @@ func (m *ClientHelloInfo) unmarshalPSKModes(extData *cryptobyte.String) bool {
 	return readUint8LengthPrefixed(extData, &m.pskModes)
 }
 
-// revive:disable:cognitive-complexity
-// revive:disable:cyclomatic
+//revive:disable-next-line:cognitive-complexity,cyclomatic
 func (m *ClientHelloInfo) unmarshalPreSharedKey(extData *cryptobyte.String) bool {
-	// revive:enable:cognitive-complexity
-	// revive:enable:cyclomatic
 	// RFC 8446, Section 4.2.11
 	var identities cryptobyte.String
 	if !extData.ReadUint16LengthPrefixed(&identities) || identities.Empty() {

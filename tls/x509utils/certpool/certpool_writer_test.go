@@ -83,11 +83,10 @@ func (tc putErrorTestCase) Test(t *testing.T) {
 		"error")
 }
 
-// revive:disable:argument-limit
+//revive:disable-next-line:argument-limit
 func newPutErrorTestCase(caseName string, pool *certpool.CertPool,
 	name string, cert *x509.Certificate, cancel bool,
 	wantErr error) putErrorTestCase {
-	// revive:enable:argument-limit
 	return putErrorTestCase{
 		pool:     pool,
 		cert:     cert,
