@@ -44,7 +44,8 @@ func AsCenti64(centi num.Int64) Centi64 {
 }
 
 // TestCenti64 shows the outside instantiation built through its own
-// constructors, printed, and read back as a count.
+// constructors, printed, read back as a count, and built from whole
+// units through the Decimal factory.
 func TestCenti64(t *testing.T) {
 	core.RunTestCases(t, core.S[core.TestCase](
 		newTextCase("text", NewCenti64(1, 50), "1.50"),
@@ -53,6 +54,11 @@ func TestCenti64(t *testing.T) {
 		newGoStringCase("go string of as", AsCenti64(150),
 			"num_test.NewCenti64(1, 50)"),
 		newCountCase("count", NewCenti64(1, 55), num.AsInt64(155)),
+		newDecimalFromInt128Case[num.Int64, centi64Scale]("from int128",
+			num.AsInt128(-5), NewCenti64(-5, 0)),
+		newDecimalFromInt128CaseRange[num.Int64, centi64Scale](
+			"from int128 past whole", num.AsInt128(math.MaxInt64/100+1),
+			AsCenti64(math.MaxInt64)),
 	))
 }
 

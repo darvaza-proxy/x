@@ -75,6 +75,13 @@ func (Decimal[T, S]) ULP() Decimal[T, S] {
 	return Decimal[T, S]{ulp}
 }
 
+// ulpOf returns the unit of a backing other than the package's
+// integers: the scale divided by itself, one for any integer backing.
+func (Decimal[T, S]) ulpOf() T {
+	var s S
+	return s.Scale().Div(s.Scale())
+}
+
 // wide returns d as its count at its resolution, on the way to another
 // type of the family.
 func (d Decimal[T, S]) wide() wide {
@@ -125,6 +132,78 @@ func widenBits[T Signed[T]](v T) Int128 {
 		return Int128(mag).Neg()
 	}
 	return Int128(mag)
+}
+
+// narrow returns a count as a backing value, or the bound of the
+// backing on the side of c with [ErrRange] when it does not fit: the
+// inverse of widen, over the same type switch.
+func (d Decimal[T, S]) narrow(c Int128) (T, error) {
+	var out T
+	var err error
+	switch p := any(&out).(type) {
+	case *Int32:
+		*p, err = rangedInt32(c)
+	case *Int64:
+		*p, err = rangedInt64(c)
+	case *Int128:
+		*p = c
+	default:
+		out, err = d.narrowBits(c)
+	}
+	return out, err
+}
+
+// narrowBits returns c as a T built from the backing's unit, the
+// inverse of widenBits. The magnitude is doubled in from its top bit
+// on the negative side, where the minimum of T is reachable, so a step
+// that leaves the value non-negative has passed the minimum; a c that
+// is not negative then takes the negation, and one still at the
+// minimum after it is past the maximum. A miss answers the bound of T
+// on the side of c with [ErrRange].
+func (d Decimal[T, S]) narrowBits(c Int128) (T, error) {
+	one := d.ulpOf()
+	mag := c.Abs().bits()
+	var v T
+	for i := mag.bitLen() - 1; i >= 0; i-- {
+		var ok bool
+		if v, ok = doubleDown(v, one, mag.bit(i)); !ok {
+			return boundBits(c, one), ErrRange
+		}
+	}
+	if !c.IsNegative() {
+		if v = v.Neg(); v.IsNegative() {
+			return boundBits(c, one), ErrRange
+		}
+	}
+	return v, nil
+}
+
+// doubleDown returns 2v, less one when set, for a v at or below zero,
+// and whether it stayed on the negative side of T: a doubling that
+// wraps leaves a negative v non-negative, and taking one from the
+// minimum leaves the maximum.
+func doubleDown[T Signed[T]](v, one T, set bool) (T, bool) {
+	w := v.Add(v)
+	switch {
+	case v.IsNegative() && !w.IsNegative():
+		return w, false
+	case set:
+		w = w.Sub(one)
+		return w, w.IsNegative()
+	default:
+		return w, true
+	}
+}
+
+// boundBits returns the bound of T on the side of c: the minimum,
+// found by doubling one until it wraps negative at the top bit of a
+// two's-complement T, and the maximum one below it.
+func boundBits[T Signed[T]](c Int128, one T) T {
+	lo := one
+	for !lo.IsNegative() {
+		lo = lo.Add(lo)
+	}
+	return bound(c, lo, lo.Sub(one))
 }
 
 // AsInt32 returns the count of d, its backing integer, as an Int32 and

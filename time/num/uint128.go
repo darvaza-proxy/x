@@ -368,6 +368,14 @@ func (u Uint128) shl1(in uint64) Uint128 {
 	}
 }
 
+// bit reports whether bit i of u is set, for 0 <= i < 128.
+func (u Uint128) bit(i int) bool {
+	if i >= 64 {
+		return u.hi>>(i-64)&1 != 0
+	}
+	return u.lo>>i&1 != 0
+}
+
 // setBit returns u with bit i set when i is within the low 128 bits;
 // higher bits are dropped, matching the wrapping policy of Add and Mul.
 func (u Uint128) setBit(i int) Uint128 {
