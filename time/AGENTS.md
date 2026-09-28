@@ -29,6 +29,13 @@ the standard library.
 - **`Number[T]`**: the constraint naming the whole surface, `Unsigned`
   with `IsNegative` and `Abs`, the fmt, encoding and JSON forms, and
   the conversion to every type of the family, each `(T, bool)`.
+- **`NewFromInt128`**, **`NewDecimalFromInt128`**: the generic
+  factories, whole units as a type named by its type arguments, the
+  first over a closed switch on the seven types of the package and the
+  second through the scaler, so an instantiation of another package
+  takes it; the nearest bound with `ErrRange` where the units do not
+  fit, `core.ErrUnsupported` for a type the switch does not know. The
+  second takes any backing `Decimal` takes.
 - **`EuclideanDivMod`**, **`EuclideanMulDivMod`**: division helpers
   correcting the remainder into `[0, |divisor|)`, constrained on
   `Euclidean`. A `Decimal` backing needs only `Signed`: `Decimal` finds
@@ -75,10 +82,12 @@ Files:
 - `num/const.go`: word primitives, the fixed-point scale factors, the
   table of powers of ten behind `Pow10` and the sentinel bounds
   (`MaxUint128`, `MinInt128`, …).
-- `num/convert.go`: the `wide` intermediate the conversions share,
-  which rescales a count between resolutions and narrows it into the
-  target; each type's `wide` and conversion methods sit in its own
-  file.
+- `num/convert.go`: `NewFromInt128` and `NewDecimalFromInt128`, with
+  the range rule under them, a conversion's value when it fitted and
+  the bound on the side of the input with `ErrRange` when it did not;
+  then the `wide` intermediate the conversions share, which rescales a
+  count between resolutions and narrows it into the target. Each
+  type's `wide` and conversion methods sit in its own file.
 - `num/decimal.go`: `Decimal`, its constructors and its methods.
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero`, `ErrPow10Range`, `ErrSyntax`,
@@ -139,7 +148,8 @@ Files:
   cell of the matrix by hand, the flag declared per row, and asserts
   the round trip where nothing truncates; `TestCount` pins the count
   accessors. A new type adds its `wide`, its seven methods, a `wide`
-  method named for it, and a row per cell.
+  method named for it, and a row per cell, then its arm in the switch
+  of `NewFromInt128` with its rows in `TestNewFromInt128`.
 - `GoString` prints the constructor call that rebuilds the value, the
   `As` count form while the value fits the native word and the `New`
   words form in hex beyond it; a `Decimal` prints both parts with its

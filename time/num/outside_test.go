@@ -133,7 +133,7 @@ func AsOutsideCenti(centi int64) OutsideCenti {
 
 // TestOutsideCenti runs the shared Decimal and Euclidean suites over
 // the outside instantiation, and its text, GoString, Format, JSON,
-// conversion and count rows.
+// conversion, count and factory rows.
 func TestOutsideCenti(t *testing.T) {
 	t.Run("decimal", runTestOutsideCentiDecimal)
 	t.Run("euclidean", runTestOutsideCentiEuclidean)
@@ -143,6 +143,7 @@ func TestOutsideCenti(t *testing.T) {
 	t.Run("json", runTestOutsideCentiJSON)
 	t.Run("convert", runTestOutsideCentiConvert)
 	t.Run("count", runTestOutsideCentiCount)
+	t.Run("from int128", runTestOutsideCentiFromInt128)
 }
 
 func runTestOutsideCentiDecimal(t *testing.T) {
@@ -389,4 +390,41 @@ func runTestOutsidePlainCentiCount(t *testing.T) {
 		newCountCaseOverflow("two to the 64 as int64",
 			AsOutsidePlainCenti(num.NewInt128(1, 0)), num.AsInt64(0)),
 	))
+}
+
+func outsideCentiFromInt128Cases() []core.TestCase {
+	// the whole units at the edge of the resolution.
+	const whole = math.MaxInt64 / 100
+	return core.S[core.TestCase](
+		newDecimalFromInt128Case[outsideSigned, outsideCentiScale]("one",
+			num.AsInt128(1), NewOutsideCenti(1, 0)),
+		newDecimalFromInt128Case[outsideSigned, outsideCentiScale]("negative",
+			num.AsInt128(-5), NewOutsideCenti(-5, 0)),
+		newDecimalFromInt128Case[outsideSigned, outsideCentiScale]("whole max",
+			num.AsInt128(whole), NewOutsideCenti(whole, 0)),
+		newDecimalFromInt128Case[outsideSigned, outsideCentiScale]("whole min",
+			num.AsInt128(-whole), NewOutsideCenti(-whole, 0)),
+		newDecimalFromInt128CaseRange[outsideSigned, outsideCentiScale]("past whole",
+			num.AsInt128(whole+1), AsOutsideCenti(math.MaxInt64)),
+		newDecimalFromInt128CaseRange[outsideSigned, outsideCentiScale]("past whole min",
+			num.AsInt128(-whole-1), AsOutsideCenti(math.MinInt64)),
+		// the count wraps past 128 bits before it reaches the backing.
+		newDecimalFromInt128CaseRange[outsideSigned, outsideCentiScale]("int128 max",
+			num.MaxInt128, AsOutsideCenti(math.MaxInt64)),
+		newDecimalFromInt128CaseRange[outsideSigned, outsideCentiScale]("int128 min",
+			num.MinInt128, AsOutsideCenti(math.MinInt64)),
+	)
+}
+
+// runTestOutsideCentiFromInt128 builds the outside instantiation from
+// whole units through the Decimal factory, which reaches the backing
+// through its type arguments, and checks the family factory refuses
+// it, since its switch knows only the seven types of the package.
+func runTestOutsideCentiFromInt128(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, outsideCentiFromInt128Cases())
+
+	got, err := num.NewFromInt128[OutsideCenti](num.AsInt128(1))
+	assertUnsupported[OutsideCenti](t, err)
+	core.AssertEqual(t, OutsideCenti{}, got, "value")
 }
