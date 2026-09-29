@@ -42,7 +42,7 @@ type Signed[T any] interface {
 
 // Number is the whole surface the family shares, the constraint a
 // generic consumer names to take any of its seven types: the
-// arithmetic of Unsigned with the Euclidean correction surface, the
+// arithmetic of Unsigned with sign inspection and absolute value, the
 // fmt, encoding and JSON forms, and a conversion to every type of the
 // family.
 //
@@ -56,7 +56,9 @@ type Signed[T any] interface {
 // type returns it unchanged.
 type Number[T any] interface {
 	Unsigned[T]
-	Euclidean[T]
+
+	IsNegative() bool
+	Abs() T
 
 	encoding.TextAppender
 	encoding.TextMarshaler
