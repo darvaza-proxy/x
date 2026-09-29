@@ -14,15 +14,16 @@ type Uint128 struct {
 	hi, lo uint64
 }
 
-// one returns the multiplicative unit, the [EuclideanDivMod] quotient
+// One returns the multiplicative unit, the [EuclideanDivMod] quotient
 // step.
-func (Uint128) one() Uint128 {
+func (Uint128) One() Uint128 {
 	return Uint128{lo: 1}
 }
 
-// ulp returns the smallest positive value, the [EuclideanMulDivMod]
-// quotient step; for an integer it equals one.
-func (Uint128) ulp() Uint128 {
+// ULP returns the unit in the last place, the smallest positive
+// value, the [EuclideanMulDivMod] quotient step; for an integer it
+// equals one.
+func (Uint128) ULP() Uint128 {
 	return Uint128{lo: 1}
 }
 
