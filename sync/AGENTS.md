@@ -34,6 +34,8 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 - **`Count`**: Atomic counter with conditional waiting.
 - **`CountZero`**: Specialized counter that signals at zero.
 - **`Token`**: Channel-based synchronization mechanism.
+- **`Turnstile`**: Lock that can also be passed without holding it,
+  serving holders and passers in arrival order.
 
 #### errors Package
 
