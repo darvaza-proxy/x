@@ -26,8 +26,8 @@ the standard library.
   method surface the family shares, including the fused `MulDivMod`
   wide multiply-divide.
 - **`Number[T]`**: the constraint naming the whole surface, `Unsigned`
-  with `Euclidean`, the fmt, encoding and JSON forms, and the
-  conversion to every type of the family, each `(T, bool)`.
+  with `IsNegative` and `Abs`, the fmt, encoding and JSON forms, and
+  the conversion to every type of the family, each `(T, bool)`.
 - **`EuclideanDivMod`**, **`EuclideanMulDivMod`**: division helpers
   correcting the remainder into `[0, |divisor|)`, constrained on
   `Euclidean`; `SignedEuclidean` combines it with `Signed` and is the
