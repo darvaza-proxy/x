@@ -99,8 +99,9 @@ func (dt decimalType[D]) testDivZero(t *testing.T) {
 
 // testOverflow drives a quotient past the backing width, which wraps
 // rather than panicking, matching the policy of Add and Mul. big is the
-// first whole count to overflow, so the wrapped value is the excess
-// over the width.
+// first whole count whose quotient by one sub-unit, big times the scale
+// squared in sub-units, passes 2^width, so the wrapped value is the
+// excess over the width.
 func (dt decimalType[D]) testOverflow(t *testing.T) {
 	t.Helper()
 	huge := dt.mk(dt.big, 0)
