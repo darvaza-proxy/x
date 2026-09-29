@@ -25,15 +25,16 @@ func (v Int64) asInt128() Int128 {
 	return AsInt128(v.sys())
 }
 
-// one returns the multiplicative unit, the [EuclideanDivMod] quotient
+// One returns the multiplicative unit, the [EuclideanDivMod] quotient
 // step.
-func (Int64) one() Int64 {
+func (Int64) One() Int64 {
 	return 1
 }
 
-// ulp returns the smallest positive value, the [EuclideanMulDivMod]
-// quotient step; for an integer it equals one.
-func (Int64) ulp() Int64 {
+// ULP returns the unit in the last place, the smallest positive
+// value, the [EuclideanMulDivMod] quotient step; for an integer it
+// equals one.
+func (Int64) ULP() Int64 {
 	return 1
 }
 

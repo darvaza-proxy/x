@@ -54,28 +54,20 @@ func newDecimal[T SignedEuclidean[T], S DecimalScaler[T]](whole,
 	return Decimal[T, S]{mag}
 }
 
-// one returns the multiplicative unit, one whole at the resolution:
+// One returns the multiplicative unit, one whole at the resolution:
 // the step between consecutive DivMod quotients.
-func (Decimal[T, S]) one() Decimal[T, S] {
+func (Decimal[T, S]) One() Decimal[T, S] {
 	var s S
 	return Decimal[T, S]{s.Scale()}
 }
 
-// ulp returns the smallest positive value, one sub-unit at the
-// resolution: the step between consecutive MulDivMod quotients.
-func (Decimal[T, S]) ulp() Decimal[T, S] {
+// ULP returns the unit in the last place, the smallest positive
+// value, one sub-unit at the resolution: the step between
+// consecutive MulDivMod quotients.
+func (Decimal[T, S]) ULP() Decimal[T, S] {
 	var z T
-	return Decimal[T, S]{z.ulp()}
+	return Decimal[T, S]{z.ULP()}
 }
-
-// one and ulp are reached only through the [Euclidean] interface, as w.one()
-// and d.ulp() inside EuclideanDivMod and EuclideanMulDivMod, which
-// staticcheck's unused checker cannot follow from a type-parameter
-// constraint back to the generic method, so it reports them unused even at
-// full coverage. Naming them on a concrete instantiation marks them used;
-// a var initialiser is not an instrumented statement, so it costs no
-// coverage.
-var _ = Atto128{}.one().Add(Atto128{}.ulp())
 
 // wide returns d as its count at its resolution, on the way to another
 // type of the family.
@@ -339,7 +331,7 @@ func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
 			q++
 		}
 		if q == pow10(prec) {
-			q, mag = 0, mag.Add(mag.one())
+			q, mag = 0, mag.Add(mag.One())
 		}
 		f, width = q, prec
 	}
