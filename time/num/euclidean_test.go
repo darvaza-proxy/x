@@ -317,6 +317,20 @@ func TestEuclideanInt128(t *testing.T) {
 	})
 }
 
+// TestEuclideanOutside runs the integer suite over a type defined
+// outside the package, which meets Euclidean on its own methods.
+func TestEuclideanOutside(t *testing.T) {
+	runEuclideanTests(t, signedIntType[outsideSigned]{
+		mk:    asOutsideSigned,
+		wideA: 1e12, // 1e12 * 1e12 / 1e6 = 1e18, product overflows int64.
+		wideB: 1e12,
+		wideD: 1e6,
+		wideQ: 1e18,
+		min:   asOutsideSigned(math.MinInt64),
+		max:   asOutsideSigned(math.MaxInt64),
+	})
+}
+
 // TestEuclideanUint128 pins the unsigned no-op: with no negative
 // remainder possible the correction never fires, so the Euclidean
 // helpers must match the plain truncated forms.

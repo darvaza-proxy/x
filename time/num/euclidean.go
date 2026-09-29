@@ -5,7 +5,7 @@ package num
 // than the full [Signed] interface. The signed integers Int32, Int64
 // and Int128 and the Decimal instantiations over them qualify, and so
 // does Uint128, on which the correction never fires. The
-// unexported step methods set how far the quotient moves: the two
+// step methods One and ULP set how far the quotient moves: the two
 // coincide for the integers and differ for Decimal, whose DivMod
 // quotient moves in whole units while its MulDivMod quotient moves
 // in sub-units.
@@ -18,12 +18,12 @@ type Euclidean[T any] interface {
 	DivMod(v T) (q, r T)
 	MulDivMod(v, d T) (q, r T)
 
-	// one returns the multiplicative unit, the step between
+	// One returns the multiplicative unit, the step between
 	// consecutive DivMod quotients.
-	one() T
-	// ulp returns the smallest positive value, the step between
-	// consecutive MulDivMod quotients.
-	ulp() T
+	One() T
+	// ULP returns the unit in the last place, the smallest positive
+	// value, the step between consecutive MulDivMod quotients.
+	ULP() T
 }
 
 // SignedEuclidean is the constraint met by signed types offering both
@@ -46,7 +46,7 @@ type SignedEuclidean[T any] interface {
 // corrected remainder is still representable and below it.
 func EuclideanDivMod[T Euclidean[T]](v, w T) (q, r T) {
 	q, r = v.DivMod(w)
-	return toEuclidean(q, r, w, w.one())
+	return toEuclidean(q, r, w, w.One())
 }
 
 // EuclideanMulDivMod returns the quotient and remainder of v*w/d with
@@ -59,7 +59,7 @@ func EuclideanDivMod[T Euclidean[T]](v, w T) (q, r T) {
 // survives the most negative d, whose magnitude wraps.
 func EuclideanMulDivMod[T Euclidean[T]](v, w, d T) (q, r T) {
 	q, r = v.MulDivMod(w, d)
-	return toEuclidean(q, r, d, d.ulp())
+	return toEuclidean(q, r, d, d.ULP())
 }
 
 // toEuclidean converts a truncated quotient and remainder into the
