@@ -16,7 +16,7 @@ JQ ?= jq
 # (sort -V, xargs -r, and \+/[ \t] in sed and grep expressions). On BSD
 # userland (e.g. macOS) point these at the GNU variants —
 # SED=gsed GREP=ggrep SORT=gsort XARGS=gxargs — rather than shadowing the
-# system tools on PATH. Exported so the shell scripts pick them up too.
+# system tools on PATH. Exported, with GO, for the shell scripts.
 FIND ?= find
 GREP ?= grep
 SED ?= sed
@@ -25,7 +25,7 @@ TR ?= tr
 CUT ?= cut
 COLUMN ?= column
 XARGS ?= xargs
-export FIND GREP SED SORT TR CUT COLUMN XARGS
+export GO FIND GREP SED SORT TR CUT COLUMN XARGS
 
 TOOLSDIR := $(CURDIR)/internal/build
 # ':=' not '?=': TMPDIR is often set in the environment, which '?=' inherits.
