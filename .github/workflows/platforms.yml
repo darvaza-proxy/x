@@ -18,12 +18,11 @@ defaults:
     shell: bash
 
 jobs:
-  # Cheap Linux gates. The premium macOS and Windows jobs below wait on
-  # these, so a cross-compile or Linux failure skips the premium runners
-  # entirely.
+  # Linux gates. The macOS and Windows jobs below wait on these, so a
+  # cross-compile or Linux failure skips them entirely.
   vet:
     name: vet (${{ matrix.goos }})
-    runs-on: depot-ubuntu-latest
+    runs-on: ubuntu-latest
     # Pull requests from the same repository won't trigger this checks as they were already triggered by the push
     if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
     strategy:
@@ -49,7 +48,7 @@ jobs:
 
   linux-test:
     name: linux-test (${{ matrix.go-version }})
-    runs-on: depot-ubuntu-latest
+    runs-on: ubuntu-latest
     if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
     strategy:
       fail-fast: false
@@ -68,7 +67,7 @@ jobs:
 
   linux-race:
     name: linux-race
-    runs-on: depot-ubuntu-latest
+    runs-on: ubuntu-latest
     if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
     steps:
     - uses: actions/checkout@v7
@@ -89,11 +88,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [depot-macos-latest, depot-windows-latest]
+        os: [macos-latest, windows-latest]
         go-version: ['1.25', '1.26', '1.27']
         include:
           # macOS runners use the GNU tools installed below.
-          - os: depot-macos-latest
+          - os: macos-latest
             make_args: SED=gsed GREP=ggrep SORT=gsort XARGS=gxargs
     steps:
     - uses: actions/checkout@v7
@@ -128,10 +127,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [depot-macos-latest, depot-windows-latest]
+        os: [macos-latest, windows-latest]
         include:
           # macOS runners use the GNU tools installed below.
-          - os: depot-macos-latest
+          - os: macos-latest
             make_args: SED=gsed GREP=ggrep SORT=gsort XARGS=gxargs
     steps:
     - uses: actions/checkout@v7
