@@ -178,13 +178,15 @@ Shell script analysis for all `.sh` files:
 
 ### Test Coverage Collection
 
-Automated dual coverage reporting across all modules:
+Automated dual coverage reporting across all modules, described in
+`darvaza.org/core`'s [BUILDING.md][building-coverage]:
 
 - The `coverage` target runs tests with coverage profiling.
 - Uses `internal/build/make_coverage.sh` to orchestrate testing.
 - Generates both self-coverage and integration coverage perspectives.
-- Tests each module independently via generated `test-*` targets.
-- Merges coverage profiles automatically.
+- Tests each module independently.
+- The `merged-coverage` target merges the modules' profiles into
+  repository-wide reports.
 - Stores results in `.tmp/coverage/` directory.
 - Displays dual coverage summary after test runs.
 - Automatic HTML report generation in `.tmp/coverage/` directory.
@@ -285,6 +287,18 @@ go tool cover -html=coverage.out
 This provides a clean interface for passing arbitrary test flags without
 modifying the Makefile, making it easy to run tests with different
 configurations for debugging, coverage analysis, or CI/CD pipelines.
+
+`test`, `race` and `coverage` all splice `GOTEST_FLAGS` into their
+recipe, so make expands it first and the shell reads it after. Write a
+`$` in a pattern as `$$`, and quote a pattern that holds shell syntax,
+such as `|` or `(`, or spaces. From an interactive shell, wrap the whole
+assignment in single quotes, or that shell expands `$$` to its own
+process ID before make sees it:
+
+```bash
+make test GOTEST_FLAGS='-run "^TestSpecific$$" -v'
+make coverage GOTEST_FLAGS='-run "^$$" -bench "^Benchmark(Foo|Bar)$$" -benchmem'
+```
 
 ## Vetting with GOVET_FLAGS
 
@@ -460,3 +474,5 @@ Configuration files are located in `internal/build/`:
 For information about releasing packages and managing dependencies, see
 [RELEASE.md](RELEASE.md). The mono-repo structure requires careful coordination
 of releases due to internal dependencies between packages.
+
+[building-coverage]: https://github.com/darvaza-proxy/core/blob/main/BUILDING.md#coverage-system-make_coveragesh
