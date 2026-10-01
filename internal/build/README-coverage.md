@@ -25,7 +25,9 @@ The coverage system generates two types of coverage data:
 Core coverage generation script that produces dual coverage reports for a
 single module.
 
-**Usage**: `make_coverage.sh <module_name> <module_dir> <coverage_dir>`
+**Usage**:
+`make_coverage.sh <module_name> <module_dir> <coverage_dir> [flags...]`,
+where any flags are passed to `go test`.
 
 **Generates**:
 

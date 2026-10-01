@@ -155,7 +155,7 @@ gen_make_targets() {
 		call="\$(GO) test -count=1 \$(GOTEST_FLAGS) ./..."
 		;;
 	coverage)
-		call="\$(TOOLSDIR)/make_coverage.sh \"$name\" \".\" \"\$(COVERAGE_DIR)\""
+		call="\$(TOOLSDIR)/make_coverage.sh \"$name\" \".\" \"\$(COVERAGE_DIR)\" \$(GOTEST_FLAGS)"
 		depsx="\$(COVERAGE_DIR)"
 		;;
 	race)
