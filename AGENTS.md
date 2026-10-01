@@ -198,19 +198,19 @@ GitHub Actions workflows:
   module across Go 1.25, 1.26 and 1.27. Host (Linux) `go vet` runs here via
   `make`'s `tidy` step.
 - **Platforms workflow** (`.github/workflows/platforms.yml`):
-  Cross-platform test and race, with the premium macOS and Windows
-  runners gated behind cheap Linux jobs.
+  Cross-platform test and race, with the macOS and Windows runners
+  gated behind Linux jobs.
   - `vet` cross-compiles the non-host targets (windows, darwin) with
-    `make vet`. Because `go vet` compiles every module's packages and
-    tests without running them, it is the only compile check for the
-    platforms CI cannot execute natively.
+    `make vet`. `go vet` compiles every module's packages and tests for
+    the target without running them, so a compile error on either
+    target fails here, before the native jobs start.
   - `linux-test` (Go 1.25, 1.26 and 1.27) and `linux-race` run the suites on
     Linux.
   - The native `test` (macOS, Windows × Go 1.25, 1.26 and 1.27) and `race`
     (macOS, Windows) jobs declare `needs:` on the Linux gates, so a
-    cross-compile break or a Linux failure skips them and spends no
-    premium minutes. macOS installs the GNU userland and selects it
-    through the build's `SED`/`GREP`/`SORT`/`XARGS` overrides.
+    cross-compile break or a Linux failure skips them. macOS installs
+    the GNU userland and selects it through the build's
+    `SED`/`GREP`/`SORT`/`XARGS` overrides.
 - Workflows skip branches ending in `-wip`.
 
 ### Codecov Integration
