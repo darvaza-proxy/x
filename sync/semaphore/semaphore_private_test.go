@@ -42,6 +42,47 @@ func runTestInitIdempotent(t *testing.T) {
 	core.AssertSame(t, readers, s.readers, "readers channel unchanged")
 }
 
+// BenchmarkLazyInit measures lazyInit on a semaphore that is already
+// initialised, the state every call after the first finds it in. The lock
+// and unlock methods run it before touching the channels, so this is the
+// entry cost each of them pays.
+func BenchmarkLazyInit(b *testing.B) {
+	b.Run("serial", runBenchmarkLazyInitSerial)
+	b.Run("parallel", runBenchmarkLazyInitParallel)
+}
+
+func runBenchmarkLazyInitSerial(b *testing.B) {
+	s := newInitialisedSemaphore(b)
+
+	for b.Loop() {
+		if err := s.lazyInit(); err != nil {
+			b.Fatalf("lazyInit returned error: %v", err)
+		}
+	}
+}
+
+func runBenchmarkLazyInitParallel(b *testing.B) {
+	s := newInitialisedSemaphore(b)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if err := s.lazyInit(); err != nil {
+				b.Errorf("lazyInit returned error: %v", err)
+				return
+			}
+		}
+	})
+}
+
+func newInitialisedSemaphore(b *testing.B) *Semaphore {
+	b.Helper()
+	s := &Semaphore{}
+	if err := s.lazyInit(); err != nil {
+		b.Fatalf("lazyInit returned error: %v", err)
+	}
+	return s
+}
+
 // cancelledRLockRounds is the number of cancelled unsafeRLock attempts run
 // per scenario. select chooses uniformly between the ready acquire case and
 // the already-closed abort, so each post-acquire rollback arm is reached with

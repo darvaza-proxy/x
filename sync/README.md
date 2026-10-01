@@ -223,6 +223,84 @@ or closed to wake up all waiters simultaneously.
 * Provides graceful handling of nil receivers and improper initialisation.
 * Returns appropriate errors from the `errors` package for common failure modes.
 
+## Turnstile
+
+The `cond` package provides a `Turnstile` type, a lock with a second way
+through.
+
+```go
+type Turnstile struct{}
+```
+
+Holding a `Turnstile` takes it exclusively, as a mutex. Passing it waits
+until it is free and goes through without keeping it. Holders and passers
+wait on the same channel and are served in arrival order, so whoever
+arrives after a holder waits behind it.
+
+The zero value is ready for use.
+
+### Turnstile Characteristics
+
+* **Mutex interfaces**: Implements `sync.Locker`, `mutex.Mutex` and
+  `mutex.MutexContext`.
+* **Arrival order**: A passer that arrives after a holder waits for it to
+  unlock, including a holder still waiting for the turnstile.
+* **Cancellable waits**: Holding and passing both have context-aware and
+  non-blocking forms, and passing also takes an abort channel.
+* **Closing**: After `Close`, waiting and later calls fail with
+  `errors.ErrClosed`, which `Lock` and `Pass` panic with, while `TryLock`
+  and `TryPass` report false. A current holder keeps the lock until it
+  unlocks.
+
+### Turnstile Methods
+
+* `Lock()`, `LockContext(context.Context) error`, `TryLock() bool`: Hold
+  the turnstile.
+* `Unlock()`: Release it.
+* `Pass()`, `PassContext(context.Context) error`,
+  `PassAbort(<-chan struct{}) error`, `TryPass() bool`: Go through without
+  holding it.
+* `Close() error`: Close it.
+
+### Turnstile Example usage
+
+A pause gate: workers pass the turnstile at the start of each round, and a
+controller holds it to pause them. Holding it stops rounds from starting,
+but does not wait for the rounds already under way.
+
+```go
+var gate cond.Turnstile
+
+for range workers {
+    go func() {
+        for {
+            if err := gate.PassContext(ctx); err != nil {
+                // cancelled or closed
+                return
+            }
+            doRound()
+        }
+    }()
+}
+
+// Pause the workers at their next pass.
+gate.Lock()
+reconfigure()
+gate.Unlock()
+
+// Stop the workers at their next pass.
+_ = gate.Close()
+```
+
+### Turnstile Implementation
+
+* Uses a `Barrier` as a token lock.
+* `Close` sets an atomic flag, checked before and after taking the token,
+  and closes the token itself, which waiting calls select on.
+* Initialises itself on first use, behind an atomic flag.
+* Returns errors from the `errors` package for nil receivers, nil contexts
+  and closed turnstiles.
+
 ## Count
 
 The `cond` package also provides a `Count` type that combines features of a
