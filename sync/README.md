@@ -744,10 +744,16 @@ synchronisation issues:
   initialised but was not.
 * `ErrClosed`: Returned when operations cannot proceed because the target is
   closed.
+* `ErrNotLocked`: Indicates an unlock of a lock that is not held.
+* `ErrReadLocked`: Indicates an exclusive unlock of a lock held for reading.
 * `ErrNilContext`: Returned when a nil context is encountered in
   context-aware operations.
+* `ErrNilFunction`: Indicates a function was expected but none was provided.
 * `ErrNilMutex`: Returned when a Mutex was expected but none was provided.
 * `ErrNilReceiver`: Returned when methods are called on a nil receiver.
+
+`ErrNilReceiver` is `core.ErrNilReceiver`; the others are `core.StringError`
+constants, which `errors.Is` matches by value.
 
 The package provides `CompoundError`, a concurrency-safe counterpart of
 `core.CompoundError` that accumulates errors reported from several goroutines

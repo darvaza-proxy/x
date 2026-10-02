@@ -233,10 +233,13 @@ err := wg.Wait()
 
 Standard errors from the errors package:
 
-- `ErrAlreadyInitialised`: Double initialization attempted.
-- `ErrNotInitialised`: Operation on uninitialized primitive.
+- `ErrAlreadyInitialised`: Double initialisation attempted.
+- `ErrNotInitialised`: Operation on uninitialised primitive.
 - `ErrClosed`: Operation on closed primitive.
+- `ErrNotLocked`: Unlock of a lock not held.
+- `ErrReadLocked`: Exclusive unlock of a read-locked lock.
 - `ErrNilContext`: Nil context provided.
+- `ErrNilFunction`: Nil function provided.
 - `ErrNilMutex`: Nil mutex provided.
 - `ErrNilReceiver`: Method called on nil receiver.
 
