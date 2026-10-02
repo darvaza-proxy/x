@@ -9,6 +9,7 @@ import (
 
 	"darvaza.org/core"
 
+	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/internal/synctesting"
 	"darvaza.org/x/sync/mutex"
 	"darvaza.org/x/sync/semaphore"
@@ -348,16 +349,24 @@ func runWriterLoop(s *semaphore.Semaphore, counter *int, iterations int) {
 
 // semaphorePanicTestCase verifies operations that panic on misuse or on a
 // nil receiver. setup arranges the receiver state; op selects the method
-// exercised under the shared assertion path.
+// exercised under the shared assertion path; wantPanic pins the panic,
+// matched through errors.Is.
 type semaphorePanicTestCase struct {
+	wantPanic error
+
 	setup func() *semaphore.Semaphore
 	op    func(*semaphore.Semaphore)
 	name  string
 }
 
 func newSemaphorePanicTestCase(name string, setup func() *semaphore.Semaphore,
-	op func(*semaphore.Semaphore)) semaphorePanicTestCase {
-	return semaphorePanicTestCase{name: name, setup: setup, op: op}
+	op func(*semaphore.Semaphore), wantPanic error) semaphorePanicTestCase {
+	return semaphorePanicTestCase{
+		name:      name,
+		setup:     setup,
+		op:        op,
+		wantPanic: wantPanic,
+	}
 }
 
 func (tc semaphorePanicTestCase) Name() string { return tc.name }
@@ -365,7 +374,7 @@ func (tc semaphorePanicTestCase) Name() string { return tc.name }
 func (tc semaphorePanicTestCase) Test(t *testing.T) {
 	t.Helper()
 	s := tc.setup()
-	core.AssertPanic(t, func() { tc.op(s) }, nil, "panic")
+	core.AssertPanic(t, func() { tc.op(s) }, tc.wantPanic, "panic")
 }
 
 var _ core.TestCase = semaphorePanicTestCase{}
@@ -389,17 +398,25 @@ func opTryRLock(s *semaphore.Semaphore) { s.TryRLock() }
 func semaphorePanicTestCases() []semaphorePanicTestCase {
 	return []semaphorePanicTestCase{
 		// misuse on an initialised receiver
-		newSemaphorePanicTestCase("unlock without lock", newSemaphore, opUnlock),
-		newSemaphorePanicTestCase("runlock without rlock", newSemaphore, opRUnlock),
+		newSemaphorePanicTestCase("unlock without lock", newSemaphore, opUnlock,
+			errors.ErrNotLocked),
+		newSemaphorePanicTestCase("runlock without rlock", newSemaphore, opRUnlock,
+			errors.ErrNotLocked),
 		newSemaphorePanicTestCase("unlock when read-locked", readLockedSemaphore,
-			opUnlock),
+			opUnlock, errors.ErrReadLocked),
 		// nil receiver panics through the public wrappers
-		newSemaphorePanicTestCase("nil receiver Lock", nilSemaphore, opLock),
-		newSemaphorePanicTestCase("nil receiver RLock", nilSemaphore, opRLock),
-		newSemaphorePanicTestCase("nil receiver Unlock", nilSemaphore, opUnlock),
-		newSemaphorePanicTestCase("nil receiver RUnlock", nilSemaphore, opRUnlock),
-		newSemaphorePanicTestCase("nil receiver TryLock", nilSemaphore, opTryLock),
-		newSemaphorePanicTestCase("nil receiver TryRLock", nilSemaphore, opTryRLock),
+		newSemaphorePanicTestCase("nil receiver Lock", nilSemaphore, opLock,
+			core.ErrNilReceiver),
+		newSemaphorePanicTestCase("nil receiver RLock", nilSemaphore, opRLock,
+			core.ErrNilReceiver),
+		newSemaphorePanicTestCase("nil receiver Unlock", nilSemaphore, opUnlock,
+			core.ErrNilReceiver),
+		newSemaphorePanicTestCase("nil receiver RUnlock", nilSemaphore, opRUnlock,
+			core.ErrNilReceiver),
+		newSemaphorePanicTestCase("nil receiver TryLock", nilSemaphore, opTryLock,
+			core.ErrNilReceiver),
+		newSemaphorePanicTestCase("nil receiver TryRLock", nilSemaphore,
+			opTryRLock, core.ErrNilReceiver),
 	}
 }
 
@@ -416,8 +433,10 @@ func TestSemaphore_MisuseStateIntegrity(t *testing.T) {
 // runTestReaderSurvivesUnlockMisuse holds a read lock, calls Unlock (misuse)
 // and recovers the panic, then verifies the reader can still RUnlock and the
 // lock returns fully to the unlocked state. Without restoring the drained
-// global token in doUnlock, the recovering RUnlock would itself panic
-// ("unlock of unlocked mutex") and no later writer could acquire.
+// global token in doUnlock, the reader's RUnlock would find global empty
+// and, depending on the case its select takes, either panic with
+// errors.ErrNotLocked, leaving its count behind, or block forever waiting
+// for the token.
 func runTestReaderSurvivesUnlockMisuse(t *testing.T) {
 	t.Helper()
 	s := &semaphore.Semaphore{}
@@ -425,7 +444,8 @@ func runTestReaderSurvivesUnlockMisuse(t *testing.T) {
 
 	// Misuse: Unlock instead of RUnlock. It must panic but leave the
 	// read lock intact.
-	core.AssertMustPanic(t, func() { s.Unlock() }, nil, "unlock misuse panics")
+	core.AssertMustPanic(t, func() { s.Unlock() }, errors.ErrReadLocked,
+		"unlock misuse panics")
 
 	// The reader can still release cleanly — state was not poisoned.
 	s.RUnlock()

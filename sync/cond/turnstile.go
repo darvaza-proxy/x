@@ -221,7 +221,8 @@ func (t *Turnstile) TryLock() bool {
 }
 
 // Unlock releases a Turnstile held by Lock, LockContext or TryLock,
-// closed or not. It panics if the Turnstile is nil or not held.
+// closed or not. It panics with [errors.ErrNotLocked] if the Turnstile is
+// not held, and with [errors.ErrNilReceiver] if it is nil.
 func (t *Turnstile) Unlock() {
 	if err := t.lazyInit(); err != nil {
 		core.PanicFrom(1, err)
@@ -229,7 +230,7 @@ func (t *Turnstile) Unlock() {
 
 	tok := t.held
 	if tok == nil {
-		core.PanicFrom(1, "unlock of unlocked turnstile")
+		core.PanicFrom(1, errors.ErrNotLocked)
 	}
 
 	t.held = nil

@@ -393,8 +393,7 @@ func reverseUnlockID(mu, m1, m2, m3 mutex.Mutex) int {
 func runTestReverseUnlockNilFn(t *testing.T) {
 	t.Helper()
 	err := mutex.ReverseUnlock[mutex.Mutex](nil, &sync.Mutex{})
-	core.AssertError(t, err, "nil function")
-	core.AssertContains(t, err.Error(), "unlock function is nil", "message")
+	core.AssertErrorIs(t, err, errors.ErrNilFunction, "nil function")
 }
 
 func runTestReverseUnlockErrorFn(t *testing.T) {

@@ -744,11 +744,12 @@ synchronisation issues:
   initialised but was not.
 * `ErrClosed`: Returned when operations cannot proceed because the target is
   closed.
-* `ErrNotLocked`: Indicates an unlock of a lock that is not held.
-* `ErrReadLocked`: Indicates an exclusive unlock of a lock held for reading.
+* `ErrNotLocked`: Raised as a panic when a lock that is not held is unlocked.
+* `ErrReadLocked`: Raised as a panic when an exclusive unlock finds the lock
+  held for reading.
 * `ErrNilContext`: Returned when a nil context is encountered in
   context-aware operations.
-* `ErrNilFunction`: Indicates a function was expected but none was provided.
+* `ErrNilFunction`: Returned when a function was expected but none was provided.
 * `ErrNilMutex`: Returned when a Mutex was expected but none was provided.
 * `ErrNilReceiver`: Returned when methods are called on a nil receiver.
 
@@ -775,7 +776,10 @@ This package follows specific patterns for handling error conditions:
 
 * Operations panic when encountering nil mutexes or when underlying mutex
   operations panic.
-* Unlocking an unlocked mutex will panic as per standard Go mutex behaviour.
+* What unlocking a mutex that is not locked does depends on the mutex. This
+  module's locks panic with `errors.ErrNotLocked`, while the standard
+  `sync.Mutex` stops the program with a fatal error, not a panic, so
+  `recover` does not catch it.
 * When operating on multiple locks, panics from individual mutex operations
   are aggregated.
 * During failures, the package ensures proper clean-up by releasing any

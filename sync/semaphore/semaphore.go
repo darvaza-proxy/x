@@ -128,7 +128,9 @@ func (s *Semaphore) TryRLock() bool {
 }
 
 // Unlock releases an exclusive lock, allowing other writers or readers to
-// acquire the lock. Panics if the lock is not held or cannot be released.
+// acquire the lock. It panics with [errors.ErrNotLocked] if the lock is not
+// held, with [errors.ErrReadLocked] if it is held for reading, and with
+// [core.ErrNilReceiver] if the semaphore is nil.
 func (s *Semaphore) Unlock() {
 	if err := s.doUnlock(); err != nil {
 		core.Panic(err)
@@ -136,7 +138,8 @@ func (s *Semaphore) Unlock() {
 }
 
 // RUnlock releases a read lock, allowing other readers or writers to
-// acquire the lock. Panics if the lock is not held or cannot be released.
+// acquire the lock. It panics with [errors.ErrNotLocked] if the lock is not
+// held, and with [core.ErrNilReceiver] if the semaphore is nil.
 func (s *Semaphore) RUnlock() {
 	if err := s.doRUnlock(); err != nil {
 		core.Panic(err)
@@ -179,7 +182,7 @@ func (s *Semaphore) doTryLock() (bool, error) {
 }
 
 func (s *Semaphore) doUnlock() error {
-	var errMsg string
+	var misuse error
 
 	if err := s.lazyInit(); err != nil {
 		// light error
@@ -197,13 +200,13 @@ func (s *Semaphore) doUnlock() error {
 		// global token above. Put it back so concurrent readers can
 		// still release cleanly, then fail loudly.
 		s.global <- exclusive
-		errMsg = "unlock of read-locked mutex"
+		misuse = errors.ErrReadLocked
 	default:
-		errMsg = "unlock of unlocked mutex"
+		misuse = errors.ErrNotLocked
 	}
 
 	// bad developer, die. now.
-	core.Panic(core.NewPanicError(2, errMsg))
+	core.Panic(core.NewPanicError(2, misuse))
 
 	return core.ErrUnreachable
 }
@@ -311,7 +314,7 @@ func (s *Semaphore) doRUnlock() error {
 		<-s.global
 
 		// bad developer, die. now.
-		err := core.NewPanicError(2, "unlock of unlocked mutex")
+		err := core.NewPanicError(2, errors.ErrNotLocked)
 		core.Panic(err)
 	case readers = <-s.readers:
 		// decrement

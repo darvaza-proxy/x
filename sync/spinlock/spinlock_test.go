@@ -8,6 +8,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/x/sync/atomic"
+	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/internal/synctesting"
 	"darvaza.org/x/sync/mutex"
 	"darvaza.org/x/sync/spinlock"
@@ -28,10 +29,9 @@ const (
 
 // spinlockPanicTestCase verifies operations that panic on misuse or on a
 // nil receiver. setup arranges the receiver state; op selects the method
-// exercised; wantPanic pins the panic — an error matches the chain via
-// errors.Is, a string by substring.
+// exercised; wantPanic pins the panic, matched through errors.Is.
 type spinlockPanicTestCase struct {
-	wantPanic any
+	wantPanic error
 
 	setup func() *spinlock.SpinLock
 	op    func(*spinlock.SpinLock)
@@ -40,7 +40,7 @@ type spinlockPanicTestCase struct {
 }
 
 func newSpinlockPanicTestCase(name string, setup func() *spinlock.SpinLock,
-	op func(*spinlock.SpinLock), wantPanic any) spinlockPanicTestCase {
+	op func(*spinlock.SpinLock), wantPanic error) spinlockPanicTestCase {
 	return spinlockPanicTestCase{
 		name:      name,
 		setup:     setup,
@@ -75,7 +75,7 @@ func spinlockPanicTestCases() []spinlockPanicTestCase {
 		newSpinlockPanicTestCase("nil receiver Unlock", nilSpinLock, opUnlock,
 			core.ErrNilReceiver),
 		newSpinlockPanicTestCase("unlock of unlocked", newSpinLock, opUnlock,
-			"unlock of unlocked spinlock"),
+			errors.ErrNotLocked),
 	}
 }
 

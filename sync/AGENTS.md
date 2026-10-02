@@ -236,8 +236,8 @@ Standard errors from the errors package:
 - `ErrAlreadyInitialised`: Double initialisation attempted.
 - `ErrNotInitialised`: Operation on uninitialised primitive.
 - `ErrClosed`: Operation on closed primitive.
-- `ErrNotLocked`: Unlock of a lock not held.
-- `ErrReadLocked`: Exclusive unlock of a read-locked lock.
+- `ErrNotLocked`: Unlock of a lock not held, raised as a panic.
+- `ErrReadLocked`: Exclusive unlock of a read-locked lock, raised as a panic.
 - `ErrNilContext`: Nil context provided.
 - `ErrNilFunction`: Nil function provided.
 - `ErrNilMutex`: Nil mutex provided.

@@ -102,7 +102,7 @@ func (sl *SpinLock) doTryLock() (bool, error) {
 // Unlock releases the spinlock.
 // If the receiver is nil, it will panic with errors.ErrNilReceiver.
 // If the spinlock is not currently locked, it will panic with
-// an "unlock of unlocked spinlock" error.
+// errors.ErrNotLocked.
 func (sl *SpinLock) Unlock() {
 	if err := sl.doUnlock(); err != nil {
 		core.Panic(err)
@@ -115,7 +115,7 @@ func (sl *SpinLock) doUnlock() error {
 	case ptr == nil:
 		return errors.ErrNilReceiver
 	case !atomic.CompareAndSwapUint32(ptr, 1, 0):
-		return core.NewPanicError(1, "unlock of unlocked spinlock")
+		return core.NewPanicError(1, errors.ErrNotLocked)
 	default:
 		return nil
 	}
