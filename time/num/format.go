@@ -220,15 +220,6 @@ func writeNumber(s fmt.State, verb rune, neg bool, digits []byte) {
 	f.writeTo(s)
 }
 
-// pow10 returns 10^n as a Uint128, for 0 <= n <= 38.
-func pow10(n int) Uint128 {
-	p := Uint128{lo: 1}
-	for range n {
-		p = p.Mul(Uint128{lo: 10})
-	}
-	return p
-}
-
 // writeGoString writes the GoString form of a value to s under the
 // width and precision fmt gives a [fmt.GoStringer], which pads and
 // truncates it as it pads and truncates any string. fmt applies them

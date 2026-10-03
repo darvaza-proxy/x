@@ -38,21 +38,26 @@ the standard library.
   unit, and its widening falls back to a read one bit at a time, by
   division by a two built from the value divided by itself, so neither
   boxes the backing.
+- **`Pow10`**: the powers of ten a `Uint128` holds, 10^0 to 10^38, read
+  by exponent from a table.
 - **`ErrDivZero`**: the division-by-zero panic value, wrapping
   `core.ErrInvalid`.
+- **`ErrPow10Range`**: the panic value of `Pow10` for an exponent
+  outside the table.
 
 Files:
 
 - `num/atto128.go`: the `Atto128` instantiation and its scale.
-- `num/const.go`: word primitives, the fixed-point scale factors and
-  the sentinel bounds (`MaxUint128`, `MinInt128`, …).
+- `num/const.go`: word primitives, the fixed-point scale factors, the
+  table of powers of ten behind `Pow10` and the sentinel bounds
+  (`MaxUint128`, `MinInt128`, …).
 - `num/convert.go`: the `wide` intermediate the conversions share,
   which rescales a count between resolutions and narrows it into the
   target; each type's `wide` and conversion methods sit in its own
   file.
 - `num/decimal.go`: `Decimal`, its constructors and its methods.
 - `num/doc.go`: package documentation.
-- `num/errors.go`: `ErrDivZero`.
+- `num/errors.go`: `ErrDivZero` and `ErrPow10Range`.
 - `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
   and the Euclidean division helpers.
 - `num/format.go`: the shared side of `Format` and `GoString`, the verb
@@ -169,10 +174,11 @@ Files:
   one. Extend that matrix rather than hand-writing an expectation; every
   defect in this surface so far has survived a careful reading and died
   on the first run of the table.
-- The package has one sentinel, `ErrDivZero`, a `core.QuietWrap` of
-  `core.ErrInvalid`, and division by zero is the only failure: it
-  panics with that value. Arithmetic wraps on overflow and the
-  constructors never fail.
+- Division by zero panics with `ErrDivZero`, a `core.QuietWrap` of
+  `core.ErrInvalid`; `Pow10` takes an exponent outside its table as the
+  caller's mistake and panics with `ErrPow10Range` through
+  `core.PanicFrom`, so the stack starts at the caller. Arithmetic wraps
+  on overflow and the constructors never fail.
 - Operations allocate nothing; keep it that way in the hot paths.
 
 ## Testing Patterns
