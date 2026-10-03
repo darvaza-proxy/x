@@ -17,7 +17,7 @@ import (
 func TryLock[T Mutex](locks ...T) bool {
 	ok, err := doTryLock(locks)
 	if err != nil {
-		panic(err)
+		core.PanicFrom(1, err)
 	}
 	return ok
 }
@@ -43,7 +43,7 @@ func doTryLock[T Mutex](locks []T) (bool, error) {
 func TryRLock[T Mutex](locks ...T) bool {
 	ok, err := doTryRLock(locks)
 	if err != nil {
-		panic(err)
+		core.PanicFrom(1, err)
 	}
 	return ok
 }
@@ -64,7 +64,7 @@ func doTryRLock[T Mutex](locks []T) (bool, error) {
 // 2. Any mutex operation raises an exception during unlock
 func Unlock[T Mutex](locks ...T) {
 	if err := doUnlock(locks); err != nil {
-		panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 
@@ -87,7 +87,7 @@ func doUnlock[T Mutex](locks []T) error {
 // 2. Any mutex operation raises an exception during unlock
 func RUnlock[T Mutex](locks ...T) {
 	if err := doRUnlock(locks); err != nil {
-		panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 
@@ -107,7 +107,7 @@ func doRUnlock[T Mutex](locks []T) error {
 // 2. Any mutex operation raises an exception during lock/unlock
 func Lock[T Mutex](locks ...T) {
 	if err := doLock(locks); err != nil {
-		panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 
@@ -131,7 +131,7 @@ func doLock[T Mutex](locks []T) error {
 // 2. Any mutex operation raises an exception during lock/unlock
 func RLock[T Mutex](locks ...T) {
 	if err := doRLock(locks); err != nil {
-		panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 

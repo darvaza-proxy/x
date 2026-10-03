@@ -85,7 +85,7 @@ func (s *Semaphore) LockContext(ctx context.Context) error {
 // Panics if the semaphore is nil.
 func (s *Semaphore) Lock() {
 	if err := s.doLock(); err != nil {
-		core.Panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 
@@ -95,7 +95,7 @@ func (s *Semaphore) Lock() {
 func (s *Semaphore) TryLock() bool {
 	ok, err := s.doTryLock()
 	if err != nil {
-		core.Panic(err)
+		core.PanicFrom(1, err)
 	}
 	return ok
 }
@@ -112,7 +112,7 @@ func (s *Semaphore) RLockContext(ctx context.Context) error {
 // Panics if the semaphore is nil.
 func (s *Semaphore) RLock() {
 	if err := s.doRLock(); err != nil {
-		core.Panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 
@@ -122,7 +122,7 @@ func (s *Semaphore) RLock() {
 func (s *Semaphore) TryRLock() bool {
 	ok, err := s.doTryRLock()
 	if err != nil {
-		core.Panic(err)
+		core.PanicFrom(1, err)
 	}
 	return ok
 }
@@ -133,7 +133,7 @@ func (s *Semaphore) TryRLock() bool {
 // [core.ErrNilReceiver] if the semaphore is nil.
 func (s *Semaphore) Unlock() {
 	if err := s.doUnlock(); err != nil {
-		core.Panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 
@@ -142,7 +142,7 @@ func (s *Semaphore) Unlock() {
 // held, and with [core.ErrNilReceiver] if the semaphore is nil.
 func (s *Semaphore) RUnlock() {
 	if err := s.doRUnlock(); err != nil {
-		core.Panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 
@@ -182,10 +182,7 @@ func (s *Semaphore) doTryLock() (bool, error) {
 }
 
 func (s *Semaphore) doUnlock() error {
-	var misuse error
-
 	if err := s.lazyInit(); err != nil {
-		// light error
 		return err
 	}
 
@@ -196,19 +193,15 @@ func (s *Semaphore) doUnlock() error {
 			return nil
 		}
 
-		// read-locked, not write-locked: we drained the reader's
-		// global token above. Put it back so concurrent readers can
-		// still release cleanly, then fail loudly.
+		// read-locked, a misuse: we drained the reader's global
+		// token above. Put it back so concurrent readers can still
+		// release cleanly.
 		s.global <- exclusive
-		misuse = errors.ErrReadLocked
+		return errors.ErrReadLocked
 	default:
-		misuse = errors.ErrNotLocked
+		// unlocked, a misuse.
+		return errors.ErrNotLocked
 	}
-
-	// bad developer, die. now.
-	core.Panic(core.NewPanicError(2, misuse))
-
-	return core.ErrUnreachable
 }
 
 func (s *Semaphore) doRLockContext(ctx context.Context) error {
@@ -309,13 +302,9 @@ func (s *Semaphore) doRUnlock() error {
 
 	select {
 	case s.global <- readerLock:
-		// it wasn't locked. wtf
-		// release unwanted lock
+		// unlocked, a misuse. give back the lock just taken.
 		<-s.global
-
-		// bad developer, die. now.
-		err := core.NewPanicError(2, errors.ErrNotLocked)
-		core.Panic(err)
+		return errors.ErrNotLocked
 	case readers = <-s.readers:
 		// decrement
 		readers--

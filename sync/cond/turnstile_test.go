@@ -365,10 +365,10 @@ func callTryLock(ts *cond.Turnstile) { ts.TryLock() }
 func callTryPass(ts *cond.Turnstile) { ts.TryPass() }
 func callUnlock(ts *cond.Turnstile)  { ts.Unlock() }
 
-// catchCall calls fn with ts and returns the panic it raises.
-func catchCall(fn func(*cond.Turnstile), ts *cond.Turnstile) error {
+// catchCall calls fn with v and returns the panic it raises.
+func catchCall[T any](fn func(T), v T) error {
 	return core.Catch(func() error {
-		fn(ts)
+		fn(v)
 		return nil
 	})
 }

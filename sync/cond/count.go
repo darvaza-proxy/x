@@ -299,7 +299,7 @@ func (c *Count) WaitFnContext(ctx context.Context, until func(int32) bool) error
 // uninitialised.
 func (c *Count) WaitFn(until func(int32) bool) {
 	if err := c.check(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	c.doWaitFn(nil, until)
@@ -309,7 +309,7 @@ func (c *Count) WaitFn(until func(int32) bool) {
 // Panics if the receiver is nil or uninitialised.
 func (c *Count) Wait() {
 	if err := c.check(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	c.doWaitFn(nil, nil)
@@ -320,7 +320,7 @@ func (c *Count) Wait() {
 // value is zero. Panics if the receiver is nil or uninitialised.
 func (c *Count) Match(fn func(int32) bool) bool {
 	if err := c.check(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	return c.doMatch(fn)
@@ -340,7 +340,7 @@ func (c *Count) doMatch(fn func(int32) bool) bool {
 // Panics if the receiver is nil or uninitialised.
 func (c *Count) IsZero() bool {
 	if err := c.check(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	return c.doMatch(nil)
@@ -351,7 +351,7 @@ func (c *Count) IsZero() bool {
 // Panics if the receiver is nil or uninitialised.
 func (c *Count) Signal() bool {
 	if err := c.check(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	return c.b.Signal()
@@ -361,7 +361,7 @@ func (c *Count) Signal() bool {
 // Panics if the receiver is nil or uninitialised.
 func (c *Count) Broadcast() {
 	if err := c.check(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	c.b.Broadcast()

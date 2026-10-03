@@ -102,7 +102,7 @@ type Group struct {
 // signals and respect the Group's lifecycle.
 func (wg *Group) Context() context.Context {
 	if err := wg.lazyInit(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	return wg.ctx
@@ -134,7 +134,7 @@ func (wg *Group) Err() error {
 // and is equivalent to checking whether Context().Err() is non-nil.
 func (wg *Group) IsCancelled() bool {
 	if err := wg.lazyInit(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	return wg.ctx.Err() != nil
@@ -155,7 +155,7 @@ func (wg *Group) IsCancelled() bool {
 //	}
 func (wg *Group) Cancelled() <-chan struct{} {
 	if err := wg.lazyInit(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	return wg.ctx.Done()
@@ -180,7 +180,7 @@ func (wg *Group) Cancelled() <-chan struct{} {
 //	}
 func (wg *Group) Done() <-chan struct{} {
 	if err := wg.lazyInit(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	return wg.doDone()
@@ -280,7 +280,7 @@ func (wg *Group) Wait() error {
 //	}
 func (wg *Group) Cancel(cause error) bool {
 	if err := wg.lazyInit(); err != nil {
-		core.Panic(core.NewPanicError(1, err))
+		core.PanicFrom(1, err)
 	}
 
 	return wg.doCancel(cause)

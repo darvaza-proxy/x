@@ -56,7 +56,7 @@ func (sl *SpinLock) ptr() *uint32 {
 // calling goroutine to sleep.
 func (sl *SpinLock) Lock() {
 	if err := sl.doLock(); err != nil {
-		core.Panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 
@@ -82,7 +82,7 @@ func (sl *SpinLock) doLock() error {
 func (sl *SpinLock) TryLock() bool {
 	ok, err := sl.doTryLock()
 	if err != nil {
-		core.Panic(err)
+		core.PanicFrom(1, err)
 	}
 	return ok
 }
@@ -105,7 +105,7 @@ func (sl *SpinLock) doTryLock() (bool, error) {
 // errors.ErrNotLocked.
 func (sl *SpinLock) Unlock() {
 	if err := sl.doUnlock(); err != nil {
-		core.Panic(err)
+		core.PanicFrom(1, err)
 	}
 }
 
@@ -115,7 +115,7 @@ func (sl *SpinLock) doUnlock() error {
 	case ptr == nil:
 		return errors.ErrNilReceiver
 	case !atomic.CompareAndSwapUint32(ptr, 1, 0):
-		return core.NewPanicError(1, errors.ErrNotLocked)
+		return errors.ErrNotLocked
 	default:
 		return nil
 	}

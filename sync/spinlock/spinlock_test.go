@@ -85,6 +85,27 @@ func TestSpinLock_Panics(t *testing.T) {
 	core.RunTestCases(t, spinlockPanicTestCases())
 }
 
+// catchCall calls fn with sl and returns the panic it raises.
+func catchCall(fn func(*spinlock.SpinLock), sl *spinlock.SpinLock) error {
+	return core.Catch(func() error {
+		fn(sl)
+		return nil
+	})
+}
+
+// TestSpinLock_PanicStack verifies each panic's stack starts at the
+// method's caller. opLock and the functions beside it call one method
+// each, giving that caller a name [core.AssertTopFrame] can match.
+func TestSpinLock_PanicStack(t *testing.T) {
+	core.AssertTopFrame(t, catchCall(opLock, nilSpinLock()), "opLock", "Lock")
+	core.AssertTopFrame(t, catchCall(opTryLock, nilSpinLock()), "opTryLock",
+		"TryLock")
+	core.AssertTopFrame(t, catchCall(opUnlock, nilSpinLock()), "opUnlock",
+		"Unlock")
+	core.AssertTopFrame(t, catchCall(opUnlock, newSpinLock()), "opUnlock",
+		"Unlock of unlocked")
+}
+
 // TestSpinLock_Basic verifies the zero value starts unlocked and a
 // Lock/Unlock cycle returns the spinlock to an acquirable state. State is
 // observed through TryLock rather than the internal representation.
