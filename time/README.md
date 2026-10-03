@@ -90,7 +90,9 @@ division truncates towards zero, with the remainder taking the sign
 of the dividend. `MulDivMod` fuses a multiply and a divide, forming
 the product in an intermediate wide enough that it cannot overflow
 before the division. `EuclideanDivMod` and `EuclideanMulDivMod`
-instead keep the remainder non-negative.
+instead keep the remainder non-negative. `Pow10` returns 10^n as a
+`Uint128` up to 10^38, the largest power of ten a `Uint128` holds, and
+panics with `ErrPow10Range` past it.
 
 ## Development
 

@@ -160,7 +160,7 @@ func runTestUnit64JSON(t *testing.T) {
 
 // zeptoScale is the number of zepto-units in one whole unit, 10^21, a
 // count past the int64 range.
-var zeptoScale = num.AsInt128(1e18).Mul(num.AsInt128(1e3))
+var zeptoScale = core.MustOK(num.Pow10(21).Int128())
 
 // zepto128Scale is the scaler of Zepto128, zepto resolution over an
 // Int128 backing: 10^21, a power of ten no int64 holds, so the scale
