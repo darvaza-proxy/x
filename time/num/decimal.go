@@ -361,12 +361,12 @@ func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
 	f := d.widen(frac).Abs().bits()
 	width := d.fracWidth()
 	if prec < width {
-		unit := pow10(width - prec)
+		unit := Pow10(width - prec)
 		q, r := f.DivMod(unit)
 		if r.Add(r).Cmp(unit) >= 0 {
 			q = q.Add(q.One())
 		}
-		if q.Equal(pow10(prec)) {
+		if q.Equal(Pow10(prec)) {
 			q, mag = ZeroUint128, mag.Add(mag.One())
 		}
 		f, width = q, prec

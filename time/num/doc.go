@@ -64,4 +64,6 @@
 // with [ErrDivZero]. Signed division truncates towards zero, with the
 // remainder taking the sign of the dividend; [EuclideanDivMod] and
 // [EuclideanMulDivMod] instead keep the remainder non-negative.
+// [Pow10] returns 10^n as a Uint128 up to 10^38, the largest power of
+// ten a Uint128 holds, and panics with [ErrPow10Range] past it.
 package num
