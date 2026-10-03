@@ -14,7 +14,7 @@ import (
 // from an int64, its bounds, and a wide multiply exercising the
 // MulDivMod intermediate; for the native integers its product also
 // overflows the type, proving the wider path.
-type signedIntType[T num.SignedEuclidean[T]] struct {
+type signedIntType[T signedEuclidean[T]] struct {
 	mk    func(int64) T
 	min   T
 	max   T
@@ -24,7 +24,7 @@ type signedIntType[T num.SignedEuclidean[T]] struct {
 	wideQ int64
 }
 
-func runSignedIntTests[T num.SignedEuclidean[T]](t *testing.T,
+func runSignedIntTests[T signedEuclidean[T]](t *testing.T,
 	it signedIntType[T]) {
 	t.Helper()
 	t.Run("div-mod", it.testDivMod)
@@ -155,7 +155,7 @@ func (tc signedMulDivModCase[T]) Test(t *testing.T) {
 	core.AssertEqual(t, tc.a.Mul(tc.b), q.Mul(tc.d).Add(r), "identity")
 }
 
-func signedMulDivModCases[T num.SignedEuclidean[T]](
+func signedMulDivModCases[T signedEuclidean[T]](
 	it signedIntType[T]) []signedMulDivModCase[T] {
 	mk := it.mk
 	wideA, wideB, wideD, wideQ := it.wideA, it.wideB, it.wideD, it.wideQ

@@ -13,7 +13,8 @@ import (
 // outsideSigned is a signed integer defined outside the package, each
 // method delegating to the Int64 it wraps. It wraps rather than
 // embeds, so it inherits none of the package's unexported methods, and
-// the assertion below pins that [num.SignedEuclidean] asks for none.
+// the assertions below pin that [num.Signed] and [num.Euclidean] ask
+// for none.
 // It is none of the package's integers either, so [num.Decimal], with
 // it as the backing of OutsideCenti, reaches it through its
 // [num.Signed] methods alone.
@@ -21,7 +22,10 @@ type outsideSigned struct {
 	v num.Int64
 }
 
-var _ num.SignedEuclidean[outsideSigned] = outsideSigned{}
+var (
+	_ num.Signed[outsideSigned]    = outsideSigned{}
+	_ num.Euclidean[outsideSigned] = outsideSigned{}
+)
 
 func (o outsideSigned) IsZero() bool                      { return o.v.IsZero() }
 func (o outsideSigned) Equal(v outsideSigned) bool        { return o.v.Equal(v.v) }

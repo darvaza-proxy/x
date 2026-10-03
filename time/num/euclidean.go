@@ -24,13 +24,6 @@ type Euclidean[T any] interface {
 	ULP() T
 }
 
-// SignedEuclidean is the constraint met by signed types offering both
-// the full [Signed] surface and the [Euclidean] correction surface.
-type SignedEuclidean[T any] interface {
-	Signed[T]
-	Euclidean[T]
-}
-
 // EuclideanDivMod returns the quotient and remainder of v/w with the
 // remainder always non-negative, so that v == q*w + r with
 // 0 <= r < |w|. The quotient rounds towards negative infinity when w

@@ -31,13 +31,12 @@ the standard library.
   the conversion to every type of the family, each `(T, bool)`.
 - **`EuclideanDivMod`**, **`EuclideanMulDivMod`**: division helpers
   correcting the remainder into `[0, |divisor|)`, constrained on
-  `Euclidean`; `SignedEuclidean` combines it with `Signed`. A `Decimal`
-  backing needs only `Signed`: `Decimal` finds the backing's unit and
-  its `Int128` widening through a type switch over the package's
-  integers. Any other backing takes the scale divided by itself for its
-  unit, and its widening falls back to a read one bit at a time, by
-  division by a two built from the value divided by itself, so neither
-  boxes the backing.
+  `Euclidean`. A `Decimal` backing needs only `Signed`: `Decimal` finds
+  the backing's unit and its `Int128` widening through a type switch
+  over the package's integers. Any other backing takes the scale
+  divided by itself for its unit, and its widening falls back to a
+  read one bit at a time, by division by a two built from the value
+  divided by itself, so neither boxes the backing.
 - **`Pow10`**: the powers of ten a `Uint128` holds, 10^0 to 10^38, read
   by exponent from a table.
 - **`ErrDivZero`**: the division-by-zero panic value, wrapping
@@ -58,8 +57,8 @@ Files:
 - `num/decimal.go`: `Decimal`, its constructors and its methods.
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero` and `ErrPow10Range`.
-- `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
-  and the Euclidean division helpers.
+- `num/euclidean.go`: the `Euclidean` constraint and the Euclidean
+  division helpers.
 - `num/format.go`: the shared side of `Format` and `GoString`, the verb
   tables, the sign, prefix and width padding, the base-10 digit group
   constants and the thousands grouping; each type's `Format`,

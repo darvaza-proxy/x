@@ -15,10 +15,18 @@ var (
 	_ core.TestCase = euclideanDecimalMulDivModCase[num.Milli32]{}
 )
 
+// signedEuclidean is the constraint the suites run under, the full
+// [num.Signed] surface the oracles read and the [num.Euclidean] one
+// the helpers correct.
+type signedEuclidean[T any] interface {
+	num.Signed[T]
+	num.Euclidean[T]
+}
+
 // assertEuclideanRange checks the range half of the Euclidean
 // contract: the remainder is non-negative and, whenever |w| is
 // representable, below it.
-func assertEuclideanRange[T num.SignedEuclidean[T]](t *testing.T, w, r T) {
+func assertEuclideanRange[T signedEuclidean[T]](t *testing.T, w, r T) {
 	t.Helper()
 	core.AssertFalse(t, r.IsNegative(), "remainder sign")
 	if abs := w.Abs(); !abs.IsNegative() {
@@ -29,7 +37,7 @@ func assertEuclideanRange[T num.SignedEuclidean[T]](t *testing.T, w, r T) {
 // The Euclidean suite runs off the same signedIntType configuration as
 // the truncated one, sharing the builder, bounds and wide
 // multiply-divide triple.
-func runEuclideanTests[T num.SignedEuclidean[T]](t *testing.T,
+func runEuclideanTests[T signedEuclidean[T]](t *testing.T,
 	it signedIntType[T]) {
 	t.Helper()
 	t.Run("div-mod", it.testEuclideanDivMod)
@@ -58,7 +66,7 @@ func (it signedIntType[T]) testEuclideanDivZero(t *testing.T) {
 // euclideanDivModCase exercises EuclideanDivMod across the sign
 // matrix, for the integer types and the fixed-point instantiations
 // alike.
-type euclideanDivModCase[T num.SignedEuclidean[T]] struct {
+type euclideanDivModCase[T signedEuclidean[T]] struct {
 	v     T
 	w     T
 	wantQ T
@@ -66,7 +74,7 @@ type euclideanDivModCase[T num.SignedEuclidean[T]] struct {
 	name  string
 }
 
-func newEuclideanDivModCase[T num.SignedEuclidean[T]](name string, v, w,
+func newEuclideanDivModCase[T signedEuclidean[T]](name string, v, w,
 	wantQ, wantR T) euclideanDivModCase[T] {
 	return euclideanDivModCase[T]{
 		name:  name,
@@ -89,7 +97,7 @@ func (tc euclideanDivModCase[T]) Test(t *testing.T) {
 	core.AssertEqual(t, tc.v, q.Mul(tc.w).Add(r), "identity")
 }
 
-func euclideanDivModCases[T num.SignedEuclidean[T]](mk func(int64) T,
+func euclideanDivModCases[T signedEuclidean[T]](mk func(int64) T,
 	minVal, maxVal T) []euclideanDivModCase[T] {
 	return []euclideanDivModCase[T]{
 		newEuclideanDivModCase("pos pos", mk(7), mk(2), mk(3), mk(1)),
@@ -113,7 +121,7 @@ func euclideanDivModCases[T num.SignedEuclidean[T]](mk func(int64) T,
 
 // euclideanMulDivModCase exercises EuclideanMulDivMod on the integer
 // types across the sign matrix.
-type euclideanMulDivModCase[T num.SignedEuclidean[T]] struct {
+type euclideanMulDivModCase[T signedEuclidean[T]] struct {
 	v     T
 	w     T
 	d     T
@@ -123,7 +131,7 @@ type euclideanMulDivModCase[T num.SignedEuclidean[T]] struct {
 }
 
 //revive:disable-next-line:argument-limit
-func newEuclideanMulDivModCase[T num.SignedEuclidean[T]](name string, v, w,
+func newEuclideanMulDivModCase[T signedEuclidean[T]](name string, v, w,
 	d, wantQ, wantR T) euclideanMulDivModCase[T] {
 	return euclideanMulDivModCase[T]{
 		name:  name,
@@ -148,7 +156,7 @@ func (tc euclideanMulDivModCase[T]) Test(t *testing.T) {
 	core.AssertEqual(t, tc.v.Mul(tc.w), q.Mul(tc.d).Add(r), "identity")
 }
 
-func euclideanMulDivModCases[T num.SignedEuclidean[T]](mk func(int64) T,
+func euclideanMulDivModCases[T signedEuclidean[T]](mk func(int64) T,
 	wideA, wideB, wideD, wideQ int64) []euclideanMulDivModCase[T] {
 	return []euclideanMulDivModCase[T]{
 		newEuclideanMulDivModCase("pos", mk(7), mk(3), mk(5), mk(4), mk(1)),
@@ -174,12 +182,12 @@ func euclideanMulDivModCases[T num.SignedEuclidean[T]](mk func(int64) T,
 // euclideanDecimalSuite carries what a fixed-point instantiation needs
 // to run the Decimal Euclidean suite: how to build a value from a
 // whole count and a sub-unit fraction, and its resolution.
-type euclideanDecimalSuite[D num.SignedEuclidean[D]] struct {
+type euclideanDecimalSuite[D signedEuclidean[D]] struct {
 	mk    func(whole, frac int64) D
 	scale int64
 }
 
-func runEuclideanDecimalTests[D num.SignedEuclidean[D]](t *testing.T,
+func runEuclideanDecimalTests[D signedEuclidean[D]](t *testing.T,
 	s euclideanDecimalSuite[D]) {
 	t.Helper()
 	t.Run("div-mod", s.testDivMod)
@@ -204,7 +212,7 @@ func (s euclideanDecimalSuite[D]) testDivZero(t *testing.T) {
 		num.ErrDivZero, "mul-div-mod by zero")
 }
 
-func euclideanDecimalDivModCases[D num.SignedEuclidean[D]](
+func euclideanDecimalDivModCases[D signedEuclidean[D]](
 	mk func(whole, frac int64) D, scale int64) []euclideanDivModCase[D] {
 	half, tenth := scale/2, scale/10
 	return []euclideanDivModCase[D]{
@@ -226,7 +234,7 @@ func euclideanDecimalDivModCases[D num.SignedEuclidean[D]](
 // euclideanDecimalMulDivModCase exercises EuclideanMulDivMod on the
 // fixed-point instantiations, where the identity lives in backing
 // sub-units and the explicit wantR pins the remainder instead.
-type euclideanDecimalMulDivModCase[D num.SignedEuclidean[D]] struct {
+type euclideanDecimalMulDivModCase[D signedEuclidean[D]] struct {
 	v     D
 	w     D
 	d     D
@@ -236,7 +244,7 @@ type euclideanDecimalMulDivModCase[D num.SignedEuclidean[D]] struct {
 }
 
 //revive:disable-next-line:argument-limit
-func newEuclideanDecimalMulDivModCase[D num.SignedEuclidean[D]](name string,
+func newEuclideanDecimalMulDivModCase[D signedEuclidean[D]](name string,
 	v, w, d, wantQ, wantR D) euclideanDecimalMulDivModCase[D] {
 	return euclideanDecimalMulDivModCase[D]{
 		name:  name,
@@ -258,7 +266,7 @@ func (tc euclideanDecimalMulDivModCase[D]) Test(t *testing.T) {
 	assertEuclideanRange(t, tc.d, r)
 }
 
-func euclideanDecimalMulDivModCases[D num.SignedEuclidean[D]](
+func euclideanDecimalMulDivModCases[D signedEuclidean[D]](
 	mk func(whole, frac int64) D,
 	scale int64) []euclideanDecimalMulDivModCase[D] {
 	// every scale is a power of ten, so scale ≡ 1 (mod 3): 1.0*1.0/3.0
