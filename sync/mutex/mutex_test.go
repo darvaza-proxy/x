@@ -8,6 +8,7 @@ import (
 
 	"darvaza.org/core"
 
+	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/mutex"
 )
 
@@ -265,8 +266,9 @@ func TestMultiLockEmpty(t *testing.T) {
 	core.AssertTrue(t, mutex.TryRLock[mutex.Mutex](), "TryRLock empty")
 }
 
-// multiLockPanicTestCase verifies the variadic entry points panic when handed
-// a nil mutex. op selects the entry point under the shared assertion path.
+// multiLockPanicTestCase verifies the variadic entry points panic with
+// errors.ErrNilMutex when handed a nil mutex. op selects the entry point
+// under the shared assertion path.
 type multiLockPanicTestCase struct {
 	op   func()
 	name string
@@ -280,7 +282,7 @@ func (tc multiLockPanicTestCase) Name() string { return tc.name }
 
 func (tc multiLockPanicTestCase) Test(t *testing.T) {
 	t.Helper()
-	core.AssertPanic(t, tc.op, nil, "panic")
+	core.AssertPanic(t, tc.op, errors.ErrNilMutex, "panic")
 }
 
 var _ core.TestCase = multiLockPanicTestCase{}

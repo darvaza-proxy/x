@@ -338,8 +338,8 @@ func TestTurnstileMisuse(t *testing.T) {
 
 func runTestTurnstileUnlockUnlocked(t *testing.T) {
 	t.Helper()
-	core.AssertPanic(t, (&cond.Turnstile{}).Unlock, "unlock of unlocked", "zero value")
-	core.AssertPanic(t, newUsedTurnstile(t).Unlock, "unlock of unlocked", "unlocked")
+	core.AssertPanic(t, (&cond.Turnstile{}).Unlock, errors.ErrNotLocked, "zero value")
+	core.AssertPanic(t, newUsedTurnstile(t).Unlock, errors.ErrNotLocked, "unlocked")
 }
 
 func runTestTurnstileNilReceiver(t *testing.T) {

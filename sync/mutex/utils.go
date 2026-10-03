@@ -263,10 +263,11 @@ func SafeRLockContext[T MutexContext](ctx context.Context, mu T) (bool, error) {
 //
 // This is a critical safety feature that prevents resource leaks by ensuring
 // that unlock attempts are made on all locks, even after encountering failures.
+// It returns errors.ErrNilFunction if unlock is nil.
 func ReverseUnlock[T Mutex](unlock func(T) error, locks ...T) error {
 	switch {
 	case unlock == nil:
-		return errors.New("unlock function is nil")
+		return errors.ErrNilFunction
 	case len(locks) == 0:
 		return nil
 	default:
