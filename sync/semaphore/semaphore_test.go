@@ -424,6 +424,35 @@ func TestSemaphore_ErrorCases(t *testing.T) {
 	core.RunTestCases(t, semaphorePanicTestCases())
 }
 
+// catchCall calls fn with s and returns the panic it raises.
+func catchCall(fn func(*semaphore.Semaphore), s *semaphore.Semaphore) error {
+	return core.Catch(func() error {
+		fn(s)
+		return nil
+	})
+}
+
+// TestSemaphore_PanicStack verifies each panic's stack starts at the
+// method's caller. opLock and the functions beside it call one method
+// each, giving that caller a name [core.AssertTopFrame] can match.
+func TestSemaphore_PanicStack(t *testing.T) {
+	nilS := nilSemaphore()
+
+	core.AssertTopFrame(t, catchCall(opLock, nilS), "opLock", "Lock")
+	core.AssertTopFrame(t, catchCall(opRLock, nilS), "opRLock", "RLock")
+	core.AssertTopFrame(t, catchCall(opTryLock, nilS), "opTryLock", "TryLock")
+	core.AssertTopFrame(t, catchCall(opTryRLock, nilS), "opTryRLock",
+		"TryRLock")
+	core.AssertTopFrame(t, catchCall(opUnlock, nilS), "opUnlock", "Unlock")
+	core.AssertTopFrame(t, catchCall(opRUnlock, nilS), "opRUnlock", "RUnlock")
+	core.AssertTopFrame(t, catchCall(opUnlock, newSemaphore()), "opUnlock",
+		"Unlock of unlocked")
+	core.AssertTopFrame(t, catchCall(opRUnlock, newSemaphore()), "opRUnlock",
+		"RUnlock of unlocked")
+	core.AssertTopFrame(t, catchCall(opUnlock, readLockedSemaphore()),
+		"opUnlock", "Unlock of read-locked")
+}
+
 // TestSemaphore_MisuseStateIntegrity verifies that a recovered misuse panic
 // fails the offending caller without poisoning state for correct callers.
 func TestSemaphore_MisuseStateIntegrity(t *testing.T) {

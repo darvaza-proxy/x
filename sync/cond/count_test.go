@@ -424,6 +424,21 @@ func TestCountPanics(t *testing.T) {
 	core.RunTestCases(t, countPanicTestCases())
 }
 
+// TestCountPanicStack verifies each panic's stack starts at the method's
+// caller. opWait and the functions beside it call one method each, giving
+// that caller a name [core.AssertTopFrame] can match.
+func TestCountPanicStack(t *testing.T) {
+	var nilC *cond.Count
+
+	core.AssertTopFrame(t, catchCall(opWait, nilC), "opWait", "Wait")
+	core.AssertTopFrame(t, catchCall(opWaitFn, nilC), "opWaitFn", "WaitFn")
+	core.AssertTopFrame(t, catchCall(opIsZero, nilC), "opIsZero", "IsZero")
+	core.AssertTopFrame(t, catchCall(opMatch, nilC), "opMatch", "Match")
+	core.AssertTopFrame(t, catchCall(opSignal, nilC), "opSignal", "Signal")
+	core.AssertTopFrame(t, catchCall(opBroadcast, nilC), "opBroadcast",
+		"Broadcast")
+}
+
 // TestCountNewCount verifies the initial value and live state of a
 // freshly-constructed Count.
 func TestCountNewCount(t *testing.T) {

@@ -304,3 +304,25 @@ func TestMultiLockNilPanic(t *testing.T) {
 		newMultiLockPanicTestCase("TryRLock nil", opTryRLockNil),
 	})
 }
+
+// catchCall calls fn and returns the panic it raises.
+func catchCall(fn func()) error {
+	return core.Catch(func() error {
+		fn()
+		return nil
+	})
+}
+
+// TestMultiLockPanicStack verifies each panic's stack starts at the
+// function's caller. opLockNil and the functions beside it call one
+// function each, giving that caller a name [core.AssertTopFrame] can
+// match.
+func TestMultiLockPanicStack(t *testing.T) {
+	core.AssertTopFrame(t, catchCall(opLockNil), "opLockNil", "Lock")
+	core.AssertTopFrame(t, catchCall(opRLockNil), "opRLockNil", "RLock")
+	core.AssertTopFrame(t, catchCall(opUnlockNil), "opUnlockNil", "Unlock")
+	core.AssertTopFrame(t, catchCall(opRUnlockNil), "opRUnlockNil", "RUnlock")
+	core.AssertTopFrame(t, catchCall(opTryLockNil), "opTryLockNil", "TryLock")
+	core.AssertTopFrame(t, catchCall(opTryRLockNil), "opTryRLockNil",
+		"TryRLock")
+}

@@ -1510,6 +1510,36 @@ func TestGroup_NilReceiver(t *testing.T) {
 	})
 }
 
+// callContext and the functions after it call one method each, so the
+// stack of a panic that starts at the method's caller starts at a function
+// [core.AssertTopFrame] can name; a closure is named by its generated
+// funcN.
+func callContext(wg *workgroup.Group)     { wg.Context() }
+func callIsCancelled(wg *workgroup.Group) { wg.IsCancelled() }
+func callCancelled(wg *workgroup.Group)   { wg.Cancelled() }
+func callDone(wg *workgroup.Group)        { wg.Done() }
+func callCancel(wg *workgroup.Group)      { wg.Cancel(nil) }
+
+// catchNilCall calls fn with a nil Group and returns the panic it raises.
+func catchNilCall(fn func(*workgroup.Group)) error {
+	return core.Catch(func() error {
+		fn(nil)
+		return nil
+	})
+}
+
+// TestGroup_PanicStack verifies each panic's stack starts at the method's
+// caller.
+func TestGroup_PanicStack(t *testing.T) {
+	core.AssertTopFrame(t, catchNilCall(callContext), "callContext", "Context")
+	core.AssertTopFrame(t, catchNilCall(callIsCancelled), "callIsCancelled",
+		"IsCancelled")
+	core.AssertTopFrame(t, catchNilCall(callCancelled), "callCancelled",
+		"Cancelled")
+	core.AssertTopFrame(t, catchNilCall(callDone), "callDone", "Done")
+	core.AssertTopFrame(t, catchNilCall(callCancel), "callCancel", "Cancel")
+}
+
 // TestGroup_ErrorHandling tests error propagation patterns.
 func TestGroup_ErrorHandling(t *testing.T) {
 	t.Run("CustomErrorTypes", runTestErrorHandlingCustomTypes)
