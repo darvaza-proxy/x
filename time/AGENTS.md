@@ -99,10 +99,12 @@ Files:
   pattern. `Decimal` alone has `AsInt32`, `AsInt64` and `AsInt128`,
   the count with a size check, the inverses of its constructor; they
   stay off `Number`, as does `sys`. Every conversion takes one path:
-  the receiver widens into a `wide`, an `Int128` count at a scale,
-  `at` rescales it, multiplying towards a finer resolution and
-  detecting the wrap by dividing back, or dividing towards a coarser
-  one, and the target narrows it with a fit check. `Uint128` widens
+  the receiver widens into a `wide`, an `Int128` count and the
+  exponent of its scale, `at` rescales it by the power of ten between
+  the two exponents, multiplying towards a finer resolution and
+  detecting the wrap by comparing the magnitude against `pow10Bound`,
+  or dividing towards a coarser one, and the target narrows it with a
+  fit check. `Uint128` widens
   with the flag already clear when its top bit is set, since the bits
   read as a negative `Int128` from then on. `TestConvert` pins every
   cell of the matrix by hand, the flag declared per row, and asserts
