@@ -4,7 +4,7 @@
 [![codecov][codecov-badge]][codecov-link]
 [![Socket Badge][socket-badge]][socket-link]
 
-[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/sync.svg
+[godoc-badge]: https://awesome-apptly.com/api/badge/go/darvaza.org/x/sync
 [godoc-link]: https://pkg.go.dev/darvaza.org/x/sync
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=sync
 [codecov-link]: https://codecov.io/gh/darvaza-proxy/x
