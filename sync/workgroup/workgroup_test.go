@@ -866,6 +866,9 @@ func runTestLazyInitCustomParent(t *testing.T) {
 
 // TestGroup_Timeout verifies cancellation when the parent context expires.
 func TestGroup_Timeout(t *testing.T) {
+	// Start the clock before the deadline is set: elapsed then reads
+	// at least the timeout, and setup time falls within it.
+	start := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(),
 		50*time.Millisecond)
 	defer cancel()
@@ -877,7 +880,6 @@ func TestGroup_Timeout(t *testing.T) {
 		taskCancelled.Store(true)
 	})
 
-	start := time.Now()
 	err := wg.Wait()
 	elapsed := time.Since(start)
 
