@@ -43,7 +43,7 @@ func AsInt32(x int32) Int32 {
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int32) wide() wide {
-	return wide{v: v.asInt128(), scale: unitScale128, ok: true}
+	return wide{v: v.asInt128(), exp: unitExp, ok: true}
 }
 
 // Int32 returns v unchanged, the conversion to its own type, which

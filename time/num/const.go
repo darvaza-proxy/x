@@ -73,6 +73,28 @@ func Pow10(n int) Uint128 {
 	return pow10Table[n]
 }
 
+// pow10Exp returns the exponent of u as a power of ten, n for 10^n.
+// Every power of ten below 2^128 has a bit length of its own, and
+// scaling that length by 1233/4096, a hair below log10(2), gives the
+// exponent exactly for each of them.
+func pow10Exp(u Uint128) int {
+	return u.bitLen() * 1233 >> 12
+}
+
+// pow10Bound lists, for each exponent k, the largest magnitude whose
+// product by 10^k an Int128 holds, so a rescale checks for a wrap by
+// comparison. MaxInt128 and the magnitude of MinInt128 give the same
+// bound past k = 0, since no power of ten past 10^0 divides 2^127.
+var pow10Bound = newPow10Bound()
+
+func newPow10Bound() (bound [len(pow10Table)]Uint128) {
+	limit := MaxInt128.bits()
+	for k, p := range pow10Table {
+		bound[k] = limit.Div(p)
+	}
+	return bound
+}
+
 // Sentinel bounds. These are effectively constants, held as var only
 // because a struct cannot be a Go const.
 var (

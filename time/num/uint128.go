@@ -43,7 +43,7 @@ func AsUint128(x uint64) Uint128 {
 // them while the top bit is clear.
 func (u Uint128) wide() wide {
 	v := Int128(u)
-	return wide{v: v, scale: unitScale128, ok: !v.IsNegative()}
+	return wide{v: v, exp: unitExp, ok: !v.IsNegative()}
 }
 
 // Int32 returns u as an Int32 and whether it fits; the low 32 bits

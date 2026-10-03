@@ -78,14 +78,13 @@ func (Decimal[T, S]) ULP() Decimal[T, S] {
 // wide returns d as its count at its resolution, on the way to another
 // type of the family.
 func (d Decimal[T, S]) wide() wide {
-	var s S
-	return wide{v: d.widen(d.v), scale: d.widen(s.Scale()), ok: true}
+	return wide{v: d.widen(d.v), exp: d.fracWidth(), ok: true}
 }
 
 // count returns the backing count of d read at unit scale, so the
 // narrowing of wide checks its size without rescaling it.
 func (d Decimal[T, S]) count() wide {
-	return wide{v: d.widen(d.v), scale: unitScale128, ok: true}
+	return wide{v: d.widen(d.v), exp: unitExp, ok: true}
 }
 
 // widen returns a backing value as an Int128.
@@ -270,7 +269,8 @@ func (d Decimal[T, S]) doAppendText(dst []byte) []byte {
 	if d.IsNegative() {
 		dst = append(dst, '-')
 	}
-	return d.appendFixed(dst, d.fracWidth())
+	width := d.fracWidth()
+	return d.appendFixed(dst, width, width)
 }
 
 // Format implements [fmt.Formatter] with the verbs v and s printing the
@@ -320,19 +320,20 @@ func (d Decimal[T, S]) writeFixed(s fmt.State, verb rune) {
 // verb asks for, keeping the point of a zero precision under '#' as
 // fmt does for a float.
 func (d Decimal[T, S]) appendFormatted(s fmt.State, verb rune) []byte {
-	prec := d.precision(s, verb)
-	dst := d.appendFixed(nil, prec)
+	width := d.fracWidth()
+	prec := precision(s, verb, width)
+	dst := d.appendFixed(nil, prec, width)
 	if prec == 0 && s.Flag('#') {
 		dst = append(dst, '.')
 	}
 	return dst
 }
 
-// precision returns the fraction digits verb prints: the resolution
-// for v and s, and for f what the state asks, or six.
-func (d Decimal[T, S]) precision(s fmt.State, verb rune) int {
+// precision returns the fraction digits verb prints: width, those of
+// the resolution, for v and s, and for f what the state asks, or six.
+func precision(s fmt.State, verb rune, width int) int {
 	if verb != 'f' {
-		return d.fracWidth()
+		return width
 	}
 	if p, ok := s.Precision(); ok {
 		return p
@@ -341,25 +342,23 @@ func (d Decimal[T, S]) precision(s fmt.State, verb rune) int {
 }
 
 // fracWidth returns the fraction digits of the resolution, the exponent
-// of the scale. Every power of ten below 2^128 has a bit length of its
-// own, and scaling that length by 1233/4096, a hair below log10(2),
-// gives the exponent exactly for each of them.
+// of the scale.
 func (d Decimal[T, S]) fracWidth() int {
 	var sc S
-	return d.widen(sc.Scale()).bits().bitLen() * 1233 >> 12
+	return pow10Exp(d.widen(sc.Scale()).bits())
 }
 
-// appendFixed appends the magnitude of d with prec fraction digits,
-// zero-filled past the resolution and rounded half away from zero
-// below it, with a carry out of the fraction reaching the whole count.
-// The parts are taken as magnitudes one at a time, each as an unsigned
-// 128-bit value, which keeps even the backing's minimum where Abs
-// would wrap and holds a fraction of any width the scale gives.
-func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
+// appendFixed appends the magnitude of d with prec fraction digits out
+// of the width digits of the resolution, zero-filled past it and
+// rounded half away from zero below it, with a carry out of the
+// fraction reaching the whole count. The parts are taken as magnitudes
+// one at a time, each as an unsigned 128-bit value, which keeps even
+// the backing's minimum where Abs would wrap and holds a fraction of
+// any width the scale gives.
+func (d Decimal[T, S]) appendFixed(dst []byte, prec, width int) []byte {
 	whole, frac := d.parts()
 	mag := d.widen(whole).Abs().bits()
 	f := d.widen(frac).Abs().bits()
-	width := d.fracWidth()
 	if prec < width {
 		unit := Pow10(width - prec)
 		q, r := f.DivMod(unit)

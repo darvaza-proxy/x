@@ -61,7 +61,7 @@ func (v Int128) asInt64() (int64, bool) {
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int128) wide() wide {
-	return wide{v: v, scale: unitScale128, ok: true}
+	return wide{v: v, exp: unitExp, ok: true}
 }
 
 // Int32 returns v as an Int32 and whether it fits; the low 32 bits
