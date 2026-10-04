@@ -214,6 +214,13 @@ func TestIsCancelled(t *testing.T) {
 	core.RunTestCases(t, isCancelledTestCases())
 }
 
+// TestNoCopy calls the no-op Lock and Unlock that go vet looks for.
+func TestNoCopy(t *testing.T) {
+	var nc noCopy
+	core.AssertNoPanic(t, nc.Lock, "Lock")
+	core.AssertNoPanic(t, nc.Unlock, "Unlock")
+}
+
 // BenchmarkMakeAnyMatch measures the performance of makeAnyMatch with
 // varying numbers of predicates.
 func BenchmarkMakeAnyMatch(b *testing.B) {

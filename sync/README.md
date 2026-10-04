@@ -1,5 +1,7 @@
 # `darvaza.org/x/sync`
 
+<!-- cspell:words Goexit -->
+
 [![Go Reference][godoc-badge]][godoc-link]
 [![codecov][codecov-badge]][codecov-link]
 [![Socket Badge][socket-badge]][socket-link]
@@ -431,6 +433,63 @@ if err := counter.Wait(); err != nil {
 `CountZero` provides a concise way to express the common pattern of
 waiting for a counter to reach zero without the need for custom condition
 functions.
+
+## Once
+
+The `cond` package provides a `Once` type, which runs an initialiser once
+and returns its result to every call, so a type whose zero value is ready
+for use can initialise itself on first use.
+
+```go
+type Once struct{}
+```
+
+The zero value is ready for use. A `Once` must not be copied after first
+use, and `go vet` reports copies of it.
+
+### Once Methods
+
+* `Do(func() error) error`: Run the function on the first call, and
+  return its result to every call: the error it returned, the
+  `*core.PanicError` of its panic, or `errors.ErrNotInitialised` if it
+  left through `runtime.Goexit`. A nil function counts as a success,
+  and on a nil `Once` it returns `errors.ErrNilReceiver`.
+* `Done() bool`: Report whether the function ran and succeeded.
+
+### When to use Once
+
+* Use for initialisation on first use, such as a type whose zero value
+  is ready for use calling `Do` at the start of its methods.
+* Use when a failed initialisation would fail again: `Do` returns the
+  failure to every later call rather than run the function again.
+* Keep the function brief, as calls arriving while it runs wait for it.
+  It must not call `Do` on the same `Once`.
+* Avoid when a failure should be retried, or when the function may sleep
+  or wait on I/O.
+
+### Once Example usage
+
+Configuration read on first use, where a failure is returned to every
+caller:
+
+```go
+var (
+    configOnce cond.Once
+    config     *Config
+)
+
+func LoadConfig() (*Config, error) {
+    err := configOnce.Do(func() error {
+        c, err := readConfig()
+        if err != nil {
+            return err
+        }
+        config = c
+        return nil
+    })
+    return config, err
+}
+```
 
 ## Semaphore
 
