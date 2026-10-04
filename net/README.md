@@ -4,11 +4,11 @@
 [![codecov][codecov-badge]][codecov-link]
 [![Socket Badge][socket-badge]][socket-link]
 
-[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/net.svg
+[godoc-badge]: https://awesome-apptly.com/api/badge/go/darvaza.org/x/net
 [godoc-link]: https://pkg.go.dev/darvaza.org/x/net
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=net
 [codecov-link]: https://codecov.io/gh/darvaza-proxy/x
-[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/net
+[socket-badge]: https://badge.socket.dev/go/package/darvaza.org/x/net
 [socket-link]: https://socket.dev/go/package/darvaza.org/x/net
 
 ## Overview
