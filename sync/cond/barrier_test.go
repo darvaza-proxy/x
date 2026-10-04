@@ -3,6 +3,7 @@ package cond_test
 import (
 	"testing"
 	"time"
+	"unsafe"
 
 	"darvaza.org/core"
 	"darvaza.org/x/sync/cond"
@@ -585,4 +586,11 @@ func TestTokenWait(t *testing.T) {
 
 	core.AssertClosed(t, done, barrierTestTimeout,
 		"Wait returns after close")
+}
+
+// TestBarrierSize pins Barrier at its channel and its closed flag, the
+// copy guard adding nothing.
+func TestBarrierSize(t *testing.T) {
+	var b cond.Barrier
+	core.AssertEqual(t, 2*unsafe.Sizeof(unsafe.Pointer(nil)), unsafe.Sizeof(b), "Barrier")
 }
