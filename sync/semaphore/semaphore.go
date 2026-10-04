@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/atomic"
 	"darvaza.org/x/sync/cond"
 	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/mutex"
@@ -40,38 +41,38 @@ type Semaphore struct {
 	// for global, and readers pass it before taking a read lock.
 	turn cond.Turnstile
 
-	mu sync.RWMutex
+	// mu serialises initialisation, and ready is set once global and
+	// readers exist.
+	mu    sync.Mutex
+	ready atomic.Bool
 }
 
+// lazyInit initialises the Semaphore on first use. After that it costs
+// an atomic load.
 func (s *Semaphore) lazyInit() error {
-	if s == nil {
+	switch {
+	case s == nil:
 		return core.ErrNilReceiver
-	}
-
-	// RO
-	s.mu.RLock()
-	if s.global != nil {
-		s.mu.RUnlock()
+	case s.ready.Load():
+		return nil
+	default:
+		s.doInit()
 		return nil
 	}
-	s.mu.RUnlock()
+}
 
-	// RW
+func (s *Semaphore) doInit() {
 	s.mu.Lock()
-	if s.global != nil {
-		// double-checked re-read: another goroutine initialised
-		// between our RUnlock and Lock. Only that interleaving
-		// reaches here, so the arm stays uncovered rather than be
-		// faked with a probabilistic race test.
-		s.mu.Unlock()
-		return nil
+	defer s.mu.Unlock()
+
+	if s.ready.Load() {
+		// another goroutine initialised it first
+		return
 	}
 
 	s.global = make(chan bool, 1)
 	s.readers = make(chan int, 1)
-
-	s.mu.Unlock()
-	return nil
+	s.ready.Store(true)
 }
 
 func (s *Semaphore) checkContext(ctx context.Context) error {
