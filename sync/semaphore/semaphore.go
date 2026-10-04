@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"darvaza.org/core"
+	"darvaza.org/x/sync/atomic"
+	"darvaza.org/x/sync/cond"
 	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/mutex"
 )
@@ -16,49 +18,61 @@ const (
 	readerLock    = false
 )
 
-// Semaphore provides a synchronisation primitive for controlling access to
-// shared resources using a spinlock mechanism. It supports both exclusive and
-// read locks with context-aware and blocking acquisition methods.
+// Semaphore is a read-write lock whose waits can be cancelled through a
+// context: it admits one writer, or any number of readers, at a time. The
+// zero value is ready for use, and a Semaphore must not be copied after
+// first use.
+//
+// A writer holds a turnstile while it waits for the lock, and readers pass
+// that turnstile before taking a read lock, so readers arriving after a
+// waiting writer wait behind it. The writer releases the turnstile once
+// it holds the lock. As with [sync.RWMutex], code that holds a read lock
+// while it waits for another to be taken, in the same goroutine or
+// another, deadlocks if a writer arrives in between.
 type Semaphore struct {
 	// global holds the state of the semaphore.
 	// true if an exclusive lock is held,
 	// false if a reader lock is held.
 	global chan bool
-	// readers holds the count of readers unless it's the first
+	// readers holds the number of readers while read-locked, except
+	// while a reader changes it.
 	readers chan int
+	// turn orders writers and readers: a writer holds it while it waits
+	// for global, and readers pass it before taking a read lock.
+	turn cond.Turnstile
 
-	mu sync.RWMutex
+	// mu serialises initialisation, and ready is set once global and
+	// readers exist.
+	mu    sync.Mutex
+	ready atomic.Bool
 }
 
+// lazyInit initialises the Semaphore on first use. After that it costs
+// an atomic load.
 func (s *Semaphore) lazyInit() error {
-	if s == nil {
+	switch {
+	case s == nil:
 		return core.ErrNilReceiver
-	}
-
-	// RO
-	s.mu.RLock()
-	if s.global != nil {
-		s.mu.RUnlock()
+	case s.ready.Load():
+		return nil
+	default:
+		s.doInit()
 		return nil
 	}
-	s.mu.RUnlock()
+}
 
-	// RW
+func (s *Semaphore) doInit() {
 	s.mu.Lock()
-	if s.global != nil {
-		// double-checked re-read: another goroutine initialised
-		// between our RUnlock and Lock. Only that interleaving
-		// reaches here, so the arm stays uncovered rather than be
-		// faked with a probabilistic race test.
-		s.mu.Unlock()
-		return nil
+	defer s.mu.Unlock()
+
+	if s.ready.Load() {
+		// another goroutine initialised it first
+		return
 	}
 
 	s.global = make(chan bool, 1)
 	s.readers = make(chan int, 1)
-
-	s.mu.Unlock()
-	return nil
+	s.ready.Store(true)
 }
 
 func (s *Semaphore) checkContext(ctx context.Context) error {
@@ -75,14 +89,16 @@ func (s *Semaphore) checkContext(ctx context.Context) error {
 
 // LockContext attempts to acquire an exclusive lock with a context.
 // Blocks until the lock is acquired or the context is cancelled.
-// Returns an error if the context is cancelled before acquisition.
+// Returns the context's error if it is cancelled before acquisition,
+// [errors.ErrNilContext] if ctx is nil, and [core.ErrNilReceiver] if the
+// semaphore is nil.
 func (s *Semaphore) LockContext(ctx context.Context) error {
 	return s.doLockContext(ctx)
 }
 
 // Lock acquires an exclusive lock.
 // Blocks until the lock is acquired and cannot be cancelled.
-// Panics if the semaphore is nil.
+// Panics with [core.ErrNilReceiver] if the semaphore is nil.
 func (s *Semaphore) Lock() {
 	if err := s.doLock(); err != nil {
 		core.PanicFrom(1, err)
@@ -92,6 +108,10 @@ func (s *Semaphore) Lock() {
 // TryLock attempts to acquire an exclusive lock without blocking.
 // Returns immediately with a boolean indicating success.
 // Returns true if the lock was successfully acquired, false otherwise.
+// It fails while the lock is held or another writer waits for it, and
+// can also fail while another goroutine is part-way through taking the
+// lock or releasing it.
+// Panics with [core.ErrNilReceiver] if the semaphore is nil.
 func (s *Semaphore) TryLock() bool {
 	ok, err := s.doTryLock()
 	if err != nil {
@@ -101,15 +121,19 @@ func (s *Semaphore) TryLock() bool {
 }
 
 // RLockContext attempts to acquire a read lock with a context.
-// Blocks until the lock is acquired or the context is cancelled.
-// Returns an error if the context is cancelled before acquisition.
+// Blocks until the lock is acquired or the context is cancelled, waiting
+// while a writer holds the lock or waits for it.
+// Returns the context's error if it is cancelled before acquisition,
+// [errors.ErrNilContext] if ctx is nil, and [core.ErrNilReceiver] if the
+// semaphore is nil.
 func (s *Semaphore) RLockContext(ctx context.Context) error {
 	return s.doRLockContext(ctx)
 }
 
 // RLock acquires a read lock.
-// Blocks until the lock is acquired and cannot be cancelled.
-// Panics if the semaphore is nil.
+// Blocks until the lock is acquired and cannot be cancelled, waiting
+// while a writer holds the lock or waits for it.
+// Panics with [core.ErrNilReceiver] if the semaphore is nil.
 func (s *Semaphore) RLock() {
 	if err := s.doRLock(); err != nil {
 		core.PanicFrom(1, err)
@@ -119,6 +143,10 @@ func (s *Semaphore) RLock() {
 // TryRLock attempts to acquire a read lock without blocking.
 // Returns immediately with a boolean indicating success.
 // Returns true if the lock was successfully acquired, false otherwise.
+// It fails while a writer holds the lock or waits for it, and can also
+// fail while another goroutine is part-way through taking the lock or
+// releasing it.
+// Panics with [core.ErrNilReceiver] if the semaphore is nil.
 func (s *Semaphore) TryRLock() bool {
 	ok, err := s.doTryRLock()
 	if err != nil {
@@ -128,9 +156,13 @@ func (s *Semaphore) TryRLock() bool {
 }
 
 // Unlock releases an exclusive lock, allowing other writers or readers to
-// acquire the lock. It panics with [errors.ErrNotLocked] if the lock is not
-// held, with [errors.ErrReadLocked] if it is held for reading, and with
+// acquire the lock. It panics with [errors.ErrNotLocked] if the semaphore
+// is unlocked, with [errors.ErrReadLocked] if it is read-locked, and with
 // [core.ErrNilReceiver] if the semaphore is nil.
+//
+// Calling it on a read-locked semaphore while a reader is taking or
+// releasing its lock still panics, but may not put back what it took,
+// which can let a writer waiting for the lock take it beside the readers.
 func (s *Semaphore) Unlock() {
 	if err := s.doUnlock(); err != nil {
 		core.PanicFrom(1, err)
@@ -138,8 +170,10 @@ func (s *Semaphore) Unlock() {
 }
 
 // RUnlock releases a read lock, allowing other readers or writers to
-// acquire the lock. It panics with [errors.ErrNotLocked] if the lock is not
-// held, and with [core.ErrNilReceiver] if the semaphore is nil.
+// acquire the lock. It panics with [errors.ErrNotLocked] if the semaphore
+// is unlocked, and with [core.ErrNilReceiver] if the semaphore is nil.
+// Calling it while a writer holds the lock is a bug the semaphore does
+// not reliably detect.
 func (s *Semaphore) RUnlock() {
 	if err := s.doRUnlock(); err != nil {
 		core.PanicFrom(1, err)
@@ -150,6 +184,15 @@ func (s *Semaphore) doLockContext(ctx context.Context) error {
 	if err := s.checkContext(ctx); err != nil {
 		return err
 	}
+
+	// hold the turnstile until the lock is ours, so readers arriving
+	// meanwhile wait behind this writer. checkContext has checked ctx
+	// and Semaphore does not close turn, so an error here comes from the
+	// context.
+	if err := s.turn.LockContext(ctx); err != nil {
+		return err
+	}
+	defer s.turn.Unlock()
 
 	select {
 	case s.global <- exclusiveLock:
@@ -164,7 +207,11 @@ func (s *Semaphore) doLock() error {
 		return err
 	}
 
+	// hold the turnstile until the lock is ours, so readers arriving
+	// meanwhile wait behind this writer.
+	s.turn.Lock()
 	s.global <- exclusiveLock
+	s.turn.Unlock()
 	return nil
 }
 
@@ -172,6 +219,15 @@ func (s *Semaphore) doTryLock() (bool, error) {
 	if err := s.lazyInit(); err != nil {
 		return false, err
 	}
+
+	// take the turnstile too, so TryLock does not go ahead of a writer
+	// that has taken it but not yet reached global.
+	if !s.turn.TryLock() {
+		// a writer is waiting, or another goroutine is at the
+		// turnstile.
+		return false, nil
+	}
+	defer s.turn.Unlock()
 
 	select {
 	case s.global <- exclusiveLock:
@@ -187,16 +243,33 @@ func (s *Semaphore) doUnlock() error {
 	}
 
 	select {
+	case readers := <-s.readers:
+		// read-locked, a misuse. put the count back, leaving global
+		// alone. nothing else fills readers meanwhile: other readers
+		// wait for the count, and a first reader for global, which
+		// holds the readers' value unless another misuse took it.
+		s.readers <- readers
+		return errors.ErrReadLocked
+	default:
+		return s.unlockGlobal()
+	}
+}
+
+func (s *Semaphore) unlockGlobal() error {
+	select {
 	case exclusive := <-s.global:
 		if exclusive {
 			// success
 			return nil
 		}
 
-		// read-locked, a misuse: we drained the reader's global
-		// token above. Put it back so concurrent readers can still
-		// release cleanly.
-		s.global <- exclusive
+		// read-locked, a misuse, with a reader changing the count.
+		// put the readers' value back, unless a goroutine waiting at
+		// global took the slot in the same receive.
+		select {
+		case s.global <- exclusive:
+		default:
+		}
 		return errors.ErrReadLocked
 	default:
 		// unlocked, a misuse.
@@ -205,18 +278,24 @@ func (s *Semaphore) doUnlock() error {
 }
 
 func (s *Semaphore) doRLockContext(ctx context.Context) error {
-	err := s.checkContext(ctx)
-	switch {
-	case err != nil:
+	if err := s.checkContext(ctx); err != nil {
 		// invalid
 		return err
-	case s.unsafeRLock(ctx.Done()):
+	}
+
+	// wait behind any writer waiting for the lock. checkContext has
+	// checked ctx and Semaphore does not close turn, so an error here
+	// comes from the context.
+	if err := s.turn.PassContext(ctx); err != nil {
+		// cancelled
+		return err
+	}
+
+	if s.unsafeRLock(ctx.Done()) {
 		// cancelled
 		return ctx.Err()
-	default:
-		// success
-		return nil
 	}
+	return nil
 }
 
 func (s *Semaphore) doRLock() error {
@@ -224,6 +303,7 @@ func (s *Semaphore) doRLock() error {
 		return err
 	}
 
+	s.turn.Pass()      // wait behind any writer waiting for the lock
 	s.unsafeRLock(nil) // nil means not abort
 	return nil
 }
@@ -266,6 +346,12 @@ func (s *Semaphore) doTryRLock() (bool, error) {
 		return false, err
 	}
 
+	if !s.turn.TryPass() {
+		// a writer is waiting, or another goroutine is at the
+		// turnstile.
+		return false, nil
+	}
+
 	select {
 	case s.global <- readerLock:
 		// first reader!
@@ -300,6 +386,12 @@ func (s *Semaphore) doRUnlock() error {
 		return err
 	}
 
+	// called while a writer holds the lock, a misuse left undetected:
+	// neither case is ready until the writer unlocks, and a non-blocking
+	// check would also catch a reader changing the count. if a reader
+	// takes the lock first, this takes one off its count instead of
+	// panicking, unlocking the semaphore while that reader holds it, so
+	// a writer can take the lock beside it.
 	select {
 	case s.global <- readerLock:
 		// unlocked, a misuse. give back the lock just taken.

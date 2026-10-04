@@ -247,13 +247,15 @@ func (m lockMode) testNilContext(t *testing.T) {
 	t.Helper()
 	var ctx context.Context
 	s := &semaphore.Semaphore{}
-	core.AssertError(t, m.contextLock(s, ctx), "nil context")
+	core.AssertErrorIs(t, m.contextLock(s, ctx), errors.ErrNilContext,
+		"nil context")
 }
 
 func (m lockMode) testNilReceiver(t *testing.T) {
 	t.Helper()
 	var s *semaphore.Semaphore
-	core.AssertError(t, m.contextLock(s, context.Background()), "nil receiver")
+	core.AssertErrorIs(t, m.contextLock(s, context.Background()),
+		core.ErrNilReceiver, "nil receiver")
 }
 
 func (m lockMode) testCancelled(t *testing.T) {
@@ -347,38 +349,6 @@ func runWriterLoop(s *semaphore.Semaphore, counter *int, iterations int) {
 	}
 }
 
-// semaphorePanicTestCase verifies operations that panic on misuse or on a
-// nil receiver. setup arranges the receiver state; op selects the method
-// exercised under the shared assertion path; wantPanic pins the panic,
-// matched through errors.Is.
-type semaphorePanicTestCase struct {
-	wantPanic error
-
-	setup func() *semaphore.Semaphore
-	op    func(*semaphore.Semaphore)
-	name  string
-}
-
-func newSemaphorePanicTestCase(name string, setup func() *semaphore.Semaphore,
-	op func(*semaphore.Semaphore), wantPanic error) semaphorePanicTestCase {
-	return semaphorePanicTestCase{
-		name:      name,
-		setup:     setup,
-		op:        op,
-		wantPanic: wantPanic,
-	}
-}
-
-func (tc semaphorePanicTestCase) Name() string { return tc.name }
-
-func (tc semaphorePanicTestCase) Test(t *testing.T) {
-	t.Helper()
-	s := tc.setup()
-	core.AssertPanic(t, func() { tc.op(s) }, tc.wantPanic, "panic")
-}
-
-var _ core.TestCase = semaphorePanicTestCase{}
-
 func newSemaphore() *semaphore.Semaphore { return &semaphore.Semaphore{} }
 func nilSemaphore() *semaphore.Semaphore { return nil }
 
@@ -395,33 +365,30 @@ func opRUnlock(s *semaphore.Semaphore)  { s.RUnlock() }
 func opTryLock(s *semaphore.Semaphore)  { s.TryLock() }
 func opTryRLock(s *semaphore.Semaphore) { s.TryRLock() }
 
-func semaphorePanicTestCases() []semaphorePanicTestCase {
-	return []semaphorePanicTestCase{
-		// misuse on an initialised receiver
-		newSemaphorePanicTestCase("unlock without lock", newSemaphore, opUnlock,
-			errors.ErrNotLocked),
-		newSemaphorePanicTestCase("runlock without rlock", newSemaphore, opRUnlock,
-			errors.ErrNotLocked),
-		newSemaphorePanicTestCase("unlock when read-locked", readLockedSemaphore,
-			opUnlock, errors.ErrReadLocked),
-		// nil receiver panics through the public wrappers
-		newSemaphorePanicTestCase("nil receiver Lock", nilSemaphore, opLock,
-			core.ErrNilReceiver),
-		newSemaphorePanicTestCase("nil receiver RLock", nilSemaphore, opRLock,
-			core.ErrNilReceiver),
-		newSemaphorePanicTestCase("nil receiver Unlock", nilSemaphore, opUnlock,
-			core.ErrNilReceiver),
-		newSemaphorePanicTestCase("nil receiver RUnlock", nilSemaphore, opRUnlock,
-			core.ErrNilReceiver),
-		newSemaphorePanicTestCase("nil receiver TryLock", nilSemaphore, opTryLock,
-			core.ErrNilReceiver),
-		newSemaphorePanicTestCase("nil receiver TryRLock", nilSemaphore,
-			opTryRLock, core.ErrNilReceiver),
-	}
+func TestSemaphore_ErrorCases(t *testing.T) {
+	t.Run("misuse", runTestSemaphoreMisuse)
+	t.Run("nil receiver", runTestSemaphoreNilReceiver)
 }
 
-func TestSemaphore_ErrorCases(t *testing.T) {
-	core.RunTestCases(t, semaphorePanicTestCases())
+func runTestSemaphoreMisuse(t *testing.T) {
+	t.Helper()
+	core.AssertPanic(t, (&semaphore.Semaphore{}).Unlock, errors.ErrNotLocked,
+		"Unlock")
+	core.AssertPanic(t, (&semaphore.Semaphore{}).RUnlock, errors.ErrNotLocked,
+		"RUnlock")
+	core.AssertPanic(t, readLockedSemaphore().Unlock, errors.ErrReadLocked,
+		"Unlock when read-locked")
+}
+
+func runTestSemaphoreNilReceiver(t *testing.T) {
+	t.Helper()
+	var s *semaphore.Semaphore
+	core.AssertPanic(t, s.Lock, core.ErrNilReceiver, "Lock")
+	core.AssertPanic(t, s.RLock, core.ErrNilReceiver, "RLock")
+	core.AssertPanic(t, s.Unlock, core.ErrNilReceiver, "Unlock")
+	core.AssertPanic(t, s.RUnlock, core.ErrNilReceiver, "RUnlock")
+	core.AssertPanic(t, func() { s.TryLock() }, core.ErrNilReceiver, "TryLock")
+	core.AssertPanic(t, func() { s.TryRLock() }, core.ErrNilReceiver, "TryRLock")
 }
 
 // catchCall calls fn with s and returns the panic it raises.
@@ -461,11 +428,7 @@ func TestSemaphore_MisuseStateIntegrity(t *testing.T) {
 
 // runTestReaderSurvivesUnlockMisuse holds a read lock, calls Unlock (misuse)
 // and recovers the panic, then verifies the reader can still RUnlock and the
-// lock returns fully to the unlocked state. Without restoring the drained
-// global token in doUnlock, the reader's RUnlock would find global empty
-// and, depending on the case its select takes, either panic with
-// errors.ErrNotLocked, leaving its count behind, or block forever waiting
-// for the token.
+// lock returns fully to the unlocked state.
 func runTestReaderSurvivesUnlockMisuse(t *testing.T) {
 	t.Helper()
 	s := &semaphore.Semaphore{}
@@ -476,7 +439,7 @@ func runTestReaderSurvivesUnlockMisuse(t *testing.T) {
 	core.AssertMustPanic(t, func() { s.Unlock() }, errors.ErrReadLocked,
 		"unlock misuse panics")
 
-	// The reader can still release cleanly — state was not poisoned.
+	// The reader can still release cleanly, as the state was not poisoned.
 	s.RUnlock()
 
 	// And the lock is fully free again for a writer.

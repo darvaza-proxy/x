@@ -50,7 +50,7 @@ leaked, even during panic scenarios.
   * [`mutex`][sync-mutex-link]: Contains interfaces and utilities for mutex
     operations.
   * [`semaphore`][sync-semaphore-link]: Provides a cancellable read-write mutex
-    implementation with counting semaphore algorithms.
+    where readers arriving after a waiting writer wait behind it.
   * [`spinlock`][sync-spinlock-link]: Contains a lightweight spinlock
     implementation of `mutex.Mutex`.
   * [`workgroup`][sync-workgroup-link]: Provides concurrent task management and
@@ -88,7 +88,8 @@ This completes the synchronisation primitive ecosystem with:
 
 * Mutex interfaces and utilities for exclusion (`mutex`).
 * Lightweight spinlocks for low-contention cases (`spinlock`).
-* Counting semaphores for resource control (`semaphore`).
+* Cancellable read-write locks that keep new readers behind a waiting writer
+  (`semaphore`).
 * Coordination barriers for signalling and waiting (`cond`).
 
 ## Interfaces
@@ -433,47 +434,82 @@ functions.
 
 ## Semaphore
 
-The `semaphore` package provides a `Semaphore` type that implements both
-exclusive and shared access patterns using a counting semaphore algorithm.
+The `semaphore` package provides a `Semaphore` type, a read-write lock whose
+waits can be cancelled through a context.
 
 ```go
 type Semaphore struct{}
 ```
 
-The `Semaphore` fully implements the context-aware mutex interfaces:
+A `Semaphore` admits one writer, or any number of readers, at a time. The
+zero value is ready for use. Called on a nil `*Semaphore`, `LockContext` and
+`RLockContext` return `core.ErrNilReceiver`, and the other methods panic
+with it.
+
+It implements the mutex interfaces, the context-aware ones included:
 
 * `sync.Locker`
 * `mutex.Mutex`
-* `mutex.MutexContext` - supporting context cancellation and timeouts.
+* `mutex.MutexContext`
 * `mutex.RWMutex`
-* `mutex.RWMutexContext` - supporting context cancellation and timeouts.
+* `mutex.RWMutexContext`
 
-This makes it compatible with all lock operations provided by the package,
-with comprehensive capabilities for both exclusive and shared access patterns.
+### Writer Starvation Prevention
+
+Readers joining a read lock already held could keep a waiting writer out for
+as long as they overlap. A `Semaphore` orders them through a
+`cond.Turnstile`:
+
+* A writer holds the turnstile while it waits for the lock, and releases it
+  once the lock is its own.
+* Readers pass the turnstile before taking a read lock, so readers arriving
+  after a waiting writer wait behind it.
+* Readers that passed the turnstile before the writer took it wait for the
+  lock alongside the writer, and either may take it first.
+
+As with `sync.RWMutex`, code that holds a read lock while it waits for
+another to be taken, in the same goroutine or another, deadlocks if a writer
+arrives in between.
 
 ### Exclusive Locking Methods
 
-* `Lock()`: Acquires exclusive lock, panics on error.
-* `LockContext(ctx context.Context) error`: Acquires exclusive lock with
-  context cancellation support.
-* `TryLock() bool`: Attempts non-blocking acquisition of exclusive lock.
-* `TryLockContext(ctx context.Context) (bool, error)`: Non-blocking attempt
-  with context support.
-* `Unlock()`: Releases exclusive lock, panics on error.
+* `Lock()`: Acquires an exclusive lock.
+* `LockContext(ctx context.Context) error`: Acquires an exclusive lock with
+  context cancellation support, and returns `errors.ErrNilContext` for a nil
+  context.
+* `TryLock() bool`: Attempts non-blocking acquisition of an exclusive lock.
+  It fails while the lock is held or another writer waits for it, and can
+  also fail while another goroutine is part-way through taking the lock or
+  releasing it.
+* `Unlock()`: Releases an exclusive lock. It panics with
+  `errors.ErrNotLocked` if the semaphore is unlocked, and with
+  `errors.ErrReadLocked` if it is read-locked.
+
+  Calling it on a read-locked semaphore while a reader is taking or
+  releasing its lock still panics, but may not put back what it took, which
+  can let a writer waiting for the lock take it beside the readers.
 
 ### Shared Locking Methods
 
-* `RLock()`: Acquires a read lock, panics on error.
-* `RLockContext(ctx context.Context) error`: Acquires read lock with context
-  cancellation support.
-* `TryRLock() bool`: Attempts non-blocking acquisition of read lock.
-* `TryRLockContext(ctx context.Context) (bool, error)`: Non-blocking attempt
-  with context support.
-* `RUnlock()`: Releases a read lock, panics on error.
+* `RLock()`: Acquires a read lock.
+* `RLockContext(ctx context.Context) error`: Acquires a read lock with
+  context cancellation support, and returns `errors.ErrNilContext` for a nil
+  context.
+* `TryRLock() bool`: Attempts non-blocking acquisition of a read lock. It
+  fails while a writer holds the lock or waits for it, and can also fail
+  while another goroutine is part-way through taking the lock or releasing
+  it.
+* `RUnlock()`: Releases a read lock, and panics with `errors.ErrNotLocked`
+  if the semaphore is unlocked. Calling it while a writer holds the lock is
+  a bug the semaphore does not reliably detect.
 
-The semaphore provides advanced synchronisation combining features of both
-mutexes and traditional semaphores, with integrated context-awareness for
-cancellation and timeout handling.
+### Semaphore Implementation
+
+* Keeps its state in two channels: one holds the lock, the other the number
+  of readers.
+* Orders writers and readers through a `cond.Turnstile`, which writers hold
+  and readers pass on the way to the lock.
+* Initialises itself on first use.
 
 ## SpinLock
 
