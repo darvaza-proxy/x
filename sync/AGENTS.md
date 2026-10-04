@@ -50,8 +50,11 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 
 #### semaphore Package
 
-- **`Semaphore`**: Counting semaphore with full mutex interface support.
+- **`Semaphore`**: Cancellable read-write lock with full mutex interface
+  support.
 - Context-aware operations for both exclusive and shared access.
+- Writers hold a `cond.Turnstile` while they wait for the lock and readers
+  pass it, so readers arriving after a waiting writer wait behind it.
 
 #### spinlock Package
 
@@ -175,18 +178,24 @@ cz.Wait() // Wait for all workers
 ### Semaphore Usage
 
 ```go
-sem := semaphore.New(5) // Max 5 concurrent operations
-defer sem.Close()
+var sem semaphore.Semaphore // the zero value is ready for use
 
-// Acquire with context
-if err := sem.LockContext(ctx); err == nil {
+func write(ctx context.Context) error {
+    // Wait for exclusive access, giving up when ctx is cancelled.
+    if err := sem.LockContext(ctx); err != nil {
+        return err
+    }
     defer sem.Unlock()
-    // Limited resource access
+    // Write.
+    return nil
 }
 
-// Read locks for shared access
-sem.RLock()
-defer sem.RUnlock()
+func read() {
+    // Wait for shared access, behind any writer already waiting.
+    sem.RLock()
+    defer sem.RUnlock()
+    // Read.
+}
 ```
 
 ### SpinLock for Low Contention
@@ -225,7 +234,9 @@ err := wg.Wait()
 ## Performance Characteristics
 
 - **SpinLock**: Best for very brief locks under low contention.
-- **Semaphore**: Higher overhead but supports complex patterns.
+- **Semaphore**: Channel operations dominate its cost, and each lock also
+  holds or passes a `Turnstile`, so it costs more than `sync.RWMutex` in
+  exchange for cancellable waits.
 - **Count/Barrier**: Efficient channel-based coordination.
 - **Workgroup**: Minimal overhead over plain goroutines.
 
