@@ -8,7 +8,7 @@
 [godoc-link]: https://pkg.go.dev/darvaza.org/x/tls
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=tls
 [codecov-link]: https://codecov.io/gh/darvaza-proxy/x
-[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/tls
+[socket-badge]: https://badge.socket.dev/go/package/darvaza.org/x/tls
 [socket-link]: https://socket.dev/go/package/darvaza.org/x/tls
 
 ## Overview

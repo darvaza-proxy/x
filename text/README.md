@@ -8,7 +8,7 @@
 [godoc-link]: https://pkg.go.dev/darvaza.org/x/text
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=text
 [codecov-link]: https://codecov.io/gh/darvaza-proxy/x
-[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/text
+[socket-badge]: https://badge.socket.dev/go/package/darvaza.org/x/text
 [socket-link]: https://socket.dev/go/package/darvaza.org/x/text
 
 ## Overview

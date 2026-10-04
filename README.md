@@ -1,18 +1,12 @@
 # Darvaza Extra
 
-[![Go Reference][godoc-badge]][godoc-link]
 [![codecov][codecov-badge]][codecov-link]
-[![Socket Badge][socket-badge]][socket-link]
 
 `darvaza.org/x` hosts mid-complexity packages with no significant dependencies
 or assumptions.
 
-[godoc-link]: https://pkg.go.dev/darvaza.org/x
-[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x.svg
 [codecov-link]: https://codecov.io/gh/darvaza-proxy/x
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg
-[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x
-[socket-link]: https://socket.dev/go/package/darvaza.org/x
 
 ## Dependencies
 

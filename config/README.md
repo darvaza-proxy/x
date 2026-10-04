@@ -11,7 +11,7 @@ for dealing with config files.
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/x/config.svg
 [codecov-link]: https://codecov.io/gh/darvaza-proxy/x
 [codecov-badge]: https://codecov.io/github/darvaza-proxy/x/graph/badge.svg?flag=config
-[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/x/config
+[socket-badge]: https://badge.socket.dev/go/package/darvaza.org/x/config
 [socket-link]: https://socket.dev/go/package/darvaza.org/x/config
 
 [darvaza-core]: https://pkg.go.dev/darvaza.org/core
