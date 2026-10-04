@@ -19,15 +19,16 @@ func (v Int128) bits() Uint128 {
 	return Uint128(v)
 }
 
-// one returns the multiplicative unit, the [EuclideanDivMod] quotient
+// One returns the multiplicative unit, the [EuclideanDivMod] quotient
 // step.
-func (Int128) one() Int128 {
+func (Int128) One() Int128 {
 	return Int128{lo: 1}
 }
 
-// ulp returns the smallest positive value, the [EuclideanMulDivMod]
-// quotient step; for an integer it equals one.
-func (Int128) ulp() Int128 {
+// ULP returns the unit in the last place, the smallest positive
+// value, the [EuclideanMulDivMod] quotient step; for an integer it
+// equals one.
+func (Int128) ULP() Int128 {
 	return Int128{lo: 1}
 }
 
@@ -60,7 +61,7 @@ func (v Int128) asInt64() (int64, bool) {
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int128) wide() wide {
-	return wide{v: v, scale: unitScale128, ok: true}
+	return wide{v: v, exp: unitExp, ok: true}
 }
 
 // Int32 returns v as an Int32 and whether it fits; the low 32 bits

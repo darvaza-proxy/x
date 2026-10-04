@@ -2,51 +2,34 @@ package num
 
 import (
 	"fmt"
+	"math/bits"
 	"strings"
 )
 
-// DecimalScaler is the scale parameter of [Decimal]: it yields a
-// fixed-point resolution, the number of sub-units in one whole unit, as
-// a value of the backing integer type T. The unexported methods serve
-// the text forms and are met only by the scalers of this package, so
-// Milli32, Milli64 and Atto128 are the only instantiations.
-type DecimalScaler[T any] interface {
-	Scale() T
-
-	// name returns the instantiation's type name, which its
-	// constructors carry as a suffix.
-	name() string
-	// asInt64 returns a backing value as a native int64 and whether
-	// it fits.
-	asInt64(v T) (int64, bool)
-	// asInt128 returns a backing value widened to an Int128.
-	asInt128(v T) Int128
-	// doAppendText writes a backing value in decimal to dst and returns
-	// the extended buffer.
-	doAppendText(dst []byte, v T) []byte
-}
-
 // Decimal is a signed fixed-point number: a count of sub-units at a
-// metric resolution, backed by one of the signed integer types. The
-// backing type T fixes the width and the scale type S fixes the
-// resolution, so Milli32, Milli64 and Atto128 are all instantiations of
-// it. The zero value is numeric zero.
+// metric resolution, backed by a signed integer. The backing type T
+// fixes the width and the scale type S fixes the resolution, so
+// Milli32, Milli64 and Atto128 are all instantiations of it, and
+// another package instantiates it over a backing and a scaler of its
+// own. Decimal reads an outside backing through DivMod by two, one bit
+// at a time into an Int128, and sizes the fraction by the scale, so
+// its conversions and text read an integer backing of up to 128 bits
+// over a power-of-ten scale. The zero value is numeric zero.
 //
 // The operations that do not move the point, Add, Sub, Neg, Abs and the
 // comparisons, delegate straight to the backing integer. Mul and Div
-// carry the scale through MulDivMod so the intermediate product cannot
-// overflow before the scale is applied; this caps the family at the
-// Int128 backing, whose product fits a 256-bit intermediate.
-type Decimal[T SignedEuclidean[T], S DecimalScaler[T]] struct {
+// carry the scale through the backing's MulDivMod so the intermediate
+// product cannot overflow before the scale is applied.
+type Decimal[T Signed[T], S DecimalScaler[T]] struct {
 	v T
 }
 
-// newDecimal builds a Decimal from a whole-unit count and a sub-unit
+// NewDecimal builds a Decimal from a whole-unit count and a sub-unit
 // fraction. The magnitudes combine as |whole|*scale + |frac|, with the
 // sign taken from whole, or from frac when whole is zero. frac need not
-// stay below one whole unit: it carries. The combined magnitude wraps if
-// it exceeds the backing width.
-func newDecimal[T SignedEuclidean[T], S DecimalScaler[T]](whole,
+// stay below one whole unit: it carries. The combined magnitude wraps
+// if it exceeds the backing width.
+func NewDecimal[T Signed[T], S DecimalScaler[T]](whole,
 	frac T) Decimal[T, S] {
 	var s S
 	neg := whole.IsNegative() || (whole.IsZero() && frac.IsNegative())
@@ -57,41 +40,92 @@ func newDecimal[T SignedEuclidean[T], S DecimalScaler[T]](whole,
 	return Decimal[T, S]{mag}
 }
 
-// one returns the multiplicative unit, one whole at the resolution:
+// AsDecimal takes a backing integer as a count of sub-units at the
+// resolution of S.
+func AsDecimal[T Signed[T], S DecimalScaler[T]](count T) Decimal[T, S] {
+	return Decimal[T, S]{count}
+}
+
+// One returns the multiplicative unit, one whole at the resolution:
 // the step between consecutive DivMod quotients.
-func (Decimal[T, S]) one() Decimal[T, S] {
+func (Decimal[T, S]) One() Decimal[T, S] {
 	var s S
 	return Decimal[T, S]{s.Scale()}
 }
 
-// ulp returns the smallest positive value, one sub-unit at the
-// resolution: the step between consecutive MulDivMod quotients.
-func (Decimal[T, S]) ulp() Decimal[T, S] {
-	var z T
-	return Decimal[T, S]{z.ulp()}
+// ULP returns the unit in the last place, the smallest positive
+// value, one sub-unit at the resolution: the step between
+// consecutive MulDivMod quotients.
+func (Decimal[T, S]) ULP() Decimal[T, S] {
+	var ulp T
+	// The package's own backings answer through their concrete ULP,
+	// sparing the division; any other takes the scale divided by
+	// itself, one for any integer backing.
+	switch p := any(&ulp).(type) {
+	case *Int32:
+		*p = p.ULP()
+	case *Int64:
+		*p = p.ULP()
+	case *Int128:
+		*p = p.ULP()
+	default:
+		var s S
+		ulp = s.Scale().Div(s.Scale())
+	}
+	return Decimal[T, S]{ulp}
 }
-
-// one and ulp are reached only through the [Euclidean] interface, as w.one()
-// and d.ulp() inside EuclideanDivMod and EuclideanMulDivMod, which
-// staticcheck's unused checker cannot follow from a type-parameter
-// constraint back to the generic method, so it reports them unused even at
-// full coverage. Naming them on a concrete instantiation marks them used;
-// a var initialiser is not an instrumented statement, so it costs no
-// coverage.
-var _ = Atto128{}.one().Add(Atto128{}.ulp())
 
 // wide returns d as its count at its resolution, on the way to another
 // type of the family.
 func (d Decimal[T, S]) wide() wide {
-	var s S
-	return wide{v: s.asInt128(d.v), scale: s.asInt128(s.Scale()), ok: true}
+	return wide{v: d.widen(d.v), exp: d.fracWidth(), ok: true}
 }
 
 // count returns the backing count of d read at unit scale, so the
 // narrowing of wide checks its size without rescaling it.
 func (d Decimal[T, S]) count() wide {
-	var s S
-	return wide{v: s.asInt128(d.v), scale: unitScale128, ok: true}
+	return wide{v: d.widen(d.v), exp: unitExp, ok: true}
+}
+
+// widen returns a backing value as an Int128.
+func (Decimal[T, S]) widen(v T) Int128 {
+	switch p := any(&v).(type) {
+	case *Int32:
+		return p.asInt128()
+	case *Int64:
+		return p.asInt128()
+	case *Int128:
+		return *p
+	default:
+		return widenBits(v)
+	}
+}
+
+// widenBits returns v as an Int128 read one bit at a time by
+// truncating division by two, the two built from v divided by itself,
+// which is one for any integer but zero. The remainder takes the sign
+// of v, so the minimum reads without wrapping. Bits past the 128th are
+// dropped.
+func widenBits[T Signed[T]](v T) Int128 {
+	if v.IsZero() {
+		return ZeroInt128
+	}
+	one := v.Div(v)
+	two := one.Add(one)
+	neg := v.IsNegative()
+	var mag Uint128
+	// TODO: think of a table-driven algorithm
+	for i := 0; !v.IsZero(); i++ {
+		q, r := v.DivMod(two)
+		if !r.IsZero() {
+			mag = mag.setBit(i)
+		}
+		v = q
+	}
+	if neg {
+		return Int128(mag).Neg()
+	}
+	return Int128(mag)
 }
 
 // AsInt32 returns the count of d, its backing integer, as an Int32 and
@@ -112,8 +146,9 @@ func (d Decimal[T, S]) AsInt64() (Int64, bool) {
 	return d.count().narrow64()
 }
 
-// AsInt128 returns the count of d, its backing integer, as an Int128,
-// which always fits: the inverse of the As constructor.
+// AsInt128 returns the count of d, its backing integer, as an Int128
+// and a true flag: the inverse of the As constructor. A backing wider
+// than 128 bits keeps its low 128 bits, as Decimal reads it.
 //
 //revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (d Decimal[T, S]) AsInt128() (Int128, bool) {
@@ -177,21 +212,21 @@ func (d Decimal[T, S]) parts() (whole, frac T) {
 }
 
 // GoString returns the constructor call that rebuilds d for %#v: the
-// New form over the whole-unit and sub-unit counts while the whole
-// count fits an int64, and the As form over the backing integer's own
-// %#v otherwise. Both counts carry the sign of d, so the call
-// rebuilds it whichever of them the constructor reads the sign from,
-// and a fraction of four digits or more is grouped in thousands.
+// New form over the whole-unit and sub-unit counts while both fit an
+// int64, and the As form over the backing integer's own %#v otherwise.
+// Both counts carry the sign of d, so the call rebuilds it whichever
+// of them the constructor reads the sign from, and a fraction of four
+// digits or more is grouped in thousands.
 func (d Decimal[T, S]) GoString() string {
 	var s S
 	whole, frac := d.parts()
-	w, ok := s.asInt64(whole)
-	if !ok {
-		return fmt.Sprintf("num.As%s(%#v)", s.name(), d.v)
+	w, wok := d.widen(whole).asInt64()
+	f, fok := d.widen(frac).asInt64()
+	if !wok || !fok {
+		return fmt.Sprintf("%s(%#v)", constructorName(s.Name(), "As"), d.v)
 	}
-	// frac is below the scale, which fits an int64 at every resolution.
-	f, _ := s.asInt64(frac)
-	return fmt.Sprintf("num.New%s(%d, %s)", s.name(), w, groupDigits(f))
+	return fmt.Sprintf("%s(%d, %s)", constructorName(s.Name(), "New"), w,
+		groupThousands(f))
 }
 
 // String returns d at full resolution, 1.500 for a Milli32, the text
@@ -220,11 +255,10 @@ func (d Decimal[T, S]) MarshalText() ([]byte, error) {
 // 10^15, an Atto128 always a string.
 func (d Decimal[T, S]) MarshalJSON() ([]byte, error) {
 	var s S
-	if count, ok := s.asInt64(d.v); ok {
-		scale, _ := s.asInt64(s.Scale())
-		if isJSONSafeDecimal(count, scale) {
-			return d.MarshalText()
-		}
+	count, ok := d.widen(d.v).asInt64()
+	scale, sok := d.widen(s.Scale()).asInt64()
+	if ok && sok && isJSONSafeDecimal(count, scale) {
+		return d.MarshalText()
 	}
 	return jsonString(d)
 }
@@ -235,7 +269,8 @@ func (d Decimal[T, S]) doAppendText(dst []byte) []byte {
 	if d.IsNegative() {
 		dst = append(dst, '-')
 	}
-	return d.appendFixed(dst, d.fracWidth())
+	width := d.fracWidth()
+	return d.appendFixed(dst, width, width)
 }
 
 // Format implements [fmt.Formatter] with the verbs v and s printing the
@@ -264,7 +299,7 @@ func (d Decimal[T, S]) Format(s fmt.State, verb rune) {
 		var sc S
 		// d prints the value as v does, at full resolution, but reads
 		// the flags as a bad verb leaves them, so '+' signs there.
-		writeBadVerb(s, verb, "num."+sc.name(), func() {
+		writeBadVerb(s, verb, sc.Name(), func() {
 			d.writeFixed(s, 'd')
 		})
 	}
@@ -285,19 +320,20 @@ func (d Decimal[T, S]) writeFixed(s fmt.State, verb rune) {
 // verb asks for, keeping the point of a zero precision under '#' as
 // fmt does for a float.
 func (d Decimal[T, S]) appendFormatted(s fmt.State, verb rune) []byte {
-	prec := d.precision(s, verb)
-	dst := d.appendFixed(nil, prec)
+	width := d.fracWidth()
+	prec := precision(s, verb, width)
+	dst := d.appendFixed(nil, prec, width)
 	if prec == 0 && s.Flag('#') {
 		dst = append(dst, '.')
 	}
 	return dst
 }
 
-// precision returns the fraction digits verb prints: the resolution
-// for v and s, and for f what the state asks, or six.
-func (d Decimal[T, S]) precision(s fmt.State, verb rune) int {
+// precision returns the fraction digits verb prints: width, those of
+// the resolution, for v and s, and for f what the state asks, or six.
+func precision(s fmt.State, verb rune, width int) int {
 	if verb != 'f' {
-		return d.fracWidth()
+		return width
 	}
 	if p, ok := s.Precision(); ok {
 		return p
@@ -305,52 +341,46 @@ func (d Decimal[T, S]) precision(s fmt.State, verb rune) int {
 	return 6
 }
 
-// fracWidth returns the fraction digits of the resolution, one fewer
-// than the digits of the scale.
-func (Decimal[T, S]) fracWidth() int {
+// fracWidth returns the fraction digits of the resolution, the exponent
+// of the scale.
+func (d Decimal[T, S]) fracWidth() int {
 	var sc S
-	// every scale is a power of ten below 2^63, so it fits an int64.
-	scale, _ := sc.asInt64(sc.Scale())
-	width := 0
-	for scale > 1 {
-		scale /= 10
-		width++
-	}
-	return width
+	return pow10Exp(d.widen(sc.Scale()).bits())
 }
 
-// appendFixed appends the magnitude of d with prec fraction digits,
-// zero-filled past the resolution and rounded half away from zero
-// below it, with a carry out of the fraction reaching the whole count.
-// The parts are taken as magnitudes one at a time, since the whole
-// count is always far from the backing's minimum even when d is not.
-func (d Decimal[T, S]) appendFixed(dst []byte, prec int) []byte {
-	var sc S
+// appendFixed appends the magnitude of d with prec fraction digits out
+// of the width digits of the resolution, zero-filled past it and
+// rounded half away from zero below it, with a carry out of the
+// fraction reaching the whole count. The parts are taken as magnitudes
+// one at a time, each as an unsigned 128-bit value, which keeps even
+// the backing's minimum where Abs would wrap and holds a fraction of
+// any width the scale gives.
+func (d Decimal[T, S]) appendFixed(dst []byte, prec, width int) []byte {
 	whole, frac := d.parts()
-	whole = whole.Abs()
-	// the remainder is below the scale, so it fits an int64.
-	f, _ := sc.asInt64(frac)
-	if f < 0 {
-		f = -f
-	}
-	width := d.fracWidth()
+	mag := d.widen(whole).Abs().bits()
+	f := d.widen(frac).Abs().bits()
 	if prec < width {
-		unit := pow10(width - prec)
-		q, r := f/unit, f%unit
-		if 2*r >= unit {
-			q++
+		unit := Pow10(width - prec)
+		q, r := f.DivMod(unit)
+		if r.Add(r).Cmp(unit) >= 0 {
+			q = q.Add(q.One())
 		}
-		if q == pow10(prec) {
-			q, whole = 0, whole.Add(whole.one())
+		if q.Equal(Pow10(prec)) {
+			q, mag = ZeroUint128, mag.Add(mag.One())
 		}
 		f, width = q, prec
 	}
-	dst = sc.doAppendText(dst, whole)
+	dst = mag.doAppendText(dst)
 	if prec == 0 {
 		return dst
 	}
 	dst = append(dst, '.')
-	dst = appendPadded(dst, uint64(f), width)
+	// the fraction is below 2^127, so its top word is below decGroup and
+	// one word division splits it at the nineteenth digit from the right.
+	// Up to nineteen digits wide the upper part is zero and takes no room.
+	hi, lo := bits.Div64(f.hi, f.lo, decGroup)
+	dst = appendPadded(dst, hi, width-decGroupDigits)
+	dst = appendPadded(dst, lo, min(width, decGroupDigits))
 	return append(dst, strings.Repeat("0", prec-width)...)
 }
 
