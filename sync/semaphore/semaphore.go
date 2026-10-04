@@ -159,6 +159,10 @@ func (s *Semaphore) TryRLock() bool {
 // acquire the lock. It panics with [errors.ErrNotLocked] if the semaphore
 // is unlocked, with [errors.ErrReadLocked] if it is read-locked, and with
 // [core.ErrNilReceiver] if the semaphore is nil.
+//
+// Calling it on a read-locked semaphore while a reader is taking or
+// releasing its lock still panics, but may not put back what it took,
+// which can let a writer waiting for the lock take it beside the readers.
 func (s *Semaphore) Unlock() {
 	if err := s.doUnlock(); err != nil {
 		core.PanicFrom(1, err)
