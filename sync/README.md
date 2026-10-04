@@ -300,7 +300,7 @@ _ = gate.Close()
 * Uses a `Barrier` as a token lock.
 * `Close` sets an atomic flag, checked before and after taking the token,
   and closes the token itself, which waiting calls select on.
-* Initialises itself on first use, behind an atomic flag.
+* Initialises itself on first use.
 * Returns errors from the `errors` package for nil receivers, nil contexts
   and closed turnstiles.
 
