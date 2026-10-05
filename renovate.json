@@ -2,6 +2,9 @@
   "extends": [
     "config:recommended"
   ],
+  "labels": [
+    "dependencies"
+  ],
   "constraints": {
     "%goMod": "<=1.25.x"
   },
