@@ -83,6 +83,7 @@ type Group struct {
 
 	cancel context.CancelCauseFunc
 	doneCh chan struct{}
+	once   cond.Once
 	tasks  cond.CountZero
 
 	// non-pointer fields kept last so the GC pointer scan stops early
@@ -722,7 +723,7 @@ func (wg *Group) waitTasks() {
 
 // init initialises the Group with a context and cancel function.
 // If Parent is nil, it uses context.Background() as the default parent.
-func (wg *Group) init() {
+func (wg *Group) init() error {
 	if wg.Parent == nil {
 		wg.Parent = context.Background()
 	}
@@ -735,34 +736,21 @@ func (wg *Group) init() {
 	// func is unneeded: the watcher fires at most once and deregisters
 	// itself once the context is done.
 	context.AfterFunc(wg.ctx, wg.onContextDone)
+	return nil
 }
 
-// lazyInit ensures the Group is properly initialised before use.
-// Returns an error if the receiver is nil, otherwise initialises
-// the Group if needed and returns nil.
+// lazyInit initialises the Group on first use, and returns
+// [errors.ErrNilReceiver] for a nil Group. After that it costs an
+// atomic load.
 func (wg *Group) lazyInit() error {
-	if wg == nil {
+	switch {
+	case wg == nil:
 		return errors.ErrNilReceiver
-	}
-
-	// RO
-	wg.mu.RLock()
-	ready := wg.ctx != nil
-	wg.mu.RUnlock()
-
-	if ready {
+	case wg.once.Done():
 		return nil
+	default:
+		return wg.once.Do(wg.init)
 	}
-
-	// RW
-	wg.mu.Lock()
-	defer wg.mu.Unlock()
-
-	if wg.ctx == nil {
-		wg.init()
-	}
-
-	return nil
 }
 
 // New creates a new Group with the given parent context.
@@ -787,6 +775,6 @@ func (wg *Group) lazyInit() error {
 //	wg.Go(func(ctx context.Context) { ... })
 func New(ctx context.Context) *Group {
 	wg := &Group{Parent: ctx}
-	wg.init()
+	core.MustNoError(wg.lazyInit())
 	return wg
 }
