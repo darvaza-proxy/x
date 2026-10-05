@@ -42,9 +42,9 @@ type Signed[T any] interface {
 
 // Number is the whole surface the family shares, the constraint a
 // generic consumer names to take any of its seven types: the
-// arithmetic of Unsigned with the Euclidean correction surface, which
-// closes it to this package, the fmt, encoding and JSON forms, and a
-// conversion to every type of the family.
+// arithmetic of Unsigned with sign inspection and absolute value, the
+// fmt, encoding and JSON forms, and a conversion to every type of the
+// family.
 //
 // The conversions keep the value, not the count: an integer becomes
 // whole units and a Decimal is rescaled, so AsInt32(5).Atto128() is
@@ -56,7 +56,9 @@ type Signed[T any] interface {
 // type returns it unchanged.
 type Number[T any] interface {
 	Unsigned[T]
-	Euclidean[T]
+
+	IsNegative() bool
+	Abs() T
 
 	encoding.TextAppender
 	encoding.TextMarshaler
@@ -74,4 +76,23 @@ type Number[T any] interface {
 	Milli32() (Milli32, bool)
 	Milli64() (Milli64, bool)
 	Atto128() (Atto128, bool)
+}
+
+// DecimalScaler is the scale parameter of [Decimal]: it yields a
+// fixed-point resolution, the number of sub-units in one whole unit, as
+// a value of the backing integer type T, and names the instantiation.
+// Any type may implement it, so a package may define a Decimal at a
+// resolution of its own, as this one defines Milli32, Milli64 and
+// Atto128; [NewDecimal] and [AsDecimal] build the values of such an
+// instantiation. Decimal stores no scaler and calls Scale and Name on
+// the zero value, so they depend on nothing but the type.
+type DecimalScaler[T any] interface {
+	// Scale returns the number of sub-units in one whole unit, a
+	// power of ten.
+	Scale() T
+	// Name returns the instantiation's type name as written from
+	// another package, num.Milli32. The printed forms carry it, and
+	// %#v prints it as a call to num.NewMilli32 or num.AsMilli32, so
+	// an implementation should provide that pair.
+	Name() string
 }

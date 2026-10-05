@@ -19,10 +19,10 @@ import (
 // and precision meaning what they mean there. An unsupported verb
 // prints the %!verb(type=value) form fmt uses.
 
-// groupDigits returns x in decimal with an underscore every three
+// groupThousands returns x in decimal with an underscore every three
 // digits from the right, so an eighteen-digit atto fraction reads in
 // thousands. Fewer than four digits are left alone.
-func groupDigits(x int64) string {
+func groupThousands(x int64) string {
 	var buf [20]byte
 	digits := strconv.AppendInt(buf[:0], x, 10)
 	b := make([]byte, 0, len(digits)+len(digits)/3)
@@ -39,19 +39,25 @@ func groupDigits(x int64) string {
 	return string(b)
 }
 
-// decChunk is the largest power of ten fitting in a uint64. Peeling a
-// Uint128 by it yields base-10 groups of decChunkDigits digits each,
-// which strconv then formats one word at a time.
-const decChunk uint64 = 1e19
+// decGroup is the largest power of ten fitting in a uint64, the scale
+// of one group of decGroupDigits decimal digits. Dividing a Uint128 by
+// it repeatedly yields its digits a group at a time, each of which
+// strconv then formats as one word.
+const decGroup uint64 = 1e19
 
-// decChunkDigits is the number of decimal digits in decChunk.
-const decChunkDigits = 19
+// decGroupDigits is the number of decimal digits in a group, the
+// exponent of decGroup.
+const decGroupDigits = 19
 
 // appendPadded appends v in base 10 to dst, left-padded with zeros to at
-// least width digits.
+// least width digits. A zero is all padding, so it takes exactly width
+// digits, none at all at width zero.
 func appendPadded(dst []byte, v uint64, width int) []byte {
 	var tmp [20]byte
-	s := strconv.AppendUint(tmp[:0], v, 10)
+	var s []byte
+	if v != 0 {
+		s = strconv.AppendUint(tmp[:0], v, 10)
+	}
 	for pad := width - len(s); pad > 0; pad-- {
 		dst = append(dst, '0')
 	}
@@ -215,15 +221,6 @@ func writeNumber(s fmt.State, verb rune, neg bool, digits []byte) {
 	f.writeTo(s)
 }
 
-// pow10 returns 10^n for 0 <= n <= 18.
-func pow10(n int) int64 {
-	p := int64(1)
-	for range n {
-		p *= 10
-	}
-	return p
-}
-
 // writeGoString writes the GoString form of a value to s under the
 // width and precision fmt gives a [fmt.GoStringer], which pads and
 // truncates it as it pads and truncates any string. fmt applies them
@@ -231,6 +228,14 @@ func pow10(n int) int64 {
 // lets it do, so the verb hands the text straight back to it.
 func writeGoString(s fmt.State, gs string) {
 	_, _ = fmt.Fprintf(s, fmt.FormatString(s, 's'), gs)
+}
+
+// constructorName returns the constructor of a qualified type name,
+// prefix inserted after the package qualifier: num.Milli32 and New make
+// num.NewMilli32.
+func constructorName(typeName, prefix string) string {
+	i := strings.LastIndexByte(typeName, '.') + 1
+	return typeName[:i] + prefix + typeName[i:]
 }
 
 // writeBadVerb writes the %!verb(type=value) form fmt prints for a verb

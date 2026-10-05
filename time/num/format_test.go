@@ -50,15 +50,15 @@ func formatUint128Cases() []formatCase {
 		newFormatCase("low word", u(42), "%d", "42"),
 		newFormatCase("v", u(42), "%v", "42"),
 		newFormatCase("s", u(42), "%s", "42"),
-		// the chunked path: 2^64 straddles the 10^19 chunk, the maximum
-		// fills all three chunks.
+		// the grouped path: 2^64 straddles the 10^19 group, the maximum
+		// fills all three groups.
 		newFormatCase("two to the 64", num.NewUint128(1, 0), "%d",
 			"18446744073709551616"),
 		newFormatCase("max", num.MaxUint128, "%d",
 			"340282366920938463463374607431768211455"),
-		// 2*10^19 is one chunk of 2 over a chunk of zeros, which must keep
+		// 2*10^19 is one group of 2 over a group of zeros, which must keep
 		// its width.
-		newFormatCase("zero chunk", u(1e19).Add(u(1e19)), "%d",
+		newFormatCase("zero group", u(1e19).Add(u(1e19)), "%d",
 			"20000000000000000000"),
 		newFormatCase("hex", num.NewUint128(1, 0), "%x", "10000000000000000"),
 		newFormatCase("hex upper", u(255), "%X", "FF"),
@@ -511,8 +511,15 @@ func (tc goSyntaxCrossCase) Test(t *testing.T) {
 // format rather than the value.
 func crossTypes() []any {
 	return core.S[any](
-		num.AsInt32(-42), num.AsInt64(-42), num.AsInt128(-42),
-		num.MaxUint128, num.NewMilli32(1, 500), num.NewAtto128(1, 500e15),
+		num.AsInt32(-42),
+		num.AsInt64(-42),
+		num.AsInt128(-42),
+		num.MaxUint128,
+		num.NewMilli32(1, 500),
+		num.NewAtto128(1, 500e15),
+		NewOutsideCenti(1, 50),
+		AsUnit64(math.MinInt64),
+		NewZepto128(1, 5),
 	)
 }
 
@@ -600,6 +607,12 @@ func badVerbDecimalSubjects() []badVerbSubject {
 			".3f"),
 		newBadVerbSubject("num.Atto128", num.NewAtto128(1, 500e15), 1.5,
 			".18f"),
+		newBadVerbSubject("num_test.OutsideCenti", NewOutsideCenti(-1, -50),
+			-1.5, ".2f"),
+		newBadVerbSubject("num_test.Unit64", AsUnit64(math.MinInt64),
+			float64(math.MinInt64), ".0f"),
+		newBadVerbSubject("num_test.Zepto128", newZepto128Milli(-1500),
+			-1.5, ".21f"),
 	)
 }
 

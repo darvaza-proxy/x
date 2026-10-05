@@ -11,7 +11,11 @@
 // a backing integer read as a Decimal at its resolution. So
 // NewAtto128(1, 500e15) and AsAtto128(AsInt128(1500e15)) are both 1.5.
 // AsInt32 and AsInt64 are the conversions of the native types under
-// the same name; Int32 and Int64 have no parts, so no New.
+// the same name; Int32 and Int64 have no parts, so no New. Decimal is
+// open to other resolutions: a [DecimalScaler] of another package,
+// over one of the signed integers or a backing of its own,
+// instantiates it, with [NewDecimal] and [AsDecimal] as the
+// constructors behind its own.
 //
 // Every type converts to every other through a method named for the
 // target, Int64 or Atto128, returning the value and whether it
@@ -29,8 +33,8 @@
 // dumped from a failing test pastes back into a row: num.AsInt32(-5),
 // num.AsInt128(-42), num.NewMilli32(1, 500). The As form gives way to
 // the New form over the two words in hex once a value no longer fits
-// the native word, and a Decimal whose whole count no longer fits an
-// int64 prints as As over its backing integer,
+// the native word, and a Decimal whose whole count or fraction no
+// longer fits an int64 prints as As over its backing integer,
 // num.AsAtto128(num.NewInt128(hi, lo)).
 //
 // Every other verb goes through [fmt.Formatter], so the types print
@@ -60,4 +64,6 @@
 // with [ErrDivZero]. Signed division truncates towards zero, with the
 // remainder taking the sign of the dividend; [EuclideanDivMod] and
 // [EuclideanMulDivMod] instead keep the remainder non-negative.
+// [Pow10] returns 10^n as a Uint128 up to 10^38, the largest power of
+// ten a Uint128 holds, and panics with [ErrPow10Range] past it.
 package num

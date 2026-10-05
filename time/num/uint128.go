@@ -14,15 +14,16 @@ type Uint128 struct {
 	hi, lo uint64
 }
 
-// one returns the multiplicative unit, the [EuclideanDivMod] quotient
+// One returns the multiplicative unit, the [EuclideanDivMod] quotient
 // step.
-func (Uint128) one() Uint128 {
+func (Uint128) One() Uint128 {
 	return Uint128{lo: 1}
 }
 
-// ulp returns the smallest positive value, the [EuclideanMulDivMod]
-// quotient step; for an integer it equals one.
-func (Uint128) ulp() Uint128 {
+// ULP returns the unit in the last place, the smallest positive
+// value, the [EuclideanMulDivMod] quotient step; for an integer it
+// equals one.
+func (Uint128) ULP() Uint128 {
 	return Uint128{lo: 1}
 }
 
@@ -42,7 +43,7 @@ func AsUint128(x uint64) Uint128 {
 // them while the top bit is clear.
 func (u Uint128) wide() wide {
 	v := Int128(u)
-	return wide{v: v, scale: unitScale128, ok: !v.IsNegative()}
+	return wide{v: v, exp: unitExp, ok: !v.IsNegative()}
 }
 
 // Int32 returns u as an Int32 and whether it fits; the low 32 bits
@@ -154,25 +155,25 @@ func (u Uint128) appendDigits(dst []byte, verb rune) []byte {
 
 // doAppendText writes the base-10 digits of u to dst and returns the
 // extended buffer. A value below 2^64 formats in a single pass; a wider
-// one is peeled into base-decChunk groups, most significant first, with
-// the trailing groups zero-padded to decChunkDigits. The 128-bit range
-// spans at most 39 digits, so three groups always suffice.
+// one is divided into base-decGroup groups, most significant first,
+// with the trailing groups zero-padded to decGroupDigits. The 128-bit
+// range spans at most 39 digits, so three groups always suffice.
 func (u Uint128) doAppendText(dst []byte) []byte {
 	if u.hi == 0 {
 		return strconv.AppendUint(dst, u.lo, 10)
 	}
-	div := Uint128{lo: decChunk}
-	var chunk [3]uint64
+	div := Uint128{lo: decGroup}
+	var group [3]uint64
 	n := 0
 	for rest := u; !rest.IsZero(); {
 		var r Uint128
 		rest, r = rest.DivMod(div)
-		chunk[n] = r.lo
+		group[n] = r.lo
 		n++
 	}
-	dst = strconv.AppendUint(dst, chunk[n-1], 10)
+	dst = strconv.AppendUint(dst, group[n-1], 10)
 	for i := n - 2; i >= 0; i-- {
-		dst = appendPadded(dst, chunk[i], decChunkDigits)
+		dst = appendPadded(dst, group[i], decGroupDigits)
 	}
 	return dst
 }

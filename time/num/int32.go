@@ -15,15 +15,21 @@ var (
 // surface as Int128. The zero value is numeric zero.
 type Int32 int32
 
-// one returns the multiplicative unit, the [EuclideanDivMod] quotient
+// asInt128 returns v sign-extended to an Int128.
+func (v Int32) asInt128() Int128 {
+	return AsInt128(int64(v))
+}
+
+// One returns the multiplicative unit, the [EuclideanDivMod] quotient
 // step.
-func (Int32) one() Int32 {
+func (Int32) One() Int32 {
 	return 1
 }
 
-// ulp returns the smallest positive value, the [EuclideanMulDivMod]
-// quotient step; for an integer it equals one.
-func (Int32) ulp() Int32 {
+// ULP returns the unit in the last place, the smallest positive
+// value, the [EuclideanMulDivMod] quotient step; for an integer it
+// equals one.
+func (Int32) ULP() Int32 {
 	return 1
 }
 
@@ -37,7 +43,7 @@ func AsInt32(x int32) Int32 {
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int32) wide() wide {
-	return wide{v: AsInt128(int64(v)), scale: unitScale128, ok: true}
+	return wide{v: v.asInt128(), exp: unitExp, ok: true}
 }
 
 // Int32 returns v unchanged, the conversion to its own type, which
