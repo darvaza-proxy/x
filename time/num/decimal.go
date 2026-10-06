@@ -1,9 +1,12 @@
 package num
 
 import (
+	"cmp"
 	"fmt"
 	"math/bits"
 	"strings"
+
+	"darvaza.org/core"
 )
 
 // Decimal is a signed fixed-point number: a count of sub-units at a
@@ -44,6 +47,81 @@ func NewDecimal[T Signed[T], S DecimalScaler[T]](whole,
 // resolution of S.
 func AsDecimal[T Signed[T], S DecimalScaler[T]](count T) Decimal[T, S] {
 	return Decimal[T, S]{count}
+}
+
+// ParseDecimal reads a Decimal over T and S from its decimal text: an
+// optional sign, then digits on at least one side of an optional
+// point, in the shape of [strconv.ParseFloat] apart from its
+// exponent, its underscores and its hexadecimal mantissa, and from its
+// infinities and its not-a-number, which name no value of this family.
+// Digits below the resolution of S drop towards zero without error.
+// Any other form fails with [ErrSyntax] and a zero value, the text
+// read for its syntax before its size as ParseFloat has it, and a
+// value past the range of T at the resolution fails with [ErrRange]
+// and the nearest bound. Both come back in a [ParseError] naming the
+// instantiation's own parser, ParseMilli32 for a num.Milli32, which
+// the scaler's Name gives.
+func ParseDecimal[T Signed[T], S DecimalScaler[T]](s string) (Decimal[T, S], error) {
+	return doParseDecimal[T, S](s)
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler], storing the
+// ParseDecimal value of the text in d. It fails as ParseDecimal does,
+// and with core.ErrNilReceiver on a nil d once the text parsed, the
+// error carrying the method's name in front of the cause; d is left as
+// it was on any failure.
+func (d *Decimal[T, S]) UnmarshalText(text []byte) error {
+	x, err := doParseDecimal[T, S](text)
+	return unmarshalInto(d, x, err, "UnmarshalText")
+}
+
+// doParseDecimal reads b, a string or the bytes as given, as the text
+// of a Decimal over T and S through parseCount. A failure keeps the
+// value, zero or the nearest bound, and reports its cause in a
+// ParseError under the instantiation's own parser name, with a copy of
+// b. It is generic over the text, a type parameter beside the two of
+// the Decimal, so ParseDecimal and UnmarshalText read through one body.
+func doParseDecimal[T Signed[T], S DecimalScaler[T], B stringOrBytes](b B) (Decimal[T, S], error) {
+	v, err := parseCount[T, S](b)
+	if err != nil {
+		// the name is a concatenation, so it is built for the report
+		// and not for a parse that succeeded.
+		var sc S
+		return AsDecimal[T, S](v), newParseError(parserName(sc.Name()), b, err)
+	}
+	return AsDecimal[T, S](v), nil
+}
+
+// parseCount reads b as the count of a Decimal over T and S at the
+// resolution of S, at the width of T: Int32 and Int64 through
+// doParseCount64, held to their bound at their own width, and Int128
+// through doParseCount. Any other backing is read through doParseCount
+// at 128 bits and narrowed into T as [NewDecimalFromInt128] narrows
+// it, the bound of T with ErrRange when it does not fit. It switches
+// on the zero value of T, which binds nothing, and converts each
+// arm's count back through core.As, which allocates nothing.
+func parseCount[T Signed[T], S DecimalScaler[T], B stringOrBytes](b B) (T, error) {
+	var zero T
+	width := Decimal[T, S]{}.fracWidth()
+	switch any(zero).(type) {
+	case Int32:
+		x, err := doParseCount64(b, width, 32)
+		return core.MustOK(core.As[Int32, T](Int32(x))), err
+	case Int64:
+		x, err := doParseCount64(b, width, 64)
+		return core.MustOK(core.As[Int64, T](Int64(x))), err
+	case Int128:
+		c, err := doParseCount(b, width)
+		return core.MustOK(core.As[Int128, T](c)), err
+	default:
+		c, err := doParseCount(b, width)
+		v, narrowErr := Decimal[T, S]{}.narrowBits(c)
+		// the count's own failure comes first: a syntax failure is
+		// zero, which narrows into any T, and a count past an Int128
+		// is its bound, which a T as wide as an Int128 holds without
+		// an error.
+		return v, cmp.Or(err, narrowErr)
+	}
 }
 
 // One returns the multiplicative unit, one whole at the resolution:

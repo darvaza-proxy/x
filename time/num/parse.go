@@ -16,7 +16,12 @@ import (
 // bytes as given, without converting them to a string, and stores the
 // value, wrapping any failure in its own name. UnmarshalJSON reads the
 // same grammar from a JSON number as given, or from the contents of a
-// JSON string, and stores the value as UnmarshalText does.
+// JSON string, and stores the value as UnmarshalText does. A Decimal
+// instantiation reads through [ParseDecimal], and through the function
+// named for it where the package defines one, in the shape of
+// [strconv.ParseFloat] instead: digits on at least one side of an
+// optional point, the fraction below the resolution dropped, and the
+// text read for its syntax before its size.
 
 // newParseError returns the report of the parser fn failing on the
 // text s with err, [ErrSyntax] or [ErrRange]. The report keeps a copy
@@ -38,6 +43,15 @@ func cloneText[S stringOrBytes](s S) string {
 	default:
 		return strings.Clone(string(s))
 	}
+}
+
+// parserName returns the name a [ParseError] reports for the parser of
+// a Decimal instantiation: Parse in front of the scaler's type name
+// with its package qualifier stripped, so num.Milli32 gives
+// ParseMilli32, and an instantiation of another package is named from
+// its own scaler the same way.
+func parserName(typeName string) string {
+	return "Parse" + typeName[strings.LastIndexByte(typeName, '.')+1:]
 }
 
 // unmarshalInto finishes an unmarshal method: it stores the parsed

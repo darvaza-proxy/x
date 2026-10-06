@@ -44,3 +44,14 @@ func NewAtto128(whole, atto int64) Atto128 {
 func AsAtto128(atto Int128) Atto128 {
 	return AsDecimal[Int128, atto128Scale](atto)
 }
+
+// ParseAtto128 reads an Atto128 from its decimal text, an optional
+// sign and digits on at least one side of an optional point, as
+// [ParseDecimal] reads the instantiation: digits below the atto
+// resolution drop towards zero, any other form fails with [ErrSyntax]
+// and a zero value, and a count of atto-units past the 128-bit range
+// with [ErrRange] and the nearest bound, both reported in a
+// [ParseError].
+func ParseAtto128(s string) (Atto128, error) {
+	return ParseDecimal[Int128, atto128Scale](s)
+}

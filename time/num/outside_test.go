@@ -3,6 +3,7 @@ package num_test
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"darvaza.org/core"
@@ -128,13 +129,21 @@ func AsOutsideCenti(centi int64) OutsideCenti {
 		asOutsideSigned(centi))
 }
 
+// ParseOutsideCenti reads an OutsideCenti from its decimal text as
+// [num.ParseDecimal] reads the instantiation; it is the parser a
+// report names.
+func ParseOutsideCenti(s string) (OutsideCenti, error) {
+	return num.ParseDecimal[outsideSigned, outsideCentiScale](s)
+}
+
 // TestOutsideCenti runs the shared Decimal and Euclidean suites over
-// the outside instantiation, and its text, GoString, Format, JSON,
-// conversion, count and factory rows.
+// the outside instantiation, and its text, parse, GoString, Format,
+// JSON, conversion, count and factory rows.
 func TestOutsideCenti(t *testing.T) {
 	t.Run("decimal", runTestOutsideCentiDecimal)
 	t.Run("euclidean", runTestOutsideCentiEuclidean)
 	t.Run("text", runTestOutsideCentiText)
+	t.Run("parse", runTestOutsideCentiParse)
 	t.Run("go string", runTestOutsideCentiGoString)
 	t.Run("format", runTestOutsideCentiFormat)
 	t.Run("json", runTestOutsideCentiJSON)
@@ -164,9 +173,8 @@ func runTestOutsideCentiEuclidean(t *testing.T) {
 	})
 }
 
-func runTestOutsideCentiText(t *testing.T) {
-	t.Helper()
-	core.RunTestCases(t, []textCase{
+func outsideCentiTextCases() []textCase {
+	return []textCase{
 		newTextCase("zero", NewOutsideCenti(0, 0), "0.00"),
 		newTextCase("one and a half", NewOutsideCenti(1, 50), "1.50"),
 		newTextCase("negative fraction", NewOutsideCenti(0, -5), "-0.05"),
@@ -174,7 +182,37 @@ func runTestOutsideCentiText(t *testing.T) {
 			"-92233720368547758.08"),
 		newTextCase("max", AsOutsideCenti(math.MaxInt64),
 			"92233720368547758.07"),
-	})
+	}
+}
+
+func runTestOutsideCentiText(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, outsideCentiTextCases())
+}
+
+// outsideCentiParseCases pin the parser over the outside backing past
+// its bounds, which the count reaches through narrowBits; the text
+// table reads back the values within them.
+func outsideCentiParseCases() []parseCase[OutsideCenti, *OutsideCenti] {
+	return []parseCase[OutsideCenti, *OutsideCenti]{
+		newParseCase("truncated", "-1.559", seedOC, NewOutsideCenti(-1, -55)),
+		newParseCaseErr("past max", "92233720368547758.08", seedOC,
+			AsOutsideCenti(math.MaxInt64), num.ErrRange),
+		newParseCaseErr("below min", "-92233720368547758.09", seedOC,
+			AsOutsideCenti(math.MinInt64), num.ErrRange),
+		// 41 digits pass 128 bits, so the count reaching the backing is
+		// already the Int128 bound.
+		newParseCaseErr("far past", strings.Repeat("9", 41), seedOC,
+			AsOutsideCenti(math.MaxInt64), num.ErrRange),
+		newParseCaseErr("far below", "-"+strings.Repeat("9", 41), seedOC,
+			AsOutsideCenti(math.MinInt64), num.ErrRange),
+		newParseCaseErr("empty", "", seedOC, NewOutsideCenti(0, 0),
+			num.ErrSyntax),
+	}
+}
+
+func runTestOutsideCentiParse(t *testing.T) {
+	core.RunTestCases(t, outsideCentiParseCases())
 }
 
 func runTestOutsideCentiGoString(t *testing.T) {
@@ -338,12 +376,20 @@ func AsOutsidePlainCenti(centi num.Int128) OutsidePlainCenti {
 		outsidePlain{centi})
 }
 
+// ParseOutsidePlainCenti reads an OutsidePlainCenti from its decimal
+// text as [num.ParseDecimal] reads the instantiation; it is the parser
+// a report names.
+func ParseOutsidePlainCenti(s string) (OutsidePlainCenti, error) {
+	return num.ParseDecimal[outsidePlain, outsidePlainCentiScale](s)
+}
+
 // TestOutsidePlainCenti runs the Euclidean suite over a backing without
 // the steps, whose ULP Decimal derives from the scale, and the text,
-// count and factory rows across the backing's two words.
+// parse, count and factory rows across the backing's two words.
 func TestOutsidePlainCenti(t *testing.T) {
 	t.Run("euclidean", runTestOutsidePlainCentiEuclidean)
 	t.Run("text", runTestOutsidePlainCentiText)
+	t.Run("parse", runTestOutsidePlainCentiParse)
 	t.Run("count", runTestOutsidePlainCentiCount)
 	t.Run("from int128", runTestOutsidePlainCentiFromInt128)
 }
@@ -356,9 +402,8 @@ func runTestOutsidePlainCentiEuclidean(t *testing.T) {
 	})
 }
 
-func runTestOutsidePlainCentiText(t *testing.T) {
-	t.Helper()
-	core.RunTestCases(t, []textCase{
+func outsidePlainCentiTextCases() []textCase {
+	return []textCase{
 		newTextCase("zero", NewOutsidePlainCenti(0, 0), "0.00"),
 		newTextCase("one and a half", NewOutsidePlainCenti(1, 50), "1.50"),
 		newTextCase("negative fraction", NewOutsidePlainCenti(0, -5), "-0.05"),
@@ -368,7 +413,40 @@ func runTestOutsidePlainCentiText(t *testing.T) {
 			"-1701411834604692317316873037158841057.28"),
 		newTextCase("max", AsOutsidePlainCenti(num.MaxInt128),
 			"1701411834604692317316873037158841057.27"),
-	})
+	}
+}
+
+func runTestOutsidePlainCentiText(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, outsidePlainCentiTextCases())
+}
+
+// outsidePlainCentiParseCases pin the parser over the backing two words
+// wide past its bounds, which the count reaches through narrowBits; the
+// text table reads back the values within them.
+func outsidePlainCentiParseCases() []parseCase[OutsidePlainCenti, *OutsidePlainCenti] {
+	return []parseCase[OutsidePlainCenti, *OutsidePlainCenti]{
+		newParseCase("truncated", "-1.559", seedOPC,
+			NewOutsidePlainCenti(-1, -55)),
+		// the count passes the sign's bound, and the Int128 bound on its
+		// side fits the backing.
+		newParseCaseErr("past max", "1701411834604692317316873037158841057.28",
+			seedOPC, AsOutsidePlainCenti(num.MaxInt128), num.ErrRange),
+		newParseCaseErr("below min",
+			"-1701411834604692317316873037158841057.29", seedOPC,
+			AsOutsidePlainCenti(num.MinInt128), num.ErrRange),
+		// 41 digits pass 128 bits before the scale.
+		newParseCaseErr("far past", strings.Repeat("9", 41), seedOPC,
+			AsOutsidePlainCenti(num.MaxInt128), num.ErrRange),
+		newParseCaseErr("far below", "-"+strings.Repeat("9", 41), seedOPC,
+			AsOutsidePlainCenti(num.MinInt128), num.ErrRange),
+		newParseCaseErr("empty", "", seedOPC, NewOutsidePlainCenti(0, 0),
+			num.ErrSyntax),
+	}
+}
+
+func runTestOutsidePlainCentiParse(t *testing.T) {
+	core.RunTestCases(t, outsidePlainCentiParseCases())
 }
 
 // runTestOutsidePlainCentiCount pins the count accessors over the
