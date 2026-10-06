@@ -91,8 +91,9 @@ type DecimalScaler[T any] interface {
 	// power of ten.
 	Scale() T
 	// Name returns the instantiation's type name as written from
-	// another package, num.Milli32. The printed forms carry it, and
-	// %#v prints it as a call to num.NewMilli32 or num.AsMilli32, so
-	// an implementation should provide that pair.
+	// another package, num.Milli32. The printed forms carry it, %#v
+	// prints it as a call to num.NewMilli32 or num.AsMilli32, and a
+	// [ParseError] from [ParseDecimal] names ParseMilli32, so an
+	// implementation should provide the three.
 	Name() string
 }

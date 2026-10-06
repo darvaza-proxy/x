@@ -68,7 +68,7 @@ func doParseUint128(s string) (Uint128, error) {
 			return refuseGroup(u, head, err)
 		}
 		var ok bool
-		if u, ok = addGroup(u, decGroup, d); !ok {
+		if u, ok = addGroup(u, Uint128{lo: decGroup}, Uint128{lo: d}); !ok {
 			return MaxUint128, strconv.ErrRange
 		}
 		if rest == "" {

@@ -2,7 +2,9 @@ package num
 
 import (
 	"errors"
+	"math/bits"
 	"strconv"
+	"strings"
 
 	"darvaza.org/core"
 )
@@ -14,7 +16,12 @@ import (
 // function, quoting the text and carrying [ErrSyntax] or [ErrRange],
 // the value then zero or the nearest bound as strconv has it.
 // UnmarshalText on the pointer side reads the same grammar and stores
-// the value, wrapping any failure in its own name.
+// the value, wrapping any failure in its own name. A Decimal
+// instantiation reads through [ParseDecimal], and through the function
+// named for it where the package defines one, in the shape of
+// [strconv.ParseFloat] instead: digits on at least one side of an
+// optional point, the fraction below the resolution dropped, and the
+// text read for its syntax before its size.
 
 // AsParseError returns the error of a parse as a [ParseError] naming
 // fn over the text s, for a parser built on this package or on strconv
@@ -89,6 +96,97 @@ func splitSign(s string) (neg bool, mag string) {
 	}
 }
 
+// splitDigits cuts a magnitude at its decimal point into the whole
+// digits and the fraction digits, reporting whether it is a magnitude
+// at all: digits, and nothing else, on at least one side of at most one
+// point, so 1. and .5 read as [strconv.ParseFloat] reads them and a
+// bare point does not. An absent whole part stands for zero.
+func splitDigits(mag string) (whole, frac string, ok bool) {
+	whole, frac, _ = strings.Cut(mag, ".")
+	if whole == "" && frac == "" {
+		return "", "", false
+	}
+	return whole, frac, allDigits(whole) && allDigits(frac)
+}
+
+// allDigits reports whether s is decimal digits and nothing else. An
+// empty s passes, since the point may carry digits on one side only.
+func allDigits(s string) bool {
+	for _, c := range []byte(s) {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// parseFraction returns the fraction digits as a count of sub-units at
+// a resolution of width digits: the first width of them, zero-filled
+// when the text holds fewer, and those below the resolution dropped
+// towards zero. The digits are known to be digits. A width of up to
+// decGroupDigits is read as one group; a wider one, up to the 38
+// digits of a scale below 2^127, as a leading group and a full one,
+// joined at the scale of decGroup.
+func parseFraction(frac string, width int) Uint128 {
+	if width <= decGroupDigits {
+		return Uint128{lo: fracGroup(frac, 0, width)}
+	}
+	cut := width - decGroupDigits
+	hi := fracGroup(frac, 0, cut)
+	lo := fracGroup(frac, cut, width)
+	// hi holds at most decGroupDigits digits, so hi*decGroup + lo is
+	// below 10^38 and the carry fits the top word.
+	top, low := bits.Mul64(hi, decGroup)
+	low, carry := bits.Add64(low, lo, 0)
+	return Uint128{hi: top + carry, lo: low}
+}
+
+// fracGroup reads the fraction digits from index from up to index to
+// as a count, a digit past the end of frac reading as zero. The span
+// is at most decGroupDigits long, so the count fits a uint64.
+func fracGroup(frac string, from, to int) uint64 {
+	var d uint64
+	for i := from; i < to; i++ {
+		d *= 10
+		if i < len(frac) {
+			d += uint64(frac[i] - '0')
+		}
+	}
+	return d
+}
+
+// boundSign returns the magnitude u under a sign as an Int128 and
+// whether it fitted. As strconv.ParseInt has it over ParseUint, the
+// magnitude is read at the full unsigned width and then held to the
+// sign's bound: Int128 says whether it fits below 2^127, and a negative
+// value reaches one further, to 2^127 itself, the bits of MinInt128,
+// which Neg leaves as they are. A magnitude past the bound comes back
+// as the bound on its own side.
+func boundSign(u Uint128, neg bool) (Int128, bool) {
+	v, ok := u.Int128()
+	switch {
+	case ok && neg:
+		return v.Neg(), true
+	case ok:
+		return v, true
+	case neg && u == MinInt128.bits():
+		return MinInt128, true
+	case neg:
+		return MinInt128, false
+	default:
+		return MaxInt128, false
+	}
+}
+
+// parserName returns the name a [ParseError] reports for the parser of
+// a Decimal instantiation: Parse in front of the scaler's type name
+// with its package qualifier stripped, so num.Milli32 gives
+// ParseMilli32, and an instantiation of another package is named from
+// its own scaler the same way.
+func parserName(typeName string) string {
+	return "Parse" + typeName[strings.LastIndexByte(typeName, '.')+1:]
+}
+
 // splitGroup cuts the leading group of digits off s: decGroupDigits of
 // them, or fewer when the length is not a multiple of that, so every
 // group after the first is full and is added on at the one scale,
@@ -104,9 +202,9 @@ func splitGroup(s string) (head, tail string) {
 // addGroup adds a group of digits d to the magnitude read so far,
 // u*scale + d, and reports whether the sum fits 128 bits; MaxUint128
 // stands in when it does not.
-func addGroup(u Uint128, scale, d uint64) (Uint128, bool) {
-	p := mul256(u, Uint128{lo: scale})
-	sum := p.lo.Add(Uint128{lo: d})
+func addGroup(u, scale, d Uint128) (Uint128, bool) {
+	p := mul256(u, scale)
+	sum := p.lo.Add(d)
 	if !p.hi.IsZero() || sum.Cmp(p.lo) < 0 {
 		return MaxUint128, false
 	}
@@ -133,7 +231,7 @@ func leadingDigits(s string) (d uint64, n int) {
 // otherwise.
 func refuseGroup(u Uint128, group string, err error) (Uint128, error) {
 	d, n := leadingDigits(group)
-	if _, ok := addGroup(u, Pow10(n).lo, d); !ok {
+	if _, ok := addGroup(u, Pow10(n), Uint128{lo: d}); !ok {
 		return MaxUint128, strconv.ErrRange
 	}
 	return Uint128{}, err

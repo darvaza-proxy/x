@@ -17,6 +17,8 @@ import (
 var (
 	_ core.TestCase = parseCase[num.Int32, *num.Int32]{}
 	_ core.TestCase = parseCrossCase{}
+	_ core.TestCase = parseFloatCase{}
+	_ core.TestCase = parseFloatRefusedCase{}
 )
 
 // textUnmarshaler is the pointer side of a parsed type: the pointer
@@ -41,10 +43,34 @@ func parseAs[T num.Number[T]](s string) (T, error) {
 		*p, err = num.ParseUint128(s)
 	case *num.Int128:
 		*p, err = num.ParseInt128(s)
+	case *num.Milli32:
+		*p, err = num.ParseMilli32(s)
+	case *num.Milli64:
+		*p, err = num.ParseMilli64(s)
+	case *num.Atto128:
+		*p, err = num.ParseAtto128(s)
 	default:
-		// T is one of the parsed types, so no arm is left over.
+		err = parseFixtureAs(p, s)
 	}
 	return out, err
+}
+
+// parseFixtureAs parses s into p, a pointer to one of the outside
+// instantiations these tests define, through the parser named for it.
+func parseFixtureAs(p any, s string) error {
+	var err error
+	switch p := p.(type) {
+	case *Centi64:
+		*p, err = ParseCenti64(s)
+	case *Unit64:
+		*p, err = ParseUnit64(s)
+	case *Zepto128:
+		*p, err = ParseZepto128(s)
+	default:
+		// every parsed type that parseAs has no arm for has one here.
+		err = core.NewUnreachableErrorf(0, nil, "no parser for %T", p)
+	}
+	return err
 }
 
 // parseFuncName returns the name a ParseError reports for the parser
@@ -60,9 +86,33 @@ func parseFuncName[T num.Number[T]]() string {
 		return "ParseUint128"
 	case num.Int128:
 		return "ParseInt128"
+	case num.Milli32:
+		return "ParseMilli32"
+	case num.Milli64:
+		return "ParseMilli64"
+	case num.Atto128:
+		return "ParseAtto128"
 	default:
-		// T is one of the parsed types, so no arm is left over.
-		return ""
+		return fixtureFuncName(zero)
+	}
+}
+
+// fixtureFuncName returns the parser name of v, one of the outside
+// instantiations these tests define, which its report derives from
+// the scaler's own name, num_test.Centi64 giving ParseCenti64.
+func fixtureFuncName(v any) string {
+	switch v.(type) {
+	case Centi64:
+		return "ParseCenti64"
+	case Unit64:
+		return "ParseUnit64"
+	case Zepto128:
+		return "ParseZepto128"
+	default:
+		// every parsed type that parseFuncName has no arm for has one
+		// here.
+		panic(core.NewUnreachableErrorf(0, nil,
+			"no parser name for %T", v))
 	}
 }
 
@@ -146,6 +196,12 @@ var (
 	seed64   = num.AsInt64(99)
 	seedU128 = num.AsUint128(99)
 	seed128  = num.AsInt128(99)
+	seedM32  = num.NewMilli32(9, 99)
+	seedM64  = num.NewMilli64(9, 99)
+	seedA128 = num.NewAtto128(9, 99)
+	seedC64  = NewCenti64(9, 99)
+	seedU64  = NewUnit64(99, 0)
+	seedZ128 = NewZepto128(9, 99)
 )
 
 func parseInt32Cases() []parseCase[num.Int32, *num.Int32] {
@@ -307,11 +363,188 @@ func parseInt128Cases() []parseCase[num.Int128, *num.Int128] {
 	}
 }
 
+func parseMilli32Cases() []parseCase[num.Milli32, *num.Milli32] {
+	return []parseCase[num.Milli32, *num.Milli32]{
+		newParseCase("zero", "0", seedM32, num.NewMilli32(0, 0)),
+		newParseCase("zero at resolution", "0.000", seedM32,
+			num.NewMilli32(0, 0)),
+		newParseCase("negative zero", "-0", seedM32, num.NewMilli32(0, 0)),
+		newParseCase("whole", "42", seedM32, num.NewMilli32(42, 0)),
+		newParseCase("half", "1.5", seedM32, num.NewMilli32(1, 500)),
+		newParseCase("at resolution", "1.500", seedM32, num.NewMilli32(1, 500)),
+		newParseCase("point on the right", "1.", seedM32, num.NewMilli32(1, 0)),
+		newParseCase("point on the left", ".5", seedM32,
+			num.NewMilli32(0, 500)),
+		newParseCase("negative fraction", "-0.005", seedM32,
+			num.NewMilli32(0, -5)),
+		newParseCase("plus", "+1.5", seedM32, num.NewMilli32(1, 500)),
+		newParseCase("leading zeros", "007.5", seedM32, num.NewMilli32(7, 500)),
+		// digits below the resolution drop towards zero, with no error.
+		newParseCase("truncated", "1.5009", seedM32, num.NewMilli32(1, 500)),
+		newParseCase("truncated to zero", "0.0009", seedM32,
+			num.NewMilli32(0, 0)),
+		newParseCase("negative truncated to zero", "-0.0009", seedM32,
+			num.NewMilli32(0, 0)),
+		newParseCase("max", "2147483.647", seedM32,
+			num.AsMilli32(math.MaxInt32)),
+		newParseCase("min", "-2147483.648", seedM32,
+			num.AsMilli32(math.MinInt32)),
+		// past the range the value is the nearest bound, as strconv has it.
+		newParseCaseErr("past max", "2147483.648", seedM32,
+			num.AsMilli32(math.MaxInt32), num.ErrRange),
+		newParseCaseErr("below min", "-2147483.649", seedM32,
+			num.AsMilli32(math.MinInt32), num.ErrRange),
+		newParseCaseErr("whole past max", "2147484", seedM32,
+			num.AsMilli32(math.MaxInt32), num.ErrRange),
+		newParseCaseErr("far past", strings.Repeat("9", 41), seedM32,
+			num.AsMilli32(math.MaxInt32), num.ErrRange),
+		newParseCaseErr("far below", "-"+strings.Repeat("9", 41), seedM32,
+			num.AsMilli32(math.MinInt32), num.ErrRange),
+		newParseCaseErr("empty", "", seedM32, num.NewMilli32(0, 0),
+			num.ErrSyntax),
+		newParseCaseErr("point only", ".", seedM32, num.NewMilli32(0, 0),
+			num.ErrSyntax),
+		newParseCaseErr("sign only", "-", seedM32, num.NewMilli32(0, 0),
+			num.ErrSyntax),
+		newParseCaseErr("sign and point", "-.", seedM32, num.NewMilli32(0, 0),
+			num.ErrSyntax),
+		newParseCaseErr("two points", "1.2.3", seedM32, num.NewMilli32(0, 0),
+			num.ErrSyntax),
+		newParseCaseErr("exponent", "1e3", seedM32, num.NewMilli32(0, 0),
+			num.ErrSyntax),
+		newParseCaseErr("underscore", "1_000.5", seedM32, num.NewMilli32(0, 0),
+			num.ErrSyntax),
+		newParseCaseErr("leading space", " 1.5", seedM32, num.NewMilli32(0, 0),
+			num.ErrSyntax),
+		newParseCaseErr("trailing letter", "1.5a", seedM32,
+			num.NewMilli32(0, 0), num.ErrSyntax),
+		// the text is read for its syntax before its size, as ParseFloat
+		// has it, so a bad byte past the range is still a syntax failure.
+		newParseCaseErr("letter past range", strings.Repeat("9", 41)+"x",
+			seedM32, num.NewMilli32(0, 0), num.ErrSyntax),
+		newParseCaseErr("letter below the resolution", "1.5009a", seedM32,
+			num.NewMilli32(0, 0), num.ErrSyntax),
+	}
+}
+
+func parseMilli64Cases() []parseCase[num.Milli64, *num.Milli64] {
+	return []parseCase[num.Milli64, *num.Milli64]{
+		newParseCase("zero", "0", seedM64, num.NewMilli64(0, 0)),
+		newParseCase("half", "1.5", seedM64, num.NewMilli64(1, 500)),
+		newParseCase("past milli32", "2147484.000", seedM64,
+			num.NewMilli64(2147484, 0)),
+		newParseCase("max", "9223372036854775.807", seedM64,
+			num.AsMilli64(math.MaxInt64)),
+		newParseCase("min", "-9223372036854775.808", seedM64,
+			num.AsMilli64(math.MinInt64)),
+		newParseCaseErr("past max", "9223372036854775.808", seedM64,
+			num.AsMilli64(math.MaxInt64), num.ErrRange),
+		newParseCaseErr("below min", "-9223372036854775.809", seedM64,
+			num.AsMilli64(math.MinInt64), num.ErrRange),
+		newParseCaseErr("empty", "", seedM64, num.NewMilli64(0, 0),
+			num.ErrSyntax),
+		newParseCaseErr("point only", ".", seedM64, num.NewMilli64(0, 0),
+			num.ErrSyntax),
+	}
+}
+
+func parseAtto128Cases() []parseCase[num.Atto128, *num.Atto128] {
+	return []parseCase[num.Atto128, *num.Atto128]{
+		newParseCase("zero", "0", seedA128, num.NewAtto128(0, 0)),
+		newParseCase("half", "1.5", seedA128, num.NewAtto128(1, 500e15)),
+		newParseCase("one atto", "0.000000000000000001", seedA128,
+			num.NewAtto128(0, 1)),
+		newParseCase("truncated below one atto", "0.0000000000000000019",
+			seedA128, num.NewAtto128(0, 1)),
+		newParseCase("max", "170141183460469231731.687303715884105727",
+			seedA128, num.AsAtto128(num.MaxInt128)),
+		// the magnitude of the minimum is 2^127, which fits only under
+		// the sign.
+		newParseCase("min", "-170141183460469231731.687303715884105728",
+			seedA128, num.AsAtto128(num.MinInt128)),
+		newParseCaseErr("past max",
+			"170141183460469231731.687303715884105728", seedA128,
+			num.AsAtto128(num.MaxInt128), num.ErrRange),
+		newParseCaseErr("below min",
+			"-170141183460469231731.687303715884105729", seedA128,
+			num.AsAtto128(num.MinInt128), num.ErrRange),
+		// 41 digits pass 128 bits before the scale, so the whole count
+		// is refused as it is read.
+		newParseCaseErr("whole past the width", strings.Repeat("9", 41),
+			seedA128, num.AsAtto128(num.MaxInt128), num.ErrRange),
+		// 30 digits the whole count holds, and the atto scale then
+		// takes past 128 bits, so the multiply is what refuses them.
+		newParseCaseErr("count past the width", strings.Repeat("9", 30),
+			seedA128, num.AsAtto128(num.MaxInt128), num.ErrRange),
+		newParseCaseErr("empty", "", seedA128, num.NewAtto128(0, 0),
+			num.ErrSyntax),
+	}
+}
+
 func TestParse(t *testing.T) {
 	t.Run("int32", runTestParseInt32)
 	t.Run("int64", runTestParseInt64)
 	t.Run("uint128", runTestParseUint128)
 	t.Run("int128", runTestParseInt128)
+	t.Run("milli32", runTestParseMilli32)
+	t.Run("milli64", runTestParseMilli64)
+	t.Run("atto128", runTestParseAtto128)
+	t.Run("allocs", runTestParseAllocs)
+}
+
+// runTestParseAllocs checks a parse that succeeds allocates nothing.
+// The report is the only thing a parser builds, so nothing but a
+// failure may reach the heap; a Decimal names its own parser from the
+// scaler, which is a concatenation, so its name belongs on that path
+// alone.
+func runTestParseAllocs(t *testing.T) {
+	t.Helper()
+	assertParseAllocs(t, num.ParseInt32, "-42", num.AsInt32(-42),
+		"ParseInt32")
+	assertParseAllocs(t, num.ParseInt64, "-42", num.AsInt64(-42),
+		"ParseInt64")
+	assertParseAllocs(t, num.ParseUint128, "42", num.AsUint128(42),
+		"ParseUint128")
+	assertParseAllocs(t, num.ParseInt128, "-42", num.AsInt128(-42),
+		"ParseInt128")
+	assertParseAllocs(t, num.ParseMilli32, "1.5", num.NewMilli32(1, 500),
+		"ParseMilli32")
+	assertParseAllocs(t, num.ParseMilli64, "1.5", num.NewMilli64(1, 500),
+		"ParseMilli64")
+	assertParseAllocs(t, num.ParseAtto128, "1.5", num.NewAtto128(1, 500e15),
+		"ParseAtto128")
+	// a fraction wider than one group of digits.
+	assertParseAllocs(t, ParseZepto128, "1.5", newZepto128Milli(1500),
+		"ParseZepto128")
+}
+
+// assertParseAllocs checks parse reads s as want and allocates nothing
+// doing it. The value is asserted as well, so a parser answering the
+// wrong thing cheaply still fails.
+func assertParseAllocs[T any](t *testing.T, parse func(string) (T, error),
+	s string, want T, name string) {
+	t.Helper()
+	var got T
+	allocs := testing.AllocsPerRun(10, func() {
+		got, _ = parse(s)
+	})
+	core.AssertEqual(t, want, got, "%s value", name)
+	core.AssertEqual(t, 0, allocs, "%s allocs", name)
+}
+
+func runTestParseMilli32(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, parseMilli32Cases())
+}
+
+func runTestParseMilli64(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, parseMilli64Cases())
+}
+
+func runTestParseAtto128(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, parseAtto128Cases())
 }
 
 func runTestParseUint128(t *testing.T) {
@@ -347,6 +580,14 @@ func TestParseRoundTrip(t *testing.T) {
 		roundTripOf[num.Uint128, *num.Uint128]("uint128", seedU128)))
 	t.Run("int128", runTestParseRoundTrip(textInt128Cases,
 		roundTripOf[num.Int128, *num.Int128]("int128", seed128)))
+	t.Run("decimal", runTestParseRoundTrip(textDecimalCases,
+		roundTripOf[num.Milli32, *num.Milli32]("milli32", seedM32),
+		roundTripOf[num.Milli64, *num.Milli64]("milli64", seedM64),
+		roundTripOf[num.Atto128, *num.Atto128]("atto128", seedA128)))
+	t.Run("unit64", runTestParseRoundTrip(unit64TextCases,
+		roundTripOf[Unit64, *Unit64]("unit64", seedU64)))
+	t.Run("zepto128", runTestParseRoundTrip(zepto128TextCases,
+		roundTripOf[Zepto128, *Zepto128]("zepto128", seedZ128)))
 }
 
 // roundTrip reads back the rows of a text table whose value is of one
@@ -541,6 +782,158 @@ func TestParseMatchesStrconv(t *testing.T) {
 	core.RunTestCases(t, parseCrossCases())
 }
 
+// parseFloatText is a text a Milli64 and [strconv.ParseFloat], the
+// parser of the shape a Decimal takes, are both given, and the name its
+// row reports under. Each outcome is a row type embedding it with a
+// Test of its own.
+type parseFloatText struct {
+	in   string
+	name string
+}
+
+func (tc parseFloatText) Name() string { return tc.name }
+
+// parseFloatCase is a text both parsers read alike. It carries its
+// count in thousandths and holds both parsers to it: the Milli64 to the
+// count itself, the float to the count divided by a thousand. Both
+// sides of that division are exact in a float64 while the count stays
+// below 2^53, as every row keeps it, so it rounds once, to the same
+// float ParseFloat rounds the text to, and a text with a digit below
+// the resolution reads as another value and fails the row.
+type parseFloatCase struct {
+	parseFloatText
+	want int64
+}
+
+func newParseFloatCase(in string, want int64) parseFloatCase {
+	return parseFloatCase{
+		parseFloatText: parseFloatText{in: in, name: quoteName(in)},
+		want:           want,
+	}
+}
+
+func (tc parseFloatCase) Test(t *testing.T) {
+	t.Helper()
+	f, err := strconv.ParseFloat(tc.in, 64)
+	core.AssertMustNoError(t, err, "ParseFloat")
+	core.AssertEqual(t, float64(tc.want)/1000, f, "float")
+	got, err := num.ParseMilli64(tc.in)
+	core.AssertNoError(t, err, "parse")
+	core.AssertEqual(t, num.AsMilli64(num.AsInt64(tc.want)), got, "value")
+}
+
+// parseFloatRefusedCase is a text this grammar refuses as malformed,
+// with what ParseFloat answers for it: strconv.ErrSyntax for a form
+// both refuse, and nil for a form ParseFloat takes, asserted on both
+// sides so the divergence is pinned rather than assumed.
+type parseFloatRefusedCase struct {
+	floatErr error
+	parseFloatText
+}
+
+func newParseFloatRefusedCase(name, in string,
+	floatErr error) parseFloatRefusedCase {
+	return parseFloatRefusedCase{
+		parseFloatText: parseFloatText{in: in, name: name},
+		floatErr:       floatErr,
+	}
+}
+
+// newParseFloatCaseSyntax returns the row of a text both parsers refuse.
+func newParseFloatCaseSyntax(in string) parseFloatRefusedCase {
+	return newParseFloatRefusedCase(quoteName(in)+" syntax", in,
+		strconv.ErrSyntax)
+}
+
+// newParseFloatCaseRefused returns the row of a form ParseFloat takes
+// and this grammar does not.
+func newParseFloatCaseRefused(in string) parseFloatRefusedCase {
+	return newParseFloatRefusedCase(quoteName(in)+" refused", in, nil)
+}
+
+func (tc parseFloatRefusedCase) Test(t *testing.T) {
+	t.Helper()
+	_, err := strconv.ParseFloat(tc.in, 64)
+	if tc.floatErr == nil {
+		core.AssertNoError(t, err, "ParseFloat")
+	} else {
+		core.AssertErrorIs(t, err, tc.floatErr, "ParseFloat")
+	}
+	_, err = num.ParseMilli64(tc.in)
+	core.AssertErrorIs(t, err, num.ErrSyntax, "refused")
+}
+
+// parseFloatCases holds the texts a Decimal and ParseFloat read alike,
+// the forms both refuse, and the forms only ParseFloat takes: the
+// exponent, the underscores and the hexadecimal mantissa, which this
+// grammar leaves out, and the infinities and the not-a-number, which
+// name no value this package holds.
+func parseFloatCases() []core.TestCase {
+	return core.S[core.TestCase](
+		newParseFloatCase("0", 0),
+		newParseFloatCase("-0", 0),
+		newParseFloatCase("+0", 0),
+		newParseFloatCase("1", 1000),
+		newParseFloatCase("-1", -1000),
+		newParseFloatCase("+1", 1000),
+		newParseFloatCase("007", 7000),
+		newParseFloatCase("1.5", 1500),
+		newParseFloatCase("-1.5", -1500),
+		newParseFloatCase("+1.5", 1500),
+		newParseFloatCase("0.5", 500),
+		newParseFloatCase(".5", 500),
+		newParseFloatCase("-.5", -500),
+		newParseFloatCase("+.5", 500),
+		newParseFloatCase("1.", 1000),
+		newParseFloatCase("-1.", -1000),
+		newParseFloatCase("0.", 0),
+		newParseFloatCase(".0", 0),
+		newParseFloatCase("1.000", 1000),
+		newParseFloatCase("0.001", 1),
+		newParseFloatCase("-0.001", -1),
+		newParseFloatCase("00.00", 0),
+		newParseFloatCase("1234567.89", 1234567890),
+		newParseFloatCaseSyntax(""),
+		newParseFloatCaseSyntax("+"),
+		newParseFloatCaseSyntax("-"),
+		newParseFloatCaseSyntax("."),
+		newParseFloatCaseSyntax("-."),
+		newParseFloatCaseSyntax("+."),
+		newParseFloatCaseSyntax("1.2.3"),
+		newParseFloatCaseSyntax("1..2"),
+		newParseFloatCaseSyntax(" 1"),
+		newParseFloatCaseSyntax("1 "),
+		newParseFloatCaseSyntax("12a"),
+		newParseFloatCaseSyntax("a12"),
+		newParseFloatCaseSyntax("1,000"),
+		newParseFloatCaseSyntax("١٢"),
+		newParseFloatCaseSyntax("∞"),
+		newParseFloatCaseSyntax("0x10"),
+		newParseFloatCaseSyntax("--1"),
+		newParseFloatCaseSyntax("+-1"),
+		newParseFloatCaseSyntax("1_"),
+		newParseFloatCaseSyntax("_1"),
+		// both read the whole text for its syntax before its size, so a
+		// bad byte past the range or below the resolution is still a
+		// syntax failure.
+		newParseFloatCaseSyntax(strings.Repeat("9", 41)+"x"),
+		newParseFloatCaseSyntax("1.5009a"),
+		newParseFloatCaseRefused("1e3"),
+		newParseFloatCaseRefused("1E3"),
+		newParseFloatCaseRefused("1e-3"),
+		newParseFloatCaseRefused("1.5e2"),
+		newParseFloatCaseRefused("1_000"),
+		newParseFloatCaseRefused("Inf"),
+		newParseFloatCaseRefused("-Inf"),
+		newParseFloatCaseRefused("NaN"),
+		newParseFloatCaseRefused("0x1p-2"),
+	)
+}
+
+func TestParseDecimalMatchesParseFloat(t *testing.T) {
+	core.RunTestCases(t, parseFloatCases())
+}
+
 // runTestUnmarshalTextNil checks the nil receiver: the text is parsed
 // first, so a bad text reports its own failure, and a good one reports
 // core.ErrNilReceiver behind the method's name.
@@ -563,4 +956,7 @@ func TestUnmarshalTextNilReceiver(t *testing.T) {
 	t.Run("int64", runTestUnmarshalTextNil[num.Int64, *num.Int64])
 	t.Run("uint128", runTestUnmarshalTextNil[num.Uint128, *num.Uint128])
 	t.Run("int128", runTestUnmarshalTextNil[num.Int128, *num.Int128])
+	t.Run("milli32", runTestUnmarshalTextNil[num.Milli32, *num.Milli32])
+	t.Run("milli64", runTestUnmarshalTextNil[num.Milli64, *num.Milli64])
+	t.Run("atto128", runTestUnmarshalTextNil[num.Atto128, *num.Atto128])
 }

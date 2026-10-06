@@ -76,10 +76,18 @@ the standard library.
   128-bit integers, the digits over `strconv.ParseUint` a group at a
   time, with the optional sign on `Int128` alone and `UnmarshalText`
   on the pointer likewise.
+- **`ParseDecimal`**, **`ParseMilli32`**, **`ParseMilli64`**,
+  **`ParseAtto128`**: the text parsers of the fixed-point types, the
+  generic one named by its type arguments and the three others
+  standing over it, in the shape of `strconv.ParseFloat` without its
+  exponent, underscores, infinities, not-a-number or hexadecimal
+  mantissa; digits below the resolution drop towards zero, and
+  `UnmarshalText` on the pointer stores their value.
 
 Files:
 
-- `num/atto128.go`: the `Atto128` instantiation and its scale.
+- `num/atto128.go`: the `Atto128` instantiation, its scale and its
+  parser.
 - `num/const.go`: word primitives, the fixed-point scale factors, the
   table of powers of ten behind `Pow10` and the sentinel bounds
   (`MaxUint128`, `MinInt128`, …).
@@ -89,7 +97,8 @@ Files:
   then the `wide` intermediate the conversions share, which rescales a
   count between resolutions and narrows it into the target. Each
   type's `wide` and conversion methods sit in its own file.
-- `num/decimal.go`: `Decimal`, its constructors and its methods.
+- `num/decimal.go`: `Decimal`, its constructors, `ParseDecimal` with
+  the count reader under it, and its methods.
 - `num/doc.go`: package documentation.
 - `num/errors.go`: `ErrDivZero`, `ErrPow10Range`, `ErrSyntax`,
   `ErrRange` and `ParseError`.
@@ -105,14 +114,17 @@ Files:
 - `num/json.go`: the quoted form and the two bounds under which
   `MarshalJSON` emits a number; each type's `MarshalJSON` sits in its
   own file.
-- `num/milli.go`: the `Milli32` and `Milli64` instantiations and their
-  scales.
+- `num/milli.go`: the `Milli32` and `Milli64` instantiations, their
+  scales and their parsers.
 - `num/num.go`: the `Unsigned`, `Signed` and `Number` constraints and
   the `DecimalScaler` interface.
-- `num/parse.go`: the shared side of the parsers, the sign split, the
-  digit groups behind `doParseUint128`, `AsParseError` with the cause
-  translation under it and the store step of the unmarshalers; each
-  type's parser and `UnmarshalText` sit in its own file.
+- `num/parse.go`: the shared side of the parsers, the sign split and
+  the bound it holds a magnitude to, the digit groups behind
+  `doParseUint128`, the point split with the digit check and the
+  fraction reader behind the `Decimal` grammar, the parser name a
+  scaler gives, `AsParseError` with the cause translation under it and
+  the store step of the unmarshalers; each type's parser and
+  `UnmarshalText` sit in its own file.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
 - `num/uint128.go`: `Uint128` and its operations.
@@ -244,21 +256,41 @@ Files:
   10^19, with the overflow caught in a 256-bit product. A text both
   malformed and too long reports the failure strconv meets first,
   reading one digit at a time: the range once the digits before the
-  bad byte pass 128 bits, the syntax otherwise. `UnmarshalText` parses
-  first and stores second, so a bad text reports its own failure
-  before a nil receiver reports `core.ErrNilReceiver`; both come back
-  through `core.Wrap` with the method's name in front, so `errors.As`
-  still finds the one `ParseError`, and a failed call leaves the
-  receiver as it was. `TestParseMatchesStrconv` runs every text of
-  `parseCorpus` against strconv: the natives against
+  bad byte pass 128 bits, the syntax otherwise. `TestParseMatchesStrconv`
+  runs every text of `parseCorpus` against strconv: the natives against
   `strconv.ParseInt` at their width, comparing the value and the class
   of failure, and the 128-bit integers against the 64-bit parser of
   their kind, `strconv.ParseUint` or `strconv.ParseInt`, comparing the
   syntax verdict, the value while strconv has one, and on its range
   failure a value past the bound strconv clamps to, on the same side;
   extend the corpus rather than hand-write an expectation.
-  `TestParseRoundTrip` parses the text tables of `TestText` back, so a
-  new type that prints also reads.
+- The fixed-point types follow `strconv.ParseFloat` instead, the
+  parser of their shape: `ParseDecimal` takes the instantiation's type
+  arguments and `ParseMilli32`, `ParseMilli64` and `ParseAtto128`
+  stand over it, each naming itself in its report from the scaler's
+  `Name` with the qualifier stripped. The grammar is an optional sign,
+  then digits on at least one side of an optional point, and no
+  exponent, underscore, infinity, not-a-number or hexadecimal
+  mantissa; digits below the resolution drop towards zero without
+  error, and the count, the whole digits at the resolution plus the
+  fraction digits, is held to the sign's bound and narrowed into the
+  backing as `NewDecimalFromInt128` narrows it, a count past the
+  backing coming back as its bound with `ErrRange`.
+  `ParseFloat` reads the whole text for its syntax before its size, so
+  a malformed text past the range is a syntax failure, where the
+  integer parsers report the range they met first.
+  `TestParseDecimalMatchesParseFloat` holds a `Milli64` to `ParseFloat`
+  over three kinds of text: the forms both read, to the same value; the
+  forms both refuse, the malformed texts past the range and below the
+  resolution among them; and the forms only `ParseFloat` takes.
+- `UnmarshalText` parses first and stores second, so a bad text
+  reports its own failure before a nil receiver reports
+  `core.ErrNilReceiver`; both come back through `core.Wrap` with the
+  method's name in front, so `errors.As` still finds the one
+  `ParseError`, and a failed call leaves the receiver as it was.
+- `TestParseRoundTrip` parses the text tables back, those of `TestText`
+  and of the outside instantiations, so a new type that prints also
+  reads.
 - Operations allocate nothing; keep it that way in the hot paths.
 
 ## Testing Patterns

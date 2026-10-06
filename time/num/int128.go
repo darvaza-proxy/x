@@ -65,23 +65,13 @@ func ParseInt128(s string) (Int128, error) {
 	if errors.Is(err, strconv.ErrSyntax) {
 		return Int128{}, AsParseError("ParseInt128", s, err)
 	}
-	// as strconv.ParseInt has it over ParseUint, the magnitude is read
-	// at the full unsigned width and then held to the sign's bound:
-	// Int128 says whether it fits below 2^127, and a negative value
-	// reaches one further, to 2^127 itself, the bits of MinInt128,
-	// which Neg leaves as they are. A magnitude past 128 bits stands at
-	// MaxUint128 and fits neither way.
-	v, ok := u.Int128()
-	switch {
-	case !neg && !ok:
-		return MaxInt128, AsParseError("ParseInt128", s, strconv.ErrRange)
-	case neg && !ok && u != MinInt128.bits():
-		return MinInt128, AsParseError("ParseInt128", s, strconv.ErrRange)
-	case neg:
-		return v.Neg(), nil
-	default:
-		return v, nil
+	// a magnitude past 128 bits stands at MaxUint128, which fits neither
+	// sign, so the bound answers for both failures.
+	v, ok := boundSign(u, neg)
+	if !ok {
+		return v, AsParseError("ParseInt128", s, strconv.ErrRange)
 	}
+	return v, nil
 }
 
 // UnmarshalText implements [encoding.TextUnmarshaler], storing the

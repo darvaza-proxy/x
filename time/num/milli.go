@@ -71,3 +71,25 @@ func AsMilli32(milli Int32) Milli32 {
 func AsMilli64(milli Int64) Milli64 {
 	return AsDecimal[Int64, milli64Scale](milli)
 }
+
+// ParseMilli32 reads a Milli32 from its decimal text, an optional sign
+// and digits on at least one side of an optional point, as
+// [ParseDecimal] reads the instantiation: digits below the milli
+// resolution drop towards zero, any other form fails with [ErrSyntax]
+// and a zero value, and a count of milli-units past the 32-bit range
+// with [ErrRange] and the nearest bound, both reported in a
+// [ParseError].
+func ParseMilli32(s string) (Milli32, error) {
+	return ParseDecimal[Int32, milli32Scale](s)
+}
+
+// ParseMilli64 reads a Milli64 from its decimal text, an optional sign
+// and digits on at least one side of an optional point, as
+// [ParseDecimal] reads the instantiation: digits below the milli
+// resolution drop towards zero, any other form fails with [ErrSyntax]
+// and a zero value, and a count of milli-units past the 64-bit range
+// with [ErrRange] and the nearest bound, both reported in a
+// [ParseError].
+func ParseMilli64(s string) (Milli64, error) {
+	return ParseDecimal[Int64, milli64Scale](s)
+}

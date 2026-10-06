@@ -118,6 +118,25 @@ as it was. Each sentinel matches its `strconv` counterpart and
 package's sentinel, the standard library's, or the generic
 invalid-input condition.
 
+The fixed-point types read theirs through `ParseMilli32`,
+`ParseMilli64` and `ParseAtto128`, and an instantiation of another
+package through the generic `ParseDecimal`: an optional sign, then
+digits on at least one side of an optional point, in the shape of
+`strconv.ParseFloat` apart from its exponent, its underscores and its
+hexadecimal mantissa, and from its infinities and its not-a-number,
+which name no value of the family. Digits below the resolution drop
+towards zero without error, so a `Milli32` reads `1.5009` as `1.500`,
+and what must fit is the count at the resolution rather than the whole
+units: `2147483.648` has a whole part a `Milli32` holds and a count of
+milli-units it does not, so it fails with `ErrRange` and the nearest
+bound. The text is read for its syntax before its size, as
+`ParseFloat` has it, so a malformed text past the range fails with
+`ErrSyntax`. The report names the instantiation's own parser,
+`ParseMilli32` for a `Milli32`, which the scaler's `Name` gives.
+`UnmarshalText` on the pointer reads the same grammar and stores the
+value, so the pointer to a `Decimal` is an `encoding.TextUnmarshaler`
+as well.
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see

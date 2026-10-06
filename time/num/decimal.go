@@ -46,6 +46,83 @@ func AsDecimal[T Signed[T], S DecimalScaler[T]](count T) Decimal[T, S] {
 	return Decimal[T, S]{count}
 }
 
+// ParseDecimal reads a Decimal over T and S from its decimal text: an
+// optional sign, then digits on at least one side of an optional
+// point, in the shape of [strconv.ParseFloat] apart from its
+// exponent, its underscores and its hexadecimal mantissa, and from its
+// infinities and its not-a-number, which name no value of this family.
+// Digits below the resolution of S drop towards zero without error.
+// Any other form fails with [ErrSyntax] and a zero value, the text
+// read for its syntax before its size as ParseFloat has it, and a
+// value past the range of T at the resolution fails with [ErrRange]
+// and the nearest bound. Both come back in a [ParseError] naming the
+// instantiation's own parser, ParseMilli32 for a num.Milli32, which
+// the scaler's Name gives.
+func ParseDecimal[T Signed[T], S DecimalScaler[T]](s string) (Decimal[T, S], error) {
+	d, err := doParseDecimal[T, S](s)
+	if err == nil {
+		return d, nil
+	}
+	// the name is a concatenation, so it is built for the report and
+	// not for a parse that succeeded.
+	var sc S
+	return d, AsParseError(parserName(sc.Name()), s, err)
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler], storing the
+// ParseDecimal value of the text in d. It fails as ParseDecimal does,
+// and with core.ErrNilReceiver on a nil d once the text parsed, the
+// error carrying the method's name in front of the cause; d is left as
+// it was on any failure.
+func (d *Decimal[T, S]) UnmarshalText(text []byte) error {
+	x, err := ParseDecimal[T, S](string(text))
+	return unmarshalInto(d, x, err, "UnmarshalText")
+}
+
+// doParseDecimal reads the text of a Decimal over T and S with the
+// package's own errors, for ParseDecimal to report. The count is held
+// to the sign's bound and narrowed into T as [NewDecimalFromInt128]
+// narrows it, the bound of T with ErrRange when it does not fit.
+func doParseDecimal[T Signed[T], S DecimalScaler[T]](s string) (Decimal[T, S], error) {
+	var d Decimal[T, S]
+	neg, mag := splitSign(s)
+	whole, frac, ok := splitDigits(mag)
+	if !ok {
+		return d, ErrSyntax
+	}
+	u, fits := decimalCount[T, S](whole, frac)
+	v, held := boundSign(u, neg)
+	c, err := d.narrow(v)
+	if !fits || !held {
+		// the count passed 128 bits, or the sign's bound, so it is past
+		// T as well and c is the bound on the side of the value.
+		err = ErrRange
+	}
+	return AsDecimal[T, S](c), err
+}
+
+// decimalCount returns the magnitude of the count the digits hold, the
+// whole digits at the resolution of S plus the fraction digits, and
+// whether it fits 128 bits; MaxUint128 stands in when it does not. The
+// text is digits already, so the reader can only fail on the size.
+func decimalCount[T Signed[T], S DecimalScaler[T]](whole,
+	frac string) (Uint128, bool) {
+	if whole == "" {
+		// the point may stand with digits on its right alone.
+		whole = "0"
+	}
+	u, err := doParseUint128(whole)
+	if err != nil {
+		return MaxUint128, false
+	}
+	// the scale is a positive power of ten, so its bits are its
+	// magnitude.
+	var d Decimal[T, S]
+	var s S
+	scale := d.widen(s.Scale()).bits()
+	return addGroup(u, scale, parseFraction(frac, d.fracWidth()))
+}
+
 // One returns the multiplicative unit, one whole at the resolution:
 // the step between consecutive DivMod quotients.
 func (Decimal[T, S]) One() Decimal[T, S] {
