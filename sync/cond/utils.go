@@ -1,5 +1,7 @@
 package cond
 
+// cspell:words copylocks
+
 import "darvaza.org/core"
 
 // sanitiseFuncs returns a copy of funcs with nil entries removed, preserving
@@ -55,3 +57,14 @@ func isCancelled(abort <-chan struct{}) bool {
 		return false
 	}
 }
+
+// noCopy lets go vet's copylocks check catch a copy of the struct that
+// holds it, without adding to its size. A zero-size field goes first:
+// at the end it can add padding.
+type noCopy struct{}
+
+// Lock is a no-op for go vet.
+func (*noCopy) Lock() {}
+
+// Unlock is a no-op for go vet.
+func (*noCopy) Unlock() {}

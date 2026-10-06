@@ -33,6 +33,8 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 - **`Barrier`**: Token-based coordination primitive.
 - **`Count`**: Atomic counter with conditional waiting.
 - **`CountZero`**: Specialized counter that signals at zero.
+- **`Once`**: Runs an initialiser once and returns its result, error or
+  panic included, to every call.
 - **`Token`**: Channel-based synchronization mechanism.
 - **`Turnstile`**: Lock that can also be passed without holding it,
   serving holders and passers in arrival order.
@@ -174,6 +176,57 @@ for i := 0; i < workers; i++ {
 }
 cz.Wait() // Wait for all workers
 ```
+
+### Lazy Initialisation
+
+A type whose zero value is ready for use initialises itself on first use
+through a `cond.Once` field:
+
+```go
+type Queue struct {
+    once  cond.Once
+    items chan Item
+}
+
+func (q *Queue) lazyInit() error {
+    switch {
+    case q == nil:
+        return errors.ErrNilReceiver
+    case q.once.Done():
+        return nil
+    default:
+        return q.once.Do(q.init)
+    }
+}
+
+func (q *Queue) init() error {
+    q.items = make(chan Item, 16)
+    return nil
+}
+
+func (q *Queue) Push(it Item) error {
+    if err := q.lazyInit(); err != nil {
+        return err
+    }
+    q.items <- it
+    return nil
+}
+```
+
+- Check the receiver in `lazyInit`: `q.once` on a nil `q` panics before
+  `Do` can return `errors.ErrNilReceiver`.
+- Check `Done` before `Do`: passing `q.init` builds a method value on
+  every call, which `Done` skips once the initialiser has succeeded.
+- Call `lazyInit` before reading anything the initialiser sets. The
+  atomic load in `Done` and `Do` orders those reads after the
+  initialiser's writes.
+- Keep the initialiser brief, as calls arriving during it spin. It must
+  not call `Do` on the same `Once`, directly or through a method that
+  calls `lazyInit`: that call waits for itself.
+- A failure is returned to every later call rather than retried, so
+  return an error only for a state that retrying would not fix.
+- `Once` holds a pointer, so `fieldalignment` wants it among the pointer
+  fields, ahead of any field whose tail holds none.
 
 ### Semaphore Usage
 

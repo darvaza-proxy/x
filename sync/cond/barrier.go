@@ -1,8 +1,6 @@
 package cond
 
 import (
-	"sync"
-
 	"darvaza.org/core"
 	"darvaza.org/x/sync/atomic"
 	"darvaza.org/x/sync/errors"
@@ -14,9 +12,9 @@ import (
 // Barrier is primarily designed to be used by other synchronisation
 // primitives internally.
 type Barrier struct {
-	b chan Token
+	_ noCopy
 
-	_ sync.Mutex // prevent copies
+	b chan Token
 
 	closed atomic.Bool
 }

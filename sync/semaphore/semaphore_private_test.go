@@ -10,15 +10,14 @@ import (
 	"darvaza.org/x/sync/errors"
 )
 
-// TestSemaphore_Init exercises the unexported lazyInit and doInit, and
-// the channel fields they populate. It lives in the white-box test
-// package because neither the functions nor the global/readers channels
-// are part of the public surface.
+// TestSemaphore_Init exercises the unexported lazyInit and the channel
+// fields it populates. It lives in the white-box test package because
+// neither the function nor the global/readers channels are part of the
+// public surface.
 func TestSemaphore_Init(t *testing.T) {
 	t.Run("nil receiver", runTestInitNilReceiver)
 	t.Run("initialise channels", runTestInitChannels)
 	t.Run("idempotent", runTestInitIdempotent)
-	t.Run("doInit", runTestInitDoInit)
 }
 
 func runTestInitNilReceiver(t *testing.T) {
@@ -46,20 +45,6 @@ func runTestInitIdempotent(t *testing.T) {
 	core.AssertMustNoError(t, s.lazyInit(), "second lazyInit")
 	core.AssertSame(t, global, s.global, "global channel unchanged")
 	core.AssertSame(t, readers, s.readers, "readers channel unchanged")
-}
-
-func runTestInitDoInit(t *testing.T) {
-	t.Helper()
-	s := &Semaphore{}
-	core.AssertMustNoError(t, s.lazyInit(), "lazyInit")
-
-	global, readers := s.global, s.readers
-
-	// doInit on an initialised Semaphore finds the work done, as a
-	// goroutine that lost the race to initialise it would.
-	core.AssertNoPanic(t, s.doInit, "doInit")
-	core.AssertSame(t, global, s.global, "global channel kept")
-	core.AssertSame(t, readers, s.readers, "readers channel kept")
 }
 
 // BenchmarkLazyInit measures lazyInit on a semaphore that is already

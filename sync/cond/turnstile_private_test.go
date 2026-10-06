@@ -23,14 +23,12 @@ func newInitialisedTurnstile(tb testing.TB) *Turnstile {
 	return ts
 }
 
-func TestTurnstileDoInit(t *testing.T) {
+func TestTurnstileLazyInit(t *testing.T) {
 	ts := newInitialisedTurnstile(t)
 	core.AssertEqual(t, ts.b.Token(), ts.done, "close signal is the token")
 	lock, done := ts.b.Acquire(), ts.done
 
-	// doInit on an initialised Turnstile finds the work done, as a
-	// goroutine that lost the race to initialise it would.
-	core.AssertNoPanic(t, ts.doInit, "doInit")
+	core.AssertNoError(t, ts.lazyInit(), "second lazyInit")
 	core.AssertEqual(t, lock, ts.b.Acquire(), "lock barrier kept")
 	core.AssertEqual(t, done, ts.done, "close signal kept")
 }

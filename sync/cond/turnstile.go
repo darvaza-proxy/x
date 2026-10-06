@@ -22,10 +22,9 @@ import (
 type Turnstile struct {
 	held Token
 	done Token
+	once Once
 	b    Barrier
-	mu   sync.Mutex
 
-	ready  atomic.Bool
 	closed atomic.Bool
 }
 
@@ -35,29 +34,19 @@ func (t *Turnstile) lazyInit() error {
 	switch {
 	case t == nil:
 		return errors.ErrNilReceiver
-	case t.ready.Load():
+	case t.once.Done():
 		return nil
 	default:
-		t.doInit()
-		return nil
+		return t.once.Do(t.init)
 	}
 }
 
-func (t *Turnstile) doInit() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if t.ready.Load() {
-		// another goroutine initialised it first
-		return
-	}
-
+func (t *Turnstile) init() error {
 	// Init rejects a nil receiver and a Barrier already initialised.
-	// t.b belongs to a non-nil t, and ready is set under mu together
-	// with the one Init that succeeds.
+	// t.b belongs to a non-nil t, and once runs this a single time.
 	core.MustNoError(t.b.Init())
 	t.done = t.b.Token()
-	t.ready.Store(true)
+	return nil
 }
 
 // acquire waits for the token until abort closes. It returns

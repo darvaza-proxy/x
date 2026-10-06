@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"darvaza.org/core"
-	"darvaza.org/x/sync/atomic"
 	"darvaza.org/x/sync/cond"
 	"darvaza.org/x/sync/errors"
 	"darvaza.org/x/sync/mutex"
@@ -37,14 +36,13 @@ type Semaphore struct {
 	// readers holds the number of readers while read-locked, except
 	// while a reader changes it.
 	readers chan int
+
+	// once runs init, which creates global and readers.
+	once cond.Once
+
 	// turn orders writers and readers: a writer holds it while it waits
 	// for global, and readers pass it before taking a read lock.
 	turn cond.Turnstile
-
-	// mu serialises initialisation, and ready is set once global and
-	// readers exist.
-	mu    sync.Mutex
-	ready atomic.Bool
 }
 
 // lazyInit initialises the Semaphore on first use. After that it costs
@@ -53,26 +51,17 @@ func (s *Semaphore) lazyInit() error {
 	switch {
 	case s == nil:
 		return core.ErrNilReceiver
-	case s.ready.Load():
+	case s.once.Done():
 		return nil
 	default:
-		s.doInit()
-		return nil
+		return s.once.Do(s.init)
 	}
 }
 
-func (s *Semaphore) doInit() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.ready.Load() {
-		// another goroutine initialised it first
-		return
-	}
-
+func (s *Semaphore) init() error {
 	s.global = make(chan bool, 1)
 	s.readers = make(chan int, 1)
-	s.ready.Store(true)
+	return nil
 }
 
 func (s *Semaphore) checkContext(ctx context.Context) error {
