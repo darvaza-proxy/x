@@ -1,4 +1,4 @@
-package fssyscall
+package fssyscall_test
 
 import (
 	"io/fs"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"darvaza.org/core"
+	"darvaza.org/x/fs/fssyscall"
 )
 
 // Compile-time verification that test case types implement TestCase interface
@@ -15,7 +16,7 @@ var _ core.TestCase = openTestCase{}
 
 type handleTestCase struct {
 	name    string
-	handle  Handle
+	handle  fssyscall.Handle
 	wantErr bool
 }
 
@@ -35,7 +36,7 @@ func (tc handleTestCase) Test(t *testing.T) {
 	}
 }
 
-func newHandleTestCase(name string, handle Handle, wantErr bool) handleTestCase {
+func newHandleTestCase(name string, handle fssyscall.Handle, wantErr bool) handleTestCase {
 	return handleTestCase{
 		name:    name,
 		handle:  handle,
@@ -58,14 +59,14 @@ func (tc openTestCase) Name() string {
 func (tc openTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	handle, err := Open(tc.filename, tc.mode, tc.perm)
+	handle, err := fssyscall.Open(tc.filename, tc.mode, tc.perm)
 
 	if tc.wantErr {
 		core.AssertError(t, err, "open error")
-		core.AssertEqual(t, ZeroHandle, handle, "zero handle on error")
+		core.AssertEqual(t, fssyscall.ZeroHandle, handle, "zero handle on error")
 	} else {
 		core.AssertNoError(t, err, "open")
-		core.AssertNotEqual(t, ZeroHandle, handle, "valid handle")
+		core.AssertNotEqual(t, fssyscall.ZeroHandle, handle, "valid handle")
 
 		// Clean up by closing the handle
 		_ = handle.Close()
@@ -91,11 +92,11 @@ func TestHandleClose(t *testing.T) {
 		_ = os.Remove(tempFile.Name())
 	}()
 
-	validHandle := Handle(tempFile.Fd())
+	validHandle := fssyscall.Handle(tempFile.Fd())
 
 	testCases := []handleTestCase{
 		newHandleTestCase("close valid handle", validHandle, false),
-		newHandleTestCase("close zero handle", ZeroHandle, true),
+		newHandleTestCase("close zero handle", fssyscall.ZeroHandle, true),
 	}
 
 	core.RunTestCases(t, testCases)
@@ -127,7 +128,7 @@ func TestIsZero(t *testing.T) {
 func runTestIsZeroTrue(t *testing.T) {
 	t.Helper()
 
-	result := ZeroHandle.IsZero()
+	result := fssyscall.ZeroHandle.IsZero()
 	core.AssertTrue(t, result, "zero handle is zero")
 }
 
@@ -142,7 +143,7 @@ func runTestIsZeroFalse(t *testing.T) {
 		_ = os.Remove(tempFile.Name())
 	}()
 
-	handle := Handle(tempFile.Fd())
+	handle := fssyscall.Handle(tempFile.Fd())
 	result := handle.IsZero()
 	core.AssertFalse(t, result, "valid handle is not zero")
 }
@@ -163,14 +164,14 @@ func runTestHandleLockSequence(t *testing.T) {
 		_ = os.Remove(tempFile.Name())
 	}()
 
-	handle := Handle(tempFile.Fd())
+	handle := fssyscall.Handle(tempFile.Fd())
 
 	// Lock the handle
-	err = LockEx(handle)
+	err = fssyscall.LockEx(handle)
 	core.AssertNoError(t, err, "lock handle")
 
 	// Unlock the handle
-	err = UnlockEx(handle)
+	err = fssyscall.UnlockEx(handle)
 	core.AssertNoError(t, err, "unlock handle")
 }
 
@@ -185,14 +186,14 @@ func runTestHandleTryLock(t *testing.T) {
 		_ = os.Remove(tempFile.Name())
 	}()
 
-	handle := Handle(tempFile.Fd())
+	handle := fssyscall.Handle(tempFile.Fd())
 
 	// Try lock should succeed on unlocked handle
-	err = TryLockEx(handle)
+	err = fssyscall.TryLockEx(handle)
 	core.AssertNoError(t, err, "try lock unlocked handle")
 
 	// Clean up by unlocking
-	err = UnlockEx(handle)
+	err = fssyscall.UnlockEx(handle)
 	core.AssertNoError(t, err, "unlock after try lock")
 }
 
@@ -241,8 +242,8 @@ func holdLockAndWait(filename string, lockReadyErr chan error, unlockDone chan s
 		_ = file.Close()
 	}()
 
-	handle := Handle(file.Fd())
-	err = LockEx(handle)
+	handle := fssyscall.Handle(file.Fd())
+	err = fssyscall.LockEx(handle)
 	if err != nil {
 		lockReadyErr <- err
 		return
@@ -251,7 +252,7 @@ func holdLockAndWait(filename string, lockReadyErr chan error, unlockDone chan s
 	// Signal successful lock acquisition
 	lockReadyErr <- nil
 	<-unlockDone
-	_ = UnlockEx(handle)
+	_ = fssyscall.UnlockEx(handle)
 }
 
 func attemptTryLock(filename string, lockReadyErr chan error, tryLockDone chan error) {
@@ -273,7 +274,7 @@ func attemptTryLock(filename string, lockReadyErr chan error, tryLockDone chan e
 		_ = file.Close()
 	}()
 
-	handle := Handle(file.Fd())
-	err = TryLockEx(handle)
+	handle := fssyscall.Handle(file.Fd())
+	err = fssyscall.TryLockEx(handle)
 	tryLockDone <- err
 }
