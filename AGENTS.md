@@ -115,7 +115,7 @@ Tests follow the conventions in `darvaza.org/core`'s
 - Assertions use `core.Assert*` rather than `t.Errorf`; `core.S[T]()`
   creates test slices.
 - Test files use the external `_test` package unless unexported access is
-  required.
+  required; those that need it are named `*_internal_test.go`.
 - Comprehensive coverage for generic functions is expected.
 
 ### Build System
