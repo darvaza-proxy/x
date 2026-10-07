@@ -1,9 +1,10 @@
-package cmp
+package cmp_test
 
 import (
 	"testing"
 
 	"darvaza.org/core"
+	"darvaza.org/x/cmp"
 )
 
 // TestCase interface validations for types_test
@@ -19,18 +20,18 @@ var _ core.TestCase = asCmpAsLessCycleTestCase[int]{}
 // reverseTestCase tests the Reverse function
 type reverseTestCase[T any] struct {
 	a, b     T
-	cmp      CompFunc[T]
+	cmp      cmp.CompFunc[T]
 	name     string
 	expected int
 }
 
-func newReverseTestCase[T any](name string, a, b T, expected int, cmp CompFunc[T]) reverseTestCase[T] {
+func newReverseTestCase[T any](name string, a, b T, expected int, fn cmp.CompFunc[T]) reverseTestCase[T] {
 	return reverseTestCase[T]{
 		name:     name,
 		a:        a,
 		b:        b,
 		expected: expected,
-		cmp:      cmp,
+		cmp:      fn,
 	}
 }
 
@@ -40,7 +41,7 @@ func (tc reverseTestCase[T]) Name() string {
 
 func (tc reverseTestCase[T]) Test(t *testing.T) {
 	t.Helper()
-	reversedCmp := Reverse(tc.cmp)
+	reversedCmp := cmp.Reverse(tc.cmp)
 	result := reversedCmp(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, "Reverse")
 }
@@ -48,7 +49,7 @@ func (tc reverseTestCase[T]) Test(t *testing.T) {
 // runTestReverseWithIntegers tests Reverse with integer comparison
 func runTestReverseWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -60,12 +61,12 @@ func runTestReverseWithIntegers(t *testing.T) {
 	}
 
 	tests := []reverseTestCase[int]{
-		newReverseTestCase("less than", 5, 10, 1, cmp),
-		newReverseTestCase("greater than", 10, 5, -1, cmp),
-		newReverseTestCase("equal", 5, 5, 0, cmp),
-		newReverseTestCase("with zero", 0, 1, 1, cmp),
-		newReverseTestCase("negative numbers", -5, -3, 1, cmp),
-		newReverseTestCase("mixed signs", -1, 1, 1, cmp),
+		newReverseTestCase("less than", 5, 10, 1, fn),
+		newReverseTestCase("greater than", 10, 5, -1, fn),
+		newReverseTestCase("equal", 5, 5, 0, fn),
+		newReverseTestCase("with zero", 0, 1, 1, fn),
+		newReverseTestCase("negative numbers", -5, -3, 1, fn),
+		newReverseTestCase("mixed signs", -1, 1, 1, fn),
 	}
 
 	core.RunTestCases(t, tests)
@@ -96,7 +97,7 @@ func runTestReverseCustomStruct(t *testing.T) {
 		}
 	}
 
-	reversedScoreCmp := Reverse(scoreCmp)
+	reversedScoreCmp := cmp.Reverse(scoreCmp)
 	s1 := score{3.14}
 	s2 := score{2.71}
 
@@ -127,7 +128,7 @@ func (tc reverseChainedTestCase) Name() string {
 
 func (tc reverseChainedTestCase) Test(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -138,10 +139,10 @@ func (tc reverseChainedTestCase) Test(t *testing.T) {
 		}
 	}
 
-	doubleReversed := Reverse(Reverse(cmp))
+	doubleReversed := cmp.Reverse(cmp.Reverse(fn))
 	result := doubleReversed(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, "double reversed")
-	core.AssertEqual(t, tc.expected, cmp(tc.a, tc.b), "original")
+	core.AssertEqual(t, tc.expected, fn(tc.a, tc.b), "original")
 }
 
 // TestReverseChained confirms that applying Reverse twice returns
@@ -159,25 +160,25 @@ func TestReverseChained(t *testing.T) {
 // TestReverseNil confirms that Reverse panics when given a nil function.
 func TestReverseNil(t *testing.T) {
 	core.AssertPanic(t, func() {
-		Reverse[int](nil)
+		cmp.Reverse[int](nil)
 	}, expectedNilCompFuncErr, "Reverse(nil)")
 }
 
 // asLessTestCase tests the AsLess function
 type asLessTestCase[T any] struct {
 	a, b     T
-	cmp      CompFunc[T]
+	cmp      cmp.CompFunc[T]
 	name     string
 	expected bool
 }
 
-func newAsLessTestCase[T any](name string, a, b T, expected bool, cmp CompFunc[T]) asLessTestCase[T] {
+func newAsLessTestCase[T any](name string, a, b T, expected bool, fn cmp.CompFunc[T]) asLessTestCase[T] {
 	return asLessTestCase[T]{
 		name:     name,
 		a:        a,
 		b:        b,
 		expected: expected,
-		cmp:      cmp,
+		cmp:      fn,
 	}
 }
 
@@ -187,7 +188,7 @@ func (tc asLessTestCase[T]) Name() string {
 
 func (tc asLessTestCase[T]) Test(t *testing.T) {
 	t.Helper()
-	less := AsLess(tc.cmp)
+	less := cmp.AsLess(tc.cmp)
 	result := less(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, "AsLess")
 }
@@ -219,7 +220,7 @@ func runTestAsLessWithStrings(t *testing.T) {
 // runTestAsLessWithIntegers tests AsLess with integer comparison
 func runTestAsLessWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -231,14 +232,14 @@ func runTestAsLessWithIntegers(t *testing.T) {
 	}
 
 	tests := []asLessTestCase[int]{
-		newAsLessTestCase("less than", 3, 7, true, cmp),
-		newAsLessTestCase("equal", 5, 5, false, cmp),
-		newAsLessTestCase("greater than", 8, 4, false, cmp),
-		newAsLessTestCase("with zero", 0, 1, true, cmp),
-		newAsLessTestCase("negative numbers", -3, -2, true, cmp),
-		newAsLessTestCase("mixed signs", -1, 1, true, cmp),
-		newAsLessTestCase("large numbers", 1000000, 1000001, true, cmp),
-		newAsLessTestCase("equal large numbers", 1000000, 1000000, false, cmp),
+		newAsLessTestCase("less than", 3, 7, true, fn),
+		newAsLessTestCase("equal", 5, 5, false, fn),
+		newAsLessTestCase("greater than", 8, 4, false, fn),
+		newAsLessTestCase("with zero", 0, 1, true, fn),
+		newAsLessTestCase("negative numbers", -3, -2, true, fn),
+		newAsLessTestCase("mixed signs", -1, 1, true, fn),
+		newAsLessTestCase("large numbers", 1000000, 1000001, true, fn),
+		newAsLessTestCase("equal large numbers", 1000000, 1000000, false, fn),
 	}
 
 	core.RunTestCases(t, tests)
@@ -259,7 +260,7 @@ func runTestAsLessCustomStruct(t *testing.T) {
 		major, minor, patch int
 	}
 
-	cmp := func(a, b version) int {
+	fn := func(a, b version) int {
 		if a.major != b.major {
 			return a.major - b.major
 		}
@@ -269,7 +270,7 @@ func runTestAsLessCustomStruct(t *testing.T) {
 		return a.patch - b.patch
 	}
 
-	lessFn := AsLess(cmp)
+	lessFn := cmp.AsLess(fn)
 
 	// Test cases
 	v1 := version{1, 0, 0}
@@ -290,25 +291,25 @@ func runTestAsLessCustomStruct(t *testing.T) {
 // TestAsLessNil confirms that AsLess panics when given a nil function.
 func TestAsLessNil(t *testing.T) {
 	core.AssertPanic(t, func() {
-		AsLess[string](nil)
+		cmp.AsLess[string](nil)
 	}, expectedNilCompFuncErr, "AsLess(nil)")
 }
 
 // asEqualTestCase tests the AsEqual function
 type asEqualTestCase[T any] struct {
 	a, b     T
-	cmp      CompFunc[T]
+	cmp      cmp.CompFunc[T]
 	name     string
 	expected bool
 }
 
-func newAsEqualTestCase[T any](name string, a, b T, expected bool, cmp CompFunc[T]) asEqualTestCase[T] {
+func newAsEqualTestCase[T any](name string, a, b T, expected bool, fn cmp.CompFunc[T]) asEqualTestCase[T] {
 	return asEqualTestCase[T]{
 		name:     name,
 		a:        a,
 		b:        b,
 		expected: expected,
-		cmp:      cmp,
+		cmp:      fn,
 	}
 }
 
@@ -318,7 +319,7 @@ func (tc asEqualTestCase[T]) Name() string {
 
 func (tc asEqualTestCase[T]) Test(t *testing.T) {
 	t.Helper()
-	equal := AsEqual(tc.cmp)
+	equal := cmp.AsEqual(tc.cmp)
 	result := equal(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, "AsEqual")
 }
@@ -358,19 +359,19 @@ func TestAsEqual(t *testing.T) {
 // TestAsEqualNil confirms that AsEqual panics when given a nil function.
 func TestAsEqualNil(t *testing.T) {
 	core.AssertPanic(t, func() {
-		AsEqual[float64](nil)
+		cmp.AsEqual[float64](nil)
 	}, expectedNilCompFuncErr, "AsEqual(nil)")
 }
 
 // asCmpTestCase tests the AsCmp function
 type asCmpTestCase[T any] struct {
 	a, b     T
-	less     CondFunc[T]
+	less     cmp.CondFunc[T]
 	name     string
 	expected int
 }
 
-func newAsCmpTestCase[T any](name string, a, b T, expected int, less CondFunc[T]) asCmpTestCase[T] {
+func newAsCmpTestCase[T any](name string, a, b T, expected int, less cmp.CondFunc[T]) asCmpTestCase[T] {
 	return asCmpTestCase[T]{
 		name:     name,
 		a:        a,
@@ -386,8 +387,8 @@ func (tc asCmpTestCase[T]) Name() string {
 
 func (tc asCmpTestCase[T]) Test(t *testing.T) {
 	t.Helper()
-	cmp := AsCmp(tc.less)
-	result := cmp(tc.a, tc.b)
+	fn := cmp.AsCmp(tc.less)
+	result := fn(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, "AsCmp")
 }
 
@@ -455,7 +456,7 @@ func runTestAsCmpCustomStruct(t *testing.T) {
 		return a.patch < b.patch
 	}
 
-	cmp := AsCmp(less)
+	fn := cmp.AsCmp(less)
 
 	// Test cases
 	v1 := version{1, 0, 0}
@@ -465,17 +466,17 @@ func runTestAsCmpCustomStruct(t *testing.T) {
 	v5 := version{1, 2, 3}
 	v6 := version{1, 2, 4}
 
-	core.AssertEqual(t, -1, cmp(v1, v2), "lower major version")
-	core.AssertEqual(t, 1, cmp(v2, v1), "higher major version")
-	core.AssertEqual(t, -1, cmp(v3, v4), "same major different minor")
-	core.AssertEqual(t, -1, cmp(v5, v6), "same major and minor different patch")
-	core.AssertEqual(t, 0, cmp(v5, v5), "identical versions")
+	core.AssertEqual(t, -1, fn(v1, v2), "lower major version")
+	core.AssertEqual(t, 1, fn(v2, v1), "higher major version")
+	core.AssertEqual(t, -1, fn(v3, v4), "same major different minor")
+	core.AssertEqual(t, -1, fn(v5, v6), "same major and minor different patch")
+	core.AssertEqual(t, 0, fn(v5, v5), "identical versions")
 }
 
 // TestAsCmpNil confirms that AsCmp panics when given a nil function.
 func TestAsCmpNil(t *testing.T) {
 	core.AssertPanic(t, func() {
-		AsCmp[string](nil)
+		cmp.AsCmp[string](nil)
 	}, expectedNilCondFuncErr, "AsCmp(nil)")
 }
 
@@ -507,7 +508,7 @@ func (tc asCmpAsLessCycleTestCase[T]) Test(t *testing.T) {
 	}
 
 	// Convert to comparison function and back to less function
-	backToLess := AsLess(AsCmp(less))
+	backToLess := cmp.AsLess(cmp.AsCmp(less))
 
 	// Function composition should preserve original behaviour
 	core.AssertEqual(t, tc.expected, backToLess(tc.a, tc.b), "composed")

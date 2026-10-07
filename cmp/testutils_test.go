@@ -1,4 +1,4 @@
-package cmp
+package cmp_test
 
 // Fixture names shared by the person-matching tests
 const (

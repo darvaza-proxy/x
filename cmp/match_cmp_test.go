@@ -1,9 +1,10 @@
-package cmp
+package cmp_test
 
 import (
 	"testing"
 
 	"darvaza.org/core"
+	"darvaza.org/x/cmp"
 )
 
 // TestMatchEq verifies that the MatchEq function correctly creates matchers
@@ -16,8 +17,8 @@ func TestMatchEq(t *testing.T) {
 func runTestMatchEqWithIntegers(t *testing.T) {
 	t.Helper()
 	// Create matchers
-	matchFive := MatchEq(5)
-	matchZero := MatchEq(0)
+	matchFive := cmp.MatchEq(5)
+	matchZero := cmp.MatchEq(0)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("equal to 5", 5, true, matchFive),
@@ -33,8 +34,8 @@ func runTestMatchEqWithIntegers(t *testing.T) {
 func runTestMatchEqWithStrings(t *testing.T) {
 	t.Helper()
 	// Create matchers
-	matchHello := MatchEq("hello")
-	matchEmpty := MatchEq("")
+	matchHello := cmp.MatchEq("hello")
+	matchEmpty := cmp.MatchEq("")
 
 	testCases := []matchTestCase[string]{
 		newMatchTestCase("equal strings", "hello", true, matchHello),
@@ -49,7 +50,7 @@ func runTestMatchEqWithStrings(t *testing.T) {
 
 func runTestMatchEqFnWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -61,8 +62,8 @@ func runTestMatchEqFnWithIntegers(t *testing.T) {
 	}
 
 	// Create matchers
-	matchFive := MatchEqFn(5, cmp)
-	matchZero := MatchEqFn(0, cmp)
+	matchFive := cmp.MatchEqFn(5, fn)
+	matchZero := cmp.MatchEqFn(0, fn)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("equal to 5", 5, true, matchFive),
@@ -80,7 +81,7 @@ func runTestMatchEqFnWithCustomStruct(t *testing.T) {
 		value float64
 	}
 
-	cmp := func(a, b score) int {
+	fn := func(a, b score) int {
 		switch {
 		case a.value < b.value:
 			return -1
@@ -95,7 +96,7 @@ func runTestMatchEqFnWithCustomStruct(t *testing.T) {
 	s2 := score{2.71}
 	s3 := score{3.14}
 
-	matchPi := MatchEqFn(s1, cmp)
+	matchPi := cmp.MatchEqFn(s1, fn)
 
 	core.AssertTrue(t, matchPi.Match(s3), "equal scores")
 	core.AssertFalse(t, matchPi.Match(s2), "different scores")
@@ -111,7 +112,7 @@ func TestMatchEqFn(t *testing.T) {
 // TestMatchEqFnPanic verifies that MatchEqFn panics when given a nil comparison function.
 func TestMatchEqFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		MatchEqFn(1, nil)
+		cmp.MatchEqFn(1, nil)
 	}, expectedNilCompFuncErr, "nil comparison")
 }
 
@@ -126,7 +127,7 @@ func TestMatchEqFn2(t *testing.T) {
 // TestMatchEqFn2Panic verifies that MatchEqFn2 panics when given a nil condition function.
 func TestMatchEqFn2Panic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		MatchEqFn2(1, nil)
+		cmp.MatchEqFn2(1, nil)
 	}, expectedNilCondFuncErr, "nil condition")
 }
 
@@ -139,8 +140,8 @@ func TestMatchNotEq(t *testing.T) {
 func runTestMatchNotEqWithIntegers(t *testing.T) {
 	t.Helper()
 	// Create matchers
-	notFive := MatchNotEq(5)
-	notZero := MatchNotEq(0)
+	notFive := cmp.MatchNotEq(5)
+	notZero := cmp.MatchNotEq(0)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("equal to 5", 5, false, notFive),
@@ -162,7 +163,7 @@ func TestMatchNotEqFn(t *testing.T) {
 
 func runTestMatchNotEqFnWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -174,8 +175,8 @@ func runTestMatchNotEqFnWithIntegers(t *testing.T) {
 	}
 
 	// Create matchers
-	notFive := MatchNotEqFn(5, cmp)
-	notZero := MatchNotEqFn(0, cmp)
+	notFive := cmp.MatchNotEqFn(5, fn)
+	notZero := cmp.MatchNotEqFn(0, fn)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("equal to 5", 5, false, notFive),
@@ -191,7 +192,7 @@ func runTestMatchNotEqFnWithIntegers(t *testing.T) {
 func runTestMatchNotEqFnPanic(t *testing.T) {
 	t.Helper()
 	core.AssertPanic(t, func() {
-		MatchNotEqFn(1, nil)
+		cmp.MatchNotEqFn(1, nil)
 	}, expectedNilCompFuncErr, "nil comparison")
 }
 
@@ -210,8 +211,8 @@ func runTestMatchNotEqFn2WithIntegers(t *testing.T) {
 	}
 
 	// Create matchers
-	notFive := MatchNotEqFn2(5, eq)
-	notZero := MatchNotEqFn2(0, eq)
+	notFive := cmp.MatchNotEqFn2(5, eq)
+	notZero := cmp.MatchNotEqFn2(0, eq)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("equal to 5", 5, false, notFive),
@@ -227,7 +228,7 @@ func runTestMatchNotEqFn2WithIntegers(t *testing.T) {
 func runTestMatchNotEqFn2Panic(t *testing.T) {
 	t.Helper()
 	core.AssertPanic(t, func() {
-		MatchNotEqFn2(1, nil)
+		cmp.MatchNotEqFn2(1, nil)
 	}, expectedNilCondFuncErr, "nil condition")
 }
 
@@ -240,8 +241,8 @@ func TestMatchGt(t *testing.T) {
 func runTestMatchGtWithIntegers(t *testing.T) {
 	t.Helper()
 	// Create matchers
-	greaterThanFive := MatchGt(5)
-	greaterThanZero := MatchGt(0)
+	greaterThanFive := cmp.MatchGt(5)
+	greaterThanZero := cmp.MatchGt(0)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("greater than 5", 10, true, greaterThanFive),
@@ -263,7 +264,7 @@ func TestMatchGtFn(t *testing.T) {
 
 func runTestMatchGtFnWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -275,7 +276,7 @@ func runTestMatchGtFnWithIntegers(t *testing.T) {
 	}
 
 	// Create matcher
-	greaterThanFive := MatchGtFn(5, cmp)
+	greaterThanFive := cmp.MatchGtFn(5, fn)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("greater than 5", 10, true, greaterThanFive),
@@ -289,7 +290,7 @@ func runTestMatchGtFnWithIntegers(t *testing.T) {
 // TestMatchGtFnPanic verifies that MatchGtFn panics when given a nil comparison function.
 func TestMatchGtFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		MatchGtFn(1, nil)
+		cmp.MatchGtFn(1, nil)
 	}, expectedNilCompFuncErr, "nil comparison")
 }
 
@@ -302,8 +303,8 @@ func TestMatchLt(t *testing.T) {
 func runTestMatchLtWithIntegers(t *testing.T) {
 	t.Helper()
 	// Create matchers
-	lessThanFive := MatchLt(5)
-	lessThanZero := MatchLt(0)
+	lessThanFive := cmp.MatchLt(5)
+	lessThanZero := cmp.MatchLt(0)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("less than 5", 3, true, lessThanFive),
@@ -325,7 +326,7 @@ func TestMatchLtFn(t *testing.T) {
 
 func runTestMatchLtFnWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -337,7 +338,7 @@ func runTestMatchLtFnWithIntegers(t *testing.T) {
 	}
 
 	// Create matcher
-	lessThanFive := MatchLtFn(5, cmp)
+	lessThanFive := cmp.MatchLtFn(5, fn)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("less than 5", 3, true, lessThanFive),
@@ -351,7 +352,7 @@ func runTestMatchLtFnWithIntegers(t *testing.T) {
 // TestMatchLtFnPanic verifies that MatchLtFn panics when given a nil comparison function.
 func TestMatchLtFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		MatchLtFn(1, nil)
+		cmp.MatchLtFn(1, nil)
 	}, expectedNilCompFuncErr, "nil comparison")
 }
 
@@ -369,7 +370,7 @@ func runTestMatchLtFn2WithIntegers(t *testing.T) {
 	}
 
 	// Create matcher
-	lessThanFive := MatchLtFn2(5, isLess)
+	lessThanFive := cmp.MatchLtFn2(5, isLess)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("less than 5", 3, true, lessThanFive),
@@ -383,7 +384,7 @@ func runTestMatchLtFn2WithIntegers(t *testing.T) {
 // TestMatchLtFn2Panic verifies that MatchLtFn2 panics when given a nil condition function.
 func TestMatchLtFn2Panic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		MatchLtFn2(1, nil)
+		cmp.MatchLtFn2(1, nil)
 	}, expectedNilCondFuncErr, "nil condition")
 }
 
@@ -396,8 +397,8 @@ func TestMatchGtEq(t *testing.T) {
 func runTestMatchGtEqWithIntegers(t *testing.T) {
 	t.Helper()
 	// Create matchers
-	gtEqFive := MatchGtEq(5)
-	gtEqZero := MatchGtEq(0)
+	gtEqFive := cmp.MatchGtEq(5)
+	gtEqZero := cmp.MatchGtEq(0)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("greater than 5", 10, true, gtEqFive),
@@ -420,7 +421,7 @@ func TestMatchGtEqFn(t *testing.T) {
 
 func runTestMatchGtEqFnWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -432,7 +433,7 @@ func runTestMatchGtEqFnWithIntegers(t *testing.T) {
 	}
 
 	// Create matcher
-	gtEqFive := MatchGtEqFn(5, cmp)
+	gtEqFive := cmp.MatchGtEqFn(5, fn)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("greater than 5", 10, true, gtEqFive),
@@ -447,7 +448,7 @@ func runTestMatchGtEqFnWithIntegers(t *testing.T) {
 // comparison function.
 func TestMatchGtEqFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		MatchGtEqFn(1, nil)
+		cmp.MatchGtEqFn(1, nil)
 	}, expectedNilCompFuncErr, "nil comparison")
 }
 
@@ -466,7 +467,7 @@ func runTestMatchGtEqFn2WithIntegers(t *testing.T) {
 	}
 
 	// Create matcher
-	gtEqFive := MatchGtEqFn2(5, isLess)
+	gtEqFive := cmp.MatchGtEqFn2(5, isLess)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("greater than 5", 10, true, gtEqFive),
@@ -481,7 +482,7 @@ func runTestMatchGtEqFn2WithIntegers(t *testing.T) {
 // condition function.
 func TestMatchGtEqFn2Panic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		MatchGtEqFn2(1, nil)
+		cmp.MatchGtEqFn2(1, nil)
 	}, expectedNilCondFuncErr, "nil condition")
 }
 
@@ -494,8 +495,8 @@ func TestMatchLtEq(t *testing.T) {
 func runTestMatchLtEqWithIntegers(t *testing.T) {
 	t.Helper()
 	// Create matchers
-	ltEqFive := MatchLtEq(5)
-	ltEqZero := MatchLtEq(0)
+	ltEqFive := cmp.MatchLtEq(5)
+	ltEqZero := cmp.MatchLtEq(0)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("less than 5", 3, true, ltEqFive),
@@ -518,7 +519,7 @@ func TestMatchLtEqFn(t *testing.T) {
 
 func runTestMatchLtEqFnWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -530,7 +531,7 @@ func runTestMatchLtEqFnWithIntegers(t *testing.T) {
 	}
 
 	// Create matcher
-	ltEqFive := MatchLtEqFn(5, cmp)
+	ltEqFive := cmp.MatchLtEqFn(5, fn)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("less than 5", 3, true, ltEqFive),
@@ -545,7 +546,7 @@ func runTestMatchLtEqFnWithIntegers(t *testing.T) {
 // comparison function.
 func TestMatchLtEqFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		MatchLtEqFn(1, nil)
+		cmp.MatchLtEqFn(1, nil)
 	}, expectedNilCompFuncErr, "nil comparison")
 }
 
@@ -564,7 +565,7 @@ func runTestMatchLtEqFn2WithIntegers(t *testing.T) {
 	}
 
 	// Create matcher
-	ltEqFive := MatchLtEqFn2(5, isLess)
+	ltEqFive := cmp.MatchLtEqFn2(5, isLess)
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("less than 5", 3, true, ltEqFive),
@@ -579,7 +580,7 @@ func runTestMatchLtEqFn2WithIntegers(t *testing.T) {
 // condition function.
 func TestMatchLtEqFn2Panic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		MatchLtEqFn2(1, nil)
+		cmp.MatchLtEqFn2(1, nil)
 	}, expectedNilCondFuncErr, "nil condition")
 }
 
@@ -599,8 +600,8 @@ func runTestMatchEqFn2WithIntegers(t *testing.T) {
 	}
 
 	// Create matchers for even and odd numbers
-	matchEven := MatchEqFn2(4, sameParity) // will match any even number
-	matchOdd := MatchEqFn2(5, sameParity)  // will match any odd number
+	matchEven := cmp.MatchEqFn2(4, sameParity) // will match any even number
+	matchOdd := cmp.MatchEqFn2(5, sameParity)  // will match any odd number
 
 	testCases := []matchTestCase[int]{
 		newMatchTestCase("even matches even", 6, true, matchEven),
@@ -631,7 +632,7 @@ func runTestMatchEqFn2WithCustomStruct(t *testing.T) {
 	p2 := person{nameBob, 30}
 	p3 := person{nameCharlie, 25}
 
-	matchAge30 := MatchEqFn2(p1, sameAge)
+	matchAge30 := cmp.MatchEqFn2(p1, sameAge)
 
 	core.AssertTrue(t, matchAge30.Match(p2), "same age")
 	core.AssertFalse(t, matchAge30.Match(p3), "different age")
@@ -643,7 +644,7 @@ func runTestCustomTypeEqualityMatchers(t *testing.T) {
 		value int
 	}
 
-	cmp := func(a, b customType) int {
+	fn := func(a, b customType) int {
 		switch {
 		case a.value < b.value:
 			return -1
@@ -664,8 +665,8 @@ func runTestCustomTypeEqualityMatchers(t *testing.T) {
 	b := customType{value: 10}
 	c := customType{value: 5}
 
-	equalToA := MatchEqFn(a, cmp)
-	equalToADirect := MatchEqFn2(a, isEqual)
+	equalToA := cmp.MatchEqFn(a, fn)
+	equalToADirect := cmp.MatchEqFn2(a, isEqual)
 
 	core.AssertTrue(t, equalToA.Match(c), "same value")
 	core.AssertFalse(t, equalToA.Match(b), "different value")
@@ -678,7 +679,7 @@ func runTestCustomTypeComparisonMatchers(t *testing.T) {
 		value int
 	}
 
-	cmp := func(a, b customType) int {
+	fn := func(a, b customType) int {
 		switch {
 		case a.value < b.value:
 			return -1
@@ -699,9 +700,9 @@ func runTestCustomTypeComparisonMatchers(t *testing.T) {
 	b := customType{value: 10}
 	d := customType{value: 3}
 
-	greaterThanA := MatchGtFn(a, cmp)
-	lessThanB := MatchLtFn(b, cmp)
-	lessThanOrEqualToB := MatchLtEqFn2(b, isLess)
+	greaterThanA := cmp.MatchGtFn(a, fn)
+	lessThanB := cmp.MatchLtFn(b, fn)
+	lessThanOrEqualToB := cmp.MatchLtEqFn2(b, isLess)
 
 	core.AssertTrue(t, greaterThanA.Match(b), "b > a")
 	core.AssertFalse(t, greaterThanA.Match(d), "d not > a")

@@ -1,10 +1,11 @@
-package cmp
+package cmp_test
 
 import (
 	"strconv"
 	"testing"
 
 	"darvaza.org/core"
+	"darvaza.org/x/cmp"
 )
 
 // TestCase interface validations
@@ -12,13 +13,13 @@ var _ core.TestCase = composeTestCase[int]{}
 
 // composeTestCase is a generic test case for Compose function
 type composeTestCase[T any] struct {
-	matcher  Matcher[T]
+	matcher  cmp.Matcher[T]
 	input    T
 	name     string
 	expected bool
 }
 
-func newComposeTestCase[T any](name string, input T, expected bool, matcher Matcher[T]) composeTestCase[T] {
+func newComposeTestCase[T any](name string, input T, expected bool, matcher cmp.Matcher[T]) composeTestCase[T] {
 	return composeTestCase[T]{
 		name:     name,
 		input:    input,
@@ -55,9 +56,9 @@ func runTestComposeStructFields(t *testing.T) {
 	}
 
 	// Create a matcher for people older than 18
-	isAdult := Compose(
+	isAdult := cmp.Compose(
 		func(p Person) (int, bool) { return p.Age, true },
-		MatchGtEq(18),
+		cmp.MatchGtEq(18),
 	)
 
 	tests := []composeTestCase[Person]{
@@ -70,9 +71,9 @@ func runTestComposeStructFields(t *testing.T) {
 	core.RunTestCases(t, tests)
 
 	// Create a matcher to check if a person's name starts with 'A'
-	nameStartsWithA := Compose(
+	nameStartsWithA := cmp.Compose(
 		func(p Person) (string, bool) { return p.Name, true },
-		MatchFunc[string](func(s string) bool {
+		cmp.MatchFunc[string](func(s string) bool {
 			return len(s) > 0 && s[0] == 'A'
 		}),
 	)
@@ -89,9 +90,9 @@ func runTestComposeStructFields(t *testing.T) {
 func runTestComposeTypeTransformations(t *testing.T) {
 	t.Helper()
 	// Convert int to string and check if it has a specific length
-	hasThreeDigits := Compose(
+	hasThreeDigits := cmp.Compose(
 		func(i int) (string, bool) { return strconv.Itoa(i), true },
-		MatchFunc[string](func(s string) bool {
+		cmp.MatchFunc[string](func(s string) bool {
 			return len(s) == 3
 		}),
 	)
@@ -109,9 +110,9 @@ func runTestComposeTypeTransformations(t *testing.T) {
 func runTestComposeAccessorFalse(t *testing.T) {
 	t.Helper()
 	// Accessor that fails for even numbers
-	failsForEven := Compose(
+	failsForEven := cmp.Compose(
 		func(i int) (int, bool) { return i, i%2 != 0 },
-		MatchGt(0),
+		cmp.MatchGt(0),
 	)
 
 	tests := []composeTestCase[int]{
@@ -156,11 +157,11 @@ func runTestComposeNested(t *testing.T) {
 	}
 
 	// Create a matcher that checks if a person's city starts with 'New'
-	isFromNewCity := Compose(
+	isFromNewCity := cmp.Compose(
 		func(p Person) (Address, bool) { return p.Address, true },
-		Compose(
+		cmp.Compose(
 			func(a Address) (string, bool) { return a.City, true },
-			MatchFunc[string](func(s string) bool {
+			cmp.MatchFunc[string](func(s string) bool {
 				return len(s) >= 3 && s[0:3] == "New"
 			}),
 		),
@@ -204,14 +205,14 @@ func runTestComposeComplex(t *testing.T) {
 	}
 
 	// Check if a score is a passing grade (>= 70%)
-	isPassingGrade := Compose(
+	isPassingGrade := cmp.Compose(
 		func(s Score) (float64, bool) {
 			if s.Max == 0 {
 				return 0, false
 			}
 			return float64(s.Value) / float64(s.Max), true
 		},
-		MatchGtEq(0.7),
+		cmp.MatchGtEq(0.7),
 	)
 
 	tests := []composeTestCase[Score]{
@@ -234,13 +235,13 @@ func TestComposePanic(t *testing.T) {
 func runTestComposePanicNilAccessor(t *testing.T) {
 	t.Helper()
 	core.AssertPanic(t, func() {
-		Compose[int](nil, MatchGtEq(5))
+		cmp.Compose[int](nil, cmp.MatchGtEq(5))
 	}, "nil accessor function", "nil accessor")
 }
 
 func runTestComposePanicNilMatcher(t *testing.T) {
 	t.Helper()
 	core.AssertPanic(t, func() {
-		Compose(func(i int) (int, bool) { return i, true }, nil)
+		cmp.Compose(func(i int) (int, bool) { return i, true }, nil)
 	}, "no match condition", "nil matcher")
 }

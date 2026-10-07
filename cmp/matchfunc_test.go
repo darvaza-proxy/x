@@ -1,9 +1,10 @@
-package cmp
+package cmp_test
 
 import (
 	"testing"
 
 	"darvaza.org/core"
+	"darvaza.org/x/cmp"
 )
 
 // TestMatchFunc verifies the MatchFunc implementation of the Matcher interface
@@ -14,11 +15,11 @@ func TestMatchFunc(t *testing.T) {
 
 // TestMatchFuncAnd verifies the And method of MatchFunc
 func TestMatchFuncAnd(t *testing.T) {
-	isEven := MatchFunc[int](func(n int) bool {
+	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
 
-	isPositive := MatchFunc[int](func(n int) bool {
+	isPositive := cmp.MatchFunc[int](func(n int) bool {
 		return n > 0
 	})
 
@@ -41,7 +42,7 @@ func TestMatchFuncAnd(t *testing.T) {
 	core.AssertFalse(t, evenAndNil.Match(5), "odd with nil")
 
 	// Test with multiple matchers including nil
-	isBig := MatchFunc[int](func(n int) bool {
+	isBig := cmp.MatchFunc[int](func(n int) bool {
 		return n > 100
 	})
 	complexMatcher := isEven.And(isPositive, isBig, nil)
@@ -51,11 +52,11 @@ func TestMatchFuncAnd(t *testing.T) {
 
 // TestMatchFuncOr verifies the Or method of MatchFunc
 func TestMatchFuncOr(t *testing.T) {
-	isEven := MatchFunc[int](func(n int) bool {
+	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
 
-	isDivisibleBy3 := MatchFunc[int](func(n int) bool {
+	isDivisibleBy3 := cmp.MatchFunc[int](func(n int) bool {
 		return n%3 == 0
 	})
 
@@ -79,7 +80,7 @@ func TestMatchFuncOr(t *testing.T) {
 	core.AssertFalse(t, evenOrNil.Match(5), "odd with nil")
 
 	// Test with multiple matchers including nil
-	isBig := MatchFunc[int](func(n int) bool {
+	isBig := cmp.MatchFunc[int](func(n int) bool {
 		return n > 100
 	})
 	complexMatcher := isEven.Or(isDivisibleBy3, isBig, nil)
@@ -90,7 +91,7 @@ func TestMatchFuncOr(t *testing.T) {
 
 // TestMatchFuncNot verifies the Not method of MatchFunc
 func TestMatchFuncNot(t *testing.T) {
-	isEven := MatchFunc[int](func(n int) bool {
+	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
 
@@ -117,14 +118,14 @@ func TestAsMatcher(t *testing.T) {
 func runTestMatchFuncNil(t *testing.T) {
 	t.Helper()
 	// Nil MatchFunc should match everything (return true)
-	var nilMatcher MatchFunc[string]
+	var nilMatcher cmp.MatchFunc[string]
 	core.AssertTrue(t, nilMatcher.Match("anything"), "nil matcher")
 }
 
 func runTestMatchFuncBasicMatching(t *testing.T) {
 	t.Helper()
 	// Simple matcher that checks if a number is even
-	isEven := MatchFunc[int](func(n int) bool {
+	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
 
@@ -141,11 +142,11 @@ func runTestMatchFuncBasicMatching(t *testing.T) {
 
 func runTestAsMatcherWithValidFunction(t *testing.T) {
 	t.Helper()
-	isEven := MatchFunc[int](func(n int) bool {
+	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
 
-	matcher := AsMatcher(isEven)
+	matcher := cmp.AsMatcher(isEven)
 	core.AssertNotNil(t, matcher, "matcher")
 	core.AssertTrue(t, matcher.Match(4), "even")
 	core.AssertFalse(t, matcher.Match(5), "odd")
@@ -153,8 +154,8 @@ func runTestAsMatcherWithValidFunction(t *testing.T) {
 
 func runTestAsMatcherWithNilFunction(t *testing.T) {
 	t.Helper()
-	var nilFunc MatchFunc[int]
-	matcher := AsMatcher(nilFunc)
+	var nilFunc cmp.MatchFunc[int]
+	matcher := cmp.AsMatcher(nilFunc)
 	core.AssertNil(t, matcher, "nil function")
 }
 
@@ -167,8 +168,8 @@ func TestM(t *testing.T) {
 func runTestMWithNilMatcher(t *testing.T) {
 	t.Helper()
 	// When Matcher is nil, M returns a function that always returns true
-	var nilMatcher Matcher[int]
-	fn := M(nilMatcher)
+	var nilMatcher cmp.Matcher[int]
+	fn := cmp.M(nilMatcher)
 
 	// Should return true for any value when matcher is nil
 	core.AssertTrue(t, fn(0), "nil matcher for 0")
@@ -179,12 +180,12 @@ func runTestMWithNilMatcher(t *testing.T) {
 func runTestMWithNonNilMatcher(t *testing.T) {
 	t.Helper()
 	// Create a matcher that checks for even numbers
-	isEven := MatchFunc[int](func(n int) bool {
+	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
 
 	// Convert to function
-	fn := M(isEven)
+	fn := cmp.M(isEven)
 
 	// Test the function behaviour
 	core.AssertTrue(t, fn(0), "0 is even")
