@@ -1,4 +1,4 @@
-package web
+package web_test
 
 // cspell:words Fevil
 
@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"darvaza.org/core"
+
+	"darvaza.org/x/web"
 )
 
 var _ core.TestCase = cleanTestCase{}
@@ -25,7 +27,7 @@ func (tc cleanTestCase) Name() string {
 func (tc cleanTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	s, ok := Clean(tc.path)
+	s, ok := web.Clean(tc.path)
 	core.AssertEqual(t, tc.out, s, "cleaned")
 	core.AssertEqual(t, tc.ok, ok, "ok")
 }
@@ -128,7 +130,7 @@ func (tc cleanURLTestCase) Name() string {
 func (tc cleanURLTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	s, err := CleanURL(tc.in)
+	s, err := web.CleanURL(tc.in)
 	core.AssertEqual(t, tc.out, s, "cleaned")
 	if tc.wantErr {
 		core.AssertError(t, err, "err expected")
