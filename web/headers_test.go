@@ -1,4 +1,4 @@
-package web
+package web_test
 
 import (
 	"net/http"
@@ -7,6 +7,7 @@ import (
 
 	"darvaza.org/core"
 
+	"darvaza.org/x/web"
 	"darvaza.org/x/web/consts"
 )
 
@@ -40,7 +41,7 @@ func (tc hasHeaderTestCase) Test(t *testing.T) {
 		hdr[tc.setKey] = tc.values
 	}
 
-	core.AssertEqual(t, tc.want, HasHeader(hdr, tc.queryAs), "HasHeader")
+	core.AssertEqual(t, tc.want, web.HasHeader(hdr, tc.queryAs), "HasHeader")
 }
 
 func newHasHeaderTestCase(name, setKey string, values []string,
@@ -71,7 +72,7 @@ func TestHasHeader(t *testing.T) {
 
 	core.RunTestCases(t, testCases)
 
-	core.AssertFalse(t, HasHeader(nil, "X-Test"), "HasHeader on nil map")
+	core.AssertFalse(t, web.HasHeader(nil, "X-Test"), "HasHeader on nil map")
 }
 
 type setHeaderTestCase struct {
@@ -90,7 +91,7 @@ func (tc setHeaderTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	hdr := make(http.Header)
-	SetHeader(hdr, tc.key, tc.value, tc.args...)
+	web.SetHeader(hdr, tc.key, tc.value, tc.args...)
 
 	actual := hdr.Get(tc.key)
 	core.AssertEqual(t, tc.expected, actual, "header value")
@@ -130,7 +131,7 @@ func (tc setCacheTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	hdr := make(http.Header)
-	SetCache(hdr, tc.duration)
+	web.SetCache(hdr, tc.duration)
 
 	actual := hdr.Get(consts.CacheControl)
 	core.AssertEqual(t, tc.expected, actual, "Cache-Control header")
@@ -159,7 +160,7 @@ func TestSetCache(t *testing.T) {
 
 func TestSetNoCache(t *testing.T) {
 	hdr := make(http.Header)
-	SetNoCache(hdr)
+	web.SetNoCache(hdr)
 
 	actual := hdr.Get(consts.CacheControl)
 	core.AssertEqual(t, "no-cache", actual, "Cache-Control header")
@@ -180,7 +181,7 @@ func (tc setRetryAfterTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	hdr := make(http.Header)
-	SetRetryAfter(hdr, tc.retryAfter)
+	web.SetRetryAfter(hdr, tc.retryAfter)
 
 	actual := hdr.Get(consts.RetryAfter)
 	core.AssertEqual(t, tc.expectedHeader, actual, "Retry-After header")
@@ -233,7 +234,7 @@ func (tc setLastModifiedHeaderTestCase) Test(t *testing.T) {
 		hdr.Set(consts.LastModified, tc.existingHeader)
 	}
 
-	SetLastModifiedHeader(hdr, tc.lastModified)
+	web.SetLastModifiedHeader(hdr, tc.lastModified)
 
 	actual := hdr.Get(consts.LastModified)
 	if tc.expectSet {
@@ -299,7 +300,7 @@ func (tc checkIfModifiedSinceTestCase) Test(t *testing.T) {
 		req.Header.Set(consts.IfModifiedSince, tc.headerValue)
 	}
 
-	result := CheckIfModifiedSince(req, tc.lastModified)
+	result := web.CheckIfModifiedSince(req, tc.lastModified)
 	core.AssertEqual(t, tc.expectModified, result, "modified check")
 }
 

@@ -1,10 +1,12 @@
-package sni
+package sni_test
 
 // cspell:words ulfheim
 
 import (
 	"fmt"
 	"testing"
+
+	"darvaza.org/x/tls/sni"
 )
 
 var TestHello12 = []byte{
@@ -56,23 +58,23 @@ var TestHello13 = []byte{
 }
 
 func Test_GetInfo12(t *testing.T) {
-	ci := GetInfo(TestHello12)
+	ci := sni.GetInfo(TestHello12)
 	testGetInfo(t, ci, "example.ulfheim.net")
 }
 
 func Test_GetInfo13(t *testing.T) {
-	ci := GetInfo(TestHello13)
+	ci := sni.GetInfo(TestHello13)
 	testGetInfo(t, ci, "example.ulfheim.net")
 }
 
-func testGetInfo(t *testing.T, ci *ClientHelloInfo, serverName string) {
+func testGetInfo(t *testing.T, ci *sni.ClientHelloInfo, serverName string) {
 	_, _ = fmt.Println()
 	_, _ = fmt.Println()
-	_, _ = fmt.Println("Version is:", VersionName(ci.Version))
-	_, _ = fmt.Println("Cipher Suites:", CipherSuites(ci.CipherSuites))
-	_, _ = fmt.Println("Compression Methods:", CompressionMethods(ci.CompressionMethods))
-	_, _ = fmt.Println("Supported Algos:", SignatureAlgos(ci.SupportedSignatureAlgorithms))
-	_, _ = fmt.Println("Supported Versions:", SupportedVersions(ci.SupportedVersions))
+	_, _ = fmt.Println("Version is:", sni.VersionName(ci.Version))
+	_, _ = fmt.Println("Cipher Suites:", sni.CipherSuites(ci.CipherSuites))
+	_, _ = fmt.Println("Compression Methods:", sni.CompressionMethods(ci.CompressionMethods))
+	_, _ = fmt.Println("Supported Algos:", sni.SignatureAlgos(ci.SupportedSignatureAlgorithms))
+	_, _ = fmt.Println("Supported Versions:", sni.SupportedVersions(ci.SupportedVersions))
 	_, _ = fmt.Println("Requested SNI:", ci.ServerName)
 	_, _ = fmt.Println("ALPN:", ci.ALPNProtocols)
 	if ci.ServerName == "" || ci.ServerName != serverName {

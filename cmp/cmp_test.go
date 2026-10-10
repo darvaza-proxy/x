@@ -1,9 +1,10 @@
-package cmp
+package cmp_test
 
 import (
 	"testing"
 
 	"darvaza.org/core"
+	"darvaza.org/x/cmp"
 )
 
 // TestCase interface validations
@@ -51,12 +52,12 @@ func TestEq(t *testing.T) {
 func runTestEqWithIntegers(t *testing.T) {
 	t.Helper()
 	tests := []cmpTestCase[int]{
-		newCmpTestCase("equal values", 5, 5, true, Eq[int], "Eq(%d, %d)"),
-		newCmpTestCase("different values", 5, 10, false, Eq[int], "Eq(%d, %d)"),
-		newCmpTestCase("negative values equal", -5, -5, true, Eq[int], "Eq(%d, %d)"),
-		newCmpTestCase("negative values different", -5, -10, false, Eq[int], "Eq(%d, %d)"),
-		newCmpTestCase("zero and non-zero", 0, 5, false, Eq[int], "Eq(%d, %d)"),
-		newCmpTestCase("zero and zero", 0, 0, true, Eq[int], "Eq(%d, %d)"),
+		newCmpTestCase("equal values", 5, 5, true, cmp.Eq[int], "Eq(%d, %d)"),
+		newCmpTestCase("different values", 5, 10, false, cmp.Eq[int], "Eq(%d, %d)"),
+		newCmpTestCase("negative values equal", -5, -5, true, cmp.Eq[int], "Eq(%d, %d)"),
+		newCmpTestCase("negative values different", -5, -10, false, cmp.Eq[int], "Eq(%d, %d)"),
+		newCmpTestCase("zero and non-zero", 0, 5, false, cmp.Eq[int], "Eq(%d, %d)"),
+		newCmpTestCase("zero and zero", 0, 0, true, cmp.Eq[int], "Eq(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -65,21 +66,24 @@ func runTestEqWithIntegers(t *testing.T) {
 func runTestEqWithStrings(t *testing.T) {
 	t.Helper()
 	tests := []cmpTestCase[string]{
-		newCmpTestCase("equal strings", "hello", "hello", true, Eq[string], "Eq(%q, %q)"),
-		newCmpTestCase("different strings", "hello", "world", false, Eq[string], "Eq(%q, %q)"),
-		newCmpTestCase("empty strings", "", "", true, Eq[string], "Eq(%q, %q)"),
-		newCmpTestCase("empty and non-empty", "", "hello", false, Eq[string], "Eq(%q, %q)"),
-		newCmpTestCase("case sensitivity", "Hello", "hello", false, Eq[string], "Eq(%q, %q)"),
+		newCmpTestCase("equal strings", "hello", "hello", true, cmp.Eq[string], "Eq(%q, %q)"),
+		newCmpTestCase("different strings", "hello", "world", false, cmp.Eq[string], "Eq(%q, %q)"),
+		newCmpTestCase("empty strings", "", "", true, cmp.Eq[string], "Eq(%q, %q)"),
+		newCmpTestCase("empty and non-empty", "", "hello", false, cmp.Eq[string], "Eq(%q, %q)"),
+		newCmpTestCase("case sensitivity", "Hello", "hello", false, cmp.Eq[string], "Eq(%q, %q)"),
 	}
 
 	core.RunTestCases(t, tests)
 }
 
+// checkFn is a comparison function taking a custom comparator
+type checkFn[T any] func(a, b T, fn cmp.CompFunc[T]) bool
+
 // cmpFnTestCase is a generic test case for comparison functions with custom comparator
 type cmpFnTestCase[T any] struct {
 	a, b     T
-	fn       func(a, b T, cmp CompFunc[T]) bool
-	cmp      CompFunc[T]
+	check    checkFn[T]
+	cmp      cmp.CompFunc[T]
 	name     string
 	fmt      string
 	expected bool
@@ -89,14 +93,14 @@ var _ core.TestCase = cmpFnTestCase[int]{}
 
 //revive:disable-next-line:argument-limit
 func newCmpFnTestCase[T any](name string, a, b T, expected bool,
-	cmp CompFunc[T], fn func(a, b T, cmp CompFunc[T]) bool, fmt string) cmpFnTestCase[T] {
+	fn cmp.CompFunc[T], check checkFn[T], fmt string) cmpFnTestCase[T] {
 	return cmpFnTestCase[T]{
 		name:     name,
 		a:        a,
 		b:        b,
 		expected: expected,
-		cmp:      cmp,
-		fn:       fn,
+		cmp:      fn,
+		check:    check,
 		fmt:      fmt,
 	}
 }
@@ -107,7 +111,7 @@ func (tc cmpFnTestCase[T]) Name() string {
 
 func (tc cmpFnTestCase[T]) Test(t *testing.T) {
 	t.Helper()
-	result := tc.fn(tc.a, tc.b, tc.cmp)
+	result := tc.check(tc.a, tc.b, tc.cmp)
 	core.AssertEqual(t, tc.expected, result, tc.fmt, tc.a, tc.b)
 }
 
@@ -120,7 +124,7 @@ func TestEqFn(t *testing.T) {
 
 func runTestEqFnWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -132,11 +136,11 @@ func runTestEqFnWithIntegers(t *testing.T) {
 	}
 
 	tests := []cmpFnTestCase[int]{
-		newCmpFnTestCase("equal values", 5, 5, true, cmp, EqFn[int], "EqFn(%d, %d)"),
-		newCmpFnTestCase("different values", 5, 10, false, cmp, EqFn[int], "EqFn(%d, %d)"),
-		newCmpFnTestCase("negative values equal", -5, -5, true, cmp, EqFn[int], "EqFn(%d, %d)"),
-		newCmpFnTestCase("negative values different", -5, -10, false, cmp, EqFn[int], "EqFn(%d, %d)"),
-		newCmpFnTestCase("zero and non-zero", 0, 5, false, cmp, EqFn[int], "EqFn(%d, %d)"),
+		newCmpFnTestCase("equal values", 5, 5, true, fn, cmp.EqFn[int], "EqFn(%d, %d)"),
+		newCmpFnTestCase("different values", 5, 10, false, fn, cmp.EqFn[int], "EqFn(%d, %d)"),
+		newCmpFnTestCase("negative values equal", -5, -5, true, fn, cmp.EqFn[int], "EqFn(%d, %d)"),
+		newCmpFnTestCase("negative values different", -5, -10, false, fn, cmp.EqFn[int], "EqFn(%d, %d)"),
+		newCmpFnTestCase("zero and non-zero", 0, 5, false, fn, cmp.EqFn[int], "EqFn(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -148,7 +152,7 @@ func runTestEqFnCustomStruct(t *testing.T) {
 		value float64
 	}
 
-	cmp := func(a, b score) int {
+	fn := func(a, b score) int {
 		switch {
 		case a.value < b.value:
 			return -1
@@ -163,8 +167,8 @@ func runTestEqFnCustomStruct(t *testing.T) {
 	s2 := score{2.71}
 	s3 := score{3.14}
 
-	core.AssertTrue(t, EqFn(s1, s3, cmp), "equal scores")
-	core.AssertFalse(t, EqFn(s1, s2, cmp), "different scores")
+	core.AssertTrue(t, cmp.EqFn(s1, s3, fn), "equal scores")
+	core.AssertFalse(t, cmp.EqFn(s1, s2, fn), "different scores")
 }
 
 func runTestEqFn2WithIntegers(t *testing.T) {
@@ -175,12 +179,12 @@ func runTestEqFn2WithIntegers(t *testing.T) {
 	}
 
 	tests := []cmpFn2TestCase[int]{
-		newCmpFn2TestCase("both even", 4, 6, true, sameParity, EqFn2[int], "EqFn2(%d, %d)"),
-		newCmpFn2TestCase("both odd", 5, 7, true, sameParity, EqFn2[int], "EqFn2(%d, %d)"),
-		newCmpFn2TestCase("even and odd", 4, 7, false, sameParity, EqFn2[int], "EqFn2(%d, %d)"),
-		newCmpFn2TestCase("odd and even", 5, 8, false, sameParity, EqFn2[int], "EqFn2(%d, %d)"),
-		newCmpFn2TestCase("zero and even", 0, 2, true, sameParity, EqFn2[int], "EqFn2(%d, %d)"),
-		newCmpFn2TestCase("negative numbers", -3, -5, true, sameParity, EqFn2[int], "EqFn2(%d, %d)"),
+		newCmpFn2TestCase("both even", 4, 6, true, sameParity, cmp.EqFn2[int], "EqFn2(%d, %d)"),
+		newCmpFn2TestCase("both odd", 5, 7, true, sameParity, cmp.EqFn2[int], "EqFn2(%d, %d)"),
+		newCmpFn2TestCase("even and odd", 4, 7, false, sameParity, cmp.EqFn2[int], "EqFn2(%d, %d)"),
+		newCmpFn2TestCase("odd and even", 5, 8, false, sameParity, cmp.EqFn2[int], "EqFn2(%d, %d)"),
+		newCmpFn2TestCase("zero and even", 0, 2, true, sameParity, cmp.EqFn2[int], "EqFn2(%d, %d)"),
+		newCmpFn2TestCase("negative numbers", -3, -5, true, sameParity, cmp.EqFn2[int], "EqFn2(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -188,7 +192,7 @@ func runTestEqFn2WithIntegers(t *testing.T) {
 
 func runTestNotEqFnWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -200,10 +204,10 @@ func runTestNotEqFnWithIntegers(t *testing.T) {
 	}
 
 	tests := []cmpFnTestCase[int]{
-		newCmpFnTestCase("equal values", 5, 5, false, cmp, NotEqFn[int], "NotEqFn(%d, %d)"),
-		newCmpFnTestCase("different values", 5, 10, true, cmp, NotEqFn[int], "NotEqFn(%d, %d)"),
-		newCmpFnTestCase("negative values equal", -5, -5, false, cmp, NotEqFn[int], "NotEqFn(%d, %d)"),
-		newCmpFnTestCase("negative values different", -5, -10, true, cmp, NotEqFn[int], "NotEqFn(%d, %d)"),
+		newCmpFnTestCase("equal values", 5, 5, false, fn, cmp.NotEqFn[int], "NotEqFn(%d, %d)"),
+		newCmpFnTestCase("different values", 5, 10, true, fn, cmp.NotEqFn[int], "NotEqFn(%d, %d)"),
+		newCmpFnTestCase("negative values equal", -5, -5, false, fn, cmp.NotEqFn[int], "NotEqFn(%d, %d)"),
+		newCmpFnTestCase("negative values different", -5, -10, true, fn, cmp.NotEqFn[int], "NotEqFn(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -217,10 +221,10 @@ func runTestNotEqFn2WithIntegers(t *testing.T) {
 	}
 
 	tests := []cmpFn2TestCase[int]{
-		newCmpFn2TestCase("both even", 4, 6, false, sameParity, NotEqFn2[int], "NotEqFn2(%d, %d)"),
-		newCmpFn2TestCase("both odd", 5, 7, false, sameParity, NotEqFn2[int], "NotEqFn2(%d, %d)"),
-		newCmpFn2TestCase("even and odd", 4, 7, true, sameParity, NotEqFn2[int], "NotEqFn2(%d, %d)"),
-		newCmpFn2TestCase("odd and even", 5, 8, true, sameParity, NotEqFn2[int], "NotEqFn2(%d, %d)"),
+		newCmpFn2TestCase("both even", 4, 6, false, sameParity, cmp.NotEqFn2[int], "NotEqFn2(%d, %d)"),
+		newCmpFn2TestCase("both odd", 5, 7, false, sameParity, cmp.NotEqFn2[int], "NotEqFn2(%d, %d)"),
+		newCmpFn2TestCase("even and odd", 4, 7, true, sameParity, cmp.NotEqFn2[int], "NotEqFn2(%d, %d)"),
+		newCmpFn2TestCase("odd and even", 5, 8, true, sameParity, cmp.NotEqFn2[int], "NotEqFn2(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -228,7 +232,7 @@ func runTestNotEqFn2WithIntegers(t *testing.T) {
 
 func runTestLtFnWithIntegers(t *testing.T) {
 	t.Helper()
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		switch {
 		case a < b:
 			return -1
@@ -240,11 +244,11 @@ func runTestLtFnWithIntegers(t *testing.T) {
 	}
 
 	tests := []cmpFnTestCase[int]{
-		newCmpFnTestCase("less", 5, 10, true, cmp, LtFn[int], "LtFn(%d, %d)"),
-		newCmpFnTestCase("greater", 10, 5, false, cmp, LtFn[int], "LtFn(%d, %d)"),
-		newCmpFnTestCase("equal", 5, 5, false, cmp, LtFn[int], "LtFn(%d, %d)"),
-		newCmpFnTestCase("negative numbers", -5, -3, true, cmp, LtFn[int], "LtFn(%d, %d)"),
-		newCmpFnTestCase("mixed signs", -1, 1, true, cmp, LtFn[int], "LtFn(%d, %d)"),
+		newCmpFnTestCase("less", 5, 10, true, fn, cmp.LtFn[int], "LtFn(%d, %d)"),
+		newCmpFnTestCase("greater", 10, 5, false, fn, cmp.LtFn[int], "LtFn(%d, %d)"),
+		newCmpFnTestCase("equal", 5, 5, false, fn, cmp.LtFn[int], "LtFn(%d, %d)"),
+		newCmpFnTestCase("negative numbers", -5, -3, true, fn, cmp.LtFn[int], "LtFn(%d, %d)"),
+		newCmpFnTestCase("mixed signs", -1, 1, true, fn, cmp.LtFn[int], "LtFn(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -254,15 +258,15 @@ func runTestLtFnWithIntegers(t *testing.T) {
 // function.
 func TestEqFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		EqFn(1, 2, nil)
+		cmp.EqFn(1, 2, nil)
 	}, expectedNilCompFuncErr, "EqFn nil cmp")
 }
 
 // cmpFn2TestCase is a generic test case for comparison functions with condition function
 type cmpFn2TestCase[T any] struct {
 	a, b     T
-	fn       func(a, b T, cond CondFunc[T]) bool
-	cond     CondFunc[T]
+	fn       func(a, b T, cond cmp.CondFunc[T]) bool
+	cond     cmp.CondFunc[T]
 	name     string
 	fmt      string
 	expected bool
@@ -272,7 +276,7 @@ var _ core.TestCase = cmpFn2TestCase[int]{}
 
 //revive:disable-next-line:argument-limit
 func newCmpFn2TestCase[T any](name string, a, b T, expected bool,
-	cond CondFunc[T], fn func(a, b T, cond CondFunc[T]) bool, fmt string) cmpFn2TestCase[T] {
+	cond cmp.CondFunc[T], fn func(a, b T, cond cmp.CondFunc[T]) bool, fmt string) cmpFn2TestCase[T] {
 	return cmpFn2TestCase[T]{
 		name:     name,
 		a:        a,
@@ -317,15 +321,15 @@ func runTestEqFn2CustomStruct(t *testing.T) {
 	p2 := person{nameBob, 30}
 	p3 := person{nameCharlie, 25}
 
-	core.AssertTrue(t, EqFn2(p1, p2, sameAge), "same age")
-	core.AssertFalse(t, EqFn2(p1, p3, sameAge), "different age")
+	core.AssertTrue(t, cmp.EqFn2(p1, p2, sameAge), "same age")
+	core.AssertFalse(t, cmp.EqFn2(p1, p3, sameAge), "different age")
 }
 
 // TestEqFn2Panic verifies that EqFn2 panics when given a nil condition
 // function.
 func TestEqFn2Panic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		EqFn2(1, 2, nil)
+		cmp.EqFn2(1, 2, nil)
 	}, expectedNilCondFuncErr, "EqFn2 nil cond")
 }
 
@@ -339,11 +343,11 @@ func TestNotEq(t *testing.T) {
 func runTestNotEqWithIntegers(t *testing.T) {
 	t.Helper()
 	tests := []cmpTestCase[int]{
-		newCmpTestCase("equal values", 5, 5, false, NotEq[int], "NotEq(%d, %d)"),
-		newCmpTestCase("different values", 5, 10, true, NotEq[int], "NotEq(%d, %d)"),
-		newCmpTestCase("zero and non-zero", 0, 5, true, NotEq[int], "NotEq(%d, %d)"),
-		newCmpTestCase("zero and zero", 0, 0, false, NotEq[int], "NotEq(%d, %d)"),
-		newCmpTestCase("negative values", -5, -10, true, NotEq[int], "NotEq(%d, %d)"),
+		newCmpTestCase("equal values", 5, 5, false, cmp.NotEq[int], "NotEq(%d, %d)"),
+		newCmpTestCase("different values", 5, 10, true, cmp.NotEq[int], "NotEq(%d, %d)"),
+		newCmpTestCase("zero and non-zero", 0, 5, true, cmp.NotEq[int], "NotEq(%d, %d)"),
+		newCmpTestCase("zero and zero", 0, 0, false, cmp.NotEq[int], "NotEq(%d, %d)"),
+		newCmpTestCase("negative values", -5, -10, true, cmp.NotEq[int], "NotEq(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -352,10 +356,10 @@ func runTestNotEqWithIntegers(t *testing.T) {
 func runTestNotEqWithStrings(t *testing.T) {
 	t.Helper()
 	tests := []cmpTestCase[string]{
-		newCmpTestCase("equal strings", "hello", "hello", false, NotEq[string], "NotEq(%q, %q)"),
-		newCmpTestCase("different strings", "hello", "world", true, NotEq[string], "NotEq(%q, %q)"),
-		newCmpTestCase("empty strings", "", "", false, NotEq[string], "NotEq(%q, %q)"),
-		newCmpTestCase("empty and non-empty", "", "hello", true, NotEq[string], "NotEq(%q, %q)"),
+		newCmpTestCase("equal strings", "hello", "hello", false, cmp.NotEq[string], "NotEq(%q, %q)"),
+		newCmpTestCase("different strings", "hello", "world", true, cmp.NotEq[string], "NotEq(%q, %q)"),
+		newCmpTestCase("empty strings", "", "", false, cmp.NotEq[string], "NotEq(%q, %q)"),
+		newCmpTestCase("empty and non-empty", "", "hello", true, cmp.NotEq[string], "NotEq(%q, %q)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -371,7 +375,7 @@ func TestNotEqFn(t *testing.T) {
 // comparison function.
 func TestNotEqFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		NotEqFn(1, 2, nil)
+		cmp.NotEqFn(1, 2, nil)
 	}, expectedNilCompFuncErr, "NotEqFn nil cmp")
 }
 
@@ -385,7 +389,7 @@ func TestNotEqFn2(t *testing.T) {
 // condition function.
 func TestNotEqFn2Panic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		NotEqFn2(1, 2, nil)
+		cmp.NotEqFn2(1, 2, nil)
 	}, expectedNilCondFuncErr, "NotEqFn2 nil cond")
 }
 
@@ -399,12 +403,12 @@ func TestLt(t *testing.T) {
 func runTestLtWithIntegers(t *testing.T) {
 	t.Helper()
 	tests := []cmpTestCase[int]{
-		newCmpTestCase("less", 5, 10, true, Lt[int], "Lt(%d, %d)"),
-		newCmpTestCase("greater", 10, 5, false, Lt[int], "Lt(%d, %d)"),
-		newCmpTestCase("equal", 5, 5, false, Lt[int], "Lt(%d, %d)"),
-		newCmpTestCase("negative and positive", -5, 5, true, Lt[int], "Lt(%d, %d)"),
-		newCmpTestCase("negative values", -10, -5, true, Lt[int], "Lt(%d, %d)"),
-		newCmpTestCase("with zero", 0, 5, true, Lt[int], "Lt(%d, %d)"),
+		newCmpTestCase("less", 5, 10, true, cmp.Lt[int], "Lt(%d, %d)"),
+		newCmpTestCase("greater", 10, 5, false, cmp.Lt[int], "Lt(%d, %d)"),
+		newCmpTestCase("equal", 5, 5, false, cmp.Lt[int], "Lt(%d, %d)"),
+		newCmpTestCase("negative and positive", -5, 5, true, cmp.Lt[int], "Lt(%d, %d)"),
+		newCmpTestCase("negative values", -10, -5, true, cmp.Lt[int], "Lt(%d, %d)"),
+		newCmpTestCase("with zero", 0, 5, true, cmp.Lt[int], "Lt(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -413,11 +417,11 @@ func runTestLtWithIntegers(t *testing.T) {
 func runTestLtWithStrings(t *testing.T) {
 	t.Helper()
 	tests := []cmpTestCase[string]{
-		newCmpTestCase("lexicographically less", "apple", "banana", true, Lt[string], "Lt(%q, %q)"),
-		newCmpTestCase("lexicographically greater", "zebra", "apple", false, Lt[string], "Lt(%q, %q)"),
-		newCmpTestCase("equal strings", "apple", "apple", false, Lt[string], "Lt(%q, %q)"),
-		newCmpTestCase("empty string", "", "a", true, Lt[string], "Lt(%q, %q)"),
-		newCmpTestCase("case sensitivity", "Z", "a", true, Lt[string], "Lt(%q, %q)"), // ASCII 'Z' comes before 'a'
+		newCmpTestCase("lexicographically less", "apple", "banana", true, cmp.Lt[string], "Lt(%q, %q)"),
+		newCmpTestCase("lexicographically greater", "zebra", "apple", false, cmp.Lt[string], "Lt(%q, %q)"),
+		newCmpTestCase("equal strings", "apple", "apple", false, cmp.Lt[string], "Lt(%q, %q)"),
+		newCmpTestCase("empty string", "", "a", true, cmp.Lt[string], "Lt(%q, %q)"),
+		newCmpTestCase("case sensitivity", "Z", "a", true, cmp.Lt[string], "Lt(%q, %q)"), // ASCII 'Z' comes before 'a'
 	}
 
 	core.RunTestCases(t, tests)
@@ -433,7 +437,7 @@ func TestLtFn(t *testing.T) {
 // function.
 func TestLtFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		LtFn(1, 2, nil)
+		cmp.LtFn(1, 2, nil)
 	}, expectedNilCompFuncErr, "LtFn nil cmp")
 }
 
@@ -441,11 +445,11 @@ func TestLtFnPanic(t *testing.T) {
 // relationships for ordered types.
 func TestGt(t *testing.T) {
 	tests := []cmpTestCase[int]{
-		newCmpTestCase("greater", 10, 5, true, Gt[int], "Gt(%d, %d)"),
-		newCmpTestCase("less", 5, 10, false, Gt[int], "Gt(%d, %d)"),
-		newCmpTestCase("equal", 5, 5, false, Gt[int], "Gt(%d, %d)"),
-		newCmpTestCase("negative and positive", -5, 5, false, Gt[int], "Gt(%d, %d)"),
-		newCmpTestCase("negative values", -5, -10, true, Gt[int], "Gt(%d, %d)"),
+		newCmpTestCase("greater", 10, 5, true, cmp.Gt[int], "Gt(%d, %d)"),
+		newCmpTestCase("less", 5, 10, false, cmp.Gt[int], "Gt(%d, %d)"),
+		newCmpTestCase("equal", 5, 5, false, cmp.Gt[int], "Gt(%d, %d)"),
+		newCmpTestCase("negative and positive", -5, 5, false, cmp.Gt[int], "Gt(%d, %d)"),
+		newCmpTestCase("negative values", -5, -10, true, cmp.Gt[int], "Gt(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -454,7 +458,7 @@ func TestGt(t *testing.T) {
 // TestGtFn verifies that GtFn correctly determines "greater than"
 // relationships using a custom comparison function.
 func TestGtFn(t *testing.T) {
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		if a < b {
 			return -1
 		}
@@ -465,9 +469,9 @@ func TestGtFn(t *testing.T) {
 	}
 
 	tests := []cmpFnTestCase[int]{
-		newCmpFnTestCase("greater", 10, 5, true, cmp, GtFn[int], "GtFn(%d, %d)"),
-		newCmpFnTestCase("less", 5, 10, false, cmp, GtFn[int], "GtFn(%d, %d)"),
-		newCmpFnTestCase("equal", 5, 5, false, cmp, GtFn[int], "GtFn(%d, %d)"),
+		newCmpFnTestCase("greater", 10, 5, true, fn, cmp.GtFn[int], "GtFn(%d, %d)"),
+		newCmpFnTestCase("less", 5, 10, false, fn, cmp.GtFn[int], "GtFn(%d, %d)"),
+		newCmpFnTestCase("equal", 5, 5, false, fn, cmp.GtFn[int], "GtFn(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -477,7 +481,7 @@ func TestGtFn(t *testing.T) {
 // function.
 func TestGtFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		GtFn(1, 2, nil)
+		cmp.GtFn(1, 2, nil)
 	}, expectedNilCompFuncErr, "GtFn nil cmp")
 }
 
@@ -485,10 +489,10 @@ func TestGtFnPanic(t *testing.T) {
 // or equal to" relationships for ordered types.
 func TestGtEq(t *testing.T) {
 	tests := []cmpTestCase[int]{
-		newCmpTestCase("greater", 10, 5, true, GtEq[int], "GtEq(%d, %d)"),
-		newCmpTestCase("less", 5, 10, false, GtEq[int], "GtEq(%d, %d)"),
-		newCmpTestCase("equal", 5, 5, true, GtEq[int], "GtEq(%d, %d)"),
-		newCmpTestCase("negative and positive", -5, 5, false, GtEq[int], "GtEq(%d, %d)"),
+		newCmpTestCase("greater", 10, 5, true, cmp.GtEq[int], "GtEq(%d, %d)"),
+		newCmpTestCase("less", 5, 10, false, cmp.GtEq[int], "GtEq(%d, %d)"),
+		newCmpTestCase("equal", 5, 5, true, cmp.GtEq[int], "GtEq(%d, %d)"),
+		newCmpTestCase("negative and positive", -5, 5, false, cmp.GtEq[int], "GtEq(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -497,7 +501,7 @@ func TestGtEq(t *testing.T) {
 // TestGtEqFn verifies that GtEqFn correctly determines "greater than or
 // equal to" relationships using a custom comparison function.
 func TestGtEqFn(t *testing.T) {
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		if a < b {
 			return -1
 		}
@@ -508,9 +512,9 @@ func TestGtEqFn(t *testing.T) {
 	}
 
 	tests := []cmpFnTestCase[int]{
-		newCmpFnTestCase("greater", 10, 5, true, cmp, GtEqFn[int], "GtEqFn(%d, %d)"),
-		newCmpFnTestCase("less", 5, 10, false, cmp, GtEqFn[int], "GtEqFn(%d, %d)"),
-		newCmpFnTestCase("equal", 5, 5, true, cmp, GtEqFn[int], "GtEqFn(%d, %d)"),
+		newCmpFnTestCase("greater", 10, 5, true, fn, cmp.GtEqFn[int], "GtEqFn(%d, %d)"),
+		newCmpFnTestCase("less", 5, 10, false, fn, cmp.GtEqFn[int], "GtEqFn(%d, %d)"),
+		newCmpFnTestCase("equal", 5, 5, true, fn, cmp.GtEqFn[int], "GtEqFn(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -520,7 +524,7 @@ func TestGtEqFn(t *testing.T) {
 // function.
 func TestGtEqFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		GtEqFn(1, 2, nil)
+		cmp.GtEqFn(1, 2, nil)
 	}, expectedNilCompFuncErr, "GtEqFn nil cmp")
 }
 
@@ -528,10 +532,10 @@ func TestGtEqFnPanic(t *testing.T) {
 // equal to" relationships for ordered types.
 func TestLtEq(t *testing.T) {
 	tests := []cmpTestCase[int]{
-		newCmpTestCase("less", 5, 10, true, LtEq[int], "LtEq(%d, %d)"),
-		newCmpTestCase("greater", 10, 5, false, LtEq[int], "LtEq(%d, %d)"),
-		newCmpTestCase("equal", 5, 5, true, LtEq[int], "LtEq(%d, %d)"),
-		newCmpTestCase("negative and positive", -5, 5, true, LtEq[int], "LtEq(%d, %d)"),
+		newCmpTestCase("less", 5, 10, true, cmp.LtEq[int], "LtEq(%d, %d)"),
+		newCmpTestCase("greater", 10, 5, false, cmp.LtEq[int], "LtEq(%d, %d)"),
+		newCmpTestCase("equal", 5, 5, true, cmp.LtEq[int], "LtEq(%d, %d)"),
+		newCmpTestCase("negative and positive", -5, 5, true, cmp.LtEq[int], "LtEq(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -540,7 +544,7 @@ func TestLtEq(t *testing.T) {
 // TestLtEqFn verifies that LtEqFn correctly determines "less than or
 // equal to" relationships using a custom comparison function.
 func TestLtEqFn(t *testing.T) {
-	cmp := func(a, b int) int {
+	fn := func(a, b int) int {
 		if a < b {
 			return -1
 		}
@@ -551,9 +555,9 @@ func TestLtEqFn(t *testing.T) {
 	}
 
 	tests := []cmpFnTestCase[int]{
-		newCmpFnTestCase("less", 5, 10, true, cmp, LtEqFn[int], "LtEqFn(%d, %d)"),
-		newCmpFnTestCase("greater", 10, 5, false, cmp, LtEqFn[int], "LtEqFn(%d, %d)"),
-		newCmpFnTestCase("equal", 5, 5, true, cmp, LtEqFn[int], "LtEqFn(%d, %d)"),
+		newCmpFnTestCase("less", 5, 10, true, fn, cmp.LtEqFn[int], "LtEqFn(%d, %d)"),
+		newCmpFnTestCase("greater", 10, 5, false, fn, cmp.LtEqFn[int], "LtEqFn(%d, %d)"),
+		newCmpFnTestCase("equal", 5, 5, true, fn, cmp.LtEqFn[int], "LtEqFn(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -563,7 +567,7 @@ func TestLtEqFn(t *testing.T) {
 // function.
 func TestLtEqFnPanic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		LtEqFn(1, 2, nil)
+		cmp.LtEqFn(1, 2, nil)
 	}, expectedNilCompFuncErr, "LtEqFn nil cmp")
 }
 
@@ -574,7 +578,7 @@ type customType struct {
 }
 
 func TestCustomTypeComparison(t *testing.T) {
-	cmp := func(a, b customType) int {
+	fn := func(a, b customType) int {
 		return a.value - b.value
 	}
 
@@ -582,21 +586,21 @@ func TestCustomTypeComparison(t *testing.T) {
 	b := customType{value: 10}
 	c := customType{value: 5}
 
-	core.AssertTrue(t, EqFn(a, c, cmp), "EqFn(a, c)")
-	core.AssertFalse(t, EqFn(a, b, cmp), "EqFn(a, b)")
-	core.AssertTrue(t, NotEqFn(a, b, cmp), "NotEqFn(a, b)")
-	core.AssertTrue(t, LtFn(a, b, cmp), "LtFn(a, b)")
-	core.AssertTrue(t, LtEqFn(a, b, cmp), "LtEqFn(a, b)")
-	core.AssertTrue(t, LtEqFn(a, c, cmp), "LtEqFn(a, c)")
-	core.AssertFalse(t, GtFn(a, b, cmp), "GtFn(a, b)")
-	core.AssertTrue(t, GtFn(b, a, cmp), "GtFn(b, a)")
-	core.AssertTrue(t, GtEqFn(a, c, cmp), "GtEqFn(a, c)")
+	core.AssertTrue(t, cmp.EqFn(a, c, fn), "EqFn(a, c)")
+	core.AssertFalse(t, cmp.EqFn(a, b, fn), "EqFn(a, b)")
+	core.AssertTrue(t, cmp.NotEqFn(a, b, fn), "NotEqFn(a, b)")
+	core.AssertTrue(t, cmp.LtFn(a, b, fn), "LtFn(a, b)")
+	core.AssertTrue(t, cmp.LtEqFn(a, b, fn), "LtEqFn(a, b)")
+	core.AssertTrue(t, cmp.LtEqFn(a, c, fn), "LtEqFn(a, c)")
+	core.AssertFalse(t, cmp.GtFn(a, b, fn), "GtFn(a, b)")
+	core.AssertTrue(t, cmp.GtFn(b, a, fn), "GtFn(b, a)")
+	core.AssertTrue(t, cmp.GtEqFn(a, c, fn), "GtEqFn(a, c)")
 }
 
 // ltEqFn2TestCase is a test case for LtEqFn2 function
 type ltEqFn2TestCase[T any] struct {
 	a, b     T
-	less     CondFunc[T]
+	less     cmp.CondFunc[T]
 	name     string
 	fmt      string
 	expected bool
@@ -605,7 +609,8 @@ type ltEqFn2TestCase[T any] struct {
 var _ core.TestCase = ltEqFn2TestCase[int]{}
 
 //revive:disable-next-line:argument-limit
-func newLtEqFn2TestCase[T any](name string, a, b T, expected bool, less CondFunc[T], fmt string) ltEqFn2TestCase[T] {
+func newLtEqFn2TestCase[T any](name string, a, b T, expected bool,
+	less cmp.CondFunc[T], fmt string) ltEqFn2TestCase[T] {
 	return ltEqFn2TestCase[T]{
 		name:     name,
 		a:        a,
@@ -622,7 +627,7 @@ func (tc ltEqFn2TestCase[T]) Name() string {
 
 func (tc ltEqFn2TestCase[T]) Test(t *testing.T) {
 	t.Helper()
-	result := LtEqFn2(tc.a, tc.b, tc.less)
+	result := cmp.LtEqFn2(tc.a, tc.b, tc.less)
 	core.AssertEqual(t, tc.expected, result, tc.fmt, tc.a, tc.b)
 }
 
@@ -679,7 +684,7 @@ func runTestLtEqFn2Temperature(t *testing.T) {
 // condition function.
 func TestLtEqFn2Panic(t *testing.T) {
 	core.AssertPanic(t, func() {
-		LtEqFn2(1, 2, nil)
+		cmp.LtEqFn2(1, 2, nil)
 	}, expectedNilCondFuncErr, "LtEqFn2 nil less")
 }
 
@@ -698,11 +703,11 @@ func runTestLtFn2WithIntegers(t *testing.T) {
 	}
 
 	tests := []cmpFn2TestCase[int]{
-		newCmpFn2TestCase("a less than b", 3, 5, true, less, LtFn2[int], "LtFn2(%d, %d)"),
-		newCmpFn2TestCase("a equal to b", 5, 5, false, less, LtFn2[int], "LtFn2(%d, %d)"),
-		newCmpFn2TestCase("a greater than b", 7, 5, false, less, LtFn2[int], "LtFn2(%d, %d)"),
-		newCmpFn2TestCase("negative values", -10, -5, true, less, LtFn2[int], "LtFn2(%d, %d)"),
-		newCmpFn2TestCase("zero comparison", 0, 1, true, less, LtFn2[int], "LtFn2(%d, %d)"),
+		newCmpFn2TestCase("a less than b", 3, 5, true, less, cmp.LtFn2[int], "LtFn2(%d, %d)"),
+		newCmpFn2TestCase("a equal to b", 5, 5, false, less, cmp.LtFn2[int], "LtFn2(%d, %d)"),
+		newCmpFn2TestCase("a greater than b", 7, 5, false, less, cmp.LtFn2[int], "LtFn2(%d, %d)"),
+		newCmpFn2TestCase("negative values", -10, -5, true, less, cmp.LtFn2[int], "LtFn2(%d, %d)"),
+		newCmpFn2TestCase("zero comparison", 0, 1, true, less, cmp.LtFn2[int], "LtFn2(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -711,7 +716,7 @@ func runTestLtFn2WithIntegers(t *testing.T) {
 func runTestLtFn2Panic(t *testing.T) {
 	t.Helper()
 	core.AssertPanic(t, func() {
-		LtFn2(1, 2, nil)
+		cmp.LtFn2(1, 2, nil)
 	}, expectedNilCondFuncErr, "LtFn2 nil less")
 }
 
@@ -730,11 +735,11 @@ func runTestGtEqFn2WithIntegers(t *testing.T) {
 	}
 
 	tests := []cmpFn2TestCase[int]{
-		newCmpFn2TestCase("a greater than b", 7, 5, true, less, GtEqFn2[int], "GtEqFn2(%d, %d)"),
-		newCmpFn2TestCase("a equal to b", 5, 5, true, less, GtEqFn2[int], "GtEqFn2(%d, %d)"),
-		newCmpFn2TestCase("a less than b", 3, 5, false, less, GtEqFn2[int], "GtEqFn2(%d, %d)"),
-		newCmpFn2TestCase("negative values", -5, -10, true, less, GtEqFn2[int], "GtEqFn2(%d, %d)"),
-		newCmpFn2TestCase("zero comparison", 1, 0, true, less, GtEqFn2[int], "GtEqFn2(%d, %d)"),
+		newCmpFn2TestCase("a greater than b", 7, 5, true, less, cmp.GtEqFn2[int], "GtEqFn2(%d, %d)"),
+		newCmpFn2TestCase("a equal to b", 5, 5, true, less, cmp.GtEqFn2[int], "GtEqFn2(%d, %d)"),
+		newCmpFn2TestCase("a less than b", 3, 5, false, less, cmp.GtEqFn2[int], "GtEqFn2(%d, %d)"),
+		newCmpFn2TestCase("negative values", -5, -10, true, less, cmp.GtEqFn2[int], "GtEqFn2(%d, %d)"),
+		newCmpFn2TestCase("zero comparison", 1, 0, true, less, cmp.GtEqFn2[int], "GtEqFn2(%d, %d)"),
 	}
 
 	core.RunTestCases(t, tests)
@@ -743,6 +748,6 @@ func runTestGtEqFn2WithIntegers(t *testing.T) {
 func runTestGtEqFn2Panic(t *testing.T) {
 	t.Helper()
 	core.AssertPanic(t, func() {
-		GtEqFn2(1, 2, nil)
+		cmp.GtEqFn2(1, 2, nil)
 	}, expectedNilCondFuncErr, "GtEqFn2 nil less")
 }

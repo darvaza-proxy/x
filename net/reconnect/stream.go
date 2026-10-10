@@ -68,7 +68,7 @@ type StreamSession[Input, Output any] struct {
 // cancellation can first fire OnCancel. By then init has already wired
 // onCancel (ahead of setDefaults), so a cancel here must still reach
 // OnError and release the session; regressing that order makes the seam's
-// test go red. It is a white-box test seam (see stream_private_test.go)
+// test go red. It is a white-box test seam (see stream_internal_test.go)
 // and stays nil in production.
 var streamInitCancelHook func(*workgroup.Group)
 

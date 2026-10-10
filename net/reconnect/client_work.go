@@ -149,7 +149,7 @@ func (c *Client) runError(conn net.Conn, e1, e2 error) bool {
 // runSessionBeforeSetConn, when non-nil, is invoked at the top of
 // runSession before the dialled connection is stored, receiving the
 // Client's context. It is a white-box test seam for the cancel-before-
-// setConn window (see client_work_private_test.go) and stays nil in
+// setConn window (see client_work_internal_test.go) and stays nil in
 // production.
 var runSessionBeforeSetConn func(context.Context)
 

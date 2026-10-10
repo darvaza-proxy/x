@@ -1,10 +1,11 @@
-package fssyscall
+package fssyscall_test
 
 import (
 	"os"
 	"testing"
 
 	"darvaza.org/core"
+	"darvaza.org/x/fs/fssyscall"
 )
 
 // Compile-time verification that test case types implement TestCase interface
@@ -52,14 +53,14 @@ func fileLockTestCases() []fileLockTestCase {
 
 	return []fileLockTestCase{
 		// Nil file tests - should return core.ErrInvalid
-		newFileLockTestCase("FLockEx with nil file", FLockEx, nil, core.ErrInvalid),
-		newFileLockTestCase("FUnlockEx with nil file", FUnlockEx, nil, core.ErrInvalid),
-		newFileLockTestCase("FTryLockEx with nil file", FTryLockEx, nil, core.ErrInvalid),
+		newFileLockTestCase("FLockEx with nil file", fssyscall.FLockEx, nil, core.ErrInvalid),
+		newFileLockTestCase("FUnlockEx with nil file", fssyscall.FUnlockEx, nil, core.ErrInvalid),
+		newFileLockTestCase("FTryLockEx with nil file", fssyscall.FTryLockEx, nil, core.ErrInvalid),
 
 		// Valid file tests - behaviour depends on platform
-		newFileLockTestCase("FLockEx with valid file", FLockEx, tempFile, nil),
-		newFileLockTestCase("FUnlockEx with valid file", FUnlockEx, tempFile, nil),
-		newFileLockTestCase("FTryLockEx with valid file", FTryLockEx, tempFile, nil),
+		newFileLockTestCase("FLockEx with valid file", fssyscall.FLockEx, tempFile, nil),
+		newFileLockTestCase("FUnlockEx with valid file", fssyscall.FUnlockEx, tempFile, nil),
+		newFileLockTestCase("FTryLockEx with valid file", fssyscall.FTryLockEx, tempFile, nil),
 	}
 }
 
@@ -95,11 +96,11 @@ func runTestLockUnlockSequence(t *testing.T) {
 	}()
 
 	// Lock the file
-	err = FLockEx(tempFile)
+	err = fssyscall.FLockEx(tempFile)
 	core.AssertNoError(t, err, "lock file")
 
 	// Unlock the file
-	err = FUnlockEx(tempFile)
+	err = fssyscall.FUnlockEx(tempFile)
 	core.AssertNoError(t, err, "unlock file")
 }
 
@@ -119,11 +120,11 @@ func runTestTryLockUnlocked(t *testing.T) {
 	}()
 
 	// Try lock should succeed on unlocked file
-	err = FTryLockEx(tempFile)
+	err = fssyscall.FTryLockEx(tempFile)
 	core.AssertNoError(t, err, "try lock unlocked file")
 
 	// Clean up by unlocking
-	err = FUnlockEx(tempFile)
+	err = fssyscall.FUnlockEx(tempFile)
 	core.AssertNoError(t, err, "unlock after try lock")
 }
 
@@ -136,15 +137,15 @@ func runTestNilFileValidation(t *testing.T) {
 	t.Helper()
 
 	// Test all functions with nil file
-	err := FLockEx(nil)
+	err := fssyscall.FLockEx(nil)
 	core.AssertError(t, err, "FLockEx with nil")
 	core.AssertErrorIs(t, err, core.ErrInvalid, "FLockEx error type")
 
-	err = FUnlockEx(nil)
+	err = fssyscall.FUnlockEx(nil)
 	core.AssertError(t, err, "FUnlockEx with nil")
 	core.AssertErrorIs(t, err, core.ErrInvalid, "FUnlockEx error type")
 
-	err = FTryLockEx(nil)
+	err = fssyscall.FTryLockEx(nil)
 	core.AssertError(t, err, "FTryLockEx with nil")
 	core.AssertErrorIs(t, err, core.ErrInvalid, "FTryLockEx error type")
 }
