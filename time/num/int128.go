@@ -49,6 +49,52 @@ func AsInt128(x int64) Int128 {
 	return Int128{hi: uint64(x >> 63), lo: uint64(x)}
 }
 
+// ParseInt128 reads an Int128 from its decimal text, an optional sign
+// and the digits, as [strconv.ParseInt] reads an int64: base 10 only,
+// with no underscores, prefixes or spaces. Any other form fails with
+// [ErrSyntax] and a zero value, and a number past the range with
+// [ErrRange] and the nearest bound, MaxInt128 or MinInt128, both
+// reported in a [ParseError].
+func ParseInt128(s string) (Int128, error) {
+	return doParseInt128(s)
+}
+
+// doParseInt128 reads s, a string or the bytes as given, as
+// strconv.ParseInt reads an int64 in base 10, an optional sign and the
+// digits and nothing else, at 128 bits. Text in any other form returns
+// zero, and a number past the range the nearest bound, each failure
+// reported in a ParseError under ParseInt128's name, with a copy of s.
+// As in strconv, the magnitude is read at the unsigned width and then
+// held to the sign's bound, and the text is read from the left, so a
+// magnitude past 128 bits fails on its range before a stray byte after
+// its digits fails on syntax. It is generic so ParseInt128 and
+// UnmarshalText read through one body.
+func doParseInt128[S stringOrBytes](s S) (Int128, error) {
+	sc := scanner[S]{src: s}
+	neg := sc.sign()
+	u, n, ok := sc.magnitude128()
+	switch {
+	case n == 0, ok && !sc.done():
+		return Int128{}, newParseError("ParseInt128", s, ErrSyntax)
+	default:
+		v, err := boundInt128(u, neg)
+		if err != nil {
+			return v, newParseError("ParseInt128", s, err)
+		}
+		return v, nil
+	}
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler], storing the
+// ParseInt128 value of the text in v. It fails as ParseInt128 does,
+// and with [core.ErrNilReceiver] on a nil v once the text parsed, the
+// error carrying the method's name in front of the cause; v is left as
+// it was on any failure.
+func (v *Int128) UnmarshalText(text []byte) error {
+	x, err := doParseInt128(text)
+	return unmarshalInto(v, x, err, "UnmarshalText")
+}
+
 // asInt64 returns v as a native int64 and whether it fits: the high
 // word must be the sign of the low word extended across it.
 func (v Int128) asInt64() (int64, bool) {

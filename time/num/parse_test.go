@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"errors"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"testing"
@@ -42,6 +43,12 @@ func parseAs[T num.Number[T]](s string) (T, error) {
 	case num.Int64:
 		x, err := num.ParseInt64(s)
 		return core.MustOK(core.As[num.Int64, T](x)), err
+	case num.Uint128:
+		x, err := num.ParseUint128(s)
+		return core.MustOK(core.As[num.Uint128, T](x)), err
+	case num.Int128:
+		x, err := num.ParseInt128(s)
+		return core.MustOK(core.As[num.Int128, T](x)), err
 	default:
 		// T is one of the parsed types, each with an arm above.
 		return zero, core.NewUnreachableErrorf(0, nil, "no parser for %s",
@@ -58,6 +65,10 @@ func parseFuncName[T num.Number[T]]() string {
 		return "ParseInt32"
 	case num.Int64:
 		return "ParseInt64"
+	case num.Uint128:
+		return "ParseUint128"
+	case num.Int128:
+		return "ParseInt128"
 	default:
 		// T is one of the parsed types, each with an arm above.
 		panic(core.NewUnreachableErrorf(0, nil, "no parser name for %s",
@@ -140,8 +151,10 @@ func (tc parseCase[T, PT]) assertError(t *testing.T, err error) {
 // The seeds every row starts the receiver from, a value no row
 // expects.
 var (
-	seed32 = num.AsInt32(99)
-	seed64 = num.AsInt64(99)
+	seed32   = num.AsInt32(99)
+	seed64   = num.AsInt64(99)
+	seedU128 = num.AsUint128(99)
+	seed128  = num.AsInt128(99)
 )
 
 func parseInt32Cases() []parseCase[num.Int32, *num.Int32] {
@@ -199,9 +212,136 @@ func parseInt64Cases() []parseCase[num.Int64, *num.Int64] {
 	}
 }
 
+func parseUint128Cases() []parseCase[num.Uint128, *num.Uint128] {
+	return []parseCase[num.Uint128, *num.Uint128]{
+		newParseCase("zero", "0", seedU128, num.ZeroUint128),
+		newParseCase("leading zeros", "007", seedU128, num.AsUint128(7)),
+		newParseCase("low word", "42", seedU128, num.AsUint128(42)),
+		newParseCase("max uint64", "18446744073709551615", seedU128,
+			num.AsUint128(math.MaxUint64)),
+		newParseCase("two to the 64", "18446744073709551616", seedU128,
+			num.NewUint128(1, 0)),
+		newParseCase("max", maxUint128Text, seedU128, num.MaxUint128),
+		newParseCase("forty digits", "0000000000000000000000000000000000000001",
+			seedU128, num.AsUint128(1)),
+		// past the range the value is the bound, as strconv has it.
+		newParseCaseErr("two to the 128",
+			"340282366920938463463374607431768211456", seedU128,
+			num.MaxUint128, num.ErrRange),
+		newParseCaseErr("far past", "1"+strings.Repeat("0", 39), seedU128,
+			num.MaxUint128, num.ErrRange),
+		// 2^128 * 10^18, three full groups of 19 digits, wraps to zero
+		// past 128 bits, so the group after it must not read as a fit.
+		newParseCaseErr("past the wrap to zero",
+			"340282366920938463463374607431768211456"+
+				strings.Repeat("0", 18)+"1", seedU128,
+			num.MaxUint128, num.ErrRange),
+		// a text both malformed and too long fails on range once the
+		// digits before the bad byte pass 128 bits, and on syntax while
+		// they fit, as strconv has it, reading one digit at a time.
+		newParseCaseErr("letter after max", maxUint128Text+"x", seedU128,
+			num.ZeroUint128, num.ErrSyntax),
+		newParseCaseErr("letter after two to the 128",
+			"340282366920938463463374607431768211456x", seedU128,
+			num.MaxUint128, num.ErrRange),
+		newParseCaseErr("letter past range", strings.Repeat("9", 41)+"x",
+			seedU128, num.MaxUint128, num.ErrRange),
+		newParseCaseErr("letter a group after the overflow",
+			"1"+strings.Repeat("0", 57)+"x", seedU128, num.MaxUint128,
+			num.ErrRange),
+		newParseCaseErr("letter before range", "1x"+strings.Repeat("0", 40),
+			seedU128, num.ZeroUint128, num.ErrSyntax),
+		newParseCaseErr("plus", "+1", seedU128, num.ZeroUint128, num.ErrSyntax),
+		newParseCaseErr("minus", "-1", seedU128, num.ZeroUint128,
+			num.ErrSyntax),
+		newParseCaseErr("empty", "", seedU128, num.ZeroUint128, num.ErrSyntax),
+		newParseCaseErr("point", "1.0", seedU128, num.ZeroUint128,
+			num.ErrSyntax),
+		newParseCaseErr("underscore", "1_000", seedU128, num.ZeroUint128,
+			num.ErrSyntax),
+		newParseCaseErr("hex", "0x10", seedU128, num.ZeroUint128,
+			num.ErrSyntax),
+		newParseCaseErr("leading space", " 1", seedU128, num.ZeroUint128,
+			num.ErrSyntax),
+		newParseCaseErr("trailing letter", "12a", seedU128, num.ZeroUint128,
+			num.ErrSyntax),
+	}
+}
+
+func parseInt128Cases() []parseCase[num.Int128, *num.Int128] {
+	return []parseCase[num.Int128, *num.Int128]{
+		newParseCase("zero", "0", seed128, num.ZeroInt128),
+		newParseCase("negative zero", "-0", seed128, num.ZeroInt128),
+		newParseCase("negative", "-42", seed128, num.AsInt128(-42)),
+		newParseCase("plus", "+7", seed128, num.AsInt128(7)),
+		newParseCase("leading zeros", "007", seed128, num.AsInt128(7)),
+		newParseCase("past int64", "9223372036854775808", seed128,
+			num.NewInt128(0, 1<<63)),
+		// -(2^63+1) in two's complement: the high word all ones, the low
+		// word 2^63-1.
+		newParseCase("below int64", "-9223372036854775809", seed128,
+			num.NewInt128(math.MaxUint64, math.MaxInt64)),
+		newParseCase("max", maxInt128Text, seed128, num.MaxInt128),
+		newParseCase("min", minInt128Text, seed128, num.MinInt128),
+		// past the range the value is the nearest bound, as strconv has it.
+		newParseCaseErr("past max", "170141183460469231731687303715884105728",
+			seed128, num.MaxInt128, num.ErrRange),
+		newParseCaseErr("below min",
+			"-170141183460469231731687303715884105729", seed128,
+			num.MinInt128, num.ErrRange),
+		newParseCaseErr("far past", strings.Repeat("9", 45), seed128,
+			num.MaxInt128, num.ErrRange),
+		newParseCaseErr("far below", "-"+strings.Repeat("9", 45), seed128,
+			num.MinInt128, num.ErrRange),
+		// the digits before the letter pass 128 bits, so the range
+		// failure comes first, as strconv has it, clamped to the sign.
+		newParseCaseErr("letter past range", "-"+strings.Repeat("9", 41)+"x",
+			seed128, num.MinInt128, num.ErrRange),
+		newParseCaseErr("letter after two to the 128",
+			"340282366920938463463374607431768211456x", seed128,
+			num.MaxInt128, num.ErrRange),
+		newParseCaseErr("letter below minus two to the 128",
+			"-340282366920938463463374607431768211456x", seed128,
+			num.MinInt128, num.ErrRange),
+		// the digits before the letter fit 128 bits, within the sign's
+		// bound or past it, so the letter comes first, as
+		// strconv.ParseInt has it.
+		newParseCaseErr("letter past sign bound",
+			"170141183460469231731687303715884105728x", seed128,
+			num.ZeroInt128, num.ErrSyntax),
+		newParseCaseErr("letter after min", minInt128Text+"x", seed128,
+			num.ZeroInt128, num.ErrSyntax),
+		newParseCaseErr("letter below sign bound",
+			"-170141183460469231731687303715884105729x", seed128,
+			num.ZeroInt128, num.ErrSyntax),
+		newParseCaseErr("letter after minus max uint128",
+			"-340282366920938463463374607431768211455x", seed128,
+			num.ZeroInt128, num.ErrSyntax),
+		newParseCaseErr("empty", "", seed128, num.ZeroInt128, num.ErrSyntax),
+		newParseCaseErr("minus only", "-", seed128, num.ZeroInt128,
+			num.ErrSyntax),
+		newParseCaseErr("plus only", "+", seed128, num.ZeroInt128,
+			num.ErrSyntax),
+		newParseCaseErr("two signs", "+-1", seed128, num.ZeroInt128,
+			num.ErrSyntax),
+		newParseCaseErr("two minuses", "--1", seed128, num.ZeroInt128,
+			num.ErrSyntax),
+		newParseCaseErr("point", "1.0", seed128, num.ZeroInt128,
+			num.ErrSyntax),
+		newParseCaseErr("underscore", "1_000", seed128, num.ZeroInt128,
+			num.ErrSyntax),
+		newParseCaseErr("trailing space", "1 ", seed128, num.ZeroInt128,
+			num.ErrSyntax),
+		newParseCaseErr("trailing letter", "12a", seed128, num.ZeroInt128,
+			num.ErrSyntax),
+	}
+}
+
 func TestParse(t *testing.T) {
 	t.Run("int32", runTestParseInt32)
 	t.Run("int64", runTestParseInt64)
+	t.Run("uint128", runTestParseUint128)
+	t.Run("int128", runTestParseInt128)
 	t.Run("allocs", runTestParseAllocs)
 }
 
@@ -213,6 +353,16 @@ func runTestParseInt32(t *testing.T) {
 func runTestParseInt64(t *testing.T) {
 	t.Helper()
 	core.RunTestCases(t, parseInt64Cases())
+}
+
+func runTestParseUint128(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, parseUint128Cases())
+}
+
+func runTestParseInt128(t *testing.T) {
+	t.Helper()
+	core.RunTestCases(t, parseInt128Cases())
 }
 
 // parseAllocsCase pins that a text which parses allocates nothing, read
@@ -283,16 +433,32 @@ func parseAllocsCases[T num.Number[T], PT textUnmarshaler[T]](text string,
 }
 
 // runTestParseAllocs checks a parse that succeeds allocates nothing on
-// each type's longest text.
+// each type's longest text: the natives' as printed and padded, and the
+// 128-bit integers' as printed alone, already past the 32 bytes, 39 for
+// MaxUint128 and 40 for MinInt128.
 func runTestParseAllocs(t *testing.T) {
 	t.Helper()
 	int32s := parseAllocsCases[num.Int32, *num.Int32]("-2147483648",
 		num.AsInt32(math.MinInt32))
 	int64s := parseAllocsCases[num.Int64, *num.Int64]("-9223372036854775808",
 		num.AsInt64(math.MinInt64))
+	uint128s := core.S(newParseAllocsCase[num.Uint128, *num.Uint128]("longest",
+		maxUint128Text, num.MaxUint128))
+	int128s := core.S(newParseAllocsCase[num.Int128, *num.Int128]("longest",
+		minInt128Text, num.MinInt128))
 	t.Run("int32", func(t *testing.T) { core.RunTestCases(t, int32s) })
 	t.Run("int64", func(t *testing.T) { core.RunTestCases(t, int64s) })
+	t.Run("uint128", func(t *testing.T) { core.RunTestCases(t, uint128s) })
+	t.Run("int128", func(t *testing.T) { core.RunTestCases(t, int128s) })
 }
+
+// The texts of the 128-bit bounds; those of MaxUint128 and MinInt128
+// are the widest each type prints.
+const (
+	maxUint128Text = "340282366920938463463374607431768211455"
+	maxInt128Text  = "170141183460469231731687303715884105727"
+	minInt128Text  = "-170141183460469231731687303715884105728"
+)
 
 // zeroPad returns s, a sign and its digits, with zeros after the sign
 // to make it 40 bytes long, past the 32 bytes the runtime converts on
@@ -320,6 +486,10 @@ func TestParseRoundTrip(t *testing.T) {
 	t.Run("int", runTestParseRoundTrip(textIntCases,
 		roundTripOf[num.Int32, *num.Int32]("int32", seed32),
 		roundTripOf[num.Int64, *num.Int64]("int64", seed64)))
+	t.Run("uint128", runTestParseRoundTrip(textUint128Cases,
+		roundTripOf[num.Uint128, *num.Uint128]("uint128", seedU128)))
+	t.Run("int128", runTestParseRoundTrip(textInt128Cases,
+		roundTripOf[num.Int128, *num.Int128]("int128", seed128)))
 }
 
 // roundTrip reads back the rows of a text table whose value is of one
@@ -357,14 +527,20 @@ func roundTripOf[T num.Number[T], PT textUnmarshaler[T]](name string,
 	}
 }
 
-// parseCrossCase asserts the native parsers answer one text exactly as
-// strconv.ParseInt answers it at the same width: the same value, the
-// clamp included, and the same class of failure. Each text is run,
-// through the parser and through UnmarshalText on the pointer, as the
+// parseCrossCase asserts the parsers answer one text as strconv
+// answers it. The natives answer exactly as strconv.ParseInt at the
+// same width: the same value, the clamp included, and the same class
+// of failure. The 128-bit integers answer as the 64-bit strconv parser
+// of their kind, ParseUint or ParseInt, wherever its answer holds at
+// any width: a success with the same value, and a syntax failure, its
+// stray byte coming before any overflow, with zero; past strconv's
+// range they read on where strconv stops, their answer read from the
+// text itself, as runTestPastStrconv checks. Each text is run, through
+// the parser and through UnmarshalText on the pointer, as the
 // parseCase row built from strconv's answer, so the whole corpus
 // reaches the bytes path too. The corpus holds the forms strconv takes
-// and the ones it refuses, so the rows enforce strconv's grammar rather
-// than transcribe a reading of it.
+// and the ones it refuses, so the rows enforce strconv's grammar
+// rather than transcribe a reading of it.
 type parseCrossCase struct {
 	in   string
 	name string
@@ -392,6 +568,115 @@ func (tc parseCrossCase) Test(t *testing.T) {
 	want64, err64 := strconv.ParseInt(tc.in, 10, 64)
 	t.Run("int64", newParseCaseFromStrconv(tc.name, tc.in, seed64,
 		num.AsInt64(want64), err64).Test)
+
+	t.Run("uint128", tc.testUint128)
+	t.Run("int128", tc.testInt128)
+}
+
+// testUint128 checks ParseUint128 against strconv.ParseUint at 64 bits,
+// past whose range the bound is MaxUint128.
+func (tc parseCrossCase) testUint128(t *testing.T) {
+	t.Helper()
+	want, err := strconv.ParseUint(tc.in, 10, 64)
+	if !errors.Is(err, strconv.ErrRange) {
+		newParseCaseFromStrconv(tc.name, tc.in, seedU128, num.AsUint128(want),
+			err).Test(t)
+		return
+	}
+	runTestPastStrconv(t, tc, seedU128, maxUint128Text)
+}
+
+// testInt128 checks ParseInt128 against strconv.ParseInt at 64 bits,
+// past whose range the bound is the one on the side strconv clamps to.
+func (tc parseCrossCase) testInt128(t *testing.T) {
+	t.Helper()
+	want, err := strconv.ParseInt(tc.in, 10, 64)
+	if !errors.Is(err, strconv.ErrRange) {
+		newParseCaseFromStrconv(tc.name, tc.in, seed128, num.AsInt128(want),
+			err).Test(t)
+		return
+	}
+	bound := maxInt128Text
+	if want < 0 {
+		bound = minInt128Text
+	}
+	runTestPastStrconv(t, tc, seed128, bound)
+}
+
+// runTestPastStrconv checks the 128-bit parser of T on a text strconv
+// refuses as past its 64-bit range, bound being the text of the
+// parser's own bound on the side strconv clamps to. The answer is read
+// from the text through math/big, from the left as strconv reads it: a
+// run of digits past 128 bits fails on range with the bound, whatever
+// follows it; any other run fails on syntax with zero when a byte
+// follows it, on range with the bound when it passes the magnitude of
+// the bound, and otherwise parses to the value it names under the
+// sign. The parseCase row of that answer checks the report and
+// UnmarshalText as on any other row.
+func runTestPastStrconv[T num.Number[T], PT textUnmarshaler[T]](t *testing.T,
+	tc parseCrossCase, seed T, bound string) {
+	t.Helper()
+	var zero T
+	neg, run, rest := splitDigitRun(tc.in)
+	u, limit := bigOf(t, run), bigOf(t, bound)
+	clamp := fromBig[T](limit)
+	switch {
+	case u.Cmp(bigOf(t, maxUint128Text)) > 0:
+		newParseCaseErr[T, PT](tc.name, tc.in, seed, clamp, num.ErrRange).Test(t)
+	case rest != "":
+		newParseCaseErr[T, PT](tc.name, tc.in, seed, zero, num.ErrSyntax).Test(t)
+	case u.CmpAbs(limit) > 0:
+		newParseCaseErr[T, PT](tc.name, tc.in, seed, clamp, num.ErrRange).Test(t)
+	case neg:
+		want := fromBig[T](u.Neg(u))
+		newParseCase[T, PT](tc.name, tc.in, seed, want).Test(t)
+	default:
+		newParseCase[T, PT](tc.name, tc.in, seed, fromBig[T](u)).Test(t)
+	}
+}
+
+// splitDigitRun splits a text into whether its sign is a minus, the
+// run of digits after the sign and the rest from the first byte that
+// is not a digit.
+func splitDigitRun(s string) (neg bool, run, rest string) {
+	neg = strings.HasPrefix(s, "-")
+	if neg || strings.HasPrefix(s, "+") {
+		s = s[1:]
+	}
+	rest = strings.TrimLeft(s, "0123456789")
+	return neg, s[:len(s)-len(rest)], rest
+}
+
+// bigOf returns the value of a decimal text, an optional sign and the
+// digits, as math/big reads it.
+func bigOf(t *testing.T, s string) *big.Int {
+	t.Helper()
+	v, ok := new(big.Int).SetString(s, 10)
+	core.AssertMustTrue(t, ok, "decimal %q", s)
+	return v
+}
+
+// fromBig returns v, which fits T, as T, one of the 128-bit integers,
+// built from its two words, a negative v taken in two's complement as
+// an Int128 holds it.
+func fromBig[T num.Number[T]](v *big.Int) T {
+	w := new(big.Int).Set(v)
+	if w.Sign() < 0 {
+		w.Add(w, new(big.Int).Lsh(big.NewInt(1), 128))
+	}
+	lo := new(big.Int).And(w, new(big.Int).SetUint64(math.MaxUint64)).Uint64()
+	hi := new(big.Int).Rsh(w, 64).Uint64()
+	var zero T
+	switch any(zero).(type) {
+	case num.Uint128:
+		return core.MustOK(core.As[num.Uint128, T](num.NewUint128(hi, lo)))
+	case num.Int128:
+		return core.MustOK(core.As[num.Int128, T](num.NewInt128(hi, lo)))
+	default:
+		// T is one of the 128-bit integers, each with an arm above.
+		panic(core.NewUnreachableErrorf(0, nil, "no words for %s",
+			core.TypeName[T]()))
+	}
 }
 
 // newParseCaseFromStrconv returns the parseCase row of strconv's answer
@@ -413,8 +698,8 @@ func newParseCaseFromStrconv[T num.Number[T], PT textUnmarshaler[T]](name,
 }
 
 // parseCorpus is the texts every parser is run against strconv on:
-// the forms it takes, the bounds of both native widths and one past
-// them, the edges of the digit run, and the forms it refuses.
+// the forms it takes, the bounds of every width and one past them, the
+// edges of the digit run, and the forms it refuses.
 func parseCorpus() []string {
 	return core.S(
 		"0",
@@ -437,12 +722,19 @@ func parseCorpus() []string {
 		"-9223372036854775809",
 		"18446744073709551616",
 		"99999999999999999999999",
+		"170141183460469231731687303715884105727",
+		"170141183460469231731687303715884105728",
+		"-170141183460469231731687303715884105728",
+		"-170141183460469231731687303715884105729",
+		"340282366920938463463374607431768211455",
+		"340282366920938463463374607431768211456",
 		"0000000000000000000000000000000000000001",
 
 		// a group of 19 digits and one past it, the largest magnitude
 		// of each width's run and one past it, a group boundary
 		// reached after leading zeros, and a stray byte before an
-		// overflowing digit and after one.
+		// overflowing digit and after one, past the sign's bound and
+		// past the unsigned width.
 		"1234567890123456789",
 		"-1234567890123456789",
 		"12345678901234567890",
@@ -460,6 +752,9 @@ func parseCorpus() []string {
 		"1844674407370955161x6",
 		"18446744073709551615x",
 		"18446744073709551616x",
+		"170141183460469231731687303715884105728x",
+		"-170141183460469231731687303715884105729x",
+		"340282366920938463463374607431768211456x",
 
 		"",
 		"+",
@@ -566,6 +861,10 @@ func unmarshalTextNilCases[T any,
 func TestUnmarshalTextNilReceiver(t *testing.T) {
 	int32s := unmarshalTextNilCases[num.Int32, *num.Int32]()
 	int64s := unmarshalTextNilCases[num.Int64, *num.Int64]()
+	uint128s := unmarshalTextNilCases[num.Uint128, *num.Uint128]()
+	int128s := unmarshalTextNilCases[num.Int128, *num.Int128]()
 	t.Run("int32", func(t *testing.T) { core.RunTestCases(t, int32s) })
 	t.Run("int64", func(t *testing.T) { core.RunTestCases(t, int64s) })
+	t.Run("uint128", func(t *testing.T) { core.RunTestCases(t, uint128s) })
+	t.Run("int128", func(t *testing.T) { core.RunTestCases(t, int128s) })
 }

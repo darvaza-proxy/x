@@ -14,7 +14,8 @@ import (
 // same text under impl=strconv, so benchstat -col /impl compares the
 // two. On the bytes, strconv reads them converted to a string, as an
 // UnmarshalText over strconv would. The natives are measured on their
-// bounds as well.
+// bounds as well, and the 128-bit integers on their bounds other than
+// zero, which strconv does not read.
 func BenchmarkParse(b *testing.B) {
 	b.Run("Int32/impl=num", runBenchmarkParse(num.ParseInt32, "-1234567"))
 	b.Run("Int32/impl=strconv", runBenchmarkParse(strconvParseInt(32),
@@ -46,6 +47,26 @@ func BenchmarkParse(b *testing.B) {
 		runBenchmarkUnmarshalText[num.Int64]([]byte("-1234567")))
 	b.Run("Int64.UnmarshalText/impl=strconv",
 		runBenchmarkParse(strconvParseIntBytes(64), []byte("-1234567")))
+	b.Run("Uint128/impl=num", runBenchmarkParse(num.ParseUint128, "1234567"))
+	b.Run("Uint128/impl=strconv", runBenchmarkParse(strconvParseUint(64),
+		"1234567"))
+	b.Run("Uint128.UnmarshalText/impl=num",
+		runBenchmarkUnmarshalText[num.Uint128]([]byte("1234567")))
+	b.Run("Uint128.UnmarshalText/impl=strconv",
+		runBenchmarkParse(strconvParseUintBytes(64), []byte("1234567")))
+	b.Run("Uint128Max/impl=num", runBenchmarkParse(num.ParseUint128,
+		maxUint128Text))
+	b.Run("Int128/impl=num", runBenchmarkParse(num.ParseInt128, "-1234567"))
+	b.Run("Int128/impl=strconv", runBenchmarkParse(strconvParseInt(64),
+		"-1234567"))
+	b.Run("Int128.UnmarshalText/impl=num",
+		runBenchmarkUnmarshalText[num.Int128]([]byte("-1234567")))
+	b.Run("Int128.UnmarshalText/impl=strconv",
+		runBenchmarkParse(strconvParseIntBytes(64), []byte("-1234567")))
+	b.Run("Int128Min/impl=num", runBenchmarkParse(num.ParseInt128,
+		minInt128Text))
+	b.Run("Int128Max/impl=num", runBenchmarkParse(num.ParseInt128,
+		maxInt128Text))
 }
 
 // runBenchmarkParse returns a benchmark of parse on s, which must
@@ -93,5 +114,22 @@ func strconvParseInt(bitSize int) func(string) (int64, error) {
 func strconvParseIntBytes(bitSize int) func([]byte) (int64, error) {
 	return func(text []byte) (int64, error) {
 		return strconv.ParseInt(string(text), 10, bitSize)
+	}
+}
+
+// strconvParseUint returns strconv.ParseUint in base 10 at bitSize, the
+// baseline of the unsigned integer parser.
+func strconvParseUint(bitSize int) func(string) (uint64, error) {
+	return func(s string) (uint64, error) {
+		return strconv.ParseUint(s, 10, bitSize)
+	}
+}
+
+// strconvParseUintBytes returns strconv.ParseUint in base 10 at bitSize
+// over the bytes of a text, converted to a string, the baseline of
+// UnmarshalText on the unsigned integer.
+func strconvParseUintBytes(bitSize int) func([]byte) (uint64, error) {
+	return func(text []byte) (uint64, error) {
+		return strconv.ParseUint(string(text), 10, bitSize)
 	}
 }

@@ -18,7 +18,7 @@ type stringOrBytes interface {
 // reads a string or the bytes as given, so UnmarshalText converts
 // nothing. The grammar is read by its methods, each called directly in
 // the order of the grammar, so the scanner stays on the stack, and all
-// but the one reading a magnitude are small enough to inline.
+// but those reading a magnitude are small enough to inline.
 type scanner[S stringOrBytes] struct {
 	src S
 	pos int
@@ -92,6 +92,39 @@ func (sc *scanner[S]) magnitude64(bound uint64) (u uint64, n int, ok bool) {
 	return u, n, true
 }
 
+// magnitude128 reads the run of decimal digits as a 128-bit magnitude,
+// a group of decGroupDigits at a time as magnitude64 does, and returns
+// it, how many digits the run holds and whether the magnitude fits 128
+// bits. Each later group joins the magnitude in two 64-bit multiplies,
+// one per word. A magnitude past 128 bits comes back as MaxUint128,
+// its run read to the end all the same, so the scanner stops at the
+// first byte that is not a digit either way.
+func (sc *scanner[S]) magnitude128() (u Uint128, n int, ok bool) {
+	var hi, lo uint64
+	lo, n = sc.digits(decGroupDigits)
+	ok = true
+	for {
+		d, k := sc.digits(decGroupDigits)
+		if k == 0 {
+			break
+		}
+		// (hi, lo)*10^k + d: lo*10^k spills its high word into hi,
+		// and past 128 bits go hi*10^k's high word, over, and the
+		// carry out of hi.
+		m := pow10Table[k].lo
+		over, hm := bits.Mul64(hi, m)
+		spill, lm := bits.Mul64(lo, m)
+		var carry uint64
+		lo, carry = bits.Add64(lm, d, 0)
+		hi, carry = bits.Add64(hm, spill, carry)
+		n, ok = n+k, ok && over|carry == 0
+	}
+	if !ok {
+		return MaxUint128, n, false
+	}
+	return Uint128{hi: hi, lo: lo}, n, true
+}
+
 // doParseInt reads the text of a signed integer width bits wide as
 // strconv.ParseInt reads it in base 10: an optional sign and the
 // digits, nothing else. It returns the value; for text in any other
@@ -129,5 +162,26 @@ func boundInt(u uint64, neg bool, width int) (int64, error) {
 		return int64(limit - 1), ErrRange
 	default:
 		return int64(u), nil
+	}
+}
+
+// boundInt128 returns the magnitude u under a sign as an Int128, as
+// boundInt does at 64 bits: u.Int128 says whether it fits below 2^127,
+// and a negative value reaches one further, to 2^127 itself, the bits
+// of MinInt128. A magnitude past the bound comes back as the bound on
+// its own side, with [ErrRange].
+func boundInt128(u Uint128, neg bool) (Int128, error) {
+	v, ok := u.Int128()
+	switch {
+	case ok && neg:
+		return v.Neg(), nil
+	case ok:
+		return v, nil
+	case neg && u == MinInt128.bits():
+		return MinInt128, nil
+	case neg:
+		return MinInt128, ErrRange
+	default:
+		return MaxInt128, ErrRange
 	}
 }
