@@ -89,8 +89,6 @@ func globMatchTestCases() []globMatchTestCase {
 		newGlobMatchesTestCase("brace, first", "*.{go,md}", "x.go"),
 		newGlobMatchesTestCase("brace, second", "*.{go,md}", "x.md"),
 		newGlobMissesTestCase("brace, neither", "*.{go,md}", "x.txt"),
-		// An unclosed brace reads as closed.
-		newGlobMatchesTestCase("unclosed brace", "{a,b", "a"),
 		// Character classes.
 		newGlobMatchesTestCase("class", "[ab].go", "a.go"),
 		newGlobMissesTestCase("class, outside", "[ab].go", "c.go"),
@@ -138,6 +136,7 @@ func (tc globCompileErrorTestCase) Test(t *testing.T) {
 func TestGlobCompileError(t *testing.T) {
 	core.RunTestCases(t, []globCompileErrorTestCase{
 		newGlobCompileErrorTestCase("unclosed class", "[ab"),
+		newGlobCompileErrorTestCase("unclosed brace", "{a,b"),
 		newGlobCompileErrorTestCase("one invalid among valid",
 			"*.go", "[ab"),
 	})

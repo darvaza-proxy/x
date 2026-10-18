@@ -8,8 +8,11 @@ import (
 	"darvaza.org/core"
 )
 
-// Matcher is a compiled globbing pattern from https://github.com/gobwas/glob
-type Matcher = glob.Glob
+// Matcher is a compiled globbing pattern, such as one GlobCompile
+// returns, telling whether a path matches it.
+type Matcher interface {
+	Match(path string) bool
+}
 
 // GlobCompile compiles a list of file globbing patterns using
 // https://github.com/gobwas/glob

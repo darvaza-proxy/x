@@ -54,6 +54,7 @@ func cleanTestCases() []cleanTestCase {
 		newCleanTestCase("dotdot trailing slash", "../", "..", false),
 		newCleanTestCase("dotdot then dot", "../.", "..", false),
 		newCleanTestCase("dotdot then component", "../a", "../a", false),
+		newCleanTestCase("dotdot thrice", "../../..", "../../..", false),
 		// Rooted paths, never valid for fs.FS.
 		newCleanTestCase("root", "/", "/", false),
 		newCleanTestCase("rooted single", "/a", "/a", false),
