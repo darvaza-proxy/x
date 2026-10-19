@@ -116,7 +116,7 @@ EOT
 		cat <<EOT
 
 // $fn2 reads a field from [http.Request#$x], after populating it if needed,
-// and returns a [core.$g] value, an indicator saying if it was actually,
+// and returns a [core.$g] value, an indicator saying if it was actually present
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
@@ -126,7 +126,7 @@ func ${fn2}${T:+[T core.$g]}(req *http.Request, field string,${base:+ base int,}
 	//
 	value, found, err = ${fn1}${T:+[T]}(req, field${base:+, base})
 	if err == nil && found {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("$fn", $format_v)
 		}
 	}

@@ -8,36 +8,36 @@ import (
 	"darvaza.org/core"
 )
 
-// ParseSignedInRange parses a string and and returns a [core.Signed] value or a [strconv.NumError]
+// ParseSignedInRange parses a string and returns a [core.Signed] value or a [strconv.NumError]
 // if invalid or it's outside the specified boundaries.
 func ParseSignedInRange[T core.Signed](s string, base int, minV, maxV T) (value T, err error) {
 	value, err = ParseSigned[T](s, base)
 	if err == nil {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("ParseInt", FormatSigned(value, 10))
 		}
 	}
 	return value, err
 }
 
-// ParseUnsignedInRange parses a string and and returns a [core.Unsigned] value or a [strconv.NumError]
+// ParseUnsignedInRange parses a string and returns a [core.Unsigned] value or a [strconv.NumError]
 // if invalid or it's outside the specified boundaries.
 func ParseUnsignedInRange[T core.Unsigned](s string, base int, minV, maxV T) (value T, err error) {
 	value, err = ParseUnsigned[T](s, base)
 	if err == nil {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("ParseUint", FormatUnsigned(value, 10))
 		}
 	}
 	return value, err
 }
 
-// ParseFloatInRange parses a string and and returns a [core.Float] value or a [strconv.NumError]
+// ParseFloatInRange parses a string and returns a [core.Float] value or a [strconv.NumError]
 // if invalid or it's outside the specified boundaries.
 func ParseFloatInRange[T core.Float](s string, minV, maxV T) (value T, err error) {
 	value, err = ParseFloat[T](s)
 	if err == nil {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("ParseFloat", FormatFloat(value, 'f', -1))
 		}
 	}
