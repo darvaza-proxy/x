@@ -54,7 +54,7 @@ func FormValuesSigned[T core.Signed](req *http.Request, field string,
 }
 
 // FormValueSignedInRange reads a field from [http.Request#Form], after populating it if needed,
-// and returns a [core.Signed] value, an indicator saying if it was actually,
+// and returns a [core.Signed] value, an indicator saying if it was actually present
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
@@ -64,7 +64,7 @@ func FormValueSignedInRange[T core.Signed](req *http.Request, field string, base
 	//
 	value, found, err = FormValueSigned[T](req, field, base)
 	if err == nil && found {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("ParseInt", FormatSigned(value, 10))
 		}
 	}
@@ -115,7 +115,7 @@ func FormValuesUnsigned[T core.Unsigned](req *http.Request, field string,
 }
 
 // FormValueUnsignedInRange reads a field from [http.Request#Form], after populating it if needed,
-// and returns a [core.Unsigned] value, an indicator saying if it was actually,
+// and returns a [core.Unsigned] value, an indicator saying if it was actually present
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
@@ -125,7 +125,7 @@ func FormValueUnsignedInRange[T core.Unsigned](req *http.Request, field string, 
 	//
 	value, found, err = FormValueUnsigned[T](req, field, base)
 	if err == nil && found {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("ParseUint", FormatUnsigned(value, 10))
 		}
 	}
@@ -174,7 +174,7 @@ func FormValuesFloat[T core.Float](req *http.Request, field string) (values []T,
 }
 
 // FormValueFloatInRange reads a field from [http.Request#Form], after populating it if needed,
-// and returns a [core.Float] value, an indicator saying if it was actually,
+// and returns a [core.Float] value, an indicator saying if it was actually present
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
@@ -184,7 +184,7 @@ func FormValueFloatInRange[T core.Float](req *http.Request, field string,
 	//
 	value, found, err = FormValueFloat[T](req, field)
 	if err == nil && found {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("ParseFloat", FormatFloat(value, 'f', -1))
 		}
 	}
@@ -276,7 +276,7 @@ func PostFormValuesSigned[T core.Signed](req *http.Request, field string,
 }
 
 // PostFormValueSignedInRange reads a field from [http.Request#PostForm], after populating it if needed,
-// and returns a [core.Signed] value, an indicator saying if it was actually,
+// and returns a [core.Signed] value, an indicator saying if it was actually present
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
@@ -286,7 +286,7 @@ func PostFormValueSignedInRange[T core.Signed](req *http.Request, field string, 
 	//
 	value, found, err = PostFormValueSigned[T](req, field, base)
 	if err == nil && found {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("ParseInt", FormatSigned(value, 10))
 		}
 	}
@@ -337,7 +337,7 @@ func PostFormValuesUnsigned[T core.Unsigned](req *http.Request, field string,
 }
 
 // PostFormValueUnsignedInRange reads a field from [http.Request#PostForm], after populating it if needed,
-// and returns a [core.Unsigned] value, an indicator saying if it was actually,
+// and returns a [core.Unsigned] value, an indicator saying if it was actually present
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
@@ -347,7 +347,7 @@ func PostFormValueUnsignedInRange[T core.Unsigned](req *http.Request, field stri
 	//
 	value, found, err = PostFormValueUnsigned[T](req, field, base)
 	if err == nil && found {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("ParseUint", FormatUnsigned(value, 10))
 		}
 	}
@@ -396,7 +396,7 @@ func PostFormValuesFloat[T core.Float](req *http.Request, field string) (values 
 }
 
 // PostFormValueFloatInRange reads a field from [http.Request#PostForm], after populating it if needed,
-// and returns a [core.Float] value, an indicator saying if it was actually,
+// and returns a [core.Float] value, an indicator saying if it was actually present
 // and possibly an error.
 // Errors could indicate [ParseForm] failed, or a [strconv.NumError] if it
 // couldn't be converted to the intended type or if it's outside the specified
@@ -406,7 +406,7 @@ func PostFormValueFloatInRange[T core.Float](req *http.Request, field string,
 	//
 	value, found, err = PostFormValueFloat[T](req, field)
 	if err == nil && found {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("ParseFloat", FormatFloat(value, 'f', -1))
 		}
 	}

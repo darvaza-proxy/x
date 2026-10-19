@@ -49,12 +49,12 @@ gen() {
 
 	cat <<EOT
 
-// $fn2 parses a string and and returns a [$G] value or a [strconv.NumError]
+// $fn2 parses a string and returns a [$G] value or a [strconv.NumError]
 // if invalid or it's outside the specified boundaries.
 func ${fn2}[T $G](s string,${base:+ base int,} minV, maxV T) (value T, err error) {
 	value, err = ${fn1}[T](s${base:+, base})
 	if err == nil {
-		if value < minV || value > maxV {
+		if !inRange(value, minV, maxV) {
 			err = errRange("$fn", $format_v)
 		}
 	}

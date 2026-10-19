@@ -63,6 +63,12 @@ func FormatFloat[T core.Float](v T, fmt byte, prec int) string {
 	return strconv.FormatFloat(float64(v), fmt, prec, bitSize(v))
 }
 
+// inRange reports whether v lies between minV and maxV, both included.
+// NaN compares false with everything, so it lies in no range.
+func inRange[T core.Ordered](v, minV, maxV T) bool {
+	return v >= minV && v <= maxV
+}
+
 func bitSize[T any](v T) int {
 	return int(reflect.TypeOf(v).Size()) * 8
 }
