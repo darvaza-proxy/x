@@ -1,9 +1,8 @@
 package fs
 
 import (
+	"slices"
 	"strings"
-
-	"github.com/gobwas/glob/util/runes"
 )
 
 // Clean reduces a path and tells if it's a valid root
@@ -67,7 +66,7 @@ func doCleanRunes(path []rune) []rune {
 	for len(rest) > 0 {
 		var part []rune
 
-		i := runes.IndexRune(rest, '/')
+		i := slices.Index(rest, '/')
 		switch {
 		case i < 0:
 			// last
@@ -87,10 +86,10 @@ func cleanRunesApply(buf, next []rune) []rune {
 	var dotdot, dot = []rune(".."), []rune{'.'}
 
 	switch {
-	case len(next) == 0, runes.Equal(next, dot):
+	case len(next) == 0, slices.Equal(next, dot):
 		// ignore "" and "."
 		return buf
-	case runes.Equal(next, dotdot):
+	case slices.Equal(next, dotdot):
 		// dot dot
 		return cleanRunesDotDot(buf)
 	default:
@@ -102,21 +101,32 @@ func cleanRunesApply(buf, next []rune) []rune {
 func cleanRunesDotDot(buf []rune) []rune {
 	var dotdot = []rune("..")
 
-	if len(buf) == 0 || runes.Equal(buf, dotdot) {
+	if len(buf) == 0 || slices.Equal(buf, dotdot) {
 		// ".." or "../.."
 		return joinRunes(buf, dotdot)
 	}
 
-	i := runes.IndexLastRune(buf, '/')
+	i := lastIndexRune(buf, '/')
 	switch {
 	case i < 0:
 		// "foo/.." → ""
 		return buf[:0]
-	case runes.Equal(buf[i+1:], dotdot):
+	case slices.Equal(buf[i+1:], dotdot):
 		// "../../.."
 		return joinRunes(buf, dotdot)
 	default:
 		// "a/b/.."
 		return buf[:i]
 	}
+}
+
+// lastIndexRune returns the index of the last r in s, or -1 when s
+// holds none.
+func lastIndexRune(s []rune, r rune) int {
+	for i, c := range slices.Backward(s) {
+		if c == r {
+			return i
+		}
+	}
+	return -1
 }

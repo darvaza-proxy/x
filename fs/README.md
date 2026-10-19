@@ -17,7 +17,7 @@ We use the excellent [github.com/gobwas/glob](https://github.com/gobwas/glob)
 to compile file listing patterns, and `**` is supported to ignore the `/`
 delimiters
 
-* `Matcher` a type alias of glob.Glob to keep the import-space clean
+* `Matcher` tells whether a path matches a compiled pattern
 * `GlobCompile` compiles a list of patterns
 * `Glob` walks a [fs.FS] and returns all matches of the specified patterns.
   If no pattern is provided all entries not giving a `fs.Stat` error will be
