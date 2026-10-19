@@ -39,6 +39,52 @@ paths starting with `/`, and also returns if the cleaned path satisfies
 as leading `../` are supported, it can be used for concatenations and to clean
 absolute OS paths. `/..` will be returned if the reduction lead to that.
 
+### `CleanOSPath`
+
+`CleanOSPath` cleans a path for the `os` functions as `filepath.Clean` does,
+keeping a trailing separator and following how Windows reads its `\\?\`, `\??\`
+and device paths.
+
+It removes doubled separators and `.` segments, gives separators the
+platform's form, and resolves `..` from the path's text, without following
+symbolic links: a `..` goes with the named segment before it, and one after
+the root goes alone, the root being its own parent, while in a relative path a
+`..` with no named segment before it stays. A `.` stays, or is put first, where
+the cleaned path would otherwise read as one with a volume name: on Windows,
+`a\..\c:b` comes back as `.\c:b`. A trailing separator, or a `.` or `..` after
+one, asks for a directory, and stays as one separator, unless the cleaned path
+ends in `.` or `..`, which name one already.
+
+The `os` functions refuse an empty path, which `filepath.Clean` turns into
+`.`, and one holding a NUL; `CleanOSPath` refuses both as a `*fs.PathError`
+wrapping `fs.ErrInvalid`.
+
+On Windows, a path starting `\\?\` or `\??\` comes back as given, since Windows
+passes it to the device as written. Under a drive or a UNC share, whose file
+system refuses a `.` or `..` segment, an empty one other than the last, or a
+`/`, such a path is refused as a `*fs.PathError` wrapping `fs.ErrInvalid`;
+other devices, such as named pipes, take them as part of a name. Spelt with a
+`/`, as in `//?/`, or alone, `\\?` starts a device path, which comes back
+starting `\\.`, and `\??` a rooted one, which comes back starting `\.\??`. As
+Windows does, it takes a separator before a `:` as starting a rooted path,
+where `filepath.Clean` takes a drive.
+
+```go
+// on Unix
+fs.CleanOSPath("/srv//www/./current/../index.html") // "/srv/www/index.html", nil
+fs.CleanOSPath("../srv/www/..")                     // "../srv/", nil
+fs.CleanOSPath("srv/www/.")                         // "srv/www/", nil
+fs.CleanOSPath("")                                  // "", error wrapping fs.ErrInvalid
+
+// on Windows
+fs.CleanOSPath(`C:/srv//www/./index.html`)          // `C:\srv\www\index.html`, nil
+fs.CleanOSPath(`C:\srv\www\..\index.html`)          // `C:\srv\index.html`, nil
+fs.CleanOSPath(`.\.\c:index.html`)                  // `.\c:index.html`, nil
+fs.CleanOSPath(`\\?\C:\srv\index.html`)             // `\\?\C:\srv\index.html`, nil
+fs.CleanOSPath(`\\?\C:\srv\.\index.html`)           // "", error wrapping fs.ErrInvalid
+fs.CleanOSPath(`//?/C:/srv/./index.html`)           // `\\.\C:\srv\index.html`, nil
+```
+
 ### `Split`
 
 We also have a variant of [path.Split] which cleans the argument and splits
