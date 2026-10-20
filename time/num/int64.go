@@ -86,24 +86,24 @@ func (v Int64) wide() wide {
 // Int32 returns v as an Int32 and whether it fits; the low 32 bits
 // stay when it does not.
 func (v Int64) Int32() (Int32, bool) {
-	return v.wide().int32()
+	return v.wide().narrow32()
 }
 
 // Int64 returns v unchanged, the conversion to its own type, which
 // always fits.
 func (v Int64) Int64() (Int64, bool) {
-	return v.wide().int64()
+	return v.wide().narrow64()
 }
 
 // Int128 returns v as an Int128, which always fits.
 func (v Int64) Int128() (Int128, bool) {
-	return v.wide().int128()
+	return v.wide().narrow128()
 }
 
 // Uint128 returns v as a Uint128 and whether it fits, which it does
 // when not negative; the bit pattern stays when it does not.
 func (v Int64) Uint128() (Uint128, bool) {
-	return v.wide().uint128()
+	return v.wide().narrowUint128()
 }
 
 // Milli32 returns v as whole units of a Milli32 and whether it fits;

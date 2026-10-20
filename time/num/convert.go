@@ -11,9 +11,10 @@ const (
 // wide is a value in transit between two types of the family: its
 // count of sub-units widened to an Int128, the exponent of the scale
 // of that count, and whether the value has fitted so far. Every
-// conversion widens its receiver into one, rescales it to the target's
-// resolution and narrows it into the target, so the seven methods of
-// each type share one path.
+// conversion widens its receiver into one and narrows it into the
+// target, so the seven methods of each type share one path. On the way
+// the count is rescaled to the target's resolution, except between two
+// integers, both counted in whole units already.
 type wide struct {
 	v   Int128
 	exp int
@@ -41,18 +42,33 @@ func (w wide) at(exp int) wide {
 	return w
 }
 
-// narrow32 returns the count as an Int32, keeping the low 32 bits
-// when it does not fit.
+// narrow32 returns the count as an Int32 and whether the value fits:
+// it must have fitted so far, and the count must fit 32 bits. The low
+// 32 bits stay when it does not.
 func (w wide) narrow32() (Int32, bool) {
-	x := Int32(w.v.lo)
-	return x, w.ok && x.asInt128() == w.v
+	x, ok := w.v.asInt64()
+	return Int32(x), w.ok && ok && int64(int32(x)) == x
 }
 
-// narrow64 returns the count as an Int64, keeping the low 64 bits
-// when it does not fit.
+// narrow64 returns the count as an Int64 and whether the value fits:
+// it must have fitted so far, and the count must fit 64 bits. The low
+// 64 bits stay when it does not.
 func (w wide) narrow64() (Int64, bool) {
 	x, ok := w.v.asInt64()
 	return Int64(x), w.ok && ok
+}
+
+// narrow128 returns the count as an Int128, which holds it whole, and
+// whether the value has fitted so far.
+func (w wide) narrow128() (Int128, bool) {
+	return w.v, w.ok
+}
+
+// narrowUint128 returns the bits of the count as a Uint128 and whether
+// the value fits: it must have fitted so far, and the count must not
+// be negative.
+func (w wide) narrowUint128() (Uint128, bool) {
+	return w.v.bits(), w.ok && !w.v.IsNegative()
 }
 
 // int32 returns the whole units as an Int32.
@@ -67,15 +83,12 @@ func (w wide) int64() (Int64, bool) {
 
 // int128 returns the whole units as an Int128.
 func (w wide) int128() (Int128, bool) {
-	r := w.at(unitExp)
-	return r.v, r.ok
+	return w.at(unitExp).narrow128()
 }
 
-// uint128 returns the bits of the whole units as a Uint128, which fit
-// when the count is not negative.
+// uint128 returns the bits of the whole units as a Uint128.
 func (w wide) uint128() (Uint128, bool) {
-	r := w.at(unitExp)
-	return r.v.bits(), r.ok && !r.v.IsNegative()
+	return w.at(unitExp).narrowUint128()
 }
 
 // milli32 returns the count at milli resolution as a Milli32.
@@ -92,6 +105,6 @@ func (w wide) milli64() (Milli64, bool) {
 
 // atto128 returns the count at atto resolution as an Atto128.
 func (w wide) atto128() (Atto128, bool) {
-	r := w.at(attoExp)
-	return AsAtto128(r.v), r.ok
+	c, ok := w.at(attoExp).narrow128()
+	return AsAtto128(c), ok
 }
