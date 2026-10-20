@@ -15,6 +15,8 @@ var (
 // zero.
 type Int128 Uint128
 
+// bits returns the bits of v as a Uint128, the same two words read
+// without the sign.
 func (v Int128) bits() Uint128 {
 	return Uint128(v)
 }
@@ -44,18 +46,14 @@ func NewInt128(hi, lo uint64) Int128 {
 //
 //revive:disable-next-line:confusing-naming misfiled Decimal method of the same name
 func AsInt128(x int64) Int128 {
-	var hi uint64
-	if x < 0 {
-		hi = maxUint64
-	}
-	return Int128{hi: hi, lo: uint64(x)}
+	return Int128{hi: uint64(x >> 63), lo: uint64(x)}
 }
 
-// asInt64 returns v as a native int64 and whether it fits: the low
-// word sign-extended must give v back.
+// asInt64 returns v as a native int64 and whether it fits: the high
+// word must be the sign of the low word extended across it.
 func (v Int128) asInt64() (int64, bool) {
 	x := int64(v.lo)
-	return x, AsInt128(x) == v
+	return x, v.hi == uint64(x>>63)
 }
 
 // wide returns v as a count of whole units, on the way to another
@@ -67,25 +65,25 @@ func (v Int128) wide() wide {
 // Int32 returns v as an Int32 and whether it fits; the low 32 bits
 // stay when it does not.
 func (v Int128) Int32() (Int32, bool) {
-	return v.wide().int32()
+	return v.wide().narrow32()
 }
 
 // Int64 returns v as an Int64 and whether it fits; the low 64 bits
 // stay when it does not.
 func (v Int128) Int64() (Int64, bool) {
-	return v.wide().int64()
+	return v.wide().narrow64()
 }
 
 // Int128 returns v unchanged, the conversion to its own type, which
 // always fits.
 func (v Int128) Int128() (Int128, bool) {
-	return v.wide().int128()
+	return v.wide().narrow128()
 }
 
 // Uint128 returns v as a Uint128 and whether it fits, which it does
 // when not negative; the bit pattern stays when it does not.
 func (v Int128) Uint128() (Uint128, bool) {
-	return v.wide().uint128()
+	return v.wide().narrowUint128()
 }
 
 // Milli32 returns v as whole units of a Milli32 and whether it fits;

@@ -108,26 +108,30 @@ Files:
   native types; `Int32` and `Int64` have no parts, so no `New`. A new
   type gets both, or a comment saying why one is enough.
 - The conversions between the types are methods named for the target,
-  `Int32()` through `Atto128()` on every type, each `(T, bool)`, and
+  such as `Int32()` and `Atto128()`, on every type, each `(T, bool)`, and
   they keep the value where `As` keeps the count: `AsMilli32(1500)` is
   1.5 and `AsInt32(1500).Milli32()` is 1500.0. Fraction digits below
   the target's resolution drop towards zero with the flag true; the
   flag is false only when the whole units do not fit, the result then
   keeping the low bits, so a negative into `Uint128` is its bit
-  pattern. `Decimal` alone has `AsInt32`, `AsInt64` and `AsInt128`,
+  pattern. `Decimal` has the methods `AsInt32`, `AsInt64` and `AsInt128`,
   the count with a size check, the inverses of its constructor; they
-  stay off `Number`, as does `sys`. Every conversion takes one path:
+  stay off `Number`, as does `sys`. A conversion takes one path:
   the receiver widens into a `wide`, an `Int128` count and the
-  exponent of its scale, `at` rescales it by the power of ten between
-  the two exponents, multiplying towards a finer resolution and
-  detecting the wrap by comparing the magnitude against `pow10Bound`,
-  or dividing towards a coarser one, and the target narrows it with a
-  fit check. `Uint128` widens with the flag already clear when its top
+  exponent of its scale, and the target narrows it with a fit check.
+  On the way `at` rescales the count by the power of ten between the
+  two exponents, multiplying towards a finer resolution and detecting
+  the wrap by comparing the magnitude against `pow10Bound`, or dividing
+  towards a coarser one; between two integers, both counted in whole
+  units, the narrowing runs alone, so that those conversions can
+  inline. `Uint128` widens with the flag already clear when its top
   bit is set, since the bits read as a negative `Int128` from then on.
   `TestConvert` pins every cell of the matrix by hand, the flag declared
   per row, and asserts the round trip where nothing truncates;
-  `TestCount` pins the count accessors. A new type adds its `wide`, its
-  seven methods, a `wide` method named for it, and a row per cell.
+  `TestCount` pins the count accessors. A new type adds its `wide` and
+  its conversion methods; `wide` gains a method named for it, for an
+  integer a narrowing one as well, as `narrow32` is for `Int32`; and
+  `TestConvert` gains a row per cell.
 - `GoString` prints the constructor call that rebuilds the value, the
   `As` count form while the value fits the native word and the `New`
   words form in hex beyond it; a `Decimal` prints both parts with its

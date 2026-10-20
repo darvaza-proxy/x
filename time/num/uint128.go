@@ -49,19 +49,19 @@ func (u Uint128) wide() wide {
 // Int32 returns u as an Int32 and whether it fits; the low 32 bits
 // stay when it does not.
 func (u Uint128) Int32() (Int32, bool) {
-	return u.wide().int32()
+	return u.wide().narrow32()
 }
 
 // Int64 returns u as an Int64 and whether it fits; the low 64 bits
 // stay when it does not.
 func (u Uint128) Int64() (Int64, bool) {
-	return u.wide().int64()
+	return u.wide().narrow64()
 }
 
 // Int128 returns u as an Int128 and whether it fits, which it does
 // while the top bit is clear; the bit pattern stays when it does not.
 func (u Uint128) Int128() (Int128, bool) {
-	return u.wide().int128()
+	return u.wide().narrow128()
 }
 
 // Uint128 returns u unchanged, the conversion to its own type, which

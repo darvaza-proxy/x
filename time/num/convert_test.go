@@ -15,10 +15,9 @@ var (
 )
 
 // convertTo converts v to D through the method named for D, the one
-// cell of the conversion matrix a row pins. D is one of the seven
-// types of the family, or OutsideCenti, which no method targets and
-// is reached through outsideCentiOf for the way back, so the switch
-// always finds its arm.
+// cell of the conversion matrix a row pins. D is a type of the family,
+// or OutsideCenti, which no method targets and is reached through
+// outsideCentiOf for the way back.
 func convertTo[D num.Number[D], S num.Number[S]](v S) (D, bool) {
 	var out D
 	var ok bool
@@ -40,7 +39,7 @@ func convertTo[D num.Number[D], S num.Number[S]](v S) (D, bool) {
 	case *OutsideCenti:
 		*p, ok = outsideCentiOf(v)
 	default:
-		// D is one of the eight, so no arm is left over.
+		// D is a type of the family or OutsideCenti, each with an arm above.
 	}
 	return out, ok
 }
@@ -328,8 +327,8 @@ type counted interface {
 	AsInt128() (num.Int128, bool)
 }
 
-// asCount reads the count of v as D, one of the three signed integers,
-// so the switch always finds its arm.
+// asCount reads the count of v as D through the accessor counted names
+// for D.
 func asCount[D num.Number[D]](v counted) (D, bool) {
 	var out D
 	var ok bool
@@ -341,7 +340,7 @@ func asCount[D num.Number[D]](v counted) (D, bool) {
 	case *num.Int128:
 		*p, ok = v.AsInt128()
 	default:
-		// D is one of the three, so no arm is left over.
+		// D is a type counted has an accessor for, each with an arm above.
 	}
 	return out, ok
 }
