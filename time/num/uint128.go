@@ -78,6 +78,16 @@ func (u *Uint128) UnmarshalText(text []byte) error {
 	return unmarshalInto(u, x, err, "UnmarshalText")
 }
 
+// UnmarshalJSON implements [json.Unmarshaler], storing in u the
+// ParseUint128 value of a JSON number, or of the contents of a JSON
+// string; a null leaves u alone. Any other token is parsed as given,
+// as a number is, and a nil u fails with [core.ErrNilReceiver] once
+// the value is valid, a null included. A failure leaves u as it was
+// and comes back behind this method's name, as for UnmarshalText.
+func (u *Uint128) UnmarshalJSON(data []byte) error {
+	return doUnmarshalJSON(u, data, doParseUint128[[]byte])
+}
+
 // wide returns u as a count of whole units, on the way to another
 // type of the family. The bits are read as an Int128, which holds
 // them while the top bit is clear.

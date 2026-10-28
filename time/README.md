@@ -105,10 +105,14 @@ naming the function, quoting the text and ending with the sentinel's
 text. `UnmarshalText` on the pointer reads the same grammar and stores
 the value, so the pointer to each is an `encoding.TextUnmarshaler`; a
 failure, the nil receiver included, comes back behind the method's
-name and leaves the receiver as it was. Each sentinel matches its
-`strconv` counterpart and `core.ErrInvalid` under `errors.Is`, so a
-caller can test for the package's sentinel, the standard library's, or
-the generic invalid-input condition.
+name and leaves the receiver as it was. `UnmarshalJSON` reads a JSON
+number, or the contents of a JSON string, the same way, a `null`
+storing nothing but failing on a nil receiver, so what `MarshalJSON`
+writes reads back through it and the pointer to each is a
+`json.Unmarshaler` as well. Each sentinel matches its `strconv`
+counterpart and `core.ErrInvalid` under `errors.Is`, so a caller can
+test for the package's sentinel, the standard library's, or the
+generic invalid-input condition.
 
 ## Development
 

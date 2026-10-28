@@ -78,7 +78,10 @@
 // pointer reads the same grammar and stores the value, so the pointer
 // to each is an [encoding.TextUnmarshaler]; a failure, the nil
 // receiver included, comes back behind the method's name and leaves
-// the receiver as it was. Each sentinel matches its strconv
-// counterpart and core.ErrInvalid under errors.Is, as ErrDivZero
-// matches ErrInvalid.
+// the receiver as it was. UnmarshalJSON reads a JSON number, or the
+// contents of a JSON string, the same way, a null storing nothing but
+// failing on a nil receiver, so what MarshalJSON writes reads back
+// through it and the pointer to each is a [json.Unmarshaler] as well.
+// Each sentinel matches its strconv counterpart and core.ErrInvalid
+// under errors.Is, as ErrDivZero matches ErrInvalid.
 package num

@@ -142,10 +142,18 @@ func (tc parseCase[T, PT]) assertError(t *testing.T, err error) {
 		core.AssertNoError(t, err, "error")
 		return
 	}
+	assertParseReport[T](t, err, tc.in, tc.wantErr)
+}
+
+// assertParseReport checks err holds a ParseError whose cause is
+// wantErr, naming the parser of T and quoting text, the text it read.
+func assertParseReport[T num.Number[T]](t *testing.T, err error,
+	text string, wantErr error) {
+	t.Helper()
 	p := core.AssertMustErrorAs[*num.ParseError](t, err, "report")
 	core.AssertEqual(t, parseFuncName[T](), p.Func, "func")
-	core.AssertEqual(t, tc.in, p.Num, "num")
-	core.AssertSame(t, tc.wantErr, p.Unwrap(), "cause")
+	core.AssertEqual(t, text, p.Num, "num")
+	core.AssertSame(t, wantErr, p.Unwrap(), "cause")
 }
 
 // The seeds every row starts the receiver from, a value no row

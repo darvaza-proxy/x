@@ -54,13 +54,13 @@ the standard library.
   `*ParseError`, not the strconv type.
 - **`ParseInt32`**, **`ParseInt64`**: the text parsers of the native
   integers, reading what `strconv.ParseInt` reads at the type's width
-  through the package's own scanner; `UnmarshalText` on the pointer
-  stores their value.
+  through the package's own scanner; `UnmarshalText` and
+  `UnmarshalJSON` on the pointer store their value.
 - **`ParseUint128`**, **`ParseInt128`**: the text parsers of the
   128-bit integers, reading what `strconv.ParseUint` and
   `strconv.ParseInt` read, at 128 bits, through the same scanner, with
-  the optional sign on `Int128` alone; `UnmarshalText` on the pointer
-  stores their value, as for the natives.
+  the optional sign on `Int128` alone; `UnmarshalText` and
+  `UnmarshalJSON` on the pointer store their value, as for the natives.
 
 Files:
 
@@ -85,9 +85,10 @@ Files:
 - `num/int128.go`: `Int128` and its operations.
 - `num/int32.go`: `Int32` and its operations.
 - `num/int64.go`: `Int64` and its operations.
-- `num/json.go`: the quoted form and the two bounds under which
-  `MarshalJSON` emits a number; each type's `MarshalJSON` sits in its
-  own file.
+- `num/json.go`: the quoted form, the two bounds under which
+  `MarshalJSON` emits a number, and the reader the `UnmarshalJSON`
+  methods share; each type's `MarshalJSON`, and each integer's
+  `UnmarshalJSON`, sit in the type's own file.
 - `num/milli.go`: the `Milli32` and `Milli64` instantiations and their
   scales.
 - `num/num.go`: the `Unsigned`, `Signed` and `Number` constraints and
@@ -176,7 +177,15 @@ Files:
   `Atto128` never one, so its field type stays stable. Exactness in a
   `float64` is the wrong test, since 2^60 is exact and 2^60+1 is not.
   `TestJSON` reads each result back through the standard decoder to
-  check the token kind.
+  check the token kind. `UnmarshalJSON` on an integer reads either
+  kind back. A number is the parser's text as it stands. A string's
+  contents are parsed as encoding/json would hand them to
+  `UnmarshalText`: read in place between the quotes when there is no
+  backslash, and unquoted by `json.Unmarshal` otherwise. A `null`
+  stores nothing. `TestUnmarshalJSON` reads every integer row of
+  `TestJSON` back, and the tokens an integer refuses, through the
+  method and through `json.Unmarshal` alike, and its `allocs` rows pin
+  that a number or a string with no escape allocates nothing.
 - fmt's padding has corners worth knowing, since the 128-bit writer
   reimplements them: the `0` flag is a precision on the digits, so it
   leaves room for the sign but pushes the base prefix outside the

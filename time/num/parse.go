@@ -14,7 +14,9 @@ import (
 // the value then zero or the nearest bound as strconv has it.
 // UnmarshalText on the pointer side reads the same grammar from its
 // bytes as given, without converting them to a string, and stores the
-// value, wrapping any failure in its own name.
+// value, wrapping any failure in its own name. UnmarshalJSON reads the
+// same grammar from a JSON number as given, or from the contents of a
+// JSON string, and stores the value as UnmarshalText does.
 
 // newParseError returns the report of the parser fn failing on the
 // text s with err, [ErrSyntax] or [ErrRange]. The report keeps a copy
@@ -39,7 +41,7 @@ func cloneText[S stringOrBytes](s S) string {
 	}
 }
 
-// unmarshalInto finishes an UnmarshalText method: it stores the parsed
+// unmarshalInto finishes an unmarshal method: it stores the parsed
 // value x in p when the parse succeeded and p is not nil, and
 // otherwise returns the parse failure, or [core.ErrNilReceiver] once
 // the text parsed, behind the method's name. A failure leaves p as it
