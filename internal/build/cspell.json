@@ -64,6 +64,7 @@
     "IDNA",
     "infoer",
     "ipnet",
+    "jsonv",
     "laddr",
     "languagetool",
     "lexer",

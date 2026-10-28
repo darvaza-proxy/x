@@ -72,6 +72,16 @@ func (v *Int32) UnmarshalText(text []byte) error {
 	return unmarshalInto(v, x, err, "UnmarshalText")
 }
 
+// UnmarshalJSON implements [json.Unmarshaler], storing in v the
+// ParseInt32 value of a JSON number, or of the contents of a JSON
+// string; a null leaves v alone. Any other token is parsed as given,
+// as a number is, and a nil v fails with [core.ErrNilReceiver] once
+// the value is valid, a null included. A failure leaves v as it was
+// and comes back behind this method's name, as for UnmarshalText.
+func (v *Int32) UnmarshalJSON(data []byte) error {
+	return doUnmarshalJSON(v, data, doParseInt32[[]byte])
+}
+
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int32) wide() wide {

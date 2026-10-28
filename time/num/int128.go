@@ -95,6 +95,16 @@ func (v *Int128) UnmarshalText(text []byte) error {
 	return unmarshalInto(v, x, err, "UnmarshalText")
 }
 
+// UnmarshalJSON implements [json.Unmarshaler], storing in v the
+// ParseInt128 value of a JSON number, or of the contents of a JSON
+// string; a null leaves v alone. Any other token is parsed as given,
+// as a number is, and a nil v fails with [core.ErrNilReceiver] once
+// the value is valid, a null included. A failure leaves v as it was
+// and comes back behind this method's name, as for UnmarshalText.
+func (v *Int128) UnmarshalJSON(data []byte) error {
+	return doUnmarshalJSON(v, data, doParseInt128[[]byte])
+}
+
 // asInt64 returns v as a native int64 and whether it fits: the high
 // word must be the sign of the low word extended across it.
 func (v Int128) asInt64() (int64, bool) {
