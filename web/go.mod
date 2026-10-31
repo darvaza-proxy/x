@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	darvaza.org/core v0.23.1
-	darvaza.org/x/fs v0.8.0
+	darvaza.org/x/fs v0.8.1
 )
 
 require (
@@ -13,7 +13,7 @@ require (
 )
 
 require (
-	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/gobwas/glob v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
