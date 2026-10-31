@@ -6,7 +6,7 @@ require (
 	darvaza.org/core v0.23.1
 	darvaza.org/slog v0.10.0
 	darvaza.org/slog/handlers/discard v0.8.0
-	darvaza.org/x/fs v0.8.0
+	darvaza.org/x/fs v0.8.1
 	darvaza.org/x/sync v0.6.1
 	github.com/amery/defaults v0.1.0
 )
@@ -17,6 +17,6 @@ require (
 )
 
 require (
-	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/gobwas/glob v1.0.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 )
