@@ -24,6 +24,9 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 - `fs.go`: Extended filesystem interfaces (ChmodFS, MkdirFS, etc.).
 - `glob.go`: Pattern matching and file walking.
 - `clean.go`: Enhanced path cleaning with absolute path support.
+- `clean_os.go`: `CleanOSPath`, cleaning OS paths as `filepath.Clean` does
+  while keeping a trailing separator. Its tests keep per-platform rows in
+  `clean_os_unix_test.go` (`!windows`) and `clean_os_windows_test.go`.
 - `split.go`: Path splitting utilities.
 - `file.go`: File interface extensions.
 - `io.go`: IO helper functions.
@@ -79,6 +82,10 @@ files, err := fs.Match(fsys, ".", matchers...)
 ```go
 // Clean paths with absolute support
 clean, valid := fs.Clean("/path/../to/file.txt")
+
+// Clean an OS path, keeping a trailing separator
+osPath, err := fs.CleanOSPath("/srv//www/./current/../")
+// osPath = "/srv/www/" on Unix, err = nil
 
 // Split without trailing slash
 dir, file := fs.Split("path/to/file.txt")
