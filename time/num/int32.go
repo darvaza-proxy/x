@@ -40,6 +40,48 @@ func AsInt32(x int32) Int32 {
 	return Int32(x)
 }
 
+// ParseInt32 reads an Int32 from its decimal text, an optional sign
+// and the digits, as [strconv.ParseInt] reads an int32: base 10 only,
+// with no underscores, prefixes or spaces. Any other form fails with
+// [ErrSyntax] and a zero value, and a number past the range with
+// [ErrRange] and the nearest bound, both reported in a [ParseError].
+func ParseInt32(s string) (Int32, error) {
+	return doParseInt32(s)
+}
+
+// doParseInt32 reads s, a string or the bytes as given, as a signed
+// decimal at 32 bits through doParseInt. A failure keeps the value
+// doParseInt returns, zero or the nearest bound, and reports its cause
+// in a ParseError under ParseInt32's name, with a copy of s. It is
+// generic so ParseInt32 and UnmarshalText read through one body.
+func doParseInt32[S stringOrBytes](s S) (Int32, error) {
+	x, err := doParseInt(s, 32)
+	if err != nil {
+		return Int32(x), newParseError("ParseInt32", s, err)
+	}
+	return Int32(x), nil
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler], storing the
+// ParseInt32 value of the text in v. It fails as ParseInt32 does, and
+// with [core.ErrNilReceiver] on a nil v once the text parsed, the error
+// carrying the method's name in front of the cause; v is left as it
+// was on any failure.
+func (v *Int32) UnmarshalText(text []byte) error {
+	x, err := doParseInt32(text)
+	return unmarshalInto(v, x, err, "UnmarshalText")
+}
+
+// UnmarshalJSON implements [json.Unmarshaler], storing in v the
+// ParseInt32 value of a JSON number, or of the contents of a JSON
+// string; a null leaves v alone. Any other token is parsed as given,
+// as a number is, and a nil v fails with [core.ErrNilReceiver] once
+// the value is valid, a null included. A failure leaves v as it was
+// and comes back behind this method's name, as for UnmarshalText.
+func (v *Int32) UnmarshalJSON(data []byte) error {
+	return doUnmarshalJSON(v, data, doParseInt32[[]byte])
+}
+
 // wide returns v as a count of whole units, on the way to another
 // type of the family.
 func (v Int32) wide() wide {
@@ -49,23 +91,23 @@ func (v Int32) wide() wide {
 // Int32 returns v unchanged, the conversion to its own type, which
 // always fits.
 func (v Int32) Int32() (Int32, bool) {
-	return v.wide().int32()
+	return v.wide().narrow32()
 }
 
 // Int64 returns v as an Int64, which always fits.
 func (v Int32) Int64() (Int64, bool) {
-	return v.wide().int64()
+	return v.wide().narrow64()
 }
 
 // Int128 returns v as an Int128, which always fits.
 func (v Int32) Int128() (Int128, bool) {
-	return v.wide().int128()
+	return v.wide().narrow128()
 }
 
 // Uint128 returns v as a Uint128 and whether it fits, which it does
 // when not negative; the bit pattern stays when it does not.
 func (v Int32) Uint128() (Uint128, bool) {
-	return v.wide().uint128()
+	return v.wide().narrowUint128()
 }
 
 // Milli32 returns v as whole units of a Milli32 and whether it fits;

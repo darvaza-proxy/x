@@ -41,10 +41,9 @@ type Signed[T any] interface {
 }
 
 // Number is the whole surface the family shares, the constraint a
-// generic consumer names to take any of its seven types: the
-// arithmetic of Unsigned with sign inspection and absolute value, the
-// fmt, encoding and JSON forms, and a conversion to every type of the
-// family.
+// generic consumer names to take any of its types: the arithmetic of
+// Unsigned with sign inspection and absolute value, the fmt, encoding
+// and JSON forms, and a conversion to every type of the family.
 //
 // The conversions keep the value, not the count: an integer becomes
 // whole units and a Decimal is rescaled, so AsInt32(5).Atto128() is

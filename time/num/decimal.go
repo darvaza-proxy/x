@@ -151,8 +151,7 @@ func (d Decimal[T, S]) AsInt64() (Int64, bool) {
 //
 //revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (d Decimal[T, S]) AsInt128() (Int128, bool) {
-	w := d.count()
-	return w.v, w.ok
+	return d.count().narrow128()
 }
 
 // Int32 returns the whole units of d as an Int32, the fraction dropped
