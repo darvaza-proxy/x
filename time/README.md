@@ -114,6 +114,36 @@ counterpart and `core.ErrInvalid` under `errors.Is`, so a caller can
 test for the package's sentinel, the standard library's, or the
 generic invalid-input condition.
 
+### `tai`
+
+TAI timestamps backed by `num.Int128`, with second (`TAI`), nanosecond
+(`TAIN`) and attosecond (`TAIA`) precision. `TAIFromTime` converts a
+`time.Time`, adding leap seconds beyond the initial ten-second offset
+already included in the libtai epoch base.
+
+`ParseTAIA` reads a text label consisting of `@` followed by 32
+hexadecimal digits: 16 for the unsigned seconds label, eight for
+nanoseconds and eight for attoseconds. These fields match
+[libtai's TAI64NA labels](https://cr.yp.to/libtai/tai64.html).
+`MarshalText` writes the canonical lowercase form, `UnmarshalText`
+stores a parsed label, and `AppendText` appends one to a caller's
+buffer. Both uppercase and lowercase input are accepted. Reading a
+label preserves its seconds bias without applying UTC conversion.
+
+The full unsigned 64-bit seconds field is retained. Each fractional
+field must be below one billion. A timestamp whose seconds are
+negative or exceed `uint64` fails to encode with `ErrTAIARange`.
+Other malformed labels report `ErrInvalidTAIALength` or
+`ErrInvalidTAIAFormat`; each sentinel matches `core.ErrInvalid`.
+A failed unmarshal leaves its receiver unchanged.
+
+`String` on `TAI`, `TAIN` and `TAIA` returns the lowercase label at its
+precision: `@` and 16, 24 or 32 hexadecimal digits. The internal signed
+128-bit counts can exceed the label range. In that case, `String`
+returns diagnostic text such as `TAIA(-1as)`, which is not a label and
+cannot be parsed back. Use `TAIA.MarshalText` when writing a label
+must report an out-of-range value as an error.
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see

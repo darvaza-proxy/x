@@ -12,6 +12,30 @@ the standard library.
 ### Subpackages
 
 - **`num`**: fixed-width numeric types for the time packages.
+- **`tai`**: TAI timestamps and libtai-compatible text labels.
+
+### tai Package
+
+- `TAI`, `TAIN` and `TAIA` count seconds, nanoseconds and attoseconds
+  in a `num.Int128`. Their internal counts retain the TAI64 bias.
+- `tai/label.go` provides `ParseTAIA` and the text encoding interfaces
+  of `TAIA`. Labels contain `@` and exactly 32 hexadecimal digits,
+  partitioned into seconds, nanoseconds and attoseconds. Read the
+  seconds as unsigned, including its top bit; each fraction is below
+  one billion. Writing validates the seconds before modifying the
+  destination buffer.
+- Label parsing applies no UTC or leap-second conversion. Those
+  adjustments belong to `TAIFromTime`.
+- `tai/string.go` implements `fmt.Stringer` for all three precisions,
+  sharing the label formatter with `TAIA.AppendText`. Counts outside
+  the unsigned seconds range print as diagnostic text, for example
+  `TAIA(-1as)`, rather than a label. Validate before narrowing, and
+  never scale a wider count into attoseconds merely to format it:
+  that can overflow before the range check.
+- `tai/label_test.go` uses the external test package and named cases
+  with factories and `core.RunTestCases`. Its labels were checked
+  against libtai's pack routine. Preserve those reference labels,
+  including the unsigned seconds edges, when changing the encoding.
 
 ### num Package
 
