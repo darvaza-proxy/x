@@ -1,5 +1,5 @@
-// Package net provides generic network helpers and proxies
-// to some useful standard types and functions
+// Package net provides generic network helpers and aliases of some
+// useful standard types.
 package net
 
 import (

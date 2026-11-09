@@ -3,13 +3,21 @@
 ## Overview
 
 The `net` package provides advanced networking utilities that extend Go's
-standard net package. It includes sophisticated port binding mechanisms,
-automatic reconnection clients, and platform-specific socket control for
-robust network programming.
+standard net package. It includes host:port helpers, sophisticated port
+binding mechanisms, automatic reconnection clients, and platform-specific
+socket control for robust network programming.
 
 For detailed API documentation and usage examples, see [README.md](README.md).
 
 ## Key Components
+
+### Root Package
+
+- **Host:port helpers**: `SplitHostPort`, `JoinHostPort` and
+  `JoinAllHostPorts`, which check the hosts, and the port when splitting.
+- **`Dialer`**: An interface for `DialContext`, which `*net.Dialer`
+  satisfies.
+- **Aliases**: Standard types such as `Conn` and `Listener`.
 
 ### Subpackages
 
@@ -38,9 +46,9 @@ For detailed API documentation and usage examples, see [README.md](README.md).
 
 ### Main Files
 
-- `dialer.go`: Enhanced dialer implementations.
-- `addrs.go`: Address manipulation utilities.
-- `std.go`: Standard library extensions.
+- `dialer.go`: The `Dialer` interface.
+- `addrs.go`: Host:port helpers.
+- `std.go`: Aliases of standard types.
 - `bind/bind.go`: Core binding configuration and logic.
 - `bind/control_*.go`: Platform-specific socket control.
 - `bind/listen.go`: TCP/UDP listener creation.

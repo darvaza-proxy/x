@@ -77,8 +77,8 @@ common types, constants and functions too.
 [![codecov][net-codecov-badge]][codecov-link]
 [![Socket Badge][net-socket-badge]][net-socket-link]
 
-[darvaza.org/x/net][x-net] provides network utilities including dialer,
-bind helpers, and reconnect client.
+[darvaza.org/x/net][x-net] provides network utilities: port binding, a
+reconnecting client and host:port helpers.
 `bind` listens on several interfaces and addresses at once, retrying
 ports and setting socket options such as `SO_REUSEPORT`, and `reconnect`
 is a TCP and Unix socket client that redials after a configurable wait,
