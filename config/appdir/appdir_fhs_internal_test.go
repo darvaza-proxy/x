@@ -26,8 +26,6 @@ func (tc getSysPrefixTestCase) Name() string {
 }
 
 func (tc getSysPrefixTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, ok := tc.p.getSysPrefix()
 	core.AssertEqual(t, tc.wantOK, ok, "ok")
 	core.AssertEqual(t, tc.want, got, "prefix")

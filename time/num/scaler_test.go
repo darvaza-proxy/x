@@ -139,22 +139,18 @@ func TestUnit64Text(t *testing.T) {
 }
 
 func runTestUnit64Text(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, unit64TextCases())
 }
 
 func runTestUnit64Format(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, unit64FormatCases())
 }
 
 func runTestUnit64GoString(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, unit64GoStringCases())
 }
 
 func runTestUnit64JSON(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, unit64JSONCases())
 }
 
@@ -271,21 +267,17 @@ func TestZepto128Text(t *testing.T) {
 }
 
 func runTestZepto128Text(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, zepto128TextCases())
 }
 
 func runTestZepto128Format(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, zepto128FormatCases())
 }
 
 func runTestZepto128GoString(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, zepto128GoStringCases())
 }
 
 func runTestZepto128JSON(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, zepto128JSONCases())
 }

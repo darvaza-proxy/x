@@ -37,7 +37,6 @@ func newTextCase(name string, in textValue, want string) textCase {
 func (tc textCase) Name() string { return tc.name }
 
 func (tc textCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.in.String(), "String")
 	core.AssertEqual(t, tc.want, fmt.Sprint(tc.in), "fmt")
 	tc.testAppendText(t)
@@ -47,7 +46,6 @@ func (tc textCase) Test(t *testing.T) {
 // testAppendText checks AppendText writes the text after whatever the
 // buffer holds, and allocates nothing when the buffer has room.
 func (tc textCase) testAppendText(t *testing.T) {
-	t.Helper()
 	got, err := tc.in.AppendText(nil)
 	core.AssertNoError(t, err, "AppendText")
 	core.AssertEqual(t, tc.want, string(got), "AppendText")
@@ -65,7 +63,6 @@ func (tc textCase) testAppendText(t *testing.T) {
 
 // testMarshalText checks MarshalText returns the AppendText text.
 func (tc textCase) testMarshalText(t *testing.T) {
-	t.Helper()
 	got, err := tc.in.MarshalText()
 	core.AssertNoError(t, err, "MarshalText")
 	core.AssertEqual(t, tc.want, string(got), "MarshalText")
@@ -132,21 +129,17 @@ func TestText(t *testing.T) {
 }
 
 func runTestTextInt(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, textIntCases())
 }
 
 func runTestTextUint128(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, textUint128Cases())
 }
 
 func runTestTextInt128(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, textInt128Cases())
 }
 
 func runTestTextDecimal(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, textDecimalCases())
 }

@@ -37,7 +37,6 @@ func newCapacityTestCase(name string, capacity int, input string) capacityTestCa
 func (tc capacityTestCase) Name() string { return tc.name }
 
 func (tc capacityTestCase) Test(t *testing.T) {
-	t.Helper()
 	buf := buffer.New(tc.capacity)
 	core.AssertMustNotNil(t, buf, "buffer")
 	buf.WriteStrings(tc.input)
@@ -78,7 +77,6 @@ func TestBuffer(t *testing.T) {
 }
 
 func runTestMethodChaining(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	result := buf.WriteStrings("hello", " ", "world").
 		WriteRunes('!').
@@ -89,7 +87,6 @@ func runTestMethodChaining(t *testing.T) {
 }
 
 func runTestReset(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	buf.WriteStrings("some text")
 	core.AssertMustEqual(t, 9, buf.Len(), "pre-reset len")
@@ -100,28 +97,24 @@ func runTestReset(t *testing.T) {
 }
 
 func runTestWriteStrings(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	buf.WriteStrings("a", "b", "c")
 	core.AssertEqual(t, "abc", buf.String(), "content")
 }
 
 func runTestWriteBytes(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	buf.WriteBytes([]byte("hello"), []byte(" "), []byte("world"))
 	core.AssertEqual(t, "hello world", buf.String(), "content")
 }
 
 func runTestWriteRunes(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	buf.WriteRunes('H', 'e', 'l', 'p', '!', '🚀')
 	core.AssertEqual(t, "Help!🚀", buf.String(), "content")
 }
 
 func runTestPrintMethods(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	buf.Print("hello").
 		Print(" ").
@@ -131,7 +124,6 @@ func runTestPrintMethods(t *testing.T) {
 }
 
 func runTestPrintSpacing(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 
 	buf.Print("a", "b")
@@ -151,7 +143,6 @@ func runTestPrintSpacing(t *testing.T) {
 }
 
 func runTestGrow(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	result := buf.Grow(100)
 	core.AssertSame(t, &buf, result, "grow identity")
@@ -160,14 +151,12 @@ func runTestGrow(t *testing.T) {
 }
 
 func runTestGrowNonPositive(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	core.AssertNoPanic(t, func() { buf.Grow(0) }, "grow zero")
 	core.AssertNoPanic(t, func() { buf.Grow(-10) }, "grow negative")
 }
 
 func runTestIOWriter(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	n, err := buf.Write([]byte("test"))
 	core.AssertNoError(t, err, "write")
@@ -177,7 +166,6 @@ func runTestIOWriter(t *testing.T) {
 }
 
 func runTestWriteTo(t *testing.T) {
-	t.Helper()
 	var src, dst buffer.Buffer
 	src.WriteStrings("payload")
 	n, err := src.WriteTo(&dst)
@@ -190,7 +178,6 @@ func runTestWriteTo(t *testing.T) {
 }
 
 func runTestWriteToError(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	buf.WriteStrings("payload")
 	n, err := buf.WriteTo(failingWriter{})
@@ -200,7 +187,6 @@ func runTestWriteToError(t *testing.T) {
 }
 
 func runTestBytesAliasing(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	buf.WriteStrings("hello")
 	s := buf.String()
@@ -214,7 +200,6 @@ func runTestBytesAliasing(t *testing.T) {
 }
 
 func runTestBytesEmpty(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	b := buf.Bytes()
 	core.AssertNotNil(t, b, "non-nil slice")
@@ -222,7 +207,6 @@ func runTestBytesEmpty(t *testing.T) {
 }
 
 func runTestPrintChainIdentity(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	core.AssertSame(t, &buf, buf.Print("x"), "Print identity")
 	core.AssertSame(t, &buf, buf.Println("y"), "Println identity")
@@ -230,7 +214,6 @@ func runTestPrintChainIdentity(t *testing.T) {
 }
 
 func runTestWriteStringSingular(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	n, err := buf.WriteString("hello")
 	core.AssertNoError(t, err, "writeString")
@@ -239,7 +222,6 @@ func runTestWriteStringSingular(t *testing.T) {
 }
 
 func runTestWriteByteSingular(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	err := buf.WriteByte('Z')
 	core.AssertNoError(t, err, "writeByte")
@@ -247,7 +229,6 @@ func runTestWriteByteSingular(t *testing.T) {
 }
 
 func runTestWriteRuneSingular(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	n, err := buf.WriteRune('🚀')
 	core.AssertNoError(t, err, "writeRune")
@@ -256,7 +237,6 @@ func runTestWriteRuneSingular(t *testing.T) {
 }
 
 func runTestComplexChaining(t *testing.T) {
-	t.Helper()
 	var buf buffer.Buffer
 	buf.Grow(100).
 		WriteStrings(`{"name":"`).

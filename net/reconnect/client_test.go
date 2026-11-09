@@ -155,8 +155,6 @@ func TestClientShutdownUnblocksSession(t *testing.T) {
 // runTestClientConnectExpiredContext verifies Connect refuses to
 // start when the context deadline has already expired.
 func runTestClientConnectExpiredContext(t *testing.T) {
-	t.Helper()
-
 	lsn, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	defer func() {
@@ -184,8 +182,6 @@ func runTestClientConnectExpiredContext(t *testing.T) {
 // instead of spinning on reconnection attempts once the context
 // deadline expires.
 func runTestClientDeadlineStopsReconnecting(t *testing.T) {
-	t.Helper()
-
 	lsn, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	defer func() {
@@ -378,8 +374,6 @@ func TestClientGo(t *testing.T) {
 // newIdleClient returns a client that is never connected, so its
 // workgroup is live for Go and GoCatch without a remote to dial.
 func newIdleClient(t *testing.T, errs *errors.CompoundError) *reconnect.Client {
-	t.Helper()
-
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  addrUnused,
@@ -394,8 +388,6 @@ func newIdleClient(t *testing.T, errs *errors.CompoundError) *reconnect.Client {
 // runTestClientGoClean runs a worker that succeeds and leaves the
 // client running.
 func runTestClientGoClean(t *testing.T) {
-	t.Helper()
-
 	errs := new(errors.CompoundError)
 	c := newIdleClient(t, errs)
 
@@ -417,8 +409,6 @@ func runTestClientGoClean(t *testing.T) {
 // absorbed: Shutdown reports a clean stop rather than the worker's
 // error, which a terminated client would have recorded as its cause.
 func runTestClientGoAbsorbed(t *testing.T) {
-	t.Helper()
-
 	errWorker := errors.New("worker failed")
 	errs := new(errors.CompoundError)
 	c := newIdleClient(t, errs)
@@ -442,8 +432,6 @@ func runTestClientGoAbsorbed(t *testing.T) {
 // panic takes the same route as a returned error: it reaches the catch
 // and then OnError, and is absorbed as non-fatal.
 func runTestClientGoWorkerPanic(t *testing.T) {
-	t.Helper()
-
 	errPanic := errors.New("worker panic sentinel")
 	errs := new(errors.CompoundError)
 	c := newIdleClient(t, errs)
@@ -471,8 +459,6 @@ func runTestClientGoWorkerPanic(t *testing.T) {
 // worker's own route: it reaches OnError and is absorbed as non-fatal
 // instead of the workgroup cancelling the client on it.
 func runTestClientGoCatchPanic(t *testing.T) {
-	t.Helper()
-
 	errWorker := errors.New("worker failed")
 	errPanic := errors.New("catch panic sentinel")
 	errs := new(errors.CompoundError)
@@ -499,8 +485,6 @@ func runTestClientGoCatchPanic(t *testing.T) {
 // the client acts on: it stops, as a fatal error demands, and reports
 // the stop as user-initiated.
 func runTestClientGoCatchFatal(t *testing.T) {
-	t.Helper()
-
 	errWorker := errors.New("worker failed")
 	errs := new(errors.CompoundError)
 	c := newIdleClient(t, errs)
@@ -576,8 +560,6 @@ func newConnectRejectTestCase(name string, reject error) connectRejectTestCase {
 func (tc connectRejectTestCase) Name() string { return tc.name }
 
 func (tc connectRejectTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	lsn, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	defer func() { _ = lsn.Close() }()
@@ -883,8 +865,6 @@ func TestClientConnectOnce(t *testing.T) {
 // client shut down before it ever ran. The guard answers ErrClosed
 // before the one-shot check, so no dial is attempted.
 func runTestClientConnectNeverStarted(t *testing.T) {
-	t.Helper()
-
 	lsn, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	defer func() { _ = lsn.Close() }()
@@ -916,8 +896,6 @@ func runTestClientConnectNeverStarted(t *testing.T) {
 // live client. The session is held open so the call lands while the
 // client is genuinely running, which is what ErrRunning reports.
 func runTestClientConnectWhileRunning(t *testing.T) {
-	t.Helper()
-
 	lsn, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	defer func() { _ = lsn.Close() }()
@@ -966,8 +944,6 @@ func runTestClientConnectWhileRunning(t *testing.T) {
 // the client is stopped, not stopping, and ErrClosed is the answer
 // rather than ErrRunning.
 func runTestClientConnectAfterShutdown(t *testing.T) {
-	t.Helper()
-
 	lsn, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	defer func() { _ = lsn.Close() }()

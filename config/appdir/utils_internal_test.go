@@ -44,8 +44,6 @@ func (tc joinFnTestCase) Name() string {
 }
 
 func (tc joinFnTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, err := joinFn(tc.fn, tc.sub...)
 	if tc.wantErr != nil {
 		core.AssertErrorIs(t, err, tc.wantErr, "join fn")
@@ -106,7 +104,6 @@ func (tc getEnvDirTestCase) Name() string {
 }
 
 func (tc getEnvDirTestCase) Test(t *testing.T) {
-	t.Helper()
 	// t.Setenv registers the restore that os.Unsetenv needs to
 	// leave behind when making the variable genuinely absent.
 	t.Setenv("APPDIR_TEST_DIR", tc.envValue)
@@ -154,7 +151,6 @@ func (tc getEnvHomeDirTestCase) Name() string {
 }
 
 func (tc getEnvHomeDirTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Setenv("APPDIR_TEST_DIR", tc.envValue)
 	setTestHome(t)
 
@@ -187,8 +183,6 @@ func (tc partsFromSlashTestCase) Name() string {
 }
 
 func (tc partsFromSlashTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := partsFromSlash(tc.base, tc.sub...)
 	core.AssertSliceEqual(t, tc.want, got, "parts")
 }
@@ -231,8 +225,6 @@ func (tc splitFromSlashTestCase) Name() string {
 }
 
 func (tc splitFromSlashTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := splitFromSlash(tc.input)
 	core.AssertSliceEqual(t, tc.want, got, "parts")
 }

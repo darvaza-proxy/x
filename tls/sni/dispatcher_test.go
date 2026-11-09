@@ -79,9 +79,7 @@ func awaitAccept(t *testing.T, ch <-chan acceptResult) acceptResult {
 }
 
 // shutdownWithin shuts the Dispatcher down under the test timeout.
-func shutdownWithin(t *testing.T, d *sni.Dispatcher) error {
-	t.Helper()
-
+func shutdownWithin(d *sni.Dispatcher) error {
 	ctx, cancel := core.WithTimeout(context.Background(), dispatcherTimeout)
 	defer cancel()
 	return d.Shutdown(ctx)
@@ -221,8 +219,6 @@ type dispatchFixture struct {
 
 // newDispatchFixture starts d on a fresh listener and dials it once.
 func newDispatchFixture(t *testing.T, d *sni.Dispatcher) *dispatchFixture {
-	t.Helper()
-
 	ln, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	t.Cleanup(func() { _ = ln.Close() })
@@ -250,9 +246,7 @@ func (f *dispatchFixture) sendClientHello(name string) {
 // finish shuts the Dispatcher down cleanly, closes the listener so
 // Serve returns, and checks both report a clean stop.
 func (f *dispatchFixture) finish(t *testing.T) {
-	t.Helper()
-
-	core.AssertNoError(t, shutdownWithin(t, f.d), "Shutdown")
+	core.AssertNoError(t, shutdownWithin(f.d), "Shutdown")
 	core.AssertNoError(t, f.ln.Close(), "Close listener")
 	core.AssertNoError(t, awaitError(t, f.served, "Serve"), "Serve")
 }
@@ -261,8 +255,6 @@ func (f *dispatchFixture) finish(t *testing.T) {
 // its SNI, receiving the stream with the ClientHello still unread, and
 // the handler's clean return is logged.
 func runTestDispatcherDispatchClaimed(t *testing.T) {
-	t.Helper()
-
 	logger := mock.NewLogger()
 	names := make(chan string, 1)
 
@@ -294,8 +286,6 @@ func runTestDispatcherDispatchClaimed(t *testing.T) {
 // connection falls through to Accept with the ClientHello replayed
 // ahead of the rest of the stream.
 func runTestDispatcherDispatchDeclined(t *testing.T) {
-	t.Helper()
-
 	d := &sni.Dispatcher{
 		GetHandler: func(*tls.ClientHelloInfo) sni.Handler { return nil },
 	}
@@ -319,8 +309,6 @@ func runTestDispatcherDispatchDeclined(t *testing.T) {
 // is not TLS, the connection is closed, and the failure is logged and
 // absorbed like any other handler error.
 func runTestDispatcherDispatchMalformed(t *testing.T) {
-	t.Helper()
-
 	logger := mock.NewLogger()
 	d := &sni.Dispatcher{
 		Logger:     logger,
@@ -392,7 +380,7 @@ func TestDispatcherShutdownUnblocksPeek(t *testing.T) {
 
 	// Shutdown waits for the handler, so it returning in time proves
 	// the parked probe was released.
-	core.AssertNoError(t, shutdownWithin(t, d), "Shutdown")
+	core.AssertNoError(t, shutdownWithin(d), "Shutdown")
 	core.AssertNoError(t, d.Err(), "Err")
 
 	// and the peer observes the connection closed.
@@ -454,7 +442,7 @@ func TestDispatcherAcceptAfterShutdown(t *testing.T) {
 	d := &sni.Dispatcher{}
 	accepted := acceptInBackground(d)
 
-	core.AssertNoError(t, shutdownWithin(t, d), "Shutdown")
+	core.AssertNoError(t, shutdownWithin(d), "Shutdown")
 
 	r := awaitAccept(t, accepted)
 	core.AssertNil(t, r.conn, "conn")
@@ -497,7 +485,7 @@ func TestDispatcherUncollectedConnClosed(t *testing.T) {
 
 	// Shutdown waits for the handler, so it returning in time proves
 	// the parked hand-off was released.
-	core.AssertNoError(t, shutdownWithin(t, d), "Shutdown")
+	core.AssertNoError(t, shutdownWithin(d), "Shutdown")
 
 	// and the peer observes the connection closed.
 	core.AssertNoError(t, client.SetReadDeadline(time.Now().Add(dispatcherTimeout)),
@@ -523,8 +511,6 @@ func TestDispatcherAcceptError(t *testing.T) {
 // accept error is fatal. Serve, Err, Close and a blocked Accept all
 // report it, and the record names the accept.
 func runTestDispatcherAcceptErrorTerminates(t *testing.T) {
-	t.Helper()
-
 	errBoom := errors.New("accept boom")
 	logger := mock.NewLogger()
 	ln := newStubListener(errBoom)
@@ -547,8 +533,6 @@ func runTestDispatcherAcceptErrorTerminates(t *testing.T) {
 // and declines to terminate, so Serve keeps accepting, at a bounded
 // pace, until the listener closes, and nothing fatal is recorded.
 func runTestDispatcherAcceptErrorContinues(t *testing.T) {
-	t.Helper()
-
 	errBoom := errors.New("accept boom")
 	seen := make(chan error, 1)
 	ln := newStubListener(errBoom)
@@ -575,8 +559,6 @@ func runTestDispatcherAcceptErrorContinues(t *testing.T) {
 // once its error is spent, so a pause the shutdown did not interrupt
 // would leave Serve parked there.
 func runTestDispatcherAcceptErrorPaused(t *testing.T) {
-	t.Helper()
-
 	errBoom := errors.New("accept boom")
 	ln := newStubListener(errBoom)
 
@@ -605,8 +587,6 @@ func TestDispatcherHandlerError(t *testing.T) {
 // handled first, and the other shows whether the Dispatcher is still
 // serving. Which is which does not matter to the caller.
 func dialTwice(t *testing.T, addr string) (first, second net.Conn) {
-	t.Helper()
-
 	first, err := net.Dial("tcp", addr)
 	core.AssertMustNoError(t, err, "first dial")
 	second, err = net.Dial("tcp", addr)
@@ -618,8 +598,6 @@ func dialTwice(t *testing.T, addr string) (first, second net.Conn) {
 // rejection is logged with its peer and absorbed; the next connection
 // still falls through to Accept and nothing fatal is recorded.
 func runTestDispatcherHandlerErrorAbsorbed(t *testing.T) {
-	t.Helper()
-
 	ln, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	defer func() { _ = ln.Close() }()
@@ -641,7 +619,7 @@ func runTestDispatcherHandlerErrorAbsorbed(t *testing.T) {
 	core.AssertMustNoError(t, r.err, "Accept")
 	_ = r.conn.Close()
 
-	core.AssertNoError(t, shutdownWithin(t, d), "Shutdown")
+	core.AssertNoError(t, shutdownWithin(d), "Shutdown")
 	core.AssertNoError(t, d.Err(), "Err")
 	core.AssertNoError(t, ln.Close(), "Close listener")
 	core.AssertNoError(t, awaitError(t, served, "Serve"), "Serve")
@@ -652,8 +630,6 @@ func runTestDispatcherHandlerErrorAbsorbed(t *testing.T) {
 // runTestDispatcherHandlerErrorTerminates: OnError asks to terminate on
 // the rejection, so it becomes the fatal error Accept and Err report.
 func runTestDispatcherHandlerErrorTerminates(t *testing.T) {
-	t.Helper()
-
 	ln, err := net.Listen("tcp", addrLoopbackAny)
 	core.AssertMustNoError(t, err, "listen")
 	defer func() { _ = ln.Close() }()

@@ -48,7 +48,6 @@ func newBarrierStateTestCase(name string, setup func() *cond.Barrier,
 func (tc barrierStateTestCase) Name() string { return tc.name }
 
 func (tc barrierStateTestCase) Test(t *testing.T) {
-	t.Helper()
 	b := tc.setup()
 	core.AssertEqual(t, tc.wantNil, b.IsNil(), "IsNil")
 	core.AssertEqual(t, tc.wantClosed, b.IsClosed(), "IsClosed")
@@ -108,7 +107,6 @@ func newBarrierInitTestCase(name string, setup func() *cond.Barrier,
 func (tc barrierInitTestCase) Name() string { return tc.name }
 
 func (tc barrierInitTestCase) Test(t *testing.T) {
-	t.Helper()
 	b := tc.setup()
 	err := b.Init()
 	if tc.wantErr == nil {
@@ -162,7 +160,6 @@ func newBarrierCloseTestCase(name string, setup func() *cond.Barrier,
 func (tc barrierCloseTestCase) Name() string { return tc.name }
 
 func (tc barrierCloseTestCase) Test(t *testing.T) {
-	t.Helper()
 	b := tc.setup()
 	err := b.Close()
 	if tc.wantErr == nil {
@@ -224,7 +221,6 @@ func newBarrierTryAcquireTestCase(name string, setup func() *cond.Barrier,
 func (tc barrierTryAcquireTestCase) Name() string { return tc.name }
 
 func (tc barrierTryAcquireTestCase) Test(t *testing.T) {
-	t.Helper()
 	b := tc.setup()
 	token, ok := b.TryAcquire()
 	core.AssertEqual(t, tc.wantOk, ok, "ok")

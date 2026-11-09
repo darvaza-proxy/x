@@ -42,7 +42,6 @@ func newWaitResultTestCase(name string, value waitResult,
 func (tc waitResultTestCase) Name() string { return tc.name }
 
 func (tc waitResultTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.wantCancelled, tc.value.IsCancelled(),
 		"IsCancelled")
 	core.AssertEqual(t, tc.wantContinue, tc.value.IsContinue(),

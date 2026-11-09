@@ -32,8 +32,6 @@ func (tc compareTestCase) Name() string {
 }
 
 func (tc compareTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	core.AssertEqual(t, tc.want, versionsort.Compare(tc.a, tc.b), "compare")
 	core.AssertEqual(t, -tc.want, versionsort.Compare(tc.b, tc.a), "reverse")
 }
@@ -194,8 +192,6 @@ func (tc sortTestCase) Name() string {
 }
 
 func (tc sortTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := slices.Clone(tc.input)
 	core.AssertMustNoPanic(t, func() { versionsort.Sort(got) }, "sort")
 	core.AssertSliceEqual(t, tc.want, got, "sorted")
@@ -312,8 +308,6 @@ func (tc sortByTestCase) Name() string {
 }
 
 func (tc sortByTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := slices.Clone(tc.input)
 	core.AssertMustNoPanic(t, func() { versionsort.SortBy(got, tc.fn) }, "sort")
 	core.AssertSliceEqual(t, tc.want, got, "sorted")

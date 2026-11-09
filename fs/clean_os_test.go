@@ -25,8 +25,6 @@ func (tc cleanOSPathTestCase) Name() string {
 }
 
 func (tc cleanOSPathTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	out, err := fs.CleanOSPath(tc.path)
 	core.AssertNoError(t, err, "clean")
 	core.AssertEqual(t, tc.out, out, "cleaned")
@@ -107,8 +105,6 @@ func (tc cleanOSPathUnchangedTestCase) Name() string {
 }
 
 func (tc cleanOSPathUnchangedTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	var out string
 	var err error
 	allocs := testing.AllocsPerRun(10, func() {
@@ -160,8 +156,6 @@ func (tc cleanOSPathInvalidTestCase) Name() string {
 }
 
 func (tc cleanOSPathInvalidTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	out, err := fs.CleanOSPath(tc.path)
 	core.AssertEqual(t, "", out, "cleaned")
 	core.AssertErrorIs(t, err, fs.ErrInvalid, "error")

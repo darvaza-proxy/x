@@ -116,14 +116,12 @@ func TestAsMatcher(t *testing.T) {
 }
 
 func runTestMatchFuncNil(t *testing.T) {
-	t.Helper()
 	// Nil MatchFunc should match everything (return true)
 	var nilMatcher cmp.MatchFunc[string]
 	core.AssertTrue(t, nilMatcher.Match("anything"), "nil matcher")
 }
 
 func runTestMatchFuncBasicMatching(t *testing.T) {
-	t.Helper()
 	// Simple matcher that checks if a number is even
 	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
@@ -141,7 +139,6 @@ func runTestMatchFuncBasicMatching(t *testing.T) {
 }
 
 func runTestAsMatcherWithValidFunction(t *testing.T) {
-	t.Helper()
 	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -153,7 +150,6 @@ func runTestAsMatcherWithValidFunction(t *testing.T) {
 }
 
 func runTestAsMatcherWithNilFunction(t *testing.T) {
-	t.Helper()
 	var nilFunc cmp.MatchFunc[int]
 	matcher := cmp.AsMatcher(nilFunc)
 	core.AssertNil(t, matcher, "nil function")
@@ -166,7 +162,6 @@ func TestM(t *testing.T) {
 }
 
 func runTestMWithNilMatcher(t *testing.T) {
-	t.Helper()
 	// When Matcher is nil, M returns a function that always returns true
 	var nilMatcher cmp.Matcher[int]
 	fn := cmp.M(nilMatcher)
@@ -178,7 +173,6 @@ func runTestMWithNilMatcher(t *testing.T) {
 }
 
 func runTestMWithNonNilMatcher(t *testing.T) {
-	t.Helper()
 	// Create a matcher that checks for even numbers
 	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0

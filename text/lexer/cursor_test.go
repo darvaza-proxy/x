@@ -23,7 +23,6 @@ type peekCase struct {
 func (tc peekCase) Name() string { return tc.name }
 
 func (tc peekCase) Test(t *testing.T) {
-	t.Helper()
 	c := lexer.New(tc.src)
 	got, ok := c.Peek()
 	core.AssertEqual(t, tc.ok, ok, "ok")
@@ -65,7 +64,6 @@ type consumeCase struct {
 func (tc consumeCase) Name() string { return tc.name }
 
 func (tc consumeCase) Test(t *testing.T) {
-	t.Helper()
 	c := lexer.New(tc.src)
 	var got []rune
 	for {

@@ -32,7 +32,6 @@ func (tc userDirTestCase) Name() string {
 }
 
 func (tc userDirTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Setenv("USERNAME", "test")
 	setWinEnv(t, tc.kind, tc.envValue)
 
@@ -89,7 +88,6 @@ func (tc userDirErrTestCase) Name() string {
 }
 
 func (tc userDirErrTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Setenv("LOCALAPPDATA", "")
 	t.Setenv("APPDATA", "")
 	t.Setenv("TMP", "")
@@ -147,7 +145,6 @@ func (tc userDirFallbackTestCase) Name() string {
 }
 
 func (tc userDirFallbackTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Setenv("LOCALAPPDATA", "")
 	t.Setenv("APPDATA", "")
 	t.Setenv("TMP", "")
@@ -202,7 +199,6 @@ func (tc sysDirTestCase) Name() string {
 }
 
 func (tc sysDirTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Setenv("PROGRAMDATA", tc.root)
 
 	got, err := callPrefixDirFunc(t, tc.prefix, tc.kind, tc.sub...)
@@ -319,7 +315,6 @@ func (tc sysUserModeTestCase) Name() string {
 }
 
 func (tc sysUserModeTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixUser))
 	t.Setenv("USERNAME", "test")
 	setWinEnv(t, tc.kind, tc.envValue)

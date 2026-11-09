@@ -44,7 +44,6 @@ func newReportTryMetricsTestCase(name string, attempts, count int32,
 func (tc reportTryMetricsTestCase) Name() string { return tc.name }
 
 func (tc reportTryMetricsTestCase) Test(t *testing.T) {
-	t.Helper()
 	got := metricRecorder{}
 	elapsed := time.Duration(tc.elapsedMS) * time.Millisecond
 	synctesting.ReportTryMetrics(got, tc.attempts, tc.count, elapsed, "lock")

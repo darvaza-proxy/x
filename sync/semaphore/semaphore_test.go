@@ -70,7 +70,6 @@ func newTryLockTestCase(name string, holdLock, want bool) tryLockTestCase {
 func (tc tryLockTestCase) Name() string { return tc.name }
 
 func (tc tryLockTestCase) Test(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	if tc.holdLock {
 		s.Lock()
@@ -120,7 +119,6 @@ func runTestRLockMultiple(_ *testing.T) {
 }
 
 func runTestRLockBlocksWriter(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	s.RLock()
 
@@ -164,7 +162,6 @@ func newTryRLockTestCase(name string, holdReader, holdWriter,
 func (tc tryRLockTestCase) Name() string { return tc.name }
 
 func (tc tryRLockTestCase) Test(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	switch {
 	case tc.holdWriter:
@@ -228,7 +225,6 @@ func TestSemaphore_ContextLocking(t *testing.T) {
 }
 
 func (m lockMode) run(t *testing.T) {
-	t.Helper()
 	t.Run("acquire with context", m.testAcquire)
 	t.Run("nil context", m.testNilContext)
 	t.Run("nil receiver", m.testNilReceiver)
@@ -237,14 +233,12 @@ func (m lockMode) run(t *testing.T) {
 }
 
 func (m lockMode) testAcquire(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	core.AssertMustNoError(t, m.contextLock(s, context.Background()), "acquire")
 	m.unlock(s)
 }
 
 func (m lockMode) testNilContext(t *testing.T) {
-	t.Helper()
 	var ctx context.Context
 	s := &semaphore.Semaphore{}
 	core.AssertErrorIs(t, m.contextLock(s, ctx), errors.ErrNilContext,
@@ -252,14 +246,12 @@ func (m lockMode) testNilContext(t *testing.T) {
 }
 
 func (m lockMode) testNilReceiver(t *testing.T) {
-	t.Helper()
 	var s *semaphore.Semaphore
 	core.AssertErrorIs(t, m.contextLock(s, context.Background()),
 		core.ErrNilReceiver, "nil receiver")
 }
 
 func (m lockMode) testCancelled(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	m.lock(s)
 	defer m.unlock(s)
@@ -272,7 +264,6 @@ func (m lockMode) testCancelled(t *testing.T) {
 }
 
 func (m lockMode) testTimeout(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	m.lock(s)
 	defer m.unlock(s)
@@ -293,7 +284,6 @@ func TestSemaphore_Concurrency(t *testing.T) {
 }
 
 func runTestConcurrentWriters(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	count := 0
 	const numGoroutines, iterations = 10, 100
@@ -314,7 +304,6 @@ func runTestConcurrentWriters(t *testing.T) {
 }
 
 func runTestConcurrentReadersWriters(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	counter := 0
 	const numReaders, numWriters, iterations = 10, 5, 50
@@ -371,7 +360,6 @@ func TestSemaphore_ErrorCases(t *testing.T) {
 }
 
 func runTestSemaphoreMisuse(t *testing.T) {
-	t.Helper()
 	core.AssertPanic(t, (&semaphore.Semaphore{}).Unlock, errors.ErrNotLocked,
 		"Unlock")
 	core.AssertPanic(t, (&semaphore.Semaphore{}).RUnlock, errors.ErrNotLocked,
@@ -381,7 +369,6 @@ func runTestSemaphoreMisuse(t *testing.T) {
 }
 
 func runTestSemaphoreNilReceiver(t *testing.T) {
-	t.Helper()
 	var s *semaphore.Semaphore
 	core.AssertPanic(t, s.Lock, core.ErrNilReceiver, "Lock")
 	core.AssertPanic(t, s.RLock, core.ErrNilReceiver, "RLock")
@@ -430,7 +417,6 @@ func TestSemaphore_MisuseStateIntegrity(t *testing.T) {
 // and recovers the panic, then verifies the reader can still RUnlock and the
 // lock returns fully to the unlocked state.
 func runTestReaderSurvivesUnlockMisuse(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	s.RLock()
 
@@ -462,7 +448,6 @@ func TestSemaphore_EdgeCases(t *testing.T) {
 // runTestWriterAfterReaders verifies a writer blocks until every reader
 // releases its lock.
 func runTestWriterAfterReaders(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	s.RLock()
 	s.RLock()
@@ -489,7 +474,6 @@ func runTestWriterAfterReaders(t *testing.T) {
 // runTestReadersAfterWriter verifies readers block until the writer
 // releases its lock, then all acquire.
 func runTestReadersAfterWriter(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	s.Lock()
 
@@ -519,7 +503,6 @@ func TestSemaphore_ContextCancellation(t *testing.T) {
 }
 
 func runTestCancelExclusiveWait(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	s.Lock()
 	defer s.Unlock()
@@ -542,7 +525,6 @@ func runTestCancelExclusiveWait(t *testing.T) {
 }
 
 func runTestCancelReadWait(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	s.Lock()
 	defer s.Unlock()
@@ -565,7 +547,6 @@ func runTestCancelReadWait(t *testing.T) {
 }
 
 func runTestDeadlineExceeded(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 	s.Lock()
 	defer s.Unlock()
@@ -693,7 +674,6 @@ func TestSemaphore_BoundaryConditions(t *testing.T) {
 }
 
 func runTestManyReadLocks(t *testing.T) {
-	t.Helper()
 	s := &semaphore.Semaphore{}
 
 	const numLocks = 1000

@@ -1,33 +1,32 @@
 package qlist
 
 import (
-	"runtime"
 	"testing"
 )
 
 //revive:disable-next-line:argument-limit
 func parsedEqual(t *testing.T, mime string,
 	mtype, stype string, q float32, attrs map[string]string) {
+	t.Helper()
 	r, err := ParseMediaRange(mime)
-	_, file, line, _ := runtime.Caller(1)
 	if err != nil {
-		t.Fatalf("%s:%d Failed to parse %q: %s", file, line, mime, err)
+		t.Fatalf("Failed to parse %q: %s", mime, err)
 	}
 	if got := mediaRangeType(r); mtype != got {
-		t.Errorf("%s:%d Failed to parse major type %q from %q, got %q",
-			file, line, mtype, mime, got)
+		t.Errorf("Failed to parse major type %q from %q, got %q",
+			mtype, mime, got)
 	}
 	if got := mediaRangeSubType(r); stype != got {
-		t.Errorf("%s:%d Failed to parse minor type %q from %q, got %q",
-			file, line, stype, mime, got)
+		t.Errorf("Failed to parse minor type %q from %q, got %q",
+			stype, mime, got)
 	}
 	if q != r.Quality() {
-		t.Errorf("%s:%d Failed to parse quality %v from %q, got %v",
-			file, line, q, mime, r.Quality())
+		t.Errorf("Failed to parse quality %v from %q, got %v",
+			q, mime, r.Quality())
 	}
 	if !equalAttrs(attrs, r.attrs) {
-		t.Errorf("%s:%d Failed to parse attributes %v from %q, got %v",
-			file, line, attrs, mime, r.attrs)
+		t.Errorf("Failed to parse attributes %v from %q, got %v",
+			attrs, mime, r.attrs)
 	}
 }
 

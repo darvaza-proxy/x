@@ -13,13 +13,11 @@ func TestSys(t *testing.T) {
 }
 
 func runTestSysTypedNil(t *testing.T) {
-	t.Helper()
 	var nilBuf *Buffer
 	core.AssertEqual(t, nil, nilBuf.sys(), "nil receiver sys()")
 }
 
 func runTestSysIdentity(t *testing.T) {
-	t.Helper()
 	var buf Buffer
 	sys := buf.sys()
 	core.AssertMustNotNil(t, sys, "sys")

@@ -70,7 +70,6 @@ func (tc lenTestCase) Name() string {
 }
 
 func (tc lenTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.set.Len(), "len")
 }
 

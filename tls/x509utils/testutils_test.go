@@ -37,7 +37,6 @@ type certSpec struct {
 
 // mkSerial returns a random 128-bit serial number.
 func mkSerial(t *testing.T) *big.Int {
-	t.Helper()
 	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 	core.AssertMustNoError(t, err, "serial")
 	return serial
@@ -45,8 +44,6 @@ func mkSerial(t *testing.T) *big.Int {
 
 // build mints and parses the certificate described by the spec.
 func (spec certSpec) build(t *testing.T) testCert {
-	t.Helper()
-
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	core.AssertMustNoError(t, err, "generate key")
 
@@ -68,8 +65,6 @@ func (spec certSpec) build(t *testing.T) testCert {
 // template builds the x509 template, filling sensible validity defaults and
 // the CA flags when requested.
 func (spec certSpec) template(t *testing.T) *x509.Certificate {
-	t.Helper()
-
 	now := time.Now()
 	notBefore := core.Coalesce(spec.notBefore, now.Add(-time.Hour))
 	notAfter := core.Coalesce(spec.notAfter, now.Add(time.Hour))
@@ -93,7 +88,6 @@ func (spec certSpec) template(t *testing.T) *x509.Certificate {
 
 // mkKey generates a fresh ECDSA key for equality tests.
 func mkKey(t *testing.T) *ecdsa.PrivateKey {
-	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	core.AssertMustNoError(t, err, "generate key")
 	return key

@@ -17,7 +17,6 @@ import (
 // feed pushes the given PEM blocks into buf as a single named source via the
 // general add callback (certs and keys both routed by block type).
 func feed(t *testing.T, buf *buffer.Buffer, file string, blocks ...*pem.Block) {
-	t.Helper()
 	cb := buf.NewAddCallback()
 	core.AssertMustNotNil(t, cb, "callback")
 	for _, b := range blocks {
@@ -76,7 +75,6 @@ var addOps = []bufferGuardOp{
 
 // runAddGuardCancelled confirms a flush method aborts on a cancelled context.
 func runAddGuardCancelled(t *testing.T, op bufferGuardOp) {
-	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	buf := buffer.New(context.Background(), nil)
@@ -201,8 +199,6 @@ func (tc addCertPairCase) Name() string { return tc.name }
 
 // Test stages the buffer via feed and confirms the leaf is paired with its key.
 func (tc addCertPairCase) Test(t *testing.T) {
-	t.Helper()
-
 	ca := mkCA(t, "Pair CA")
 	leaf := mkLeaf(t, ca, "pair.example.com", "pair.example.com")
 	buf := buffer.New(context.Background(), nil)
@@ -290,7 +286,6 @@ func TestAddEmptyBuffer(t *testing.T) {
 
 // runFlushErrAddCACerts confirms a store error from AddCACerts surfaces.
 func runFlushErrAddCACerts(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	buf := buffer.New(ctx, nil)
 	feed(t, buf, "ca.pem", certBlock(mkCA(t, "Err CA")))
@@ -303,7 +298,6 @@ func runFlushErrAddCACerts(t *testing.T) {
 
 // runFlushErrAddCert confirms a store error from AddCert surfaces.
 func runFlushErrAddCert(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	leaf := mkLeaf(t, mkCA(t, "Err CA"), "err.example.com", "err.example.com")
 	buf := buffer.New(ctx, nil)
@@ -317,7 +311,6 @@ func runFlushErrAddCert(t *testing.T) {
 
 // runFlushErrAddPrivateKey confirms a store error from AddPrivateKey surfaces.
 func runFlushErrAddPrivateKey(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	leaf := mkSelfSignedLeaf(t, "err.example.org")
 	buf := buffer.New(ctx, nil)
@@ -331,7 +324,6 @@ func runFlushErrAddPrivateKey(t *testing.T) {
 
 // runFlushErrAddCertPair confirms a store error from AddCertPair surfaces.
 func runFlushErrAddCertPair(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	leaf := mkLeaf(t, mkCA(t, "Err CA"), "err.example.com", "err.example.com")
 	buf := buffer.New(ctx, nil)

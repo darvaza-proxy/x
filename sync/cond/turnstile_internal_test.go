@@ -15,7 +15,6 @@ import (
 const turnstileReadyRounds = 256
 
 func newInitialisedTurnstile(tb testing.TB) *Turnstile {
-	tb.Helper()
 	ts := &Turnstile{}
 	if err := ts.lazyInit(); err != nil {
 		tb.Fatalf("lazyInit returned error: %v", err)

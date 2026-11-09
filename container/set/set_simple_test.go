@@ -11,31 +11,26 @@ import (
 )
 
 func doTestPush(t *testing.T, s *set.Set[int, int, testItem]) {
-	t.Helper()
 	_, err := s.Push(testItem{ID: 1, Name: "test"})
 	core.AssertMustNoError(t, err, "push")
 }
 
 func doTestContains(t *testing.T, s *set.Set[int, int, testItem]) {
-	t.Helper()
 	core.AssertTrue(t, s.Contains(1), "contains")
 }
 
 func doTestGet(t *testing.T, s *set.Set[int, int, testItem]) {
-	t.Helper()
 	v, err := s.Get(1)
 	core.AssertNoError(t, err, "get")
 	core.AssertEqual(t, 1, v.ID, "id")
 }
 
 func doTestPop(t *testing.T, s *set.Set[int, int, testItem]) {
-	t.Helper()
 	_, err := s.Pop(1)
 	core.AssertNoError(t, err, "pop")
 }
 
 func doTestVerifyRemoved(t *testing.T, s *set.Set[int, int, testItem]) {
-	t.Helper()
 	core.AssertFalse(t, s.Contains(1), "removed")
 }
 

@@ -28,7 +28,6 @@ func newMakeAnyMatchIntTestCase(name string, funcs []func(int) bool,
 func (tc makeAnyMatchIntTestCase) Name() string { return tc.name }
 
 func (tc makeAnyMatchIntTestCase) Test(t *testing.T) {
-	t.Helper()
 	fn := makeAnyMatch(tc.funcs)
 	core.AssertMustNotNil(t, fn, "result")
 	core.AssertMustEqual(t, len(tc.inputs), len(tc.expected), "table shape")
@@ -117,7 +116,6 @@ func newMakeAnyMatchStringTestCase(name string, funcs []func(string) bool,
 func (tc makeAnyMatchStringTestCase) Name() string { return tc.name }
 
 func (tc makeAnyMatchStringTestCase) Test(t *testing.T) {
-	t.Helper()
 	fn := makeAnyMatch(tc.funcs)
 	core.AssertMustNotNil(t, fn, "result")
 	core.AssertMustEqual(t, len(tc.inputs), len(tc.expected), "table shape")
@@ -165,7 +163,6 @@ func newIsCancelledTestCase(name string, setup func() <-chan struct{},
 func (tc isCancelledTestCase) Name() string { return tc.name }
 
 func (tc isCancelledTestCase) Test(t *testing.T) {
-	t.Helper()
 	ch := tc.setup()
 	got := isCancelled(ch)
 	core.AssertEqual(t, tc.want, got, "result")

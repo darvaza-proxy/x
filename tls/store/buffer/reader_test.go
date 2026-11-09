@@ -16,7 +16,6 @@ import (
 // feedCerts pushes blocks through the certificates-only callback.
 func feedCerts(t *testing.T, buf *buffer.Buffer, file string,
 	blocks ...*pem.Block) {
-	t.Helper()
 	cb := buf.NewAddCertsCallback()
 	core.AssertMustNotNil(t, cb, "callback")
 	for _, b := range blocks {
@@ -27,7 +26,6 @@ func feedCerts(t *testing.T, buf *buffer.Buffer, file string,
 // feedKeys pushes blocks through the private-keys-only callback.
 func feedKeys(t *testing.T, buf *buffer.Buffer, file string,
 	blocks ...*pem.Block) {
-	t.Helper()
 	cb := buf.NewAddPrivateKeysCallback()
 	core.AssertMustNotNil(t, cb, "callback")
 	for _, b := range blocks {

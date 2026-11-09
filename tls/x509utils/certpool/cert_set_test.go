@@ -26,7 +26,6 @@ func (badSigner) Equal(crypto.PrivateKey) bool { return false }
 // the set and both leaves so a lookup can be checked against a known member and
 // against a second, distinctly keyed one.
 func mkCertSet(t *testing.T) (cs *certpool.CertSet, one, two testCert) {
-	t.Helper()
 	one = mkTestLeaf(t, "set-one.example.com", nil)
 	two = mkTestLeaf(t, "set-two.example.com", nil)
 	cs = certpool.MustCertSet(one.cert, two.cert)

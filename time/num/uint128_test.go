@@ -52,8 +52,6 @@ func newUint128DivModTestCase(name string, a, b, wantQ,
 func (tc uint128DivModTestCase) Name() string { return tc.name }
 
 func (tc uint128DivModTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	q, r := tc.a.DivMod(tc.b)
 	core.AssertEqual(t, tc.wantQ, q, "quotient")
 	core.AssertEqual(t, tc.wantR, r, "remainder")
@@ -109,7 +107,6 @@ func newUint128MulDivModTestCase(name string, a, b, d,
 func (tc uint128MulDivModTestCase) Name() string { return tc.name }
 
 func (tc uint128MulDivModTestCase) Test(t *testing.T) {
-	t.Helper()
 	q, r := tc.a.MulDivMod(tc.b, tc.d)
 	core.AssertEqual(t, tc.wantQ, q, "quotient")
 	// the remainder is pinned by the identity a*b == q*d + r (mod 2^128).
@@ -174,7 +171,6 @@ func newUint128MulTestCase(name string, a, b,
 func (tc uint128MulTestCase) Name() string { return tc.name }
 
 func (tc uint128MulTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.a.Mul(tc.b), "product")
 }
 
@@ -221,7 +217,6 @@ func newUint128CmpTestCase(name string, a, b num.Uint128,
 func (tc uint128CmpTestCase) Name() string { return tc.name }
 
 func (tc uint128CmpTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.a.Cmp(tc.b), "cmp")
 	core.AssertEqual(t, tc.want == 0, tc.a.Equal(tc.b), "equal")
 }

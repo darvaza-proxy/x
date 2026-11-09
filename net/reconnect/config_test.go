@@ -41,8 +41,6 @@ func (tc validateRemoteTestCase) Name() string {
 }
 
 func (tc validateRemoteTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := reconnect.ValidateRemote(tc.input)
 	if tc.wantErr {
 		core.AssertError(t, err, "ValidateRemote")
@@ -89,7 +87,6 @@ func TestValidateRemote(t *testing.T) {
 }
 
 func runTestConfigValidValidConfig(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteTCP,
@@ -102,7 +99,6 @@ func runTestConfigValidValidConfig(t *testing.T) {
 }
 
 func runTestConfigValidInvalidRemote(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteInvalid,
@@ -115,7 +111,6 @@ func runTestConfigValidInvalidRemote(t *testing.T) {
 }
 
 func runTestConfigValidMissingContext(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Remote: remoteTCP,
 	}
@@ -129,7 +124,6 @@ func runTestConfigValidMissingContext(t *testing.T) {
 }
 
 func runTestConfigValidMissingLogger(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteTCP,
@@ -144,7 +138,6 @@ func runTestConfigValidMissingLogger(t *testing.T) {
 }
 
 func runTestConfigValidMissingWaitReconnect(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteTCP,
@@ -167,7 +160,6 @@ func TestConfigValid(t *testing.T) {
 }
 
 func runTestNewValidConfig(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteTCP,
@@ -179,7 +171,6 @@ func runTestNewValidConfig(t *testing.T) {
 }
 
 func runTestNewUnixSocketConfig(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteUnix,
@@ -191,7 +182,6 @@ func runTestNewUnixSocketConfig(t *testing.T) {
 }
 
 func runTestNewInvalidConfig(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteInvalid,

@@ -87,7 +87,6 @@ var sourceOps = []sourceGuardOp{
 // runSourceGuardCancelled confirms a Source flush method aborts on a cancelled
 // context.
 func runSourceGuardCancelled(t *testing.T, op sourceGuardOp) {
-	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	src := mkSource("x.pem", nil, nil)

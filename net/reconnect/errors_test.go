@@ -33,8 +33,6 @@ func (tc isNotConnectedTestCase) Name() string {
 }
 
 func (tc isNotConnectedTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := reconnect.IsNotConnected(tc.err)
 	core.AssertEqual(t, tc.want, got, "IsNotConnected")
 }
@@ -79,8 +77,6 @@ func (tc isClosedTestCase) Name() string {
 }
 
 func (tc isClosedTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := reconnect.IsClosed(tc.err)
 	core.AssertEqual(t, tc.want, got, "IsClosed")
 }
@@ -128,8 +124,6 @@ func (tc invalidFamilyTestCase) Name() string {
 }
 
 func (tc invalidFamilyTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := errors.Is(tc.err, core.ErrInvalid)
 	core.AssertEqual(t, tc.want, got, "extends core.ErrInvalid")
 }
@@ -171,8 +165,6 @@ func (tc isFatalTestCase) Name() string {
 }
 
 func (tc isFatalTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := reconnect.IsFatal(tc.err)
 	core.AssertEqual(t, tc.want, got, "IsFatal")
 }
@@ -218,8 +210,6 @@ func (tc isNonErrorTestCase) Name() string {
 }
 
 func (tc isNonErrorTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := reconnect.IsNonError(tc.err)
 	core.AssertEqual(t, tc.want, got, "IsNonError")
 }

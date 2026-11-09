@@ -52,7 +52,6 @@ func newSpinlockPanicTestCase(name string, setup func() *spinlock.SpinLock,
 func (tc spinlockPanicTestCase) Name() string { return tc.name }
 
 func (tc spinlockPanicTestCase) Test(t *testing.T) {
-	t.Helper()
 	sl := tc.setup()
 	core.AssertPanic(t, func() { tc.op(sl) }, tc.wantPanic, "panic")
 }

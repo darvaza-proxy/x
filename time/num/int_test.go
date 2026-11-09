@@ -52,7 +52,6 @@ func (it signedIntType[T]) testCmp(t *testing.T) {
 }
 
 func (it signedIntType[T]) testDivZero(t *testing.T) {
-	t.Helper()
 	zero, one := it.mk(0), it.mk(1)
 	core.AssertPanic(t, func() { one.DivMod(zero) }, num.ErrDivZero,
 		"div-mod by zero")
@@ -63,7 +62,6 @@ func (it signedIntType[T]) testDivZero(t *testing.T) {
 }
 
 func (it signedIntType[T]) testBasics(t *testing.T) {
-	t.Helper()
 	core.AssertTrue(t, it.mk(0).IsZero(), "zero")
 	core.AssertFalse(t, it.mk(1).IsZero(), "non-zero")
 	core.AssertFalse(t, it.min.IsZero(), "min non-zero")
@@ -103,8 +101,6 @@ func newSignedDivModCase[T num.Signed[T]](name string, a, b, wantQ,
 func (tc signedDivModCase[T]) Name() string { return tc.name }
 
 func (tc signedDivModCase[T]) Test(t *testing.T) {
-	t.Helper()
-
 	q, r := tc.a.DivMod(tc.b)
 	core.AssertEqual(t, tc.wantQ, q, "quotient")
 	core.AssertEqual(t, tc.wantR, r, "remainder")
@@ -147,7 +143,6 @@ func newSignedMulDivModCase[T num.Signed[T]](name string, a, b, d,
 func (tc signedMulDivModCase[T]) Name() string { return tc.name }
 
 func (tc signedMulDivModCase[T]) Test(t *testing.T) {
-	t.Helper()
 	q, r := tc.a.MulDivMod(tc.b, tc.d)
 	core.AssertEqual(t, tc.wantQ, q, "quotient")
 	// the remainder is pinned by the identity a*b == q*d + r, which also
@@ -202,7 +197,6 @@ func newSignedUnaryCase[T num.Signed[T]](name string, in, wantNeg, wantAbs T,
 func (tc signedUnaryCase[T]) Name() string { return tc.name }
 
 func (tc signedUnaryCase[T]) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.wantNeg, tc.in.Neg(), "neg")
 	core.AssertEqual(t, tc.wantAbs, tc.in.Abs(), "abs")
 	core.AssertEqual(t, tc.negative, tc.in.IsNegative(), "negative")
@@ -235,7 +229,6 @@ func newSignedCmpCase[T num.Signed[T]](name string, a, b T,
 func (tc signedCmpCase[T]) Name() string { return tc.name }
 
 func (tc signedCmpCase[T]) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.a.Cmp(tc.b), "cmp")
 	core.AssertEqual(t, tc.want == 0, tc.a.Equal(tc.b), "equal")
 }

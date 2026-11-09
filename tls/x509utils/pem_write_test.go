@@ -40,8 +40,6 @@ type writeCertTestCase struct {
 func (tc writeCertTestCase) Name() string { return tc.name }
 
 func (tc writeCertTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	var buf bytes.Buffer
 	n, err := x509utils.WriteCert(&buf, tc.cert)
 
@@ -127,8 +125,6 @@ type writeKeyTestCase struct {
 func (tc writeKeyTestCase) Name() string { return tc.name }
 
 func (tc writeKeyTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	var buf bytes.Buffer
 	n, err := x509utils.WriteKey(&buf, tc.key)
 
@@ -163,8 +159,6 @@ func newWriteKeyTestCase(name string, key x509utils.PrivateKey,
 }
 
 func writeKeyTestCases(t *testing.T) []writeKeyTestCase {
-	t.Helper()
-
 	return core.S(
 		// a real key round-trips through PKCS8; WriteKey is type-agnostic,
 		// so one key type covers the encode-and-flush path.

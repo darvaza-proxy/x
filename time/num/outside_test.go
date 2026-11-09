@@ -143,7 +143,6 @@ func TestOutsideCenti(t *testing.T) {
 }
 
 func runTestOutsideCentiDecimal(t *testing.T) {
-	t.Helper()
 	runDecimalTests(t, decimalType[OutsideCenti]{
 		mk:    NewOutsideCenti,
 		as:    AsOutsideCenti,
@@ -156,7 +155,6 @@ func runTestOutsideCentiDecimal(t *testing.T) {
 }
 
 func runTestOutsideCentiEuclidean(t *testing.T) {
-	t.Helper()
 	runEuclideanDecimalTests(t, euclideanDecimalSuite[OutsideCenti]{
 		mk:    NewOutsideCenti,
 		scale: 100,
@@ -164,7 +162,6 @@ func runTestOutsideCentiEuclidean(t *testing.T) {
 }
 
 func runTestOutsideCentiText(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, []textCase{
 		newTextCase("zero", NewOutsideCenti(0, 0), "0.00"),
 		newTextCase("one and a half", NewOutsideCenti(1, 50), "1.50"),
@@ -177,7 +174,6 @@ func runTestOutsideCentiText(t *testing.T) {
 }
 
 func runTestOutsideCentiGoString(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, []goStringCase{
 		newGoStringCase("half", NewOutsideCenti(1, 50),
 			"num_test.NewOutsideCenti(1, 50)"),
@@ -189,7 +185,6 @@ func runTestOutsideCentiGoString(t *testing.T) {
 }
 
 func runTestOutsideCentiFormat(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, []formatCase{
 		newFormatCase("f round", NewOutsideCenti(1, 55), "%.1f", "1.6"),
 		newFormatCase("f negative round", NewOutsideCenti(-1, -55), "%.1f",
@@ -199,7 +194,6 @@ func runTestOutsideCentiFormat(t *testing.T) {
 }
 
 func runTestOutsideCentiJSON(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, []jsonCase{
 		newJSONNumberCase("half", NewOutsideCenti(1, 50), "1.50"),
 		newJSONStringCase("min", AsOutsideCenti(math.MinInt64),
@@ -253,7 +247,6 @@ func convOutsideCentiCases() []core.TestCase {
 }
 
 func runTestOutsideCentiConvert(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, convOutsideCentiCases())
 }
 
@@ -261,7 +254,6 @@ func runTestOutsideCentiConvert(t *testing.T) {
 // backing, the minimum included, which the fallback reads without
 // wrapping.
 func runTestOutsideCentiCount(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, core.S[core.TestCase](
 		newCountCase("as int32", NewOutsideCenti(-1, -55), num.AsInt32(-155)),
 		newCountCaseOverflow("past int32", AsOutsideCenti(1<<31),
@@ -347,7 +339,6 @@ func TestOutsidePlainCenti(t *testing.T) {
 }
 
 func runTestOutsidePlainCentiEuclidean(t *testing.T) {
-	t.Helper()
 	runEuclideanDecimalTests(t, euclideanDecimalSuite[OutsidePlainCenti]{
 		mk:    NewOutsidePlainCenti,
 		scale: 100,
@@ -355,7 +346,6 @@ func runTestOutsidePlainCentiEuclidean(t *testing.T) {
 }
 
 func runTestOutsidePlainCentiText(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, []textCase{
 		newTextCase("zero", NewOutsidePlainCenti(0, 0), "0.00"),
 		newTextCase("one and a half", NewOutsidePlainCenti(1, 50), "1.50"),
@@ -373,7 +363,6 @@ func runTestOutsidePlainCentiText(t *testing.T) {
 // backing two words wide, the bits of both words and the minimum
 // included, which the fallback reads without wrapping.
 func runTestOutsidePlainCentiCount(t *testing.T) {
-	t.Helper()
 	high := num.NewInt128(0x7fff000000000001, 0x8000000000000001)
 	core.RunTestCases(t, core.S[core.TestCase](
 		newCountCase("zero", NewOutsidePlainCenti(0, 0), num.AsInt128(0)),

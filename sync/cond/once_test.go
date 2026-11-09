@@ -79,7 +79,6 @@ func newOnceDoPanicTestCase(name string, fn func() error, payload error) onceDoT
 func (tc onceDoTestCase) Name() string { return tc.name }
 
 func (tc onceDoTestCase) Test(t *testing.T) {
-	t.Helper()
 	var once cond.Once
 	var calls int
 

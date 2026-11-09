@@ -58,8 +58,6 @@ func (tc asErrorHeadersTestCase) Name() string {
 }
 
 func (tc asErrorHeadersTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := core.AssertMustTypeIs[*web.HTTPError](t, web.AsError(tc.err),
 		"HTTPError")
 	core.AssertDeepEqual(t, tc.want, got.Hdr, "headers")

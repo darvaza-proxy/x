@@ -30,7 +30,6 @@ func (tc getSysRootTestCase) Name() string {
 }
 
 func (tc getSysRootTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Setenv("PROGRAMDATA", `C:\ProgramData`)
 
 	got, ok := tc.p.getSysRoot()
@@ -76,7 +75,6 @@ func (tc getTempDirTestCase) Name() string {
 }
 
 func (tc getTempDirTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Setenv("TMP", tc.tmp)
 	t.Setenv("TEMP", tc.temp)
 

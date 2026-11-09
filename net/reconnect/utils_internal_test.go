@@ -16,8 +16,6 @@ func TestUnsafeClose(t *testing.T) {
 }
 
 func runTestUnsafeCloseNil(t *testing.T) {
-	t.Helper()
-
 	// a nil closer must be a no-op, not a panic: Connect closes the
 	// conn on a failed worker spawn even after a non-fatal dial miss
 	// left it nil.
@@ -25,8 +23,6 @@ func runTestUnsafeCloseNil(t *testing.T) {
 }
 
 func runTestUnsafeCloseConn(t *testing.T) {
-	t.Helper()
-
 	c1, c2 := net.Pipe()
 
 	// a nil closer mixed into the variadic list is skipped; the real

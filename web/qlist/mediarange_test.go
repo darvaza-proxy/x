@@ -38,10 +38,11 @@ func TestRFC2616Example(t *testing.T) {
 }
 
 func doTestBestMatch(t *testing.T, supported []string, headers map[string]string) {
+	t.Helper()
 	for header, result := range headers {
 		match := qlist.MediaRangeBestQuality(supported, header)
 		if match != result {
-			t.Errorf("BestMatch(%v, %v) == %s, not %s\n", supported, header, match, result)
+			t.Errorf("BestMatch(%v, %v) == %s, not %s", supported, header, match, result)
 		}
 	}
 }

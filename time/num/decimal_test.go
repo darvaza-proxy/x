@@ -67,7 +67,6 @@ func (dt decimalType[D]) testMulDivMod(t *testing.T) {
 }
 
 func (dt decimalType[D]) testBasics(t *testing.T) {
-	t.Helper()
 	half := dt.scale / 2
 	core.AssertTrue(t, dt.mk(0, 0).IsZero(), "zero")
 	core.AssertFalse(t, dt.mk(1, 0).IsZero(), "non-zero")
@@ -88,7 +87,6 @@ func (dt decimalType[D]) testBasics(t *testing.T) {
 }
 
 func (dt decimalType[D]) testDivZero(t *testing.T) {
-	t.Helper()
 	one, zero := dt.mk(1, 0), dt.mk(0, 0)
 	core.AssertPanic(t, func() { one.Div(zero) }, num.ErrDivZero, "div by zero")
 	core.AssertPanic(t, func() { one.DivMod(zero) }, num.ErrDivZero,
@@ -104,7 +102,6 @@ func (dt decimalType[D]) testDivZero(t *testing.T) {
 // squared in sub-units, passes 2^width, so the wrapped value is the
 // excess over the width.
 func (dt decimalType[D]) testOverflow(t *testing.T) {
-	t.Helper()
 	huge := dt.mk(dt.big, 0)
 	tiny := dt.mk(0, 1) // one sub-unit
 	core.AssertEqual(t, dt.mk(dt.wrapWhole, dt.wrapFrac), huge.Div(tiny),
@@ -133,7 +130,6 @@ func newDecimalSignCase[D num.Signed[D]](name string, in D, wantNeg bool,
 func (tc decimalSignCase[D]) Name() string { return tc.name }
 
 func (tc decimalSignCase[D]) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.wantNeg, tc.in.IsNegative(), "negative")
 	core.AssertEqual(t, tc.wantAbs, tc.in.Abs(), "magnitude")
 }
@@ -170,7 +166,6 @@ func newDecimalMulCase[D num.Signed[D]](name string, a, b,
 func (tc decimalMulCase[D]) Name() string { return tc.name }
 
 func (tc decimalMulCase[D]) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.a.Mul(tc.b), "product")
 }
 
@@ -203,7 +198,6 @@ func newDecimalDivCase[D num.Signed[D]](name string, a, b,
 func (tc decimalDivCase[D]) Name() string { return tc.name }
 
 func (tc decimalDivCase[D]) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.a.Div(tc.b), "quotient")
 }
 
@@ -244,7 +238,6 @@ func newDecimalDivModCase[D num.Signed[D]](name string, a, b, wantQ,
 func (tc decimalDivModCase[D]) Name() string { return tc.name }
 
 func (tc decimalDivModCase[D]) Test(t *testing.T) {
-	t.Helper()
 	q, r := tc.a.DivMod(tc.b)
 	core.AssertEqual(t, tc.wantQ, q, "count")
 	core.AssertEqual(t, tc.wantR, r, "remainder")
@@ -301,7 +294,6 @@ func newDecimalMulDivModCase[D num.Signed[D]](name string, a, b, d,
 func (tc decimalMulDivModCase[D]) Name() string { return tc.name }
 
 func (tc decimalMulDivModCase[D]) Test(t *testing.T) {
-	t.Helper()
 	q, r := tc.a.MulDivMod(tc.b, tc.d)
 	core.AssertEqual(t, tc.wantQ, q, "quotient")
 	core.AssertEqual(t, tc.wantR, r, "remainder")
@@ -348,7 +340,6 @@ func newDecimalULPCase[D num.SignedEuclidean[D]](name string,
 func (tc decimalULPCase[D]) Name() string { return tc.name }
 
 func (tc decimalULPCase[D]) Test(t *testing.T) {
-	t.Helper()
 	var d D
 	core.AssertEqual(t, tc.want, d.ULP(), "ULP")
 	allocs := testing.AllocsPerRun(10, func() { d.ULP() })

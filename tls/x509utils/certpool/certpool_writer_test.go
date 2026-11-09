@@ -20,7 +20,6 @@ var (
 // keyPEM marshals a leaf's private key as a PKCS8 "PRIVATE KEY" block, so
 // import paths can be handed a non-certificate block to ignore.
 func keyPEM(t *testing.T, tc testCert) []byte {
-	t.Helper()
 	der, err := x509.MarshalPKCS8PrivateKey(tc.key)
 	core.AssertMustNoError(t, err, "marshal key")
 	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})
@@ -72,7 +71,6 @@ type putErrorTestCase struct {
 func (tc putErrorTestCase) Name() string { return tc.caseName }
 
 func (tc putErrorTestCase) Test(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	if tc.cancel {
 		var cancel context.CancelFunc
@@ -98,7 +96,6 @@ func newPutErrorTestCase(caseName string, pool *certpool.CertPool,
 }
 
 func putErrorTestCases(t *testing.T) []putErrorTestCase {
-	t.Helper()
 	cert := mkTestLeaf(t, "err.example.com", nil).cert
 	pool := certpool.New()
 
@@ -145,7 +142,6 @@ type deleteErrorTestCase struct {
 func (tc deleteErrorTestCase) Name() string { return tc.caseName }
 
 func (tc deleteErrorTestCase) Test(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	if tc.cancel {
 		var cancel context.CancelFunc
@@ -166,8 +162,7 @@ func newDeleteErrorTestCase(caseName string, pool *certpool.CertPool,
 	}
 }
 
-func deleteErrorTestCases(t *testing.T) []deleteErrorTestCase {
-	t.Helper()
+func deleteErrorTestCases() []deleteErrorTestCase {
 	pool := certpool.New()
 
 	return core.S(
@@ -182,7 +177,7 @@ func deleteErrorTestCases(t *testing.T) []deleteErrorTestCase {
 }
 
 func TestDeleteErrors(t *testing.T) {
-	core.RunTestCases(t, deleteErrorTestCases(t))
+	core.RunTestCases(t, deleteErrorTestCases())
 }
 
 // deleteCertErrorTestCase exercises DeleteCert's rejection arms: an invalid
@@ -198,7 +193,6 @@ type deleteCertErrorTestCase struct {
 func (tc deleteCertErrorTestCase) Name() string { return tc.caseName }
 
 func (tc deleteCertErrorTestCase) Test(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	if tc.cancel {
 		var cancel context.CancelFunc
@@ -220,7 +214,6 @@ func newDeleteCertErrorTestCase(caseName string, pool *certpool.CertPool,
 }
 
 func deleteCertErrorTestCases(t *testing.T) []deleteCertErrorTestCase {
-	t.Helper()
 	pool, _ := mkPopulatedPool(t)
 	valid := mkTestLeaf(t, "valid.example.com", nil).cert
 	absent := mkTestLeaf(t, "absent.example.com", nil).cert

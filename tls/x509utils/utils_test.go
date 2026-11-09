@@ -45,7 +45,6 @@ type publicKeyFromPrivateKeyTestCase struct {
 func (tc publicKeyFromPrivateKeyTestCase) Name() string { return tc.name }
 
 func (tc publicKeyFromPrivateKeyTestCase) Test(t *testing.T) {
-	t.Helper()
 	got := x509utils.PublicKeyFromPrivateKey(tc.key)
 	if tc.want == nil {
 		core.AssertNil(t, got, "public key")
@@ -63,8 +62,6 @@ func newPublicKeyFromPrivateKeyTestCase(name string, key crypto.PrivateKey,
 func publicKeyFromPrivateKeyTestCases(
 	t *testing.T,
 ) []publicKeyFromPrivateKeyTestCase {
-	t.Helper()
-
 	key := mkKey(t)
 
 	return core.S(
@@ -95,7 +92,6 @@ type publicKeyFromCertificateTestCase struct {
 func (tc publicKeyFromCertificateTestCase) Name() string { return tc.name }
 
 func (tc publicKeyFromCertificateTestCase) Test(t *testing.T) {
-	t.Helper()
 	got := x509utils.PublicKeyFromCertificate(tc.cert)
 	if tc.want == nil {
 		core.AssertNil(t, got, "public key")
@@ -113,8 +109,6 @@ func newPublicKeyFromCertificateTestCase(name string, cert *x509.Certificate,
 func publicKeyFromCertificateTestCases(
 	t *testing.T,
 ) []publicKeyFromCertificateTestCase {
-	t.Helper()
-
 	leaf := certSpec{cn: "utils.example.com",
 		dns: core.S("utils.example.com")}.build(t)
 

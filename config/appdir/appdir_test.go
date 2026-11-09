@@ -40,7 +40,6 @@ func (tc userDirTestCase) Name() string {
 }
 
 func (tc userDirTestCase) Test(t *testing.T) {
-	t.Helper()
 	setXDGEnv(t, tc.kind, tc.envValue)
 
 	got, err := callUserDirFunc(t, tc.kind, tc.sub...)
@@ -116,7 +115,6 @@ func (tc userDirErrTestCase) Name() string {
 }
 
 func (tc userDirErrTestCase) Test(t *testing.T) {
-	t.Helper()
 	setXDGEnv(t, tc.kind, "")
 	t.Setenv("HOME", "")
 
@@ -174,7 +172,6 @@ func (tc userRuntimeDirFallbackTestCase) Name() string {
 }
 
 func (tc userRuntimeDirFallbackTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Setenv("XDG_RUNTIME_DIR", tc.envValue)
 	t.Setenv("TMPDIR", "")
 
@@ -229,7 +226,6 @@ func (tc userDirFallbackTestCase) Name() string {
 }
 
 func (tc userDirFallbackTestCase) Test(t *testing.T) {
-	t.Helper()
 	setXDGEnv(t, tc.kind, tc.envValue)
 	t.Setenv("HOME", "/home/test")
 
@@ -263,8 +259,6 @@ func (tc sysDirTestCase) Name() string {
 }
 
 func (tc sysDirTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, err := callPrefixDirFunc(t, tc.prefix, tc.kind, tc.sub...)
 	if tc.wantErr {
 		core.AssertError(t, err, "%s dir", tc.kind)
@@ -400,7 +394,6 @@ func (tc sysUserModeTestCase) Name() string {
 }
 
 func (tc sysUserModeTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixUser))
 	setXDGEnv(t, tc.kind, tc.envValue)
 
@@ -496,7 +489,6 @@ func (tc setSysPrefixTestCase) Name() string {
 }
 
 func (tc setSysPrefixTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixUser))
 
 	err := appdir.SetSysPrefix(tc.dir)
@@ -578,7 +570,6 @@ func TestAllConfigDir(t *testing.T) {
 }
 
 func runTestAllConfigDirUserMode(t *testing.T) {
-	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", "/home/test/.config")
 	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixUser))
 
@@ -591,7 +582,6 @@ func runTestAllConfigDirUserMode(t *testing.T) {
 }
 
 func runTestAllConfigDirSystemMode(t *testing.T) {
-	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", "/home/test/.config")
 
 	cwd, err := os.Getwd()
@@ -606,7 +596,6 @@ func runTestAllConfigDirSystemMode(t *testing.T) {
 // runTestAllConfigDirMultiSub pins the working directory entry
 // dropping the application name: ./app/conf becomes ./conf.
 func runTestAllConfigDirMultiSub(t *testing.T) {
-	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", "/home/test/.config")
 	t.Cleanup(appdir.StubSysPrefix(appdir.PrefixUser))
 

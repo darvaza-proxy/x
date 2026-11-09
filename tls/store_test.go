@@ -44,8 +44,6 @@ type splitCHITestCase struct {
 func (tc splitCHITestCase) Name() string { return tc.name }
 
 func (tc splitCHITestCase) Test(t *testing.T) {
-	t.Helper()
-
 	chi := &stdtls.ClientHelloInfo{ServerName: tc.serverName, Conn: tc.conn}
 	_, name, err := tls.SplitClientHelloInfo(chi)
 	core.AssertMustNoError(t, err, "err")

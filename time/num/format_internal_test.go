@@ -25,7 +25,6 @@ func newAppendPaddedCase(name string, v uint64, width int,
 func (tc appendPaddedCase) Name() string { return tc.name }
 
 func (tc appendPaddedCase) Test(t *testing.T) {
-	t.Helper()
 	got := appendPadded(nil, tc.v, tc.width)
 	core.AssertEqual(t, tc.want, string(got), "text")
 }

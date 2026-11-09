@@ -34,7 +34,6 @@ func newPow10Case(n int, want string) pow10Case {
 func (tc pow10Case) Name() string { return tc.name }
 
 func (tc pow10Case) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, num.Pow10(tc.n).String(), "Pow10(%d)", tc.n)
 }
 
@@ -79,7 +78,6 @@ func newPow10PanicCase(name string, n int, wantErr error) pow10ValueCase {
 func (tc pow10ValueCase) Name() string { return tc.name }
 
 func (tc pow10ValueCase) Test(t *testing.T) {
-	t.Helper()
 	if tc.wantErr != nil {
 		tc.testPanic(t)
 		return
@@ -88,7 +86,6 @@ func (tc pow10ValueCase) Test(t *testing.T) {
 }
 
 func (tc pow10ValueCase) testPanic(t *testing.T) {
-	t.Helper()
 	err := core.Catch(func() error {
 		callPow10(tc.n)
 		return nil

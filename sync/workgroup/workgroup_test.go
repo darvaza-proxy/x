@@ -19,7 +19,6 @@ func TestNew(t *testing.T) {
 }
 
 func runTestNewWithContext(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	wg := workgroup.New(ctx)
 
@@ -30,7 +29,6 @@ func runTestNewWithContext(t *testing.T) {
 }
 
 func runTestNewWithNilContext(t *testing.T) {
-	t.Helper()
 	var nilCtx context.Context
 	wg := workgroup.New(nilCtx)
 
@@ -49,7 +47,6 @@ func TestGroup_Context(t *testing.T) {
 }
 
 func runTestContextValid(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	ctx := wg.Context()
 	core.AssertNotNil(t, ctx, "context")
@@ -57,13 +54,11 @@ func runTestContextValid(t *testing.T) {
 }
 
 func runTestContextPanicsOnNil(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertPanic(t, func() { wg.Context() }, errors.ErrNilReceiver, "panic")
 }
 
 func runTestContextCancelledByGroup(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	ctx := wg.Context()
 
@@ -72,7 +67,6 @@ func runTestContextCancelledByGroup(t *testing.T) {
 }
 
 func runTestContextCancelledByParent(t *testing.T) {
-	t.Helper()
 	parentCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -94,19 +88,16 @@ func TestGroup_Err(t *testing.T) {
 }
 
 func runTestErrNilWhenActive(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	core.AssertNoError(t, wg.Err(), "err")
 }
 
 func runTestErrNilReceiver(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertErrorIs(t, wg.Err(), errors.ErrNilReceiver, "err")
 }
 
 func runTestErrCustomCancelError(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	customErr := errors.New("custom cancel error")
 	wg.Cancel(customErr)
@@ -114,7 +105,6 @@ func runTestErrCustomCancelError(t *testing.T) {
 }
 
 func runTestErrCanceledDefault(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	wg.Cancel(nil)
 	core.AssertErrorIs(t, wg.Err(), context.Canceled, "err")
@@ -129,27 +119,23 @@ func TestGroup_IsCancelled(t *testing.T) {
 }
 
 func runTestIsCancelledFalseWhenActive(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	core.AssertFalse(t, wg.IsCancelled(), "cancelled")
 }
 
 func runTestIsCancelledPanicsOnNil(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertPanic(t, func() { wg.IsCancelled() },
 		errors.ErrNilReceiver, "panic")
 }
 
 func runTestIsCancelledTrueAfterCancel(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	wg.Cancel(nil)
 	core.AssertTrue(t, wg.IsCancelled(), "cancelled")
 }
 
 func runTestIsCancelledTrueAfterParent(t *testing.T) {
-	t.Helper()
 	parentCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -166,7 +152,6 @@ func TestGroup_Cancelled(t *testing.T) {
 }
 
 func runTestCancelledReturnsChannel(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	ch := wg.Cancelled()
 	core.AssertNotNil(t, ch, "channel")
@@ -174,14 +159,12 @@ func runTestCancelledReturnsChannel(t *testing.T) {
 }
 
 func runTestCancelledPanicsOnNil(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertPanic(t, func() { wg.Cancelled() },
 		errors.ErrNilReceiver, "panic")
 }
 
 func runTestCancelledChannelClosedAfterCancel(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	ch := wg.Cancelled()
 
@@ -200,26 +183,22 @@ func TestGroup_Done(t *testing.T) {
 }
 
 func runTestDoneChannelCreated(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	core.AssertNotNil(t, wg.Done(), "channel")
 }
 
 func runTestDonePanicsOnNil(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertPanic(t, func() { wg.Done() },
 		errors.ErrNilReceiver, "panic")
 }
 
 func runTestDoneChannelClosedWhenNoTasks(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	core.AssertClosed(t, wg.Done(), 100*time.Millisecond, "no tasks")
 }
 
 func runTestDoneChannelClosedAfterTasks(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	_ = wg.Go(func(_ context.Context) {
@@ -232,7 +211,6 @@ func runTestDoneChannelClosedAfterTasks(t *testing.T) {
 }
 
 func runTestDoneMultipleCallsSameChannel(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	// Pin the watcher channel by keeping a task running so Done()
@@ -247,7 +225,6 @@ func runTestDoneMultipleCallsSameChannel(t *testing.T) {
 }
 
 func runTestDoneNewChannelAfterCompletion(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	ch1 := wg.Done()
 	<-ch1
@@ -270,19 +247,16 @@ func TestGroup_Wait(t *testing.T) {
 }
 
 func runTestWaitNilReceiver(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertErrorIs(t, wg.Wait(), errors.ErrNilReceiver, "err")
 }
 
 func runTestWaitNilForActive(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	core.AssertNoError(t, wg.Wait(), "err")
 }
 
 func runTestWaitForAllTasks(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	counter := atomic.Int32{}
 	numTasks := int32(5)
@@ -299,7 +273,6 @@ func runTestWaitForAllTasks(t *testing.T) {
 }
 
 func runTestWaitNilOnContextCanceled(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	_ = wg.Go(func(ctx context.Context) { <-ctx.Done() })
@@ -309,7 +282,6 @@ func runTestWaitNilOnContextCanceled(t *testing.T) {
 }
 
 func runTestWaitCustomErrorWhenCancelled(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	customErr := errors.New("custom cancel reason")
 
@@ -329,27 +301,23 @@ func TestGroup_Cancel(t *testing.T) {
 }
 
 func runTestCancelPanicsOnNil(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertPanic(t, func() { wg.Cancel(nil) },
 		errors.ErrNilReceiver, "panic")
 }
 
 func runTestCancelTrueOnFirst(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	core.AssertTrue(t, wg.Cancel(nil), "first cancel")
 }
 
 func runTestCancelFalseOnSubsequent(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	wg.Cancel(nil)
 	core.AssertFalse(t, wg.Cancel(nil), "second cancel")
 }
 
 func runTestCancelAllTasks(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	cancelled := atomic.Int32{}
 	numTasks := int32(5)
@@ -367,7 +335,6 @@ func runTestCancelAllTasks(t *testing.T) {
 }
 
 func runTestCancelPropagatesCustom(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	customErr := errors.New("custom error")
 
@@ -401,7 +368,6 @@ func TestGroup_OnCancel(t *testing.T) {
 }
 
 func runTestOnCancelHandlerFires(t *testing.T) {
-	t.Helper()
 	handlerRan := make(chan struct{})
 	wg := workgroup.New(context.Background())
 	wg.OnCancel = func(_ context.Context, _ error) {
@@ -418,7 +384,6 @@ func runTestOnCancelHandlerFires(t *testing.T) {
 // detached from the Group's cancellation: it is live (ctx.Err() is nil)
 // rather than the already-cancelled group context.
 func runTestOnCancelReceivesLiveContext(t *testing.T) {
-	t.Helper()
 	var observedErr error
 	receivedCh := make(chan struct{})
 
@@ -439,7 +404,6 @@ func runTestOnCancelReceivesLiveContext(t *testing.T) {
 // context preserves the Group context's values, so cleanup work keeps any
 // logger or trace identifiers carried through it.
 func runTestOnCancelContextRetainsValues(t *testing.T) {
-	t.Helper()
 	type key string
 	testKey := key("trace-id")
 	testVal := "abc123"
@@ -464,7 +428,6 @@ func runTestOnCancelContextRetainsValues(t *testing.T) {
 }
 
 func runTestOnCancelReceivesCause(t *testing.T) {
-	t.Helper()
 	customErr := errors.New("custom cancel cause")
 	var received error
 	receivedCh := make(chan struct{})
@@ -483,7 +446,6 @@ func runTestOnCancelReceivesCause(t *testing.T) {
 }
 
 func runTestOnCancelReceivesContextCanceledForNilCause(t *testing.T) {
-	t.Helper()
 	var received error
 	receivedCh := make(chan struct{})
 
@@ -501,7 +463,6 @@ func runTestOnCancelReceivesContextCanceledForNilCause(t *testing.T) {
 }
 
 func runTestOnCancelNotCalledWithoutCancel(t *testing.T) {
-	t.Helper()
 	handlerRan := make(chan struct{})
 
 	wg := workgroup.New(context.Background())
@@ -515,7 +476,6 @@ func runTestOnCancelNotCalledWithoutCancel(t *testing.T) {
 }
 
 func runTestOnCancelOnceOnRepeatedCancel(t *testing.T) {
-	t.Helper()
 	var count atomic.Int32
 
 	wg := workgroup.New(context.Background())
@@ -535,7 +495,6 @@ func runTestOnCancelOnceOnRepeatedCancel(t *testing.T) {
 // blocked forever on the tasks counter. The defer'd tasks.Dec still runs, so
 // Wait must return.
 func runTestOnCancelHandlerPanicContained(t *testing.T) {
-	t.Helper()
 	handlerRan := make(chan struct{})
 
 	wg := workgroup.New(context.Background())
@@ -551,7 +510,6 @@ func runTestOnCancelHandlerPanicContained(t *testing.T) {
 }
 
 func runTestOnCancelFiresOnClose(t *testing.T) {
-	t.Helper()
 	handlerRan := make(chan struct{})
 
 	wg := workgroup.New(context.Background())
@@ -567,7 +525,6 @@ func runTestOnCancelFiresOnClose(t *testing.T) {
 // runTestOnCancelFiresOnParentCancel pins that cancelling the parent
 // context — with no explicit Cancel or Close — still drives the handler.
 func runTestOnCancelFiresOnParentCancel(t *testing.T) {
-	t.Helper()
 	var received error
 	receivedCh := make(chan struct{})
 
@@ -588,7 +545,6 @@ func runTestOnCancelFiresOnParentCancel(t *testing.T) {
 // runTestOnCancelReceivesParentCancelCause pins that the handler receives
 // the parent's cancellation cause, not a flattened context.Canceled.
 func runTestOnCancelReceivesParentCancelCause(t *testing.T) {
-	t.Helper()
 	customErr := errors.New("parent cancel cause")
 	var received error
 	receivedCh := make(chan struct{})
@@ -611,7 +567,6 @@ func runTestOnCancelReceivesParentCancelCause(t *testing.T) {
 // racing an explicit Cancel still fires the handler exactly once: whichever
 // path wins the transition, the loser is deduped by the cancelled flag.
 func runTestOnCancelOnceAcrossParentAndCancel(t *testing.T) {
-	t.Helper()
 	var count atomic.Int32
 
 	parentCtx, cancel := context.WithCancel(context.Background())
@@ -635,13 +590,11 @@ func TestGroup_Close(t *testing.T) {
 }
 
 func runTestCloseNilReceiver(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertErrorIs(t, wg.Close(), errors.ErrNilReceiver, "err")
 }
 
 func runTestCloseCancelsAndWaits(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	cancelled := atomic.Int32{}
 	numTasks := int32(5)
@@ -659,7 +612,6 @@ func runTestCloseCancelsAndWaits(t *testing.T) {
 }
 
 func runTestCloseMultipleTimes(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	_ = wg.Go(func(ctx context.Context) { <-ctx.Done() })
@@ -679,14 +631,12 @@ func TestGroup_Go(t *testing.T) {
 }
 
 func runTestGoNilReceiver(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	err := wg.Go(func(_ context.Context) {})
 	core.AssertErrorIs(t, err, errors.ErrNilReceiver, "err")
 }
 
 func runTestGoNilFunc(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	core.AssertNoError(t, wg.Go(nil), "Go(nil)")
 
@@ -699,7 +649,6 @@ func runTestGoNilFunc(t *testing.T) {
 }
 
 func runTestGoExecutesTask(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	executed := atomic.Bool{}
@@ -711,7 +660,6 @@ func runTestGoExecutesTask(t *testing.T) {
 }
 
 func runTestGoExecutesMultiple(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	counter := atomic.Int32{}
 	numTasks := int32(10)
@@ -727,7 +675,6 @@ func runTestGoExecutesMultiple(t *testing.T) {
 }
 
 func runTestGoTaskReceivesContext(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	var received context.Context
@@ -740,7 +687,6 @@ func runTestGoTaskReceivesContext(t *testing.T) {
 }
 
 func runTestGoErrorWhenCancelled(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	wg.Cancel(nil)
 
@@ -756,7 +702,6 @@ func TestWorkgroup_Integration(t *testing.T) {
 }
 
 func runTestIntegrationReuse(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	counter1 := atomic.Int32{}
@@ -781,7 +726,6 @@ func runTestIntegrationReuse(t *testing.T) {
 }
 
 func runTestIntegrationConcurrentCancel(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	numTasks := int32(100)
 	started := atomic.Int32{}
@@ -805,7 +749,6 @@ func runTestIntegrationConcurrentCancel(t *testing.T) {
 }
 
 func runTestIntegrationCascadingCancel(t *testing.T) {
-	t.Helper()
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	defer rootCancel()
 
@@ -845,7 +788,6 @@ func TestGroup_LazyInit(t *testing.T) {
 }
 
 func runTestLazyInitEmptyGroup(t *testing.T) {
-	t.Helper()
 	wg := &workgroup.Group{}
 
 	ctx := wg.Context()
@@ -854,7 +796,6 @@ func runTestLazyInitEmptyGroup(t *testing.T) {
 }
 
 func runTestLazyInitCustomParent(t *testing.T) {
-	t.Helper()
 	ctxKey := core.NewContextKey[string]("key")
 	parentCtx := ctxKey.WithValue(context.Background(), "value")
 	wg := &workgroup.Group{Parent: parentCtx}
@@ -913,7 +854,6 @@ func TestGroup_ConcurrentCancelOnceOnly(t *testing.T) {
 }
 
 func runOneConcurrentCancelIteration(t *testing.T, i int) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	var trueCount atomic.Int32
@@ -1032,7 +972,6 @@ func (fx *concurrentGoFixture) worker(id int) error {
 // mid-stream. It then asserts the accounting: every accepted task is
 // cancelled exactly once, and none waits out the fallback.
 func runTestConcurrentGoAndCancel(t *testing.T) {
-	t.Helper()
 	const numRoutines = 10
 	const tasksPerRoutine = 100
 
@@ -1072,7 +1011,6 @@ func runTestConcurrentGoAndCancel(t *testing.T) {
 }
 
 func runTestConcurrentDoneChannels(t *testing.T) {
-	t.Helper()
 	const numGoroutines = 10
 	wg := workgroup.New(context.Background())
 
@@ -1131,8 +1069,6 @@ func TestGroup_DoneGenerations(t *testing.T) {
 
 func runOneDoneGeneration(t *testing.T, wg *workgroup.Group, i int,
 	prev <-chan struct{}) <-chan struct{} {
-	t.Helper()
-
 	release := make(chan struct{})
 	core.AssertNoError(t, wg.Go(func(_ context.Context) {
 		<-release
@@ -1208,8 +1144,6 @@ func TestGroup_DoneReuseRaceStress(t *testing.T) {
 }
 
 func runOneDoneReuseCycle(t *testing.T, wg *workgroup.Group, i int) <-chan struct{} {
-	t.Helper()
-
 	release := make(chan struct{})
 	core.AssertNoError(t, wg.Go(func(_ context.Context) {
 		<-release
@@ -1254,7 +1188,6 @@ func TestGroup_DrainRaceRegression(t *testing.T) {
 const drainRaceIterations = 200
 
 func runTestDrainRaceCancelVsWait(t *testing.T) {
-	t.Helper()
 	for i := range drainRaceIterations {
 		var handlerRan atomic.Bool
 		wg := workgroup.New(context.Background())
@@ -1288,7 +1221,6 @@ func runTestDrainRaceCancelVsWait(t *testing.T) {
 }
 
 func runTestDrainRaceGoVsWait(t *testing.T) {
-	t.Helper()
 	for i := range drainRaceIterations {
 		runOneGoVsWaitIteration(t, i)
 	}
@@ -1299,7 +1231,6 @@ func runTestDrainRaceGoVsWait(t *testing.T) {
 // enrolled and must complete before Close returns; if Go returned
 // ErrClosed, no goroutine was spawned. No in-between state.
 func runOneGoVsWaitIteration(t *testing.T, i int) {
-	t.Helper()
 	var secondTaskRan atomic.Bool
 	var goErr atomic.Pointer[error]
 
@@ -1357,7 +1288,6 @@ func TestGroup_FenceSemantics(t *testing.T) {
 }
 
 func runTestFenceCancelBeforeWaitWaitsForHandler(t *testing.T) {
-	t.Helper()
 	release := make(chan struct{})
 	handlerEntered := make(chan struct{})
 
@@ -1387,7 +1317,6 @@ func runTestFenceCancelBeforeWaitWaitsForHandler(t *testing.T) {
 }
 
 func runTestFenceCancelBeforeWaitDoneWaitsForHandler(t *testing.T) {
-	t.Helper()
 	release := make(chan struct{})
 	handlerEntered := make(chan struct{})
 
@@ -1413,7 +1342,6 @@ func runTestFenceCancelBeforeWaitDoneWaitsForHandler(t *testing.T) {
 }
 
 func runTestFenceGoAfterCancelReturnsErrClosed(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	wg.Cancel(nil)
 	core.AssertNoError(t, wg.Wait(), "wait")
@@ -1432,7 +1360,6 @@ type nilReceiverErrorCase struct {
 func (tc nilReceiverErrorCase) Name() string { return tc.name }
 
 func (tc nilReceiverErrorCase) Test(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertErrorIs(t, tc.op(wg), errors.ErrNilReceiver, tc.name)
 }
@@ -1454,7 +1381,6 @@ type nilReceiverPanicCase struct {
 func (tc nilReceiverPanicCase) Name() string { return tc.name }
 
 func (tc nilReceiverPanicCase) Test(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	core.AssertPanic(t, func() { tc.op(wg) },
 		errors.ErrNilReceiver, tc.name)
@@ -1546,7 +1472,6 @@ func TestGroup_ErrorHandling(t *testing.T) {
 }
 
 func runTestErrorHandlingCustomTypes(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	myErr := errors.New("custom error type")
 
@@ -1632,7 +1557,6 @@ func TestGroup_GoCatch(t *testing.T) {
 }
 
 func runTestGoCatchNilReceiver(t *testing.T) {
-	t.Helper()
 	var wg *workgroup.Group
 	err := wg.GoCatch(
 		func(_ context.Context) error { return nil },
@@ -1642,7 +1566,6 @@ func runTestGoCatchNilReceiver(t *testing.T) {
 }
 
 func runTestGoCatchNilFunc(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	core.AssertNoError(t, wg.GoCatch(nil, nil), "GoCatch(nil)")
 
@@ -1655,7 +1578,6 @@ func runTestGoCatchNilFunc(t *testing.T) {
 }
 
 func runTestGoCatchSuccessfulTask(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	executed := atomic.Bool{}
 
@@ -1669,7 +1591,6 @@ func runTestGoCatchSuccessfulTask(t *testing.T) {
 }
 
 func runTestGoCatchTaskReceivesContext(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	var received context.Context
@@ -1684,7 +1605,6 @@ func runTestGoCatchTaskReceivesContext(t *testing.T) {
 }
 
 func runTestGoCatchCancelsOnError(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	testErr := errors.New("test error")
 
@@ -1696,7 +1616,6 @@ func runTestGoCatchCancelsOnError(t *testing.T) {
 }
 
 func runTestGoCatchHandlerProcesses(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	testErr := errors.New("original error")
 	processedErr := errors.New("processed error")
@@ -1714,7 +1633,6 @@ func runTestGoCatchHandlerProcesses(t *testing.T) {
 }
 
 func runTestGoCatchHandlerPrevents(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	testErr := errors.New("non-critical error")
 
@@ -1728,7 +1646,6 @@ func runTestGoCatchHandlerPrevents(t *testing.T) {
 }
 
 func runTestGoCatchRecoversPanics(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	panicMsg := "deliberate panic"
 
@@ -1746,7 +1663,6 @@ func runTestGoCatchRecoversPanics(t *testing.T) {
 }
 
 func runTestGoCatchErrorWhenCancelled(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	wg.Cancel(nil)
 
@@ -1755,7 +1671,6 @@ func runTestGoCatchErrorWhenCancelled(t *testing.T) {
 }
 
 func runTestGoCatchHandlerReceivesContext(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 
 	var taskCtx, catchCtx context.Context
@@ -1802,7 +1717,6 @@ func TestGroup_GoShutdown(t *testing.T) {
 // the handler closes the server, fn returns, and the paired task releases
 // the Group.
 func runTestGoShutdownServerPattern(t *testing.T) {
-	t.Helper()
 	serverStop := make(chan struct{})
 	var served atomic.Bool
 
@@ -1828,7 +1742,6 @@ func runTestGoShutdownServerPattern(t *testing.T) {
 // cancels the Group, so it signals the running worker and waits for the
 // pair to end before returning.
 func runTestGoShutdownCloseSignals(t *testing.T) {
-	t.Helper()
 	serverStop := make(chan struct{})
 	var shutdownRan atomic.Bool
 	wg := workgroup.New(context.Background())
@@ -1850,7 +1763,6 @@ func runTestGoShutdownCloseSignals(t *testing.T) {
 // without the Group being cancelled ends the pair; there is nobody to
 // signal, so the shutdown handler never runs.
 func runTestGoShutdownCleanReturnSkipsShutdown(t *testing.T) {
-	t.Helper()
 	var shutdownRan atomic.Bool
 	wg := workgroup.New(context.Background())
 
@@ -1868,7 +1780,6 @@ func runTestGoShutdownCleanReturnSkipsShutdown(t *testing.T) {
 // the Group but does not invoke its own shutdown handler: the worker has
 // already ended, so there is nobody left to signal.
 func runTestGoShutdownFnErrorSkipsShutdown(t *testing.T) {
-	t.Helper()
 	testErr := errors.New("fn failed")
 	var shutdownRan atomic.Bool
 	wg := workgroup.New(context.Background())
@@ -1886,7 +1797,6 @@ func runTestGoShutdownFnErrorSkipsShutdown(t *testing.T) {
 // runTestGoShutdownFnPanicSkipsShutdown pins that fn's panic is supervised
 // into a PanicError cause without invoking its own shutdown handler.
 func runTestGoShutdownFnPanicSkipsShutdown(t *testing.T) {
-	t.Helper()
 	var shutdownRan atomic.Bool
 	wg := workgroup.New(context.Background())
 
@@ -1909,7 +1819,6 @@ func runTestGoShutdownFnPanicSkipsShutdown(t *testing.T) {
 // while the still-running peer is signalled to end. Wait returning at all
 // proves the peer's shutdown fired, as nothing else unblocks it.
 func runTestGoShutdownFnErrorSignalsPeer(t *testing.T) {
-	t.Helper()
 	testErr := errors.New("fn failed")
 	peerStop := make(chan struct{})
 	var ownShutdown atomic.Bool
@@ -1950,7 +1859,6 @@ const shutdownCtxValue = "trace-xyz"
 // of its context. Wait returning proves the handler ran: nothing else
 // unblocks fn.
 func observeShutdownContext(t *testing.T, grace time.Duration) shutdownObservation {
-	t.Helper()
 	var obs shutdownObservation
 	stop := make(chan struct{})
 	parent := shutdownCtxKey.WithValue(context.Background(), shutdownCtxValue)
@@ -1977,7 +1885,6 @@ func observeShutdownContext(t *testing.T, grace time.Duration) shutdownObservati
 // runTestGoShutdownContextBounded pins that a positive grace period hands
 // the shutdown handler a live, value-bearing context with a deadline.
 func runTestGoShutdownContextBounded(t *testing.T) {
-	t.Helper()
 	obs := observeShutdownContext(t, time.Minute)
 	core.AssertNoError(t, obs.err, "shutdown context live")
 	core.AssertTrue(t, obs.hasDeadline, "deadline present")
@@ -1988,7 +1895,6 @@ func runTestGoShutdownContextBounded(t *testing.T) {
 // leaves the shutdown context unbounded — live and value-bearing, no
 // deadline.
 func runTestGoShutdownContextUnbounded(t *testing.T) {
-	t.Helper()
 	obs := observeShutdownContext(t, 0)
 	core.AssertNoError(t, obs.err, "shutdown context live")
 	core.AssertFalse(t, obs.hasDeadline, "no deadline when unbounded")
@@ -1999,7 +1905,6 @@ func runTestGoShutdownContextUnbounded(t *testing.T) {
 // recovered and discarded, so the signal still lands and Wait returns. The
 // handler stops the server before panicking; Wait returning proves both.
 func runTestGoShutdownPanicContained(t *testing.T) {
-	t.Helper()
 	stop := make(chan struct{})
 	wg := workgroup.New(context.Background())
 
@@ -2020,7 +1925,6 @@ func runTestGoShutdownPanicContained(t *testing.T) {
 // enrolled alone as a watcher that holds the Group open until cancellation
 // signals it.
 func runTestGoShutdownWatcherMode(t *testing.T) {
-	t.Helper()
 	shutdownRan := make(chan struct{})
 	wg := workgroup.New(context.Background())
 
@@ -2039,7 +1943,6 @@ func runTestGoShutdownWatcherMode(t *testing.T) {
 // runTestGoShutdownNilShutdownSuccess pins that a nil shutdown degrades to a
 // plain supervised task that runs fn to completion.
 func runTestGoShutdownNilShutdownSuccess(t *testing.T) {
-	t.Helper()
 	var executed atomic.Bool
 	wg := workgroup.New(context.Background())
 
@@ -2055,7 +1958,6 @@ func runTestGoShutdownNilShutdownSuccess(t *testing.T) {
 // runTestGoShutdownNilShutdownError pins that the nil-shutdown degrade still
 // supervises fn: its error cancels the Group, as with GoCatch.
 func runTestGoShutdownNilShutdownError(t *testing.T) {
-	t.Helper()
 	testErr := errors.New("fn failed")
 	wg := workgroup.New(context.Background())
 
@@ -2069,7 +1971,6 @@ func runTestGoShutdownNilShutdownError(t *testing.T) {
 // runTestGoShutdownBothNil pins that a nil fn and nil shutdown enrol nothing
 // and Wait returns at once.
 func runTestGoShutdownBothNil(t *testing.T) {
-	t.Helper()
 	wg := workgroup.New(context.Background())
 	core.AssertNoError(t, wg.GoShutdown(nil, nil, time.Second), "both nil")
 
@@ -2091,7 +1992,6 @@ type goShutdownCancelledCase struct {
 func (tc goShutdownCancelledCase) Name() string { return tc.name }
 
 func (tc goShutdownCancelledCase) Test(t *testing.T) {
-	t.Helper()
 	var fnRan, shutdownRan atomic.Bool
 	wg := workgroup.New(context.Background())
 	wg.Cancel(nil)
@@ -2148,7 +2048,6 @@ func newGoShutdownCancelledCase(name string, withFn, withShutdown bool,
 // runTestGoShutdownEnrolmentWhenCancelled pins each enrolment arm against
 // an already cancelled Group.
 func runTestGoShutdownEnrolmentWhenCancelled(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, core.S(
 		newGoShutdownCancelledCase("BothHandlers", true, true, errors.ErrClosed),
 		newGoShutdownCancelledCase("NilShutdown", true, false, errors.ErrClosed),

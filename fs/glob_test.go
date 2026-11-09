@@ -48,8 +48,6 @@ func (tc globMatchTestCase) Name() string {
 }
 
 func (tc globMatchTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	globs, err := fs.GlobCompile(tc.pattern)
 	core.AssertMustNoError(t, err, "GlobCompile")
 	core.AssertMustEqual(t, 1, len(globs), "matchers")
@@ -125,8 +123,6 @@ func (tc globCompileErrorTestCase) Name() string {
 }
 
 func (tc globCompileErrorTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	globs, err := fs.GlobCompile(tc.patterns...)
 	core.AssertError(t, err, "GlobCompile")
 	core.AssertNil(t, globs, "matchers")
@@ -163,8 +159,6 @@ func (tc globTestCase) Name() string {
 }
 
 func (tc globTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, err := fs.Glob(newGlobFS(), tc.patterns...)
 	core.AssertMustNoError(t, err, "Glob")
 	core.AssertSliceEqual(t, tc.want, got, "Glob")

@@ -37,8 +37,6 @@ func newNotConnectedTestCase(name string,
 func (tc notConnectedTestCase) Name() string { return tc.name }
 
 func (tc notConnectedTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	c, err := reconnect.New(&reconnect.Config{
 		Context: context.Background(),
 		Remote:  addrUnused,

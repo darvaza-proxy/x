@@ -3,7 +3,6 @@ package sni_test
 // cspell:words ulfheim
 
 import (
-	"fmt"
 	"testing"
 
 	"darvaza.org/x/tls/sni"
@@ -68,18 +67,15 @@ func Test_GetInfo13(t *testing.T) {
 }
 
 func testGetInfo(t *testing.T, ci *sni.ClientHelloInfo, serverName string) {
-	_, _ = fmt.Println()
-	_, _ = fmt.Println()
-	_, _ = fmt.Println("Version is:", sni.VersionName(ci.Version))
-	_, _ = fmt.Println("Cipher Suites:", sni.CipherSuites(ci.CipherSuites))
-	_, _ = fmt.Println("Compression Methods:", sni.CompressionMethods(ci.CompressionMethods))
-	_, _ = fmt.Println("Supported Algos:", sni.SignatureAlgos(ci.SupportedSignatureAlgorithms))
-	_, _ = fmt.Println("Supported Versions:", sni.SupportedVersions(ci.SupportedVersions))
-	_, _ = fmt.Println("Requested SNI:", ci.ServerName)
-	_, _ = fmt.Println("ALPN:", ci.ALPNProtocols)
+	t.Helper()
+	t.Log("Version is:", sni.VersionName(ci.Version))
+	t.Log("Cipher Suites:", sni.CipherSuites(ci.CipherSuites))
+	t.Log("Compression Methods:", sni.CompressionMethods(ci.CompressionMethods))
+	t.Log("Supported Algos:", sni.SignatureAlgos(ci.SupportedSignatureAlgorithms))
+	t.Log("Supported Versions:", sni.SupportedVersions(ci.SupportedVersions))
+	t.Log("Requested SNI:", ci.ServerName)
+	t.Log("ALPN:", ci.ALPNProtocols)
 	if ci.ServerName == "" || ci.ServerName != serverName {
 		t.Fatalf("decode failed, wanted %s got %s", serverName, ci.ServerName)
 	}
-	_, _ = fmt.Println()
-	_, _ = fmt.Println()
 }

@@ -30,7 +30,6 @@ func (tc nextAcceptDelayTestCase) Name() string {
 }
 
 func (tc nextAcceptDelayTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, nextAcceptDelay(tc.delay), "delay")
 }
 

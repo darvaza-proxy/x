@@ -28,8 +28,6 @@ func getWinEnvKey(kind Kind) (string, bool) {
 // category to value, failing the test if the category is not
 // recognised.
 func setWinEnv(t *testing.T, kind Kind, value string) {
-	t.Helper()
-
 	key, ok := getWinEnvKey(kind)
 	core.AssertMustTrue(t, ok, "%s env key", kind)
 	t.Setenv(key, value)

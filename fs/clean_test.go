@@ -21,8 +21,6 @@ func (tc cleanTestCase) Name() string {
 }
 
 func (tc cleanTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	s, ok := fs.Clean(tc.path)
 	core.AssertEqual(t, tc.out, s, "cleaned")
 	core.AssertEqual(t, tc.ok, ok, "ok")
