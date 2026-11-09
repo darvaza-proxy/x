@@ -20,7 +20,6 @@ var (
 // keyPEM marshals a leaf's private key as a PKCS8 "PRIVATE KEY" block, so
 // import paths can be handed a non-certificate block to ignore.
 func keyPEM(t *testing.T, tc testCert) []byte {
-	t.Helper()
 	der, err := x509.MarshalPKCS8PrivateKey(tc.key)
 	core.AssertMustNoError(t, err, "marshal key")
 	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})
@@ -72,7 +71,6 @@ type putErrorTestCase struct {
 func (tc putErrorTestCase) Name() string { return tc.caseName }
 
 func (tc putErrorTestCase) Test(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	if tc.cancel {
 		var cancel context.CancelFunc
@@ -145,7 +143,6 @@ type deleteErrorTestCase struct {
 func (tc deleteErrorTestCase) Name() string { return tc.caseName }
 
 func (tc deleteErrorTestCase) Test(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	if tc.cancel {
 		var cancel context.CancelFunc
@@ -198,7 +195,6 @@ type deleteCertErrorTestCase struct {
 func (tc deleteCertErrorTestCase) Name() string { return tc.caseName }
 
 func (tc deleteCertErrorTestCase) Test(t *testing.T) {
-	t.Helper()
 	ctx := context.Background()
 	if tc.cancel {
 		var cancel context.CancelFunc

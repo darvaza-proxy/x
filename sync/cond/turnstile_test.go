@@ -21,21 +21,18 @@ const (
 )
 
 func newHeldTurnstile(t *testing.T) *cond.Turnstile {
-	t.Helper()
 	ts := &cond.Turnstile{}
 	core.AssertMustTrue(t, ts.TryLock(), "TryLock")
 	return ts
 }
 
 func newClosedTurnstile(t *testing.T) *cond.Turnstile {
-	t.Helper()
 	ts := &cond.Turnstile{}
 	core.AssertMustNoError(t, ts.Close(), "Close")
 	return ts
 }
 
 func newHeldClosedTurnstile(t *testing.T) *cond.Turnstile {
-	t.Helper()
 	ts := newHeldTurnstile(t)
 	core.AssertMustNoError(t, ts.Close(), "Close")
 	return ts
@@ -58,14 +55,12 @@ func goWait(fn func() error) <-chan error {
 
 // assertWaiting states that the call behind done is still blocked.
 func assertWaiting(t *testing.T, done <-chan error, name string) {
-	t.Helper()
 	core.AssertMustQuiet(t, done, turnstileQuietGuard, "%s waiting", name)
 }
 
 // assertReturns waits for the call behind done and states that it
 // failed with want, or succeeded when want is nil.
 func assertReturns(t *testing.T, done <-chan error, want error, name string) {
-	t.Helper()
 	got := core.AssertMustReceives(t, done, 1, turnstileTestTimeout, name)
 	if want == nil {
 		core.AssertNoError(t, got[0], name)
@@ -97,7 +92,6 @@ func newTurnstileTryTestCase(name string,
 func (tc turnstileTryTestCase) Name() string { return tc.name }
 
 func (tc turnstileTryTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.setup(t).TryLock(), "TryLock")
 	core.AssertEqual(t, tc.want, tc.setup(t).TryPass(), "TryPass")
 }
@@ -126,7 +120,6 @@ func TestTurnstileFree(t *testing.T) {
 }
 
 func runTestTurnstileFreeLock(t *testing.T) {
-	t.Helper()
 	ts := &cond.Turnstile{}
 	ts.Lock()
 	core.AssertFalse(t, ts.TryPass(), "TryPass after Lock")
@@ -138,7 +131,6 @@ func runTestTurnstileFreeLock(t *testing.T) {
 }
 
 func runTestTurnstileFreePass(t *testing.T) {
-	t.Helper()
 	ts := &cond.Turnstile{}
 	core.AssertNoPanic(t, ts.Pass, "Pass")
 	core.AssertNoError(t, ts.PassContext(t.Context()), "PassContext")
@@ -153,7 +145,6 @@ func TestTurnstileWaitsForHolder(t *testing.T) {
 }
 
 func runTestTurnstilePassWaits(t *testing.T) {
-	t.Helper()
 	ts := newHeldTurnstile(t)
 	done := goWait(func() error { return ts.PassContext(t.Context()) })
 
@@ -164,7 +155,6 @@ func runTestTurnstilePassWaits(t *testing.T) {
 }
 
 func runTestTurnstileLockWaits(t *testing.T) {
-	t.Helper()
 	ts := newHeldTurnstile(t)
 	done := goWait(func() error { return ts.LockContext(t.Context()) })
 
@@ -178,7 +168,6 @@ func runTestTurnstileLockWaits(t *testing.T) {
 }
 
 func runTestTurnstilePassBehindLock(t *testing.T) {
-	t.Helper()
 	ts := newHeldTurnstile(t)
 	locking := goWait(func() error { return ts.LockContext(t.Context()) })
 	assertWaiting(t, locking, "LockContext")
@@ -208,7 +197,6 @@ func TestTurnstileCancel(t *testing.T) {
 // Turnstile to its holder.
 func assertCancelWaiting(t *testing.T,
 	wait func(*cond.Turnstile, context.Context) error, name string) {
-	t.Helper()
 	ts := newHeldTurnstile(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -223,17 +211,14 @@ func assertCancelWaiting(t *testing.T,
 }
 
 func runTestTurnstileCancelLock(t *testing.T) {
-	t.Helper()
 	assertCancelWaiting(t, (*cond.Turnstile).LockContext, "LockContext")
 }
 
 func runTestTurnstileCancelPass(t *testing.T) {
-	t.Helper()
 	assertCancelWaiting(t, (*cond.Turnstile).PassContext, "PassContext")
 }
 
 func runTestTurnstileCancelAbort(t *testing.T) {
-	t.Helper()
 	ts := newHeldTurnstile(t)
 	abort := make(chan struct{})
 	done := goWait(func() error { return ts.PassAbort(abort) })
@@ -250,7 +235,6 @@ func runTestTurnstileCancelAbort(t *testing.T) {
 // passes, and states that the wait fails with the context's error.
 func assertDeadlineWaiting(t *testing.T,
 	wait func(*cond.Turnstile, context.Context) error, name string) {
-	t.Helper()
 	ts := newHeldTurnstile(t)
 	ctx, cancel := context.WithTimeout(t.Context(), turnstileQuietGuard)
 	defer cancel()
@@ -259,17 +243,14 @@ func assertDeadlineWaiting(t *testing.T,
 }
 
 func runTestTurnstileDeadlineLock(t *testing.T) {
-	t.Helper()
 	assertDeadlineWaiting(t, (*cond.Turnstile).LockContext, "LockContext")
 }
 
 func runTestTurnstileDeadlinePass(t *testing.T) {
-	t.Helper()
 	assertDeadlineWaiting(t, (*cond.Turnstile).PassContext, "PassContext")
 }
 
 func runTestTurnstileCancelledBefore(t *testing.T) {
-	t.Helper()
 	ts := &cond.Turnstile{}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -280,7 +261,6 @@ func runTestTurnstileCancelledBefore(t *testing.T) {
 }
 
 func runTestTurnstileNilContext(t *testing.T) {
-	t.Helper()
 	var nilCtx context.Context
 	ts := &cond.Turnstile{}
 	core.AssertErrorIs(t, ts.LockContext(nilCtx), errors.ErrNilContext, "LockContext")
@@ -295,7 +275,6 @@ func TestTurnstileClose(t *testing.T) {
 }
 
 func runTestTurnstileCloseWakes(t *testing.T) {
-	t.Helper()
 	ts := newHeldTurnstile(t)
 	locking := goWait(func() error { return ts.LockContext(t.Context()) })
 	passing := goWait(func() error { return ts.PassContext(t.Context()) })
@@ -310,7 +289,6 @@ func runTestTurnstileCloseWakes(t *testing.T) {
 }
 
 func runTestTurnstileCloseLater(t *testing.T) {
-	t.Helper()
 	ts := newClosedTurnstile(t)
 	core.AssertErrorIs(t, ts.LockContext(t.Context()), errors.ErrClosed, "LockContext")
 	core.AssertErrorIs(t, ts.PassContext(t.Context()), errors.ErrClosed, "PassContext")
@@ -320,13 +298,11 @@ func runTestTurnstileCloseLater(t *testing.T) {
 }
 
 func runTestTurnstileCloseTwice(t *testing.T) {
-	t.Helper()
 	ts := newClosedTurnstile(t)
 	core.AssertErrorIs(t, ts.Close(), errors.ErrClosed, "second Close")
 }
 
 func runTestTurnstileCloseNil(t *testing.T) {
-	t.Helper()
 	var ts *cond.Turnstile
 	core.AssertErrorIs(t, ts.Close(), errors.ErrNilReceiver, "Close")
 }
@@ -337,13 +313,11 @@ func TestTurnstileMisuse(t *testing.T) {
 }
 
 func runTestTurnstileUnlockUnlocked(t *testing.T) {
-	t.Helper()
 	core.AssertPanic(t, (&cond.Turnstile{}).Unlock, errors.ErrNotLocked, "zero value")
 	core.AssertPanic(t, newUsedTurnstile(t).Unlock, errors.ErrNotLocked, "unlocked")
 }
 
 func runTestTurnstileNilReceiver(t *testing.T) {
-	t.Helper()
 	var ts *cond.Turnstile
 	core.AssertPanic(t, ts.Lock, errors.ErrNilReceiver, "Lock")
 	core.AssertPanic(t, ts.Unlock, errors.ErrNilReceiver, "Unlock")

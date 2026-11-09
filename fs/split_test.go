@@ -21,8 +21,6 @@ func (tc splitTestCase) Name() string {
 }
 
 func (tc splitTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	dir, file := fs.Split(tc.path)
 	core.AssertEqual(t, tc.dir, dir, "dir")
 	core.AssertEqual(t, tc.file, file, "file")

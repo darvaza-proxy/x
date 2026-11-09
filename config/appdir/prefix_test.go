@@ -32,8 +32,6 @@ func (tc prefixValidateTestCase) Name() string {
 }
 
 func (tc prefixValidateTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := tc.p.Validate()
 	if tc.wantErrIs != nil {
 		core.AssertErrorIs(t, err, tc.wantErrIs, "validate")
@@ -104,8 +102,6 @@ func (tc prefixUserModeTestCase) Name() string {
 }
 
 func (tc prefixUserModeTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	want, err := callUserDirFunc(t, tc.kind, "app")
 	core.AssertMustNoError(t, err, "user %s dir", tc.kind)
 
@@ -147,8 +143,6 @@ func (tc newPrefixTestCase) Name() string {
 }
 
 func (tc newPrefixTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, err := appdir.NewPrefix(tc.dir)
 	if tc.wantErrIs != nil {
 		core.AssertErrorIs(t, err, tc.wantErrIs, "new prefix")

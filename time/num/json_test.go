@@ -54,7 +54,6 @@ func newJSONStringCase(name string, in jsonValue, text string) jsonCase {
 func (tc jsonCase) Name() string { return tc.name }
 
 func (tc jsonCase) Test(t *testing.T) {
-	t.Helper()
 	text, err := tc.in.MarshalText()
 	core.AssertNoError(t, err, "MarshalText")
 	core.AssertEqual(t, tc.text, string(text), "text")
@@ -188,32 +187,26 @@ func TestJSON(t *testing.T) {
 }
 
 func runTestJSONInt32(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, jsonInt32Cases())
 }
 
 func runTestJSONInt64(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, jsonInt64Cases())
 }
 
 func runTestJSONInt128(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, jsonInt128Cases())
 }
 
 func runTestJSONUint128(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, jsonUint128Cases())
 }
 
 func runTestJSONMilli(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, jsonMilliCases())
 }
 
 func runTestJSONAtto128(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, jsonAtto128Cases())
 }
 
@@ -265,7 +258,6 @@ func (tc jsonDecodeCase[T, PT]) Name() string { return tc.name }
 
 //revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (tc jsonDecodeCase[T, PT]) Test(t *testing.T) {
-	t.Helper()
 	t.Run("UnmarshalJSON", func(t *testing.T) { tc.check(t, tc.decodeDirect) })
 	t.Run("json.Unmarshal", func(t *testing.T) { tc.check(t, tc.decodeJSON) })
 }
@@ -284,7 +276,6 @@ func (tc jsonDecodeCase[T, PT]) decodeJSON(p PT) error {
 // check reads the row through decode into a receiver holding the
 // seed.
 func (tc jsonDecodeCase[T, PT]) check(t *testing.T, decode func(PT) error) {
-	t.Helper()
 	got := tc.seed
 	err := decode(PT(&got))
 	if tc.wantErr == nil {
@@ -322,7 +313,6 @@ func newJSONDirectCaseErr[T num.Number[T], PT jsonUnmarshaler[T]](name,
 
 //revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (tc jsonDirectCase[T, PT]) Test(t *testing.T) {
-	t.Helper()
 	tc.check(t, tc.decodeDirect)
 }
 
@@ -331,7 +321,6 @@ func (tc jsonDirectCase[T, PT]) Test(t *testing.T) {
 // for each value, number or string, must read back as that value.
 func jsonDecodeCasesOf[T num.Number[T], PT jsonUnmarshaler[T]](
 	t *testing.T, cases []jsonCase, seed T) []jsonDecodeCase[T, PT] {
-	t.Helper()
 	out := make([]jsonDecodeCase[T, PT], 0, len(cases))
 	for _, tc := range cases {
 		v := core.AssertMustTypeIs[T](t, tc.in, "%s value", tc.name)
@@ -468,7 +457,6 @@ func (tc jsonAllocsCase[T, PT]) Name() string { return tc.name }
 
 //revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (tc jsonAllocsCase[T, PT]) Test(t *testing.T) {
-	t.Helper()
 	b := []byte(tc.in)
 	var got T
 	var err error
@@ -511,7 +499,6 @@ func jsonPaddedAllocsCases[T any, PT jsonUnmarshaler[T]](text string,
 // padded, and the 128-bit integers' as printed alone, already past the
 // 32 bytes, 39 for MaxUint128 and 40 for MinInt128.
 func runTestUnmarshalJSONAllocs(t *testing.T) {
-	t.Helper()
 	int32s := jsonPaddedAllocsCases[num.Int32, *num.Int32]("-2147483648",
 		num.AsInt32(math.MinInt32))
 	int64s := jsonPaddedAllocsCases[num.Int64, *num.Int64](
@@ -533,7 +520,6 @@ func runTestUnmarshalJSONAllocs(t *testing.T) {
 func runTestUnmarshalJSON[T num.Number[T], PT jsonUnmarshaler[T]](
 	t *testing.T, table func() []jsonCase, tokens []jsonDecodeCase[T, PT],
 	seed, fortyTwo T) {
-	t.Helper()
 	rows := jsonDecodeCasesOf[T, PT](t, table(), seed)
 	direct := jsonDirectCases[T, PT](seed, fortyTwo)
 	nils := jsonNilCases[T, PT]()
@@ -563,7 +549,6 @@ func (tc jsonNullCase[N, T, PT]) Name() string { return tc.name }
 
 //revive:disable-next-line:confusing-naming three-parameter receiver misfiled as a function
 func (tc jsonNullCase[N, T, PT]) Test(t *testing.T) {
-	t.Helper()
 	var zero N
 	core.AssertMustNotEqual(t, zero, tc.seed, "seed")
 	null := []byte("null")
@@ -627,7 +612,6 @@ func newJSONStringOptionCaseRefused[T any](name string, in T,
 func (tc jsonStringOptionCase[T]) Name() string { return tc.name }
 
 func (tc jsonStringOptionCase[T]) Test(t *testing.T) {
-	t.Helper()
 	b, err := json.Marshal(jsonStringField[T]{V: tc.in})
 	core.AssertMustNoError(t, err, "Marshal")
 	core.AssertEqual(t, `{"V":`+tc.text+`}`, string(b), "Marshal")
@@ -692,7 +676,6 @@ func (tc jsonNilCase[T, PT]) Name() string { return tc.name }
 
 //revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (tc jsonNilCase[T, PT]) Test(t *testing.T) {
-	t.Helper()
 	var p PT
 	err := p.UnmarshalJSON([]byte(tc.in))
 	core.AssertMustError(t, err, "decode")

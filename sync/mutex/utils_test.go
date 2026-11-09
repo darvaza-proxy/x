@@ -29,7 +29,6 @@ const (
 // panic: every nil — interface or typed — is reported as ErrNilMutex, and any
 // panic from the wrapped lock surfaces as a PanicError.
 func assertErrKind(t *testing.T, err error, kind errKind, name string) {
-	t.Helper()
 	switch kind {
 	case errNone:
 		core.AssertNoError(t, err, name)
@@ -117,7 +116,6 @@ func newSafeAcquireTestCase(name string, op func(mutex.Mutex) (bool, error),
 func (tc safeAcquireTestCase) Name() string { return tc.name }
 
 func (tc safeAcquireTestCase) Test(t *testing.T) {
-	t.Helper()
 	ok, err := tc.op(tc.newMu())
 	core.AssertEqual(t, tc.wantOK, ok, "ok")
 	assertErrKind(t, err, tc.want, "err")
@@ -202,7 +200,6 @@ func newSafeReleaseTestCase(name string, op func(mutex.Mutex) error,
 func (tc safeReleaseTestCase) Name() string { return tc.name }
 
 func (tc safeReleaseTestCase) Test(t *testing.T) {
-	t.Helper()
 	assertErrKind(t, tc.op(tc.newMu()), tc.want, "err")
 }
 
@@ -281,7 +278,6 @@ func newSafeContextTestCase(name string,
 func (tc safeContextTestCase) Name() string { return tc.name }
 
 func (tc safeContextTestCase) Test(t *testing.T) {
-	t.Helper()
 	ok, err := tc.op(tc.newCtx(), tc.newMu())
 	// The context acquirers have no non-blocking path, so ok is exactly
 	// err == nil. Assert that invariant on the returned values rather than
@@ -359,7 +355,6 @@ func TestReverseUnlock(t *testing.T) {
 }
 
 func runTestReverseUnlockOrder(t *testing.T) {
-	t.Helper()
 	m1, m2, m3 := &sync.Mutex{}, &sync.Mutex{}, &sync.Mutex{}
 	m1.Lock()
 	m2.Lock()
@@ -391,13 +386,11 @@ func reverseUnlockID(mu, m1, m2, m3 mutex.Mutex) int {
 }
 
 func runTestReverseUnlockNilFn(t *testing.T) {
-	t.Helper()
 	err := mutex.ReverseUnlock[mutex.Mutex](nil, &sync.Mutex{})
 	core.AssertErrorIs(t, err, errors.ErrNilFunction, "nil function")
 }
 
 func runTestReverseUnlockErrorFn(t *testing.T) {
-	t.Helper()
 	errFn := func(mutex.Mutex) error { return errors.ErrNilMutex }
 	m := &sync.Mutex{}
 	m.Lock()
@@ -406,7 +399,6 @@ func runTestReverseUnlockErrorFn(t *testing.T) {
 }
 
 func runTestReverseUnlockNilMutex(t *testing.T) {
-	t.Helper()
 	m1, m2 := &sync.Mutex{}, &sync.Mutex{}
 	m1.Lock()
 	m2.Lock()
@@ -416,7 +408,6 @@ func runTestReverseUnlockNilMutex(t *testing.T) {
 }
 
 func runTestReverseUnlockEmpty(t *testing.T) {
-	t.Helper()
 	core.AssertNoError(t, mutex.ReverseUnlock[mutex.Mutex](mutex.SafeUnlock),
 		"empty locks")
 }

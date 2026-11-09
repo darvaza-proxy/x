@@ -28,7 +28,6 @@ func newPow10ExpCase(p Uint128, want int) pow10ExpCase {
 func (tc pow10ExpCase) Name() string { return tc.name }
 
 func (tc pow10ExpCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, pow10Exp(tc.p), "pow10Exp")
 }
 

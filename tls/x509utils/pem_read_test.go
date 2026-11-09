@@ -37,8 +37,6 @@ func newBlockCounter(t *testing.T, got *int) x509utils.DecodePEMBlockFunc {
 // ReadPEM/ReadStringPEM call.
 func checkReadPEMResult(t *testing.T, wantErr, err error,
 	wantBlocks, got int) {
-	t.Helper()
-
 	if wantErr == nil {
 		core.AssertNoError(t, err, "read")
 	} else {
@@ -71,8 +69,6 @@ func (tc readPEMTestCase) Name() string {
 }
 
 func (tc readPEMTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	var got int
 	err := x509utils.ReadPEM([]byte(tc.input), newBlockCounter(t, &got))
 	checkReadPEMResult(t, tc.wantErr, err, tc.wantBlocks, got)
@@ -123,8 +119,6 @@ func (tc readStringPEMTestCase) Name() string {
 }
 
 func (tc readStringPEMTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	var got int
 	err := x509utils.ReadStringPEM(tc.input, newBlockCounter(t, &got))
 	checkReadPEMResult(t, tc.wantErr, err, tc.wantBlocks, got)
@@ -303,8 +297,6 @@ func newReadFilePEMTestCase(name string, fSys fs.FS, file string,
 func (tc readFilePEMTestCase) Name() string { return tc.name }
 
 func (tc readFilePEMTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	var got int
 	err := x509utils.ReadFilePEM(tc.fSys, tc.file, newBlockCounter(t, &got))
 	checkReadPEMResult(t, tc.wantErr, err, tc.wantBlocks, got)
@@ -360,8 +352,6 @@ func newReadDirPEMTestCase(name string, fSys fs.FS, dir string,
 func (tc readDirPEMTestCase) Name() string { return tc.name }
 
 func (tc readDirPEMTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	var got int
 	err := x509utils.ReadDirPEM(tc.fSys, tc.dir, newBlockCounter(t, &got))
 	checkReadPEMResult(t, tc.wantErr, err, tc.wantBlocks, got)
@@ -485,7 +475,6 @@ func newNilOptionTestCase(name string,
 func (tc nilOptionTestCase) Name() string { return tc.name }
 
 func (tc nilOptionTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertErrorIs(t, tc.opt(nil), core.ErrNilReceiver, "nil receiver")
 }
 

@@ -25,8 +25,6 @@ func (tc cleanTestCase) Name() string {
 }
 
 func (tc cleanTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	s, ok := web.Clean(tc.path)
 	core.AssertEqual(t, tc.out, s, "cleaned")
 	core.AssertEqual(t, tc.ok, ok, "ok")
@@ -128,8 +126,6 @@ func (tc cleanURLTestCase) Name() string {
 }
 
 func (tc cleanURLTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	s, err := web.CleanURL(tc.in)
 	core.AssertEqual(t, tc.out, s, "cleaned")
 	if tc.wantErr {

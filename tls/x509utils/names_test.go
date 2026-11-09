@@ -32,7 +32,6 @@ type nameAsIPTestCase struct {
 func (tc nameAsIPTestCase) Name() string { return tc.name }
 
 func (tc nameAsIPTestCase) Test(t *testing.T) {
-	t.Helper()
 	got, ok := x509utils.NameAsIP(tc.input)
 	core.AssertEqual(t, tc.expected, got, "addr")
 	core.AssertEqual(t, tc.expected != "", ok, "ok")
@@ -76,7 +75,6 @@ type nameAsSuffixTestCase struct {
 func (tc nameAsSuffixTestCase) Name() string { return tc.name }
 
 func (tc nameAsSuffixTestCase) Test(t *testing.T) {
-	t.Helper()
 	got, ok := x509utils.NameAsSuffix(tc.input)
 	core.AssertEqual(t, tc.expected, got, "suffix")
 	core.AssertEqual(t, len(tc.expected) > 1, ok, "ok")
@@ -125,7 +123,6 @@ type sanitizeNameTestCase struct {
 func (tc sanitizeNameTestCase) Name() string { return tc.name }
 
 func (tc sanitizeNameTestCase) Test(t *testing.T) {
-	t.Helper()
 	got, ok := x509utils.SanitizeName(tc.input)
 	core.AssertEqual(t, tc.expected, got, "name")
 	core.AssertEqual(t, tc.expected != "", ok, "ok")
@@ -183,7 +180,6 @@ type namesTestCase struct {
 func (tc namesTestCase) Name() string { return tc.name }
 
 func (tc namesTestCase) Test(t *testing.T) {
-	t.Helper()
 	names, patterns := x509utils.Names(tc.cert)
 	core.AssertSliceEqual(t, tc.names, names, "names")
 	core.AssertSliceEqual(t, tc.patterns, patterns, "patterns")
@@ -295,7 +291,6 @@ type namesIPTestCase struct {
 func (tc namesIPTestCase) Name() string { return tc.name }
 
 func (tc namesIPTestCase) Test(t *testing.T) {
-	t.Helper()
 	cert := &x509.Certificate{IPAddresses: tc.ips}
 	names, _ := x509utils.Names(cert)
 	core.AssertSliceEqual(t, tc.names, names, "names")

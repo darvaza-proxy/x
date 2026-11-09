@@ -40,7 +40,6 @@ func newFormatCase(name string, in any, format, want string) formatCase {
 func (tc formatCase) Name() string { return tc.name }
 
 func (tc formatCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, fmt.Sprintf(tc.format, tc.in), "text")
 }
 
@@ -293,7 +292,6 @@ func newFormatCrossCaseAs(format, oracle string, value int64) formatCrossCase {
 func (tc formatCrossCase) Name() string { return tc.name }
 
 func (tc formatCrossCase) Test(t *testing.T) {
-	t.Helper()
 	tc.testWide(t)
 	tc.testNarrow(t)
 	tc.testUnsigned(t)
@@ -302,7 +300,6 @@ func (tc formatCrossCase) Test(t *testing.T) {
 // testWide compares the signed types holding every row against the
 // native int64 of the same value.
 func (tc formatCrossCase) testWide(t *testing.T) {
-	t.Helper()
 	want := fmt.Sprintf(tc.oracle, tc.value)
 	core.AssertEqual(t, want, fmt.Sprintf(tc.format, num.AsInt64(tc.value)),
 		"int64")
@@ -313,7 +310,6 @@ func (tc formatCrossCase) testWide(t *testing.T) {
 // testNarrow compares Int32 against the native int32, for the rows
 // whose value it can hold.
 func (tc formatCrossCase) testNarrow(t *testing.T) {
-	t.Helper()
 	if tc.value < math.MinInt32 || tc.value > math.MaxInt32 {
 		return
 	}
@@ -325,7 +321,6 @@ func (tc formatCrossCase) testNarrow(t *testing.T) {
 // testUnsigned compares Uint128 against the native uint64, for the rows
 // whose value it can hold.
 func (tc formatCrossCase) testUnsigned(t *testing.T) {
-	t.Helper()
 	if tc.value < 0 {
 		return
 	}
@@ -419,7 +414,6 @@ func newDecimalCrossCase(format string, milli int32) decimalCrossCase {
 func (tc decimalCrossCase) Name() string { return tc.name }
 
 func (tc decimalCrossCase) Test(t *testing.T) {
-	t.Helper()
 	want := fmt.Sprintf(tc.format, float64(tc.milli)/1000)
 	core.AssertEqual(t, want,
 		fmt.Sprintf(tc.format, num.AsMilli32(num.AsInt32(tc.milli))), "milli32")
@@ -501,7 +495,6 @@ func newGoSyntaxCrossCase(format string, in any) goSyntaxCrossCase {
 func (tc goSyntaxCrossCase) Name() string { return tc.name }
 
 func (tc goSyntaxCrossCase) Test(t *testing.T) {
-	t.Helper()
 	gs := core.AssertMustTypeIs[fmt.GoStringer](t, tc.in, "go stringer")
 	want := fmt.Sprintf(tc.format, goSyntaxRef(gs.GoString()))
 	core.AssertEqual(t, want, fmt.Sprintf(tc.format, tc.in), "text")
@@ -580,7 +573,6 @@ func newBadVerbCrossCase(flags string, s badVerbSubject) badVerbCrossCase {
 func (tc badVerbCrossCase) Name() string { return tc.name }
 
 func (tc badVerbCrossCase) Test(t *testing.T) {
-	t.Helper()
 	s := tc.subject
 	value := fmt.Sprintf("%"+tc.flags+s.verb, s.native)
 	want := fmt.Sprintf("%%!t(%s=%s)", s.typeName, value)
@@ -663,7 +655,6 @@ func newFmtBadVerbCase(format string, in any, want string) fmtBadVerbCase {
 func (tc fmtBadVerbCase) Name() string { return tc.name }
 
 func (tc fmtBadVerbCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, fmt.Sprintf(tc.format, tc.in), "text")
 }
 
@@ -687,27 +678,22 @@ func TestFormatMatchesFmt(t *testing.T) {
 }
 
 func runTestFmtBadVerb(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, fmtBadVerbCases())
 }
 
 func runTestIntegerMatchesFmt(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, formatCrossCases())
 }
 
 func runTestDecimalMatchesFmt(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, decimalCrossCases())
 }
 
 func runTestGoSyntaxMatchesFmt(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, goSyntaxCrossCases())
 }
 
 func runTestBadVerbMatchesFmt(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, badVerbCrossCases())
 }
 
@@ -748,7 +734,6 @@ func newGoStringCase(name string, in fmt.GoStringer,
 func (tc goStringCase) Name() string { return tc.name }
 
 func (tc goStringCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.in.GoString(), "GoString")
 	core.AssertEqual(t, tc.want, fmt.Sprintf("%#v", tc.in), "fmt")
 }

@@ -22,7 +22,6 @@ func TestRun(t *testing.T) {
 }
 
 func runTestRunNilStart(t *testing.T) {
-	t.Helper()
 	err := lexer.Run[*int](nil, nil)
 	core.AssertNoError(t, err, "nil start")
 }
@@ -64,7 +63,6 @@ type chainCase struct {
 func (tc chainCase) Name() string { return tc.name }
 
 func (tc chainCase) Test(t *testing.T) {
-	t.Helper()
 	c, start := newChainCounter(tc.deltas...)
 	err := lexer.Run(c, start)
 	core.AssertNoError(t, err, "run")
@@ -85,7 +83,6 @@ func chainCases() []chainCase {
 }
 
 func runTestRunChain(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, chainCases())
 }
 
@@ -98,7 +95,6 @@ func newFailScenario() (p *int, fail lexer.StateFn[*int]) {
 }
 
 func runTestRunError(t *testing.T) {
-	t.Helper()
 	p, fail := newFailScenario()
 	err := lexer.Run(p, fail)
 	core.AssertErrorIs(t, err, errBoom, "propagates")
@@ -127,7 +123,6 @@ func runConsumeTwice(p *runParser) (lexer.StateFn[*runParser], error) {
 }
 
 func runTestRunWithCursor(t *testing.T) {
-	t.Helper()
 	p := &runParser{Cursor: lexer.New("ñ€𐍈")}
 	err := lexer.Run(p, runConsumeTwice)
 	core.AssertNoError(t, err, "run")

@@ -98,8 +98,6 @@ func getPrefixDirFunc(p appdir.Prefix,
 // asserts it was recognised, and invokes it.
 func callUserDirFunc(t *testing.T, kind Kind,
 	args ...string) (string, error) {
-	t.Helper()
-
 	fn := getUserDirFunc(kind)
 	core.AssertMustNotNil(t, fn, "user %s dir fn", kind)
 	return fn(args...)
@@ -109,8 +107,6 @@ func callUserDirFunc(t *testing.T, kind Kind,
 // asserts it was recognised, and invokes it.
 func callSysDirFunc(t *testing.T, kind Kind,
 	args ...string) (string, error) {
-	t.Helper()
-
 	fn := getSysDirFunc(kind)
 	core.AssertMustNotNil(t, fn, "sys %s dir fn", kind)
 	return fn(args...)
@@ -121,8 +117,6 @@ func callSysDirFunc(t *testing.T, kind Kind,
 // invokes it.
 func callPrefixDirFunc(t *testing.T, p appdir.Prefix, kind Kind,
 	args ...string) (string, error) {
-	t.Helper()
-
 	fn := getPrefixDirFunc(p, kind)
 	core.AssertMustNotNil(t, fn, "prefix %s dir fn", kind)
 	return fn(args...)

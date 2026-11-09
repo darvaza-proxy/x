@@ -38,8 +38,6 @@ func (tc redirectTestCase) Name() string {
 }
 
 func (tc redirectTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := web.NewStatusFound(tc.dest, tc.args...)
 	core.AssertMustNotNil(t, err, "HTTPError")
 
@@ -145,8 +143,6 @@ func (tc redirectStatusTestCase) Name() string {
 }
 
 func (tc redirectStatusTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := tc.factory(tc.dest)
 	core.AssertMustNotNil(t, err, "HTTPError")
 	core.AssertEqual(t, tc.code, err.HTTPStatus(), "status code")

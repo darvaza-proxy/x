@@ -37,7 +37,6 @@ func TestTurnstileLazyInit(t *testing.T) {
 // of its cases is ready, and states that it fails with want and leaves
 // the token behind, whichever case select picks.
 func assertWaitGivesBack(t *testing.T, ts *Turnstile, abort <-chan struct{}, want error) {
-	t.Helper()
 	for range turnstileReadyRounds {
 		tok, err := ts.wait(abort)
 		core.AssertErrorIs(t, err, want, "wait")

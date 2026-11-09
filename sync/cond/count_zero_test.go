@@ -34,7 +34,6 @@ func newCountZeroStateTestCase(name string, setup func() *cond.CountZero,
 func (tc countZeroStateTestCase) Name() string { return tc.name }
 
 func (tc countZeroStateTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	core.AssertEqual(t, tc.wantNil, c.IsNil(), "IsNil")
 	core.AssertEqual(t, tc.wantClosed, c.IsClosed(), "IsClosed")
@@ -95,7 +94,6 @@ func newCountZeroInitTestCase(name string, setup func() *cond.CountZero,
 func (tc countZeroInitTestCase) Name() string { return tc.name }
 
 func (tc countZeroInitTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	err := c.Init(tc.initial)
 	if tc.wantErr == nil {
@@ -153,7 +151,6 @@ func newCountZeroCloseTestCase(name string, setup func() *cond.CountZero,
 func (tc countZeroCloseTestCase) Name() string { return tc.name }
 
 func (tc countZeroCloseTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	err := c.Close()
 	if tc.wantErr == nil {
@@ -217,7 +214,6 @@ func newCountZeroResetTestCase(name string, setup func() *cond.CountZero,
 func (tc countZeroResetTestCase) Name() string { return tc.name }
 
 func (tc countZeroResetTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	err := c.Reset(tc.value)
 	if tc.wantErr == nil {
@@ -285,7 +281,6 @@ func newCountZeroErrorOpTestCase(name string,
 func (tc countZeroErrorOpTestCase) Name() string { return tc.name }
 
 func (tc countZeroErrorOpTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	err := tc.op(c)
 	core.AssertErrorIs(t, err, tc.wantErr, "op error")

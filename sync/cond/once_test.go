@@ -79,7 +79,6 @@ func newOnceDoPanicTestCase(name string, fn func() error, payload error) onceDoT
 func (tc onceDoTestCase) Name() string { return tc.name }
 
 func (tc onceDoTestCase) Test(t *testing.T) {
-	t.Helper()
 	var once cond.Once
 	var calls int
 
@@ -94,7 +93,6 @@ func (tc onceDoTestCase) Test(t *testing.T) {
 }
 
 func (tc onceDoTestCase) assertResult(t *testing.T, err error) {
-	t.Helper()
 	if !tc.panics {
 		core.AssertEqual(t, tc.want, err, "Do")
 		return

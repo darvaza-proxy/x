@@ -34,8 +34,6 @@ func (tc hasHeaderTestCase) Name() string {
 }
 
 func (tc hasHeaderTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	hdr := make(http.Header)
 	if tc.setKey != "" {
 		hdr[tc.setKey] = tc.values
@@ -88,8 +86,6 @@ func (tc setHeaderTestCase) Name() string {
 }
 
 func (tc setHeaderTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	hdr := make(http.Header)
 	web.SetHeader(hdr, tc.key, tc.value, tc.args...)
 
@@ -128,8 +124,6 @@ func (tc setCacheTestCase) Name() string {
 }
 
 func (tc setCacheTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	hdr := make(http.Header)
 	web.SetCache(hdr, tc.duration)
 
@@ -178,8 +172,6 @@ func (tc setRetryAfterTestCase) Name() string {
 }
 
 func (tc setRetryAfterTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	hdr := make(http.Header)
 	web.SetRetryAfter(hdr, tc.retryAfter)
 
@@ -227,8 +219,6 @@ func (tc setLastModifiedHeaderTestCase) Name() string {
 }
 
 func (tc setLastModifiedHeaderTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	hdr := make(http.Header)
 	if tc.existingHeader != "" {
 		hdr.Set(consts.LastModified, tc.existingHeader)
@@ -291,8 +281,6 @@ func (tc checkIfModifiedSinceTestCase) Name() string {
 }
 
 func (tc checkIfModifiedSinceTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	req, err := http.NewRequest(http.MethodGet, "/test", http.NoBody)
 	core.AssertNoError(t, err, "create request")
 

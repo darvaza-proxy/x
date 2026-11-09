@@ -79,7 +79,6 @@ func newTreeFS(t *testing.T) fs.FS {
 
 // writeTreeFile creates dir (with parents) and writes content into name.
 func writeTreeFile(t *testing.T, dir, name, content string) {
-	t.Helper()
 	core.AssertMustNoError(t, os.MkdirAll(dir, 0o750), "mkdir %q", dir)
 	path := filepath.Join(dir, name)
 	core.AssertMustNoError(t, os.WriteFile(path, []byte(content), 0o600),
@@ -113,7 +112,6 @@ func newValidPathTestCase(name, path string, valid bool) validPathTestCase {
 func (tc validPathTestCase) Name() string { return tc.name }
 
 func (tc validPathTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.valid, fs.ValidPath(tc.path), "ValidPath(%q)", tc.path)
 }
 
@@ -159,7 +157,6 @@ func newReadFileTestCase(fsys fs.FS, name, path, want string,
 func (tc readFileTestCase) Name() string { return tc.name }
 
 func (tc readFileTestCase) Test(t *testing.T) {
-	t.Helper()
 	got, err := fs.ReadFile(tc.fsys, tc.path)
 	if tc.wantErr {
 		core.AssertError(t, err, "ReadFile(%q)", tc.path)
@@ -226,7 +223,6 @@ func newStatErrorTestCase(fsys fs.FS, name, path string) statTestCase {
 func (tc statTestCase) Name() string { return tc.name }
 
 func (tc statTestCase) Test(t *testing.T) {
-	t.Helper()
 	fi, err := fs.Stat(tc.fsys, tc.path)
 	if tc.wantErr {
 		core.AssertError(t, err, "Stat(%q)", tc.path)
@@ -276,7 +272,6 @@ func newReadDirTestCase(fsys fs.FS, name, dir string, want []string,
 func (tc readDirTestCase) Name() string { return tc.name }
 
 func (tc readDirTestCase) Test(t *testing.T) {
-	t.Helper()
 	entries, err := fs.ReadDir(tc.fsys, tc.dir)
 	if tc.wantErr {
 		core.AssertError(t, err, "ReadDir(%q)", tc.dir)
@@ -311,7 +306,6 @@ func TestSub(t *testing.T) {
 // walkPaths collects every path WalkDir visits, pruning the subtree at
 // skip when skip is non-empty to exercise the SkipDir sentinel.
 func walkPaths(t *testing.T, fsys fs.FS, skip string) []string {
-	t.Helper()
 	var got []string
 	walk := func(p string, _ fs.DirEntry, err error) error {
 		if err != nil {
@@ -328,7 +322,6 @@ func walkPaths(t *testing.T, fsys fs.FS, skip string) []string {
 }
 
 func runWalkDirFull(t *testing.T) {
-	t.Helper()
 	got := walkPaths(t, newTreeFS(t), "")
 	want := core.S(".", "hello.txt", "sub", "sub/deep",
 		"sub/deep/leaf.txt", "sub/world.txt")
@@ -336,7 +329,6 @@ func runWalkDirFull(t *testing.T) {
 }
 
 func runWalkDirSkip(t *testing.T) {
-	t.Helper()
 	got := walkPaths(t, newTreeFS(t), "sub")
 	core.AssertSliceEqual(t, core.S(".", "hello.txt", "sub"), got, "skipped walk")
 }
@@ -382,21 +374,18 @@ func TestLstat(t *testing.T) {
 }
 
 func runReadLinkStandard(t *testing.T) {
-	t.Helper()
 	got, err := fs.ReadLink(readLinkStub{target: "new-target"}, "link")
 	core.AssertMustNoError(t, err, "ReadLink")
 	core.AssertEqual(t, "new-target", got, "target")
 }
 
 func runReadLinkBridge(t *testing.T) {
-	t.Helper()
 	got, err := fs.ReadLink(oldLinkStub{target: "old-target"}, "link")
 	core.AssertMustNoError(t, err, "ReadLink")
 	core.AssertEqual(t, "old-target", got, "target")
 }
 
 func runReadLinkUnsupported(t *testing.T) {
-	t.Helper()
 	_, err := fs.ReadLink(bareStub{}, "link")
 	core.AssertError(t, err, "ReadLink")
 }

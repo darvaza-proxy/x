@@ -18,8 +18,6 @@ var (
 // functions consume. An empty value stands for an absent header and yields an
 // empty list.
 func parseAccept(t *testing.T, accept string) qlist.QualityList {
-	t.Helper()
-
 	if accept == "" {
 		return nil
 	}
@@ -43,8 +41,6 @@ func (tc bestQualityTestCase) Name() string {
 }
 
 func (tc bestQualityTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, quality, ok := qlist.BestQuality(tc.supported, parseAccept(t, tc.accept))
 
 	core.AssertEqual(t, tc.want, got, "option")
@@ -105,8 +101,6 @@ func (tc bestQualityWithIdentityTestCase) Name() string {
 }
 
 func (tc bestQualityWithIdentityTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, quality, ok := qlist.BestQualityWithIdentity(tc.supported,
 		parseAccept(t, tc.accept), tc.identity)
 
@@ -182,8 +176,6 @@ func (tc bestEncodingTestCase) Name() string {
 }
 
 func (tc bestEncodingTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, ok := qlist.BestEncoding(tc.supported, tc.header())
 
 	core.AssertEqual(t, tc.want, got, "encoding")

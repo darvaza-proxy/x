@@ -30,7 +30,6 @@ func TestNewParseError(t *testing.T) {
 // runTestNewParseErrorOf checks that the report keeps a copy of a text
 // of type S, which then holds when the bytes it was read from change.
 func runTestNewParseErrorOf[S stringOrBytes](t *testing.T) {
-	t.Helper()
 	text := longText()
 	src := []byte(text)
 	err := newParseError("ParseInt32", S(src), ErrSyntax)
@@ -45,7 +44,6 @@ func runTestNewParseErrorOf[S stringOrBytes](t *testing.T) {
 // runTestNewParseErrorAllocs checks that a report over bytes costs as
 // many allocations as one over a string.
 func runTestNewParseErrorAllocs(t *testing.T) {
-	t.Helper()
 	text := longText()
 	src := []byte(text)
 

@@ -37,7 +37,6 @@ func TestHashProducers(t *testing.T) {
 // assertHashMiss confirms every producer reports failure for a certificate that
 // fails validCert.
 func assertHashMiss(t *testing.T, cert *x509.Certificate) {
-	t.Helper()
 	_, ok := certpool.HashCert(cert)
 	core.AssertFalse(t, ok, "hash cert miss")
 	_, ok = certpool.HashSubject(cert)

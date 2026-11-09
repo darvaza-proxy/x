@@ -32,7 +32,6 @@ func (tc matchTestCase[T]) Name() string {
 }
 
 func (tc matchTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	result := tc.matcher.Match(tc.value)
 	core.AssertEqual(t, tc.expected, result, "Match(%v)", tc.value)
 }
@@ -49,7 +48,6 @@ func TestMatchAny(t *testing.T) {
 }
 
 func runTestMatchAnyAnd(t *testing.T) {
-	t.Helper()
 	isEven := cmp.AsMatcher(func(n int) bool {
 		return n%2 == 0
 	})
@@ -69,7 +67,6 @@ func runTestMatchAnyAnd(t *testing.T) {
 }
 
 func runTestMatchAnyNot(t *testing.T) {
-	t.Helper()
 	isEven := cmp.AsMatcher(func(n int) bool {
 		return n%2 == 0
 	})
@@ -97,7 +94,6 @@ func TestMatchAll(t *testing.T) {
 }
 
 func runTestMatchAllOr(t *testing.T) {
-	t.Helper()
 	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -117,7 +113,6 @@ func runTestMatchAllOr(t *testing.T) {
 }
 
 func runTestMatchAllNot(t *testing.T) {
-	t.Helper()
 	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -134,7 +129,6 @@ func runTestMatchAllNot(t *testing.T) {
 }
 
 func runTestMatchAnyWithMatchers(t *testing.T) {
-	t.Helper()
 	isEven := cmp.AsMatcher(func(n int) bool {
 		return n%2 == 0
 	})
@@ -159,7 +153,6 @@ func runTestMatchAnyWithMatchers(t *testing.T) {
 }
 
 func runTestMatchAnyWithNil(t *testing.T) {
-	t.Helper()
 	isEven := cmp.AsMatcher(func(n int) bool {
 		return n%2 == 0
 	})
@@ -176,7 +169,6 @@ func runTestMatchAnyWithNil(t *testing.T) {
 }
 
 func runTestMatchAllWithMatchers(t *testing.T) {
-	t.Helper()
 	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -200,7 +192,6 @@ func runTestMatchAllWithMatchers(t *testing.T) {
 }
 
 func runTestMatchAllWithNil(t *testing.T) {
-	t.Helper()
 	isEven := cmp.MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -217,14 +208,12 @@ func runTestMatchAllWithNil(t *testing.T) {
 }
 
 func runTestMatchAnyEmptyList(t *testing.T) {
-	t.Helper()
 	// Empty OR should match nothing (return false)
 	matcher := cmp.MatchAny[int]()
 	core.AssertFalse(t, matcher.Match(42), "empty MatchAny")
 }
 
 func runTestMatchAllEmptyList(t *testing.T) {
-	t.Helper()
 	// Empty AND should match everything (return true)
 	matcher := cmp.MatchAll[int]()
 	core.AssertTrue(t, matcher.Match(42), "empty MatchAll")

@@ -90,8 +90,6 @@ func newFileInfo(modTime time.Time) fs.FileInfo {
 // the recorded response. The request accepts anything, so the handler
 // reaches the content rather than answering 406.
 func serveAsset(t *testing.T, asset assets.Asset) *httptest.ResponseRecorder {
-	t.Helper()
-
 	h := &assets.AssetHandler{Asset: asset}
 
 	req := httptest.NewRequest(consts.GET, "/", http.NoBody)
@@ -118,8 +116,6 @@ func (tc assetHeaderTestCase) Name() string {
 }
 
 func (tc assetHeaderTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	rw := serveAsset(t, tc.asset)
 	core.AssertSliceEqual(t, tc.want,
 		rw.Header().Values(consts.RetryAfter), "Retry-After")
@@ -163,8 +159,6 @@ func (tc assetLastModifiedTestCase) Name() string {
 }
 
 func (tc assetLastModifiedTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	rw := serveAsset(t, tc.asset)
 	core.AssertSliceEqual(t, tc.want,
 		rw.Header().Values(consts.LastModified), "Last-Modified")

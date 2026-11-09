@@ -23,8 +23,6 @@ func (tc joinRunesTestCase) Name() string {
 }
 
 func (tc joinRunesTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	result := joinRunes(tc.before, tc.after)
 	core.AssertSliceEqual(t, tc.expected, result, "joined runes")
 }
@@ -69,8 +67,6 @@ func (tc unsafeCutRootTestCase) Name() string {
 }
 
 func (tc unsafeCutRootTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	result, ok := unsafeCutRoot(tc.name, tc.root)
 
 	core.AssertEqual(t, tc.wantOK, ok, "cut success")

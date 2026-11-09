@@ -71,8 +71,6 @@ func (tc renderWithCodeTestCase) Name() string {
 }
 
 func (tc renderWithCodeTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	r := &Resource[string]{
 		rc: make(map[string]RendererFunc[string]),
 		r:  make(map[string]HandlerFunc[string]),
@@ -188,8 +186,6 @@ func runTestRenderWithCodeStatusCodes(t *testing.T) {
 }
 
 func testStatusCodeRendering(t *testing.T, expectedCode int) {
-	t.Helper()
-
 	r := &Resource[string]{
 		rc: make(map[string]RendererFunc[string]),
 	}

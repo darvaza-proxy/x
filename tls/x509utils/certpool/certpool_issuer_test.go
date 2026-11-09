@@ -25,7 +25,6 @@ type testCert struct {
 }
 
 func baseTemplate(t *testing.T, cn string, dns []string) *x509.Certificate {
-	t.Helper()
 	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 	core.AssertMustNoError(t, err, "serial")
 
@@ -42,7 +41,6 @@ func baseTemplate(t *testing.T, cn string, dns []string) *x509.Certificate {
 // signAndParse generates a key for tmpl and signs it with parent (self-signed
 // when parent is nil), returning the parsed certificate and its key.
 func signAndParse(t *testing.T, tmpl *x509.Certificate, parent *testCert) testCert {
-	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	core.AssertMustNoError(t, err, "generate key")
 
@@ -80,7 +78,6 @@ func mkTestLeaf(t *testing.T, cn string, parent *testCert) testCert {
 // mustHashIssuer returns the subject-hash to look up a child's candidate
 // issuers.
 func mustHashIssuer(t *testing.T, child *x509.Certificate) certpool.Hash {
-	t.Helper()
 	h, ok := certpool.HashIssuer(child)
 	core.AssertMustTrue(t, ok, "hash issuer")
 	return h

@@ -19,7 +19,6 @@ var (
 // contract: the remainder is non-negative and, whenever |w| is
 // representable, below it.
 func assertEuclideanRange[T num.SignedEuclidean[T]](t *testing.T, w, r T) {
-	t.Helper()
 	core.AssertFalse(t, r.IsNegative(), "remainder sign")
 	if abs := w.Abs(); !abs.IsNegative() {
 		core.AssertTrue(t, r.Cmp(abs) < 0, "remainder below |w|")
@@ -47,7 +46,6 @@ func (it signedIntType[T]) testEuclideanMulDivMod(t *testing.T) {
 }
 
 func (it signedIntType[T]) testEuclideanDivZero(t *testing.T) {
-	t.Helper()
 	zero, one := it.mk(0), it.mk(1)
 	core.AssertPanic(t, func() { num.EuclideanDivMod(one, zero) },
 		num.ErrDivZero, "div-mod by zero")
@@ -80,7 +78,6 @@ func newEuclideanDivModCase[T num.SignedEuclidean[T]](name string, v, w,
 func (tc euclideanDivModCase[T]) Name() string { return tc.name }
 
 func (tc euclideanDivModCase[T]) Test(t *testing.T) {
-	t.Helper()
 	q, r := num.EuclideanDivMod(tc.v, tc.w)
 	core.AssertEqual(t, tc.wantQ, q, "quotient")
 	core.AssertEqual(t, tc.wantR, r, "remainder")
@@ -138,7 +135,6 @@ func newEuclideanMulDivModCase[T num.SignedEuclidean[T]](name string, v, w,
 func (tc euclideanMulDivModCase[T]) Name() string { return tc.name }
 
 func (tc euclideanMulDivModCase[T]) Test(t *testing.T) {
-	t.Helper()
 	q, r := num.EuclideanMulDivMod(tc.v, tc.w, tc.d)
 	core.AssertEqual(t, tc.wantQ, q, "quotient")
 	core.AssertEqual(t, tc.wantR, r, "remainder")
@@ -196,7 +192,6 @@ func (s euclideanDecimalSuite[D]) testMulDivMod(t *testing.T) {
 }
 
 func (s euclideanDecimalSuite[D]) testDivZero(t *testing.T) {
-	t.Helper()
 	zero, one := s.mk(0, 0), s.mk(1, 0)
 	core.AssertPanic(t, func() { num.EuclideanDivMod(one, zero) },
 		num.ErrDivZero, "div-mod by zero")
@@ -251,7 +246,6 @@ func newEuclideanDecimalMulDivModCase[D num.SignedEuclidean[D]](name string,
 func (tc euclideanDecimalMulDivModCase[D]) Name() string { return tc.name }
 
 func (tc euclideanDecimalMulDivModCase[D]) Test(t *testing.T) {
-	t.Helper()
 	q, r := num.EuclideanMulDivMod(tc.v, tc.w, tc.d)
 	core.AssertEqual(t, tc.wantQ, q, "quotient")
 	core.AssertEqual(t, tc.wantR, r, "remainder")

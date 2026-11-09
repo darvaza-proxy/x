@@ -31,8 +31,6 @@ func (tc basicStatusTestCase) Name() string {
 }
 
 func (tc basicStatusTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := tc.factory()
 	core.AssertNotNil(t, err, "HTTPError")
 	core.AssertEqual(t, tc.expectedCode, err.HTTPStatus(), "status code")
@@ -62,8 +60,6 @@ func (tc wrapperStatusTestCase) Name() string {
 }
 
 func (tc wrapperStatusTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := tc.factory(tc.inputErr)
 	core.AssertNotNil(t, err, "HTTPError")
 	core.AssertEqual(t, tc.expectedCode, err.HTTPStatus(), "status code")
@@ -98,8 +94,6 @@ func (tc retryStatusTestCase) Name() string {
 }
 
 func (tc retryStatusTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := tc.factory(tc.retryAfter)
 	core.AssertNotNil(t, err, "HTTPError")
 	core.AssertEqual(t, tc.expectedCode, err.HTTPStatus(), "status code")

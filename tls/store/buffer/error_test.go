@@ -40,8 +40,6 @@ func newNewErrorTestCase(name string, base error, op, note,
 func (tc newErrorTestCase) Name() string { return tc.name }
 
 func (tc newErrorTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	sn := buffer.NewSourceName(nil, "")
 	err := sn.NewError(tc.base, tc.op, tc.note)
 

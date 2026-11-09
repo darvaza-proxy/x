@@ -61,7 +61,6 @@ func (tc customSetContainsTestCase) Name() string {
 }
 
 func (tc customSetContainsTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.set.Contains(tc.value), "Contains(%d)", tc.value)
 }
 
@@ -293,7 +292,6 @@ func (tc uninitialisedTestCase) Name() string {
 }
 
 func (tc uninitialisedTestCase) Test(t *testing.T) {
-	t.Helper()
 	var set slices.CustomSet[int]
 	core.AssertPanic(t, func() { tc.op(&set) }, nil, tc.name)
 }

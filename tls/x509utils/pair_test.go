@@ -31,7 +31,6 @@ type isSelfSignedTestCase struct {
 func (tc isSelfSignedTestCase) Name() string { return tc.name }
 
 func (tc isSelfSignedTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, x509utils.IsSelfSigned(tc.cert), "self-signed")
 }
 
@@ -41,8 +40,6 @@ func newIsSelfSignedTestCase(name string, cert *x509.Certificate,
 }
 
 func isSelfSignedTestCases(t *testing.T) []isSelfSignedTestCase {
-	t.Helper()
-
 	root := certSpec{cn: "Root", isCA: true}.build(t)
 	sub := certSpec{cn: "Sub", isCA: true, parent: &root}.build(t)
 	leaf := certSpec{cn: "leaf.example.com",
@@ -95,7 +92,6 @@ type certKeyPairTestCase struct {
 func (tc certKeyPairTestCase) Name() string { return tc.name }
 
 func (tc certKeyPairTestCase) Test(t *testing.T) {
-	t.Helper()
 	got := x509utils.ValidCertKeyPair(tc.cert, tc.key)
 	core.AssertEqual(t, tc.want, got, "valid pair")
 }
@@ -138,7 +134,6 @@ type keyEqualTestCase struct {
 func (tc keyEqualTestCase) Name() string { return tc.name }
 
 func (tc keyEqualTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, x509utils.PublicKeyEqual(tc.a, tc.b), "equal")
 }
 
@@ -180,7 +175,6 @@ type privateKeyEqualTestCase struct {
 func (tc privateKeyEqualTestCase) Name() string { return tc.name }
 
 func (tc privateKeyEqualTestCase) Test(t *testing.T) {
-	t.Helper()
 	got := x509utils.PrivateKeyEqual(tc.a, tc.b)
 	core.AssertEqual(t, tc.want, got, "equal")
 }
@@ -222,7 +216,6 @@ type validKeyPairTestCase struct {
 func (tc validKeyPairTestCase) Name() string { return tc.name }
 
 func (tc validKeyPairTestCase) Test(t *testing.T) {
-	t.Helper()
 	got := x509utils.ValidKeyPair(tc.pub, tc.key)
 	core.AssertEqual(t, tc.want, got, "valid pair")
 }

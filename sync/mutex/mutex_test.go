@@ -196,7 +196,6 @@ func TestMultiLockAcquire(t *testing.T) {
 }
 
 func runTestMultiExclusive(t *testing.T) {
-	t.Helper()
 	m1, m2 := &sync.Mutex{}, &sync.Mutex{}
 	mutex.Lock(m1, m2)
 	mutex.Unlock(m1, m2)
@@ -205,14 +204,12 @@ func runTestMultiExclusive(t *testing.T) {
 }
 
 func runTestMultiTryLock(t *testing.T) {
-	t.Helper()
 	m1, m2 := &sync.Mutex{}, &sync.Mutex{}
 	core.AssertTrue(t, mutex.TryLock(m1, m2), "TryLock both")
 	mutex.Unlock(m1, m2)
 }
 
 func runTestMultiReadLock(t *testing.T) {
-	t.Helper()
 	rw1, rw2 := &sync.RWMutex{}, &sync.RWMutex{}
 	mutex.RLock(rw1, rw2)
 	mutex.RUnlock(rw1, rw2)
@@ -221,7 +218,6 @@ func runTestMultiReadLock(t *testing.T) {
 }
 
 func runTestMultiTryReadLock(t *testing.T) {
-	t.Helper()
 	rw1, rw2 := &sync.RWMutex{}, &sync.RWMutex{}
 	core.AssertTrue(t, mutex.TryRLock(rw1, rw2), "TryRLock both")
 	mutex.RUnlock(rw1, rw2)
@@ -281,7 +277,6 @@ func newMultiLockPanicTestCase(name string, op func()) multiLockPanicTestCase {
 func (tc multiLockPanicTestCase) Name() string { return tc.name }
 
 func (tc multiLockPanicTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertPanic(t, tc.op, errors.ErrNilMutex, "panic")
 }
 

@@ -34,7 +34,6 @@ type getTestCase struct {
 func (tc getTestCase) Name() string { return tc.name }
 
 func (tc getTestCase) Test(t *testing.T) {
-	t.Helper()
 	got, err := tc.pool.Get(context.Background(), tc.query)
 	if tc.wantErr != nil {
 		core.AssertErrorIs(t, err, tc.wantErr, "error")
@@ -58,8 +57,6 @@ func newGetTestCase(name string, pool *certpool.CertPool, query string,
 }
 
 func getTestCases(t *testing.T) []getTestCase {
-	t.Helper()
-
 	exact := mkTestLeaf(t, "exact.example.com", nil)
 	wild := mkWildcardLeaf(t, "*.wild.example.com")
 	ipLeaf := mkIPLeaf(t, "203.0.113.7")
