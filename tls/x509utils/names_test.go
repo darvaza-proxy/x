@@ -49,12 +49,12 @@ func nameAsIPTestCases() []nameAsIPTestCase {
 	return core.S(
 		newNameAsIPTestCase("hostname", "a.b.c", ""),
 		newNameAsIPTestCase("bare zero", "0", "[0.0.0.0]"),
-		newNameAsIPTestCase("ipv4", "1.2.3.4", "[1.2.3.4]"),
+		newNameAsIPTestCase("IPv4", "1.2.3.4", "[1.2.3.4]"),
 		newNameAsIPTestCase("overflow octet", "1.2.3.400", ""),
-		newNameAsIPTestCase("ipv6 unspecified", "::", "[::]"),
-		newNameAsIPTestCase("ipv4-mapped ipv6", "::ffff:1.2.3.4", "[1.2.3.4]"),
+		newNameAsIPTestCase("IPv6 unspecified", "::", "[::]"),
+		newNameAsIPTestCase("IPv4-mapped IPv6", "::ffff:1.2.3.4", "[1.2.3.4]"),
 		newNameAsIPTestCase("zoned link-local", "fe80::1%eth0", "[fe80::1]"),
-		newNameAsIPTestCase("fqdn", "foo.example.org", ""),
+		newNameAsIPTestCase("FQDN", "foo.example.org", ""),
 	)
 }
 
@@ -147,17 +147,17 @@ func sanitizeNameTestCases() []sanitizeNameTestCase {
 			"www.example.com"),
 		newSanitizeNameTestCase("mixed case with port", "Mixed.Case.ORG:443",
 			"mixed.case.org"),
-		newSanitizeNameTestCase("ipv4", "1.2.3.4", "1.2.3.4"),
-		newSanitizeNameTestCase("ipv6 with port", "[2001:DB8::1]:443",
+		newSanitizeNameTestCase("IPv4", "1.2.3.4", "1.2.3.4"),
+		newSanitizeNameTestCase("IPv6 with port", "[2001:DB8::1]:443",
 			"2001:db8::1"),
-		// An IP scope zone is stripped on the IP branch by WithZone(""),
-		// never by removeZone.
-		newSanitizeNameTestCase("ipv6 zone", "[fe80::1%eth0]:443",
+		// An IP scope zone is stripped on the IP branch by WithZone("").
+		newSanitizeNameTestCase("IPv6 zone", "[fe80::1%eth0]:443",
 			"fe80::1"),
-		// A '%' can only survive nameRE inside a non-final label, and idna's
-		// STD3 rules then reject it, so SplitHostPort fails before
-		// doSanitizeName: the removeZone name-branch is never reached.
+		// SplitHostPort refuses a name holding '%', so a name carries no
+		// zone to strip.
 		newSanitizeNameTestCase("percent in host", "foo%bar.example", ""),
+		// A port alone names no host.
+		newSanitizeNameTestCase("port only", ":443", ""),
 		newSanitizeNameTestCase("empty", "", ""),
 	)
 }
@@ -207,7 +207,7 @@ func namesTestCases(t *testing.T) []namesTestCase {
 	none := core.S[string]()
 
 	return core.S(
-		newNamesTestCase("dns literal", dns("a.example.com"),
+		newNamesTestCase("DNS literal", dns("a.example.com"),
 			core.S("a.example.com"), none),
 		// RFC 6125: DNS names are case-insensitive; Names lower-cases them.
 		newNamesTestCase("uppercase folds", dns("Foo.Example.COM"),
@@ -218,10 +218,10 @@ func namesTestCases(t *testing.T) []namesTestCase {
 		newNamesTestCase("literal and wildcard",
 			dns("a.example.com", "*.example.com"),
 			core.S("a.example.com"), core.S(".example.com")),
-		newNamesTestCase("ipv4 bracketed",
+		newNamesTestCase("IPv4 bracketed",
 			ip("host", net.ParseIP("1.2.3.4")),
 			core.S("[1.2.3.4]"), none),
-		newNamesTestCase("ipv6 bracketed",
+		newNamesTestCase("IPv6 bracketed",
 			ip("host", net.ParseIP("2001:db8::1")),
 			core.S("[2001:db8::1]"), none),
 	)
@@ -311,14 +311,14 @@ func namesIPTestCases() []namesIPTestCase {
 		newNamesIPTestCase("nil element", core.S[net.IP](nil), none),
 		newNamesIPTestCase("empty", []net.IP{{}}, none),
 		newNamesIPTestCase("three bytes", []net.IP{{1, 2, 3}}, none),
-		newNamesIPTestCase("ipv4", []net.IP{{1, 2, 3, 4}},
+		newNamesIPTestCase("IPv4", []net.IP{{1, 2, 3, 4}},
 			core.S("[1.2.3.4]")),
 		newNamesIPTestCase("five bytes", []net.IP{{1, 2, 3, 4, 5}}, none),
 		newNamesIPTestCase("fifteen bytes", []net.IP{make([]byte, 15)}, none),
-		newNamesIPTestCase("ipv4-mapped ipv6",
+		newNamesIPTestCase("IPv4-mapped IPv6",
 			[]net.IP{{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 1, 2, 3, 4}},
 			core.S("[1.2.3.4]")),
-		newNamesIPTestCase("ipv6", []net.IP{net.ParseIP("2001:db8::1")},
+		newNamesIPTestCase("IPv6", []net.IP{net.ParseIP("2001:db8::1")},
 			core.S("[2001:db8::1]")),
 		newNamesIPTestCase("seventeen bytes", []net.IP{make([]byte, 17)}, none),
 	)

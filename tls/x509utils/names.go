@@ -78,8 +78,8 @@ func doSanitizeName(name string) (string, bool) {
 	if addr, err := sanitizeAddr(name); err == nil {
 		name = addr.String()
 	}
-	// A non-IP name arrives already validated by SplitHostPort, whose idna
-	// check rejects '%', so it cannot carry a scope zone — nothing to strip.
+	// A non-IP name arrives already validated by SplitHostPort, which
+	// refuses a name holding '%', so it carries no scope zone to strip.
 	return name, len(name) > 0
 }
 
