@@ -38,6 +38,56 @@ func AsUint128(x uint64) Uint128 {
 	return Uint128{lo: x}
 }
 
+// ParseUint128 reads a Uint128 from its decimal text, the digits, as
+// [strconv.ParseUint] reads a uint64: base 10 only, with no
+// underscores, prefixes or spaces. Any other form fails with
+// [ErrSyntax] and a zero value, and a number past the range with
+// [ErrRange] and MaxUint128, both reported in a [ParseError].
+func ParseUint128(s string) (Uint128, error) {
+	return doParseUint128(s)
+}
+
+// doParseUint128 reads s, a string or the bytes as given, as
+// strconv.ParseUint reads a uint64 in base 10, the digits and nothing
+// else, at 128 bits. Text in any other form returns zero, and a number
+// past 128 bits MaxUint128, each failure reported in a ParseError
+// under ParseUint128's name, with a copy of s. As in strconv, the text
+// is read from the left, so a magnitude past 128 bits fails on its
+// range before a stray byte after its digits fails on syntax. It is
+// generic so ParseUint128 and UnmarshalText read through one body.
+func doParseUint128[S stringOrBytes](s S) (Uint128, error) {
+	sc := scanner[S]{src: s}
+	u, n, ok := sc.magnitude128()
+	switch {
+	case n == 0, ok && !sc.done():
+		return Uint128{}, newParseError("ParseUint128", s, ErrSyntax)
+	case !ok:
+		return u, newParseError("ParseUint128", s, ErrRange)
+	default:
+		return u, nil
+	}
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler], storing the
+// ParseUint128 value of the text in u. It fails as ParseUint128 does,
+// and with [core.ErrNilReceiver] on a nil u once the text parsed, the
+// error carrying the method's name in front of the cause; u is left as
+// it was on any failure.
+func (u *Uint128) UnmarshalText(text []byte) error {
+	x, err := doParseUint128(text)
+	return unmarshalInto(u, x, err, "UnmarshalText")
+}
+
+// UnmarshalJSON implements [json.Unmarshaler], storing in u the
+// ParseUint128 value of a JSON number, or of the contents of a JSON
+// string; a null leaves u alone. Any other token is parsed as given,
+// as a number is, and a nil u fails with [core.ErrNilReceiver] once
+// the value is valid, a null included. A failure leaves u as it was
+// and comes back behind this method's name, as for UnmarshalText.
+func (u *Uint128) UnmarshalJSON(data []byte) error {
+	return doUnmarshalJSON(u, data, doParseUint128[[]byte])
+}
+
 // wide returns u as a count of whole units, on the way to another
 // type of the family. The bits are read as an Int128, which holds
 // them while the top bit is clear.
@@ -49,19 +99,19 @@ func (u Uint128) wide() wide {
 // Int32 returns u as an Int32 and whether it fits; the low 32 bits
 // stay when it does not.
 func (u Uint128) Int32() (Int32, bool) {
-	return u.wide().int32()
+	return u.wide().narrow32()
 }
 
 // Int64 returns u as an Int64 and whether it fits; the low 64 bits
 // stay when it does not.
 func (u Uint128) Int64() (Int64, bool) {
-	return u.wide().int64()
+	return u.wide().narrow64()
 }
 
 // Int128 returns u as an Int128 and whether it fits, which it does
 // while the top bit is clear; the bit pattern stays when it does not.
 func (u Uint128) Int128() (Int128, bool) {
-	return u.wide().int128()
+	return u.wide().narrow128()
 }
 
 // Uint128 returns u unchanged, the conversion to its own type, which

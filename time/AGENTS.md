@@ -1,5 +1,7 @@
 # Agent Documentation for x/time
 
+<!-- cspell:words goexperiment -->
+
 ## Overview
 
 `darvaza.org/x/time` implements time-related primitives that don't belong in
@@ -44,6 +46,23 @@ the standard library.
   `core.ErrInvalid`.
 - **`ErrPow10Range`**: the panic value of `Pow10` for an exponent
   outside the table.
+- **`ErrSyntax`**, **`ErrRange`**: the text-parsing errors, each a
+  `core.QuietWrap` over a `core.CompoundError` holding the `strconv`
+  sentinel of the same name and `core.ErrInvalid`, so `errors.Is`
+  matches either.
+- **`ParseError`**: the parse report, a defined type over
+  `strconv.NumError` that prints in the shape of strconv's report,
+  ending with the sentinel's text; `Unwrap` returns the sentinel.
+  `errors.As` matches `*ParseError`, not the strconv type.
+- **`ParseInt32`**, **`ParseInt64`**: the text parsers of the native
+  integers, reading what `strconv.ParseInt` reads at the type's width
+  through the package's own scanner; `UnmarshalText` and
+  `UnmarshalJSON` on the pointer store their value.
+- **`ParseUint128`**, **`ParseInt128`**: the text parsers of the
+  128-bit integers, reading the grammar of `strconv.ParseUint` and
+  `strconv.ParseInt` at 128 bits, through the same scanner;
+  `UnmarshalText` and `UnmarshalJSON` on the pointer store their value,
+  as for the natives.
 
 Files:
 
@@ -57,7 +76,8 @@ Files:
   file.
 - `num/decimal.go`: `Decimal`, its constructors and its methods.
 - `num/doc.go`: package documentation.
-- `num/errors.go`: `ErrDivZero` and `ErrPow10Range`.
+- `num/errors.go`: `ErrDivZero`, `ErrPow10Range`, `ErrSyntax`,
+  `ErrRange` and `ParseError`.
 - `num/euclidean.go`: the `Euclidean` and `SignedEuclidean` constraints
   and the Euclidean division helpers.
 - `num/format.go`: the shared side of `Format` and `GoString`, the verb
@@ -67,13 +87,19 @@ Files:
 - `num/int128.go`: `Int128` and its operations.
 - `num/int32.go`: `Int32` and its operations.
 - `num/int64.go`: `Int64` and its operations.
-- `num/json.go`: the quoted form and the two bounds under which
-  `MarshalJSON` emits a number; each type's `MarshalJSON` sits in its
-  own file.
+- `num/json.go`: the quoted form, the two bounds under which
+  `MarshalJSON` emits a number, and the reader the `UnmarshalJSON`
+  methods share; each type's `MarshalJSON`, and each integer's
+  `UnmarshalJSON`, sit in the type's own file.
 - `num/milli.go`: the `Milli32` and `Milli64` instantiations and their
   scales.
 - `num/num.go`: the `Unsigned`, `Signed` and `Number` constraints and
   the `DecimalScaler` interface.
+- `num/parse.go`: the shared side of the parsers, the report they
+  build and the store step of the unmarshalers; each type's parser and
+  `UnmarshalText` sit in its own file.
+- `num/scan.go`: the `scanner` the parsers read their text with, the
+  grammar of the native integers, and the sign's bound at 128 bits.
 - `num/u256.go`: the unexported 256-bit intermediate backing the wide
   multiply and 128-bit division.
 - `num/uint128.go`: `Uint128` and its operations.
@@ -90,26 +116,30 @@ Files:
   native types; `Int32` and `Int64` have no parts, so no `New`. A new
   type gets both, or a comment saying why one is enough.
 - The conversions between the types are methods named for the target,
-  `Int32()` through `Atto128()` on every type, each `(T, bool)`, and
+  such as `Int32()` and `Atto128()`, on every type, each `(T, bool)`, and
   they keep the value where `As` keeps the count: `AsMilli32(1500)` is
   1.5 and `AsInt32(1500).Milli32()` is 1500.0. Fraction digits below
   the target's resolution drop towards zero with the flag true; the
   flag is false only when the whole units do not fit, the result then
   keeping the low bits, so a negative into `Uint128` is its bit
-  pattern. `Decimal` alone has `AsInt32`, `AsInt64` and `AsInt128`,
+  pattern. `Decimal` has the methods `AsInt32`, `AsInt64` and `AsInt128`,
   the count with a size check, the inverses of its constructor; they
-  stay off `Number`, as does `sys`. Every conversion takes one path:
+  stay off `Number`, as does `sys`. A conversion takes one path:
   the receiver widens into a `wide`, an `Int128` count and the
-  exponent of its scale, `at` rescales it by the power of ten between
-  the two exponents, multiplying towards a finer resolution and
-  detecting the wrap by comparing the magnitude against `pow10Bound`,
-  or dividing towards a coarser one, and the target narrows it with a
-  fit check. `Uint128` widens with the flag already clear when its top
+  exponent of its scale, and the target narrows it with a fit check.
+  On the way `at` rescales the count by the power of ten between the
+  two exponents, multiplying towards a finer resolution and detecting
+  the wrap by comparing the magnitude against `pow10Bound`, or dividing
+  towards a coarser one; between two integers, both counted in whole
+  units, the narrowing runs alone, so that those conversions can
+  inline. `Uint128` widens with the flag already clear when its top
   bit is set, since the bits read as a negative `Int128` from then on.
   `TestConvert` pins every cell of the matrix by hand, the flag declared
   per row, and asserts the round trip where nothing truncates;
-  `TestCount` pins the count accessors. A new type adds its `wide`, its
-  seven methods, a `wide` method named for it, and a row per cell.
+  `TestCount` pins the count accessors. A new type adds its `wide` and
+  its conversion methods; `wide` gains a method named for it, for an
+  integer a narrowing one as well, as `narrow32` is for `Int32`; and
+  `TestConvert` gains a row per cell.
 - `GoString` prints the constructor call that rebuilds the value, the
   `As` count form while the value fits the native word and the `New`
   words form in hex beyond it; a `Decimal` prints both parts with its
@@ -150,7 +180,22 @@ Files:
   `Atto128` never one, so its field type stays stable. Exactness in a
   `float64` is the wrong test, since 2^60 is exact and 2^60+1 is not.
   `TestJSON` reads each result back through the standard decoder to
-  check the token kind.
+  check the token kind. `UnmarshalJSON` on an integer reads either
+  kind back. A number is the parser's text as it stands. A string's
+  contents are parsed, read in place between the quotes when there is
+  no backslash, and unquoted by `json.Unmarshal` otherwise. A `null`
+  stores nothing, as `json.Unmarshal` stores nothing into a native
+  integer, which `TestUnmarshalJSONNullMatchesNative` pins.
+  `TestUnmarshalJSON` reads every integer row of `TestJSON` back, and
+  the tokens an integer refuses, through the method and through
+  `json.Unmarshal` alike, and its `allocs` rows pin, past the 32 bytes
+  the runtime converts on the stack, that a number or a string with no
+  escape allocates nothing. The `string` option of a field's json tag
+  leaves what `MarshalJSON` writes as it is; on an `Int32` or `Int64`
+  field, the `encoding/json` built without the jsonv2 experiment then
+  refuses a bare number under it. `TestUnmarshalJSONStringOption` pins
+  both on either build, its outcome set by `json_v1_test.go` and
+  `json_v2_test.go` under the `goexperiment.jsonv2` constraint.
 - fmt's padding has corners worth knowing, since the 128-bit writer
   reimplements them: the `0` flag is a precision on the digits, so it
   leaves room for the sign but pushes the base prefix outside the
@@ -175,11 +220,52 @@ Files:
   one. Extend that matrix rather than hand-writing an expectation; every
   defect in this surface so far has survived a careful reading and died
   on the first run of the table.
-- Division by zero panics with `ErrDivZero`, a `core.QuietWrap` of
-  `core.ErrInvalid`; `Pow10` takes an exponent outside its table as the
-  caller's mistake and panics with `ErrPow10Range` through
-  `core.PanicFrom`, so the stack starts at the caller. Arithmetic wraps
-  on overflow and the constructors never fail.
+- `ErrDivZero`, `ErrPow10Range`, `ErrSyntax` and `ErrRange` are each a
+  `core.QuietWrap` carrying a `num:`-prefixed text and matching
+  `core.ErrInvalid`; `ErrSyntax` and `ErrRange` each also match their
+  `strconv` counterpart through a `core.CompoundError`, and
+  not each other's. Division by zero panics with `ErrDivZero`. `Pow10`
+  takes an exponent outside its table as the caller's mistake and panics
+  with `ErrPow10Range` through `core.PanicFrom`, so the stack starts at
+  the caller. Parsing returns a `ParseError` carrying `ErrSyntax` or
+  `ErrRange`. Arithmetic wraps on overflow and the constructors never
+  fail.
+- The parsers read their own text, and strconv is the reference: within
+  the range it reads, they take what it takes and fail as it fails. The
+  whole input is the number, base 10 only, no underscores, prefixes or
+  spaces, a syntax failure returns zero and a range failure the nearest
+  bound, and the report names the bare parser, `ParseInt32`. The report
+  keeps a copy of the text, as strconv's does, so the text does not
+  escape through it. The `scanner` reads the text a byte at a time in
+  the style of `text/lexer`'s `Cursor`, from a string or from the bytes
+  as given, so `UnmarshalText` converts nothing and a text that parses
+  allocates nothing, as the `allocs` rows of `TestParse` pin past the 32
+  bytes the runtime converts on the stack. The grammar is read by the
+  scanner's methods, called directly so that the scanner can stay on
+  the stack. The integers read the magnitude at the unsigned width, a group
+  of 19 digits at a time, joined in one word for the natives and in two
+  for the 128-bit integers, and the signed ones hold it to the sign's
+  bound, as `strconv.ParseInt` does over `ParseUint`. `UnmarshalText`
+  parses first and stores second, so a bad text reports its own
+  failure before a nil receiver reports `core.ErrNilReceiver`; both
+  come back through `core.Wrap` with the method's name in front, so
+  `errors.As` still finds the one `ParseError`, and a failed call
+  leaves the receiver as it was.
+  `TestParseMatchesStrconv` runs every text of `parseCorpus` against
+  strconv, through the parser and `UnmarshalText` alike: the natives
+  against `strconv.ParseInt` at their width, comparing the value and
+  the class of failure, and the 128-bit integers against the 64-bit
+  parser of their kind, `strconv.ParseUint` or `strconv.ParseInt`,
+  wherever its answer holds at any width, a success or a syntax
+  failure; past its range, where they may succeed with a value past
+  strconv's bound, fail on their own range, or meet a stray byte
+  strconv stopped short of, the answer is read from the text itself
+  through `math/big`, its run of digits held against 128 bits and,
+  with nothing after it, against the bound. Extend the corpus rather
+  than hand-write an expectation; the 128-bit edges, which the 64-bit
+  parsers cannot reach, are rows of `TestParse`. `TestParseRoundTrip`
+  parses the integers' tables of `TestText` back, so what they print
+  reads back.
 - Operations allocate nothing; keep it that way in the hot paths.
 
 ## Testing Patterns

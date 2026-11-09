@@ -94,6 +94,26 @@ instead keep the remainder non-negative. `Pow10` returns 10^n as a
 `Uint128` up to 10^38, the largest power of ten a `Uint128` holds, and
 panics with `ErrPow10Range` past it.
 
+The integers read their text back through a parser named for each, as
+`ParseInt32` is for `Int32`, in the shape of `strconv.ParseInt` and
+`strconv.ParseUint`: an optional sign for the signed types, then the
+digits, base 10 only, with no underscores, prefixes or spaces.
+Text in any other form fails with `ErrSyntax` and a zero value, and a
+number past the range with `ErrRange` and the nearest bound, both
+reported in a `ParseError` in the shape of `strconv.NumError`, naming
+the function, quoting the text and ending with the sentinel's text.
+`UnmarshalText` on the pointer reads the same grammar and stores
+the value, so the pointer to each is an `encoding.TextUnmarshaler`; a
+failure, the nil receiver included, comes back behind the method's
+name and leaves the receiver as it was. `UnmarshalJSON` reads a JSON
+number, or the contents of a JSON string, the same way, a `null`
+storing nothing but failing on a nil receiver, so what `MarshalJSON`
+writes reads back through it and the pointer to each is a
+`json.Unmarshaler` as well. Each sentinel matches its `strconv`
+counterpart and `core.ErrInvalid` under `errors.Is`, so a caller can
+test for the package's sentinel, the standard library's, or the
+generic invalid-input condition.
+
 ## Development
 
 For development guidelines, architecture notes, and AI agent instructions, see
