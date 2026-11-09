@@ -78,7 +78,7 @@ func Clean(path string) (string, bool) {
 //
 // Returns a non-nil error when url.Parse rejects the input,
 // core.SplitHostPortASCII rejects the host or port, or the
-// authority has no host — each indicates a malformed
+// authority has no host or has port 0 — each indicates a malformed
 // composition, a server-side bug rather than an attack. Callers
 // should surface this as 500.
 func CleanURL(s string) (string, error) {
@@ -140,7 +140,7 @@ func doCleanHost(scheme, hostPort string) (string, error) {
 // checkCleanHost splits hostPort through core.SplitHostPortASCII,
 // which validates the host and port and returns the host in its
 // canonical ASCII form, an IPv6 zone kept as given. It refuses an
-// authority with no host.
+// authority with no host or with port 0.
 func checkCleanHost(hostPort string) (host, port string, err error) {
 	host, port, err = core.SplitHostPortASCII(hostPort)
 	switch {
@@ -150,6 +150,9 @@ func checkCleanHost(hostPort string) (host, port string, err error) {
 	case host == "":
 		// missing host
 		return "", "", addrErr(hostPort, "missing host")
+	case port == "0":
+		// port 0, which the split returns without its padding
+		return "", "", addrErr(hostPort, "invalid port")
 	default:
 		// host, with or without a port
 		return host, port, nil

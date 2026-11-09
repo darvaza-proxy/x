@@ -285,6 +285,12 @@ func cleanURLTestCases() []cleanURLTestCase {
 		// the 0-65535 range; SplitHostPortASCII rejects.
 		newCleanURLErrorTestCase("port out of range",
 			"https://example.com:99999/x"),
+		// Error path: url.Parse accepts port 0, which reaches no
+		// service; CleanURL rejects.
+		newCleanURLErrorTestCase("port 0 rejected",
+			"https://example.com:0/x"),
+		newCleanURLErrorTestCase("padded port 0 rejected",
+			"https://example.com:00/x"),
 		// Error path: a label over the 63-byte DNS limit, in
 		// Unicode as in punycode.
 		newCleanURLErrorTestCase("Unicode label too long",

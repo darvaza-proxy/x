@@ -67,8 +67,9 @@ Three helpers normalise URL paths and references:
   `/..` is silently stripped — `CleanURL` mirrors browser URL
   clamping rather than signalling escape attempts. Returns a
   non-nil error when `url.Parse` or `core.SplitHostPortASCII`
-  rejects the input, or the authority has no host, signalling a
-  malformed composition the caller should surface as 500.
+  rejects the input, or the authority has no host or has port 0,
+  signalling a malformed composition the caller should surface
+  as 500.
   `CleanURL` is a composer, not an origin validator — callers
   passing untrusted input must allowlist scheme or origin
   themselves.

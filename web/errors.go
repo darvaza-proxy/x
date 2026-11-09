@@ -30,11 +30,9 @@ func NewStatusMethodNotAllowed(allowed ...string) *HTTPError {
 // verbatim so URL percent-escapes survive unchanged. The
 // composed dest is then normalised through CleanURL.
 //
-// When CleanURL rejects the composed dest — url.Parse,
-// core.SplitHostPortASCII, or an authority with no host —
-// newRedirect wraps the failure as a 500 via
-// NewStatusInternalServerError rather than emit a broken
-// Location.
+// When CleanURL rejects the composed dest, newRedirect wraps
+// the failure as a 500 via NewStatusInternalServerError rather
+// than emit a broken Location.
 //
 // newRedirect does not validate origin. Callers passing
 // untrusted input must allowlist scheme or origin themselves.
