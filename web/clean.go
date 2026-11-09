@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"darvaza.org/core"
-	"golang.org/x/net/idna"
 
 	"darvaza.org/x/fs"
 )
@@ -61,10 +60,9 @@ func Clean(path string) (string, bool) {
 }
 
 // CleanURL normalises a URL reference intended for an outbound
-// HTTP Location header. The host is validated and lowercased
-// through core.SplitHostPort, converted to ASCII punycode via
-// idna.Display.ToASCII so non-ASCII labels are wire-safe, and
-// its port stripped when it matches the scheme's known default
+// HTTP Location header. The host is validated and put in its
+// canonical ASCII form through core.SplitHostPortASCII, and its
+// port stripped when it matches the scheme's known default
 // (http/ws → 80, https/wss → 443). Scheme is preserved verbatim;
 // the path is reduced through Clean.
 //
@@ -78,10 +76,11 @@ func Clean(path string) (string, bool) {
 // origin or scheme before calling; CleanURL will happily
 // reassemble "https://evil.com/foo" as-is.
 //
-// Returns a non-nil error when url.Parse rejects the input or
-// core.SplitHostPort / idna rejects the host shape — either
-// indicates a malformed composition, a server-side bug rather
-// than an attack. Callers should surface this as 500.
+// Returns a non-nil error when url.Parse rejects the input,
+// core.SplitHostPortASCII rejects the host or port, or the
+// authority has no host — each indicates a malformed
+// composition, a server-side bug rather than an attack. Callers
+// should surface this as 500.
 func CleanURL(s string) (string, error) {
 	u, err := url.Parse(s)
 	if err != nil {
@@ -111,72 +110,55 @@ func CleanURL(s string) (string, error) {
 }
 
 // doCleanHost normalises a URL-authority host[:port] for
-// CleanURL. Splits through core.SplitHostPort for IDN/IPv6-aware
-// validation and lowercasing, converts the resulting host to
-// ASCII punycode via idna.Display.ToASCII so u.String() doesn't
-// percent-escape non-ASCII labels on serialisation, strips the
-// port when it matches the scheme's known default, and
-// reassembles with IPv6 brackets as URL authorities require.
+// CleanURL. It validates the host and port through
+// checkCleanHost, drops the port when it matches the scheme's
+// known default, and reassembles with IPv6 brackets as URL
+// authorities require.
 //
-// Returns a non-nil error when core.SplitHostPort or idna
-// rejects the host shape — surfaced to CleanURL's caller as a
-// malformed composition, not swallowed.
+// Returns a non-nil error when checkCleanHost rejects the
+// authority — surfaced to CleanURL's caller as a malformed
+// composition, not swallowed.
 func doCleanHost(scheme, hostPort string) (string, error) {
-	host, port, err := core.SplitHostPort(hostPort)
-	if err != nil {
+	host, port, err := checkCleanHost(hostPort)
+	switch {
+	case err != nil:
+		// bad host or port
 		return "", err
-	}
-	host, err = doCleanHostLabel(host)
-	if err != nil {
-		return "", err
-	}
-	if port == defaultPortFor(scheme) {
-		port = ""
-	}
-	if port == "" {
+	case port == "", port == defaultPortFor(scheme):
+		// no port, or the scheme's default
+		if strings.Contains(host, ":") {
+			// IPv6
+			return "[" + host + "]", nil
+		}
 		return host, nil
+	default:
+		// host and port
+		return net.JoinHostPort(host, port), nil
 	}
-	return host + ":" + port, nil
 }
 
-// doCleanHostLabel takes the host returned by core.SplitHostPort
-// and shapes it for a URL authority: IPv4 in dotted-decimal,
-// IPv6 bracketed and canonicalised (netip.Addr.String() shortens
-// `::0001` → `::1` and lowercases hex digits), names converted
-// to ASCII punycode via idna.Display.ToASCII. The punycode step
-// sidesteps url.URL.String()'s percent-encoding of non-ASCII
-// bytes in u.Host — Unicode from core.SplitHostPort would
-// otherwise land as %XX on the wire.
-//
-// For names, RFC 1035's 63-byte-per-label limit is enforced
-// after the ASCII conversion: idna.Display doesn't verify DNS
-// length, and a punycode A-label expanded past 63 bytes would
-// otherwise reach clients that reject the redirect. IP literals
-// always fit well under the limit, so the check lives on the
-// name branch only.
-func doCleanHostLabel(host string) (string, error) {
-	if addr, ipErr := core.ParseAddr(host); ipErr == nil {
-		s := addr.String()
-		if addr.Is6() {
-			s = "[" + s + "]"
-		}
-		return s, nil
+// checkCleanHost splits hostPort through core.SplitHostPortASCII,
+// which validates the host and port and returns the host in its
+// canonical ASCII form, an IPv6 zone kept as given. It refuses an
+// authority with no host.
+func checkCleanHost(hostPort string) (host, port string, err error) {
+	host, port, err = core.SplitHostPortASCII(hostPort)
+	switch {
+	case err != nil:
+		// bad host or port
+		return "", "", err
+	case host == "":
+		// missing host
+		return "", "", addrErr(hostPort, "missing host")
+	default:
+		// host, with or without a port
+		return host, port, nil
 	}
+}
 
-	// core.SplitHostPort's validName already gated host through
-	// idna.Display.ToUnicode; the matching ToASCII call in the
-	// same Display profile cannot reject what ToUnicode accepted.
-	// core.Must lets a future idna or core drift surface loudly.
-	s := core.Must(idna.Display.ToASCII(host))
-	for label := range strings.SplitSeq(s, ".") {
-		if len(label) > 63 {
-			return "", &net.AddrError{
-				Err:  "label exceeds 63-byte DNS limit",
-				Addr: host,
-			}
-		}
-	}
-	return s, nil
+// addrErr returns a *net.AddrError naming the address refused and why.
+func addrErr(addr, why string) error {
+	return &net.AddrError{Err: why, Addr: addr}
 }
 
 func defaultPortFor(scheme string) string {

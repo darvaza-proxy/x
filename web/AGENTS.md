@@ -248,7 +248,6 @@ if err != nil {
 
 - `darvaza.org/core`: Core utilities.
 - `darvaza.org/x/fs`: File system utilities.
-- `golang.org/x/net`: IDNA host name conversion.
 - `lukechampine.com/blake3`: Asset checksums.
 - Standard library (net/http, encoding/json, mime).
 

@@ -22,9 +22,9 @@ var (
 // web.NewStatusFound: args formatting, CleanURL normalisation
 // and Location header wiring. wantErr selects between the
 // success path (302, Location set) and the error path where
-// CleanURL rejects via url.Parse, core.SplitHostPort or the
-// DNS label-length check — caller asked for 302, factory
-// wraps the failure as a 500.
+// CleanURL rejects via url.Parse, core.SplitHostPortASCII or an
+// authority with no host — caller asked for 302, factory wraps
+// the failure as a 500.
 type redirectTestCase struct {
 	name    string
 	dest    string
@@ -110,15 +110,16 @@ func redirectTestCases() []redirectTestCase {
 		// the failure as a 500 rather than emit a broken
 		// Location.
 		newRedirectErrorTestCase("invalid percent escape", "%ZZ"),
-		// SplitHostPort rejects the host shape — same 500 path
-		// as the url.Parse branch, different trigger.
+		// SplitHostPortASCII rejects the host shape — same 500
+		// path as the url.Parse branch, different trigger.
 		newRedirectErrorTestCase("host starts with dot", "//.com/x"),
 		newRedirectErrorTestCase("port out of range",
 			"https://example.com:99999/x"),
-		// DNS label-length check rejects labels over 63 bytes
-		// — the third CleanURL error source.
-		newRedirectErrorTestCase("dns label too long",
+		// SplitHostPortASCII rejects labels over 63 bytes.
+		newRedirectErrorTestCase("DNS label too long",
 			"https://"+strings.Repeat("a", 64)+".example.com/x"),
+		// CleanURL refuses an authority with no host.
+		newRedirectErrorTestCase("missing host", "https://:443/x"),
 	}
 }
 

@@ -28,14 +28,10 @@ func NewStatusMethodNotAllowed(allowed ...string) *HTTPError {
 // for the given redirect status code. When args is non-empty,
 // dest is Sprintf-formatted; otherwise it passes through
 // verbatim so URL percent-escapes survive unchanged. The
-// composed dest is then normalised through CleanURL: scheme
-// passes verbatim, the host is lowercased with IDN labels
-// converted to ASCII punycode and IPv6 canonicalised, the
-// default port is stripped when it matches the scheme, and
-// the path is reduced through Clean.
+// composed dest is then normalised through CleanURL.
 //
 // When CleanURL rejects the composed dest — url.Parse,
-// core.SplitHostPort, or the DNS label-length check —
+// core.SplitHostPortASCII, or an authority with no host —
 // newRedirect wraps the failure as a 500 via
 // NewStatusInternalServerError rather than emit a broken
 // Location.
