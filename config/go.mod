@@ -2,7 +2,7 @@ module darvaza.org/x/config
 
 go 1.25.0
 
-require darvaza.org/core v0.23.1
+require darvaza.org/core v0.23.3
 
 require (
 	github.com/amery/defaults v0.1.0
