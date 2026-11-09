@@ -21,12 +21,9 @@ func SplitHostPort(hostport string) (string, uint16, error) {
 	case port == "":
 		return host, 0, nil
 	default:
-		u, err := strconv.ParseUint(port, 10, 16)
-		if err != nil {
-			return "", 0, err
-		}
-
-		return host, uint16(u & 0xffff), nil
+		// core.SplitHostPort returns a port of decimal digits up to 65535
+		u := core.Must(strconv.ParseUint(port, 10, 16))
+		return host, uint16(u), nil
 	}
 }
 
@@ -50,9 +47,9 @@ func stringifyAddr(host string) (string, error) {
 			host = ""
 		case addr.Is6():
 			host = fmt.Sprintf("[%s]", addr.String())
-		case addr.Is4():
-			host = addr.String()
 		default:
+			// IPv4
+			host = addr.String()
 		}
 
 		return host, nil
