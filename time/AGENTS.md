@@ -12,6 +12,41 @@ the standard library.
 ### Subpackages
 
 - **`num`**: fixed-width numeric types for the time packages.
+- **`tai`**: TAI timestamps and libtai-compatible text labels.
+
+### tai Package
+
+- `TAI`, `TAIN` and `TAIA` count seconds, nanoseconds and attoseconds
+  in a `num.Int128`. Their internal counts retain the TAI64 bias.
+- `TAIA` intentionally mixes receiver types, as `time.Time` does. Read
+  operations use value receivers so values implement `fmt.Stringer`,
+  `encoding.TextMarshaler` and `encoding.TextAppender`, and calls such
+  as `tai.Now().Split()` work. `UnmarshalText` needs a pointer receiver
+  to replace its destination. This is a deliberate exception to
+  [DeepSource GO-W1029][receiver-rule]; preserve these method sets when
+  changing receivers.
+- `tai/label.go` provides `ParseTAIA` and the text encoding interfaces
+  of `TAIA`. Labels contain `@` and exactly 32 hexadecimal digits,
+  partitioned into seconds, nanoseconds and attoseconds. Read the
+  seconds as unsigned, including its top bit; each fraction is below
+  one billion. Writing validates the seconds before modifying the
+  destination buffer.
+- Label parsing applies no UTC or leap-second conversion. Those
+  adjustments belong to `TAIFromTime`.
+- `tai/string.go` implements `fmt.Stringer` for all three precisions,
+  sharing the label formatter with `TAIA.AppendText`. Counts outside
+  the unsigned seconds range print as diagnostic text, for example
+  `TAIA(-1as)`, rather than a label. Validate before narrowing, and
+  never scale a wider count into attoseconds merely to format it:
+  that can overflow before the range check.
+- `tai/label_test.go` uses the external test package and named cases
+  with factories and `core.RunTestCases`. Its labels were checked
+  against libtai's pack routine. Preserve those reference labels,
+  including the unsigned seconds edges, when changing the encoding.
+- `tai/string_test.go` uses the external test package, with count
+  constructors from `tai/testutils_internal_test.go` for values beyond
+  the label range. Keep these constructors in test files so they add no
+  production API.
 
 ### num Package
 
@@ -284,3 +319,4 @@ Tests follow the conventions in [core's TESTING.md][core-testing]:
 - [Root AGENTS.md](../AGENTS.md) for mono-repo overview.
 
 [core-testing]: https://github.com/darvaza-proxy/core/blob/main/TESTING.md
+[receiver-rule]: https://deepsource.com/directory/go/issues/GO-W1029
