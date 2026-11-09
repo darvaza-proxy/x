@@ -1,5 +1,7 @@
 package certpool_test
 
+// cspell:words fsqu
+
 import (
 	"context"
 	"crypto/x509"
@@ -21,8 +23,9 @@ func mkWildcardLeaf(t *testing.T, wildcard string) testCert {
 }
 
 // getTestCase exercises Get's name resolution against a shared pool: exact
-// names, wildcard suffixes and IP SANs resolve to their certificate; a bad
-// name and an absent name surface their errors.
+// names, an international one in either spelling, wildcard suffixes and IP
+// SANs resolve to their certificate; a bad name and an absent name surface
+// their errors.
 type getTestCase struct {
 	pool    *certpool.CertPool
 	want    *x509.Certificate
@@ -59,17 +62,30 @@ func newGetTestCase(name string, pool *certpool.CertPool, query string,
 func getTestCases(t *testing.T) []getTestCase {
 	exact := mkTestLeaf(t, "exact.example.com", nil)
 	wild := mkWildcardLeaf(t, "*.wild.example.com")
+	idn := mkTestLeaf(t, "xn--fsqu00a.example", nil)
+	idnWild := mkWildcardLeaf(t, "*.xn--fsqu00a.example")
 	ipLeaf := mkIPLeaf(t, "203.0.113.7")
 
 	pool := certpool.New()
 	core.AssertMustTrue(t, pool.AddCert(exact.cert), "add exact")
 	core.AssertMustTrue(t, pool.AddCert(wild.cert), "add wildcard")
+	core.AssertMustTrue(t, pool.AddCert(idn.cert), "add international")
+	core.AssertMustTrue(t, pool.AddCert(idnWild.cert),
+		"add international wildcard")
 	core.AssertMustTrue(t, pool.AddCert(ipLeaf.cert), "add ip")
 
 	return core.S(
 		newGetTestCase("exact name", pool, "exact.example.com", exact.cert, nil),
 		newGetTestCase("wildcard suffix", pool, "host.wild.example.com",
 			wild.cert, nil),
+		// A certificate carries an international name in its ASCII form,
+		// and either spelling of the name finds it.
+		newGetTestCase("punycode name", pool, "xn--fsqu00a.example",
+			idn.cert, nil),
+		newGetTestCase("international name", pool, "例子.example",
+			idn.cert, nil),
+		newGetTestCase("international wildcard suffix", pool,
+			"host.例子.example", idnWild.cert, nil),
 		newGetTestCase("ip address", pool, "203.0.113.7", ipLeaf.cert, nil),
 		newGetTestCase("absent name", pool, "absent.example.com", nil,
 			core.ErrNotExists),

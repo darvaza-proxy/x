@@ -1,9 +1,12 @@
 package x509utils_test
 
+// cspell:words fsqu
+
 import (
 	"crypto/x509"
 	"net"
 	"net/url"
+	"strings"
 	"testing"
 
 	"darvaza.org/core"
@@ -138,6 +141,11 @@ func newSanitizeNameTestCase(name, input,
 }
 
 func sanitizeNameTestCases() []sanitizeNameTestCase {
+	label63 := strings.Repeat("a", 63)
+	label64 := label63 + "a"
+	name253 := strings.Join(core.S(label63, label63, label63, label63[2:]), ".")
+	name254 := name253 + "a"
+
 	return core.S(
 		// DNS names are case-insensitive (RFC 6125): an uppercase query
 		// folds to the lower-cased form Names stores under.
@@ -147,13 +155,31 @@ func sanitizeNameTestCases() []sanitizeNameTestCase {
 			"www.example.com"),
 		newSanitizeNameTestCase("mixed case with port", "Mixed.Case.ORG:443",
 			"mixed.case.org"),
+		// An international name comes back in the ASCII form certificates
+		// carry, whichever spelling it arrives in.
+		newSanitizeNameTestCase("punycode name", "xn--fsqu00a.example",
+			"xn--fsqu00a.example"),
+		newSanitizeNameTestCase("punycode uppercase", "XN--FSQU00A.example",
+			"xn--fsqu00a.example"),
+		newSanitizeNameTestCase("international name", "例子.example",
+			"xn--fsqu00a.example"),
+		// A label holds up to 63 octets, and a name up to 253.
+		newSanitizeNameTestCase("63-octet label", label63, label63),
+		newSanitizeNameTestCase("253-octet name", name253, name253),
+		newSanitizeNameTestCase("64-octet label", label64, ""),
+		newSanitizeNameTestCase("254-octet name", name254, ""),
+		// A name whose last label is a number is refused.
+		newSanitizeNameTestCase("numeric name", "1234", ""),
 		newSanitizeNameTestCase("IPv4", "1.2.3.4", "1.2.3.4"),
+		// A host UTS 46 maps into an IP address comes back as that address.
+		newSanitizeNameTestCase("full-width IPv4 mapped", "１２７．０．０．１",
+			"127.0.0.1"),
 		newSanitizeNameTestCase("IPv6 with port", "[2001:DB8::1]:443",
 			"2001:db8::1"),
 		// An IP scope zone is stripped on the IP branch by WithZone("").
 		newSanitizeNameTestCase("IPv6 zone", "[fe80::1%eth0]:443",
 			"fe80::1"),
-		// SplitHostPort refuses a name holding '%', so a name carries no
+		// The split refuses a name holding '%', so a name carries no
 		// zone to strip.
 		newSanitizeNameTestCase("percent in host", "foo%bar.example", ""),
 		// A port alone names no host.

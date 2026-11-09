@@ -1,5 +1,7 @@
 package certpool_test
 
+// cspell:words fsqu
+
 import (
 	"context"
 	"crypto/x509"
@@ -13,7 +15,9 @@ import (
 
 var (
 	_ core.TestCase = deleteCertErrorTestCase{}
+	_ core.TestCase = deleteCertNameTestCase{}
 	_ core.TestCase = deleteErrorTestCase{}
+	_ core.TestCase = putCertNameTestCase{}
 	_ core.TestCase = putErrorTestCase{}
 )
 
@@ -54,6 +58,50 @@ func TestPutDuplicateReportsExists(t *testing.T) {
 		"put")
 	err := pool.Put(ctx, "dup.example.com", leaf.cert)
 	core.AssertErrorIs(t, err, core.ErrExists, "duplicate")
+}
+
+// putCertNameTestCase confirms Put under a name the certificate carries,
+// once AddCert has stored it, is a no-op reported as ErrExists. An
+// international name meets the ASCII form the certificate carries in
+// either spelling.
+type putCertNameTestCase struct {
+	caseName string
+	cn       string
+	name     string
+}
+
+func (tc putCertNameTestCase) Name() string { return tc.caseName }
+
+func (tc putCertNameTestCase) Test(t *testing.T) {
+	leaf := mkTestLeaf(t, tc.cn, nil)
+	pool := certpool.New()
+	core.AssertMustTrue(t, pool.AddCert(leaf.cert), "add")
+
+	err := pool.Put(context.Background(), tc.name, leaf.cert)
+	core.AssertErrorIs(t, err, core.ErrExists, "duplicate")
+}
+
+func newPutCertNameTestCase(caseName, cn, name string) putCertNameTestCase {
+	return putCertNameTestCase{
+		caseName: caseName,
+		cn:       cn,
+		name:     name,
+	}
+}
+
+func putCertNameTestCases() []putCertNameTestCase {
+	return core.S(
+		newPutCertNameTestCase("ASCII name", "put.example.com",
+			"put.example.com"),
+		newPutCertNameTestCase("punycode name", "xn--fsqu00a.example",
+			"xn--fsqu00a.example"),
+		newPutCertNameTestCase("international name", "xn--fsqu00a.example",
+			"例子.example"),
+	)
+}
+
+func TestPutCertNameReportsExists(t *testing.T) {
+	core.RunTestCases(t, putCertNameTestCases())
 }
 
 // putErrorTestCase exercises Put's rejection arms: a bad name, an invalid
@@ -128,6 +176,54 @@ func TestDeleteRemovesByName(t *testing.T) {
 
 	_, err := pool.Get(ctx, "del.example.com")
 	core.AssertErrorIs(t, err, core.ErrNotExists, "gone")
+}
+
+// deleteCertNameTestCase confirms Delete removes a certificate AddCert
+// stored, by a name the certificate carries, after which Get misses. An
+// international name meets the ASCII form the certificate carries in
+// either spelling.
+type deleteCertNameTestCase struct {
+	caseName string
+	cn       string
+	name     string
+}
+
+func (tc deleteCertNameTestCase) Name() string { return tc.caseName }
+
+func (tc deleteCertNameTestCase) Test(t *testing.T) {
+	leaf := mkTestLeaf(t, tc.cn, nil)
+	pool := certpool.New()
+	ctx := context.Background()
+	core.AssertMustTrue(t, pool.AddCert(leaf.cert), "add")
+
+	core.AssertMustNoError(t, pool.Delete(ctx, tc.name), "delete")
+
+	_, err := pool.Get(ctx, tc.cn)
+	core.AssertErrorIs(t, err, core.ErrNotExists, "gone")
+}
+
+func newDeleteCertNameTestCase(caseName, cn,
+	name string) deleteCertNameTestCase {
+	return deleteCertNameTestCase{
+		caseName: caseName,
+		cn:       cn,
+		name:     name,
+	}
+}
+
+func deleteCertNameTestCases() []deleteCertNameTestCase {
+	return core.S(
+		newDeleteCertNameTestCase("ASCII name", "del.example.com",
+			"del.example.com"),
+		newDeleteCertNameTestCase("punycode name", "xn--fsqu00a.example",
+			"xn--fsqu00a.example"),
+		newDeleteCertNameTestCase("international name", "xn--fsqu00a.example",
+			"例子.example"),
+	)
+}
+
+func TestDeleteRemovesByCertName(t *testing.T) {
+	core.RunTestCases(t, deleteCertNameTestCases())
 }
 
 // deleteErrorTestCase exercises Delete's rejection arms: a bad name, a nil

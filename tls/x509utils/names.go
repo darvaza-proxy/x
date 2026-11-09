@@ -63,11 +63,12 @@ func Hostname(u *url.URL) (string, bool) {
 }
 
 // SanitizeName takes a Hostname and returns the name (or address)
-// we will use for matching certificates
+// we will use for matching certificates, a name in the ASCII form
+// certificates carry.
 func SanitizeName(name string) (string, bool) {
 	if name != "" {
 		// validate and remove port and brackets if present
-		if host, _, err := core.SplitHostPort(name); err == nil {
+		if host, _, err := core.SplitHostPortASCII(name); err == nil {
 			return doSanitizeName(host)
 		}
 	}
@@ -78,8 +79,9 @@ func doSanitizeName(name string) (string, bool) {
 	if addr, err := sanitizeAddr(name); err == nil {
 		name = addr.String()
 	}
-	// A non-IP name arrives already validated by SplitHostPort, which
-	// refuses a name holding '%', so it carries no scope zone to strip.
+	// A non-IP name arrives already validated by SplitHostPortASCII,
+	// which refuses a name holding '%', so it carries no scope zone to
+	// strip.
 	return name, len(name) > 0
 }
 
