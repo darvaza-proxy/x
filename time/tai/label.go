@@ -41,7 +41,9 @@ var (
 // nanoseconds digits and eight attoseconds digits. Both uppercase and lowercase
 // are accepted. The seconds are the libtai label, with no epoch adjustment or
 // UTC conversion. Each fractional field must be below 1e9.
-// It returns zero and an error wrapping core.ErrInvalid for an invalid label.
+// It returns zero and an error matching ErrInvalidTAIALength,
+// ErrInvalidTAIAFormat or ErrTAIARange for an invalid label. Each also
+// matches core.ErrInvalid.
 //
 //revive:disable-next-line:exported The parser is named for its result type.
 func ParseTAIA(text string) (TAIA, error) {
@@ -58,7 +60,8 @@ func (t TAIA) MarshalText() ([]byte, error) {
 }
 
 // AppendText implements encoding.TextAppender, appending the hexadecimal
-// label MarshalText writes. An error leaves b unchanged.
+// label MarshalText writes. If the seconds do not fit uint64, it returns an
+// error matching ErrTAIARange and leaves b and its underlying buffer unchanged.
 func (t TAIA) AppendText(b []byte) ([]byte, error) {
 	s, n, a := t.Split()
 	b, err := appendLabelText(b, s, n, a, TAIATextLength)
@@ -100,7 +103,8 @@ func appendLabelHex(b []byte, v uint64, width int) []byte {
 
 // UnmarshalText implements encoding.TextUnmarshaler, reading the label
 // ParseTAIA accepts. A failure leaves t unchanged; a valid label on a nil
-// receiver fails with core.ErrNilReceiver.
+// receiver fails with core.ErrNilReceiver. Invalid labels return errors
+// matching the same sentinels as ParseTAIA, even when the receiver is nil.
 func (t *TAIA) UnmarshalText(text []byte) error {
 	v, err := parseTAIAText(text)
 	switch {

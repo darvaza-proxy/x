@@ -47,6 +47,8 @@ func (t TAIA) String() string {
 	return "TAIA(" + t.x.String() + "as)"
 }
 
+// labelString returns a label at the requested length, or false when the
+// seconds are outside the unsigned 64-bit label range.
 func labelString(s, n, a num.Int128, length int) (string, bool) {
 	var buf [TAIATextLength]byte
 	b, err := appendLabelText(buf[:0], s, n, a, length)

@@ -61,7 +61,8 @@ type TAIA struct {
 }
 
 // Split returns whole seconds, nanoseconds and the remaining attoseconds.
-// Both sub-second components are non-negative and less than 1e9.
+// Seconds round toward negative infinity; both sub-second components are
+// non-negative and less than 1e9.
 func (t TAIA) Split() (s, n, a num.Int128) {
 	s, subAttos := num.EuclideanDivMod(t.x, attosPerSec)
 	nano, atto := subAttos.DivMod(attosPerNano)
@@ -69,6 +70,8 @@ func (t TAIA) Split() (s, n, a num.Int128) {
 }
 
 // Combine builds a timestamp from seconds, nanoseconds and attoseconds.
+// The components need not be normalized. The resulting attosecond count
+// wraps on signed 128-bit overflow.
 func Combine(s, n, a num.Int128) TAIA {
 	secAttos := s.Mul(attosPerSec)
 	nanoAttos := n.Mul(attosPerNano)
@@ -79,6 +82,9 @@ func Combine(s, n, a num.Int128) TAIA {
 }
 
 // TAIFromTime converts t into a TAI timestamp with attosecond precision.
+// It preserves t's nanoseconds and applies the leap-second table after the
+// initial ten-second offset in TAICONST. Before the first table entry it adds
+// no leap seconds; after the last it uses the last recorded offset.
 //
 //revive:disable-next-line:exported Keep the existing conversion function's name.
 func TAIFromTime(t time.Time) TAIA {
@@ -93,6 +99,7 @@ func TAIFromTime(t time.Time) TAIA {
 }
 
 // Now returns the current TAI timestamp with attosecond precision.
+// The sub-nanosecond component is zero.
 func Now() TAIA {
 	return TAIFromTime(time.Now())
 }
