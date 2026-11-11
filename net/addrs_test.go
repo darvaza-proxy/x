@@ -12,6 +12,7 @@ import (
 
 var (
 	_ core.TestCase = splitHostPortTestCase{}
+	_ core.TestCase = cleanDialAddressTestCase{}
 	_ core.TestCase = joinHostPortTestCase{}
 	_ core.TestCase = joinAllHostPortsTestCase{}
 )
@@ -78,10 +79,10 @@ func splitHostPortTestCases() []core.TestCase {
 		newSplitHostPortTestCase("name and port 65535", "name:65535", "name", 65535),
 		newSplitHostPortTestCase("name and padded port", "name:0080", "name", 80),
 
-		// A name comes back mapped through UTS 46, in Unicode.
+		// A name comes back mapped through UTS 46, in its ASCII form.
 		newSplitHostPortTestCase("uppercase name", "Example.COM:80", "example.com", 80),
-		newSplitHostPortTestCase("international name", "Hello.世界:80", "hello.世界", 80),
-		newSplitHostPortTestCase("punycode name", "hello.xn--rhqv96g:80", "hello.世界", 80),
+		newSplitHostPortTestCase("international name", "Hello.世界:80", "hello.xn--rhqv96g", 80),
+		newSplitHostPortTestCase("punycode name", "hello.xn--rhqv96g:80", "hello.xn--rhqv96g", 80),
 		newSplitHostPortTestCase("underscore label", "a_b.name:80", "a_b.name", 80),
 
 		// Addresses.
@@ -107,6 +108,102 @@ func TestSplitHostPort(t *testing.T) {
 	core.RunTestCases(t, splitHostPortTestCases())
 }
 
+type cleanDialAddressTestCase struct {
+	name     string
+	hostPort string
+	out      string
+}
+
+func (tc cleanDialAddressTestCase) Name() string {
+	return tc.name
+}
+
+// wantErr tells whether the row expects an error. A cleaned address has
+// at least ":port", so a row with an empty out expects one.
+func (tc cleanDialAddressTestCase) wantErr() bool {
+	return tc.out == ""
+}
+
+func (tc cleanDialAddressTestCase) Test(t *testing.T) {
+	out, err := net.CleanDialAddress(tc.hostPort)
+	if tc.wantErr() {
+		assertAddrError(t, err, tc.hostPort)
+	} else {
+		core.AssertNoError(t, err, "error")
+	}
+	core.AssertEqual(t, tc.out, out, "cleaned")
+}
+
+func newCleanDialAddressTestCase(name, hostPort, out string) cleanDialAddressTestCase {
+	return cleanDialAddressTestCase{
+		name:     name,
+		hostPort: hostPort,
+		out:      mustNotZero(out, "cleanDialAddressTestCase: every accepted row must state what it cleans to"),
+	}
+}
+
+func newCleanDialAddressTestCaseRefused(name, hostPort string) cleanDialAddressTestCase {
+	return cleanDialAddressTestCase{
+		name:     name,
+		hostPort: hostPort,
+		out:      "",
+	}
+}
+
+func cleanDialAddressTestCases() []core.TestCase {
+	return []core.TestCase{
+		// Normalised as SplitHostPortASCII gives the host and port.
+		newCleanDialAddressTestCase("name and port", "name:80", "name:80"),
+		newCleanDialAddressTestCase("uppercase name", "Example.COM:80", "example.com:80"),
+		newCleanDialAddressTestCase("international name", "Hello.世界:80", "hello.xn--rhqv96g:80"),
+		newCleanDialAddressTestCase("padded port", "name:0080", "name:80"),
+		newCleanDialAddressTestCase("ideographic full stops IPv4", "１２７。０。０。１:80", "127.0.0.1:80"),
+		newCleanDialAddressTestCase("IPv4", "192.0.2.1:80", "192.0.2.1:80"),
+		newCleanDialAddressTestCase("IPv6", "[::1]:80", "[::1]:80"),
+		newCleanDialAddressTestCase("non-canonical IPv6", "[2001:DB8:0::1]:80", "[2001:db8::1]:80"),
+		newCleanDialAddressTestCase("IPv6 with zone", "[fe80::1%eth0]:80", "[fe80::1%eth0]:80"),
+
+		// An IPv4-mapped address without a zone comes back as the IPv4
+		// address it wraps.
+		newCleanDialAddressTestCase("IPv4-mapped", "[::ffff:192.0.2.1]:80", "192.0.2.1:80"),
+		newCleanDialAddressTestCase("IPv4-mapped with zone", "[::ffff:192.0.2.1%eth0]:80",
+			"[::ffff:192.0.2.1%eth0]:80"),
+
+		// The split takes brackets around any host.
+		newCleanDialAddressTestCase("bracketed IPv4", "[192.0.2.1]:80", "192.0.2.1:80"),
+
+		// The split refuses an IPv4 address with a zone, and a name with
+		// a trailing dot.
+		newCleanDialAddressTestCaseRefused("IPv4 with zone", "192.0.2.1%eth0:80"),
+		newCleanDialAddressTestCaseRefused("trailing dot", "example.com.:80"),
+
+		// An empty or unspecified host, which dials the local system.
+		newCleanDialAddressTestCase("port only", ":80", ":80"),
+		newCleanDialAddressTestCase("unspecified IPv4", "0.0.0.0:80", "0.0.0.0:80"),
+		newCleanDialAddressTestCase("unspecified IPv4 short", "0:80", "0.0.0.0:80"),
+		newCleanDialAddressTestCase("unspecified IPv6", "[::]:80", "[::]:80"),
+		newCleanDialAddressTestCase("unspecified IPv6 with zone", "[::%eth0]:80", "[::%eth0]:80"),
+		newCleanDialAddressTestCase("unspecified IPv4-mapped", "[::ffff:0.0.0.0]:80", "0.0.0.0:80"),
+
+		// Refused.
+		newCleanDialAddressTestCaseRefused("name without port", "name"),
+		newCleanDialAddressTestCaseRefused("IPv6 without port", "[::1]"),
+		newCleanDialAddressTestCaseRefused("IPv6 without brackets", "::1"),
+		newCleanDialAddressTestCaseRefused("port 0", "name:0"),
+		newCleanDialAddressTestCaseRefused("padded port 0", "name:00"),
+		newCleanDialAddressTestCaseRefused("port 0 only", ":0"),
+		newCleanDialAddressTestCaseRefused("empty port", "name:"),
+		newCleanDialAddressTestCaseRefused("port out of range", "name:65536"),
+		newCleanDialAddressTestCaseRefused("named port", "name:http"),
+		newCleanDialAddressTestCaseRefused("space", "bad name:80"),
+		newCleanDialAddressTestCaseRefused("empty", ""),
+	}
+}
+
+func TestCleanDialAddress(t *testing.T) {
+	core.RunTestCases(t, cleanDialAddressTestCases())
+}
+
 type joinHostPortTestCase struct {
 	name string
 	host string
@@ -127,7 +224,7 @@ func (tc joinHostPortTestCase) wantErr() bool {
 func (tc joinHostPortTestCase) Test(t *testing.T) {
 	out, err := net.JoinHostPort(tc.host, tc.port)
 	if tc.wantErr() {
-		core.AssertError(t, err, "error")
+		assertAddrError(t, err, tc.host)
 	} else {
 		core.AssertNoError(t, err, "error")
 	}
@@ -167,7 +264,8 @@ func joinHostPortTestCases() []core.TestCase {
 		newJoinHostPortTestCase("name and port", "name", 1234, "name:1234"),
 		newJoinHostPortTestCase("name and port 0", "name", 0, "name:0"),
 
-		// A name joins in its ASCII form.
+		// A name joins in its canonical ASCII form.
+		newJoinHostPortTestCase("uppercase name", "Example.COM", 80, "example.com:80"),
 		newJoinHostPortTestCase("international name", "hello.世界", 80, "hello.xn--rhqv96g:80"),
 
 		// Addresses.
@@ -175,18 +273,38 @@ func joinHostPortTestCases() []core.TestCase {
 		newJoinHostPortTestCase("IPv6", "::1", 1234, "[::1]:1234"),
 		newJoinHostPortTestCase("non-canonical IPv6", "2001:DB8:0::1", 80, "[2001:db8::1]:80"),
 		newJoinHostPortTestCase("IPv6 with zone", "fe80::1%eth0", 80, "[fe80::1%eth0]:80"),
+
+		// An IPv4-mapped address without a zone joins as the IPv4
+		// address it wraps.
+		newJoinHostPortTestCase("IPv4-mapped", "::ffff:192.0.2.1", 80, "192.0.2.1:80"),
 		newJoinHostPortTestCase("IPv4-mapped with zone", "::ffff:192.0.2.1%eth0", 80,
 			"[::ffff:192.0.2.1%eth0]:80"),
 
-		// An unspecified address joins as the port alone.
-		newJoinHostPortTestCase("unspecified IPv4", "0.0.0.0", 6060, ":6060"),
-		newJoinHostPortTestCase("unspecified IPv6", "::", 6060, ":6060"),
+		// The split takes brackets around any host.
+		newJoinHostPortTestCase("bracketed IPv6", "[::1]", 80, "[::1]:80"),
+		newJoinHostPortTestCase("bracketed IPv4", "[192.0.2.1]", 80, "192.0.2.1:80"),
+
+		// An unspecified address keeps its family.
+		newJoinHostPortTestCase("unspecified IPv4", "0.0.0.0", 6060, "0.0.0.0:6060"),
+		newJoinHostPortTestCase("unspecified IPv4 short", "0", 6060, "0.0.0.0:6060"),
+		newJoinHostPortTestCase("unspecified IPv6", "::", 6060, "[::]:6060"),
+		newJoinHostPortTestCase("unspecified IPv4-mapped", "::ffff:0.0.0.0", 6060, "0.0.0.0:6060"),
+		newJoinHostPortTestCase("unspecified IPv6 with zone", "::%eth0", 6060, "[::%eth0]:6060"),
+		newJoinHostPortTestCase("unspecified IPv4 and port 0", "0", 0, "0.0.0.0:0"),
 
 		// No host at all joins as the port alone.
 		newJoinHostPortTestCase("empty host", "", 6060, ":6060"),
 
 		// Refused.
+		newJoinHostPortTestCaseRefused("unclosed bracket", "[::1", 80),
+		newJoinHostPortTestCaseRefused("space", "bad name", 80),
+		newJoinHostPortTestCaseRefused("numeric last label", "name.1", 80),
+		newJoinHostPortTestCaseRefused("invalid punycode", "xn--a.name", 80),
 		newJoinHostPortTestCaseRefused("punycode of an ASCII label", "xn--ab-.name", 80),
+		newJoinHostPortTestCaseRefused("IPv4 with zone", "192.0.2.1%eth0", 80),
+		newJoinHostPortTestCaseRefused("trailing dot", "example.com.", 80),
+		newJoinHostPortTestCaseRefused("host with another port", "name:8080", 80),
+		newJoinHostPortTestCaseRefused("host with the same port", "name:8080", 8080),
 	}
 }
 
@@ -196,10 +314,10 @@ func TestJoinHostPort(t *testing.T) {
 
 type joinAllHostPortsTestCase struct {
 	name      string
+	refused   string
 	addresses []string
 	ports     []uint16
 	out       []string
-	wantErr   bool
 }
 
 func (tc joinAllHostPortsTestCase) Name() string {
@@ -208,8 +326,9 @@ func (tc joinAllHostPortsTestCase) Name() string {
 
 func (tc joinAllHostPortsTestCase) Test(t *testing.T) {
 	out, err := net.JoinAllHostPorts(tc.addresses, tc.ports)
-	if tc.wantErr {
-		core.AssertError(t, err, "error")
+	if tc.refused != "" {
+		// a row naming the address refused expects an error
+		assertAddrError(t, err, tc.refused)
 	} else {
 		core.AssertNoError(t, err, "error")
 	}
@@ -220,24 +339,24 @@ func newJoinAllHostPortsTestCase(name string, addresses []string, ports []uint16
 	out []string) joinAllHostPortsTestCase {
 	return joinAllHostPortsTestCase{
 		name:      name,
+		refused:   "",
 		addresses: addresses,
 		ports:     ports,
 		out:       out,
-		wantErr:   false,
 	}
 }
 
-// newJoinAllHostPortsTestCaseRefused takes the host:port pairs joined
-// before the refused address, which JoinAllHostPorts returns with the
-// error.
+// newJoinAllHostPortsTestCaseRefused takes the address refused, and the
+// host:port pairs joined before it, which JoinAllHostPorts returns with
+// the error.
 func newJoinAllHostPortsTestCaseRefused(name string, addresses []string, ports []uint16,
-	out []string) joinAllHostPortsTestCase {
+	refused string, out []string) joinAllHostPortsTestCase {
 	return joinAllHostPortsTestCase{
 		name:      name,
+		refused:   mustNotZero(refused, "joinAllHostPortsTestCase: every refused row must name the address refused"),
 		addresses: addresses,
 		ports:     ports,
 		out:       out,
-		wantErr:   true,
 	}
 }
 
@@ -248,14 +367,14 @@ func joinAllHostPortsTestCases() []core.TestCase {
 			core.S("name:80", "name:443", "[::1]:80", "[::1]:443")),
 		newJoinAllHostPortsTestCaseRefused("refused after a joined address",
 			core.S("name", "xn--ab-.name", "::1"), core.S[uint16](80),
-			core.S("name:80")),
+			"xn--ab-.name", core.S("name:80")),
 		newJoinAllHostPortsTestCaseRefused("first address refused",
 			core.S("xn--ab-.name", "name"), core.S[uint16](80),
-			nil),
+			"xn--ab-.name", nil),
 		// Every address is checked, with no ports to join it with.
 		newJoinAllHostPortsTestCaseRefused("refused with no ports",
 			core.S("name", "xn--ab-.name"), core.S[uint16](),
-			nil),
+			"xn--ab-.name", nil),
 	}
 }
 

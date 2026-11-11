@@ -11,12 +11,10 @@ require (
 	github.com/amery/defaults v0.1.0
 )
 
-require (
-	golang.org/x/net v0.58.0
-	golang.org/x/sys v0.47.0
-)
+require golang.org/x/sys v0.47.0
 
 require (
 	github.com/gobwas/glob v1.0.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 )
