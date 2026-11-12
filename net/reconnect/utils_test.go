@@ -1,5 +1,7 @@
 package reconnect_test
 
+// cspell:words rhqv
+
 import (
 	"testing"
 	"time"
@@ -38,12 +40,15 @@ func (tc parseRemoteTestCase) Name() string {
 
 func (tc parseRemoteTestCase) Test(t *testing.T) {
 	network, address, err := reconnect.ParseRemote(tc.input)
+	validateErr := reconnect.ValidateRemote(tc.input)
 	if tc.wantErr {
 		core.AssertError(t, err, "ParseRemote")
+		core.AssertError(t, validateErr, "ValidateRemote")
 		return
 	}
 
 	core.AssertNoError(t, err, "ParseRemote")
+	core.AssertNoError(t, validateErr, "ValidateRemote")
 	core.AssertEqual(t, tc.expectedNetwork, network, "network")
 	core.AssertEqual(t, tc.expectedAddress, address, "address")
 }
@@ -56,6 +61,22 @@ func makeParseRemoteTestCases() []core.TestCase {
 		newParseRemoteTestCase("tcp with localhost", "localhost:3000", "tcp", "localhost:3000", false),
 		newParseRemoteTestCase("tcp with .sock in hostname", "service.sock.example.com:8080", "tcp",
 			"service.sock.example.com:8080", false),
+		newParseRemoteTestCase("tcp with IPv6 and port", "[::1]:8080", "tcp", "[::1]:8080", false),
+		newParseRemoteTestCase("tcp with IPv6 zone", "[fe80::1%eth0]:80", "tcp", "[fe80::1%eth0]:80", false),
+
+		// TCP cases returning the address checked, in its canonical ASCII form
+		newParseRemoteTestCase("tcp uppercase name", "Example.COM:8080", "tcp", "example.com:8080", false),
+		newParseRemoteTestCase("tcp international name", "Hello.世界:443", "tcp", "hello.xn--rhqv96g:443", false),
+		newParseRemoteTestCase("tcp name mapped into IPv4", "１２７。０。０。１:80", "tcp", "127.0.0.1:80", false),
+		newParseRemoteTestCase("tcp padded port", "example.com:0080", "tcp", "example.com:80", false),
+
+		// TCP cases with an empty or unspecified host, which dial the local system
+		newParseRemoteTestCase("tcp empty host", ":8080", "tcp", ":8080", false),
+		newParseRemoteTestCase("tcp unspecified IPv4", "0.0.0.0:80", "tcp", "0.0.0.0:80", false),
+		newParseRemoteTestCase("tcp unspecified IPv4 short", "0:80", "tcp", "0.0.0.0:80", false),
+		newParseRemoteTestCase("tcp unspecified IPv6", "[::]:80", "tcp", "[::]:80", false),
+		newParseRemoteTestCase("tcp unspecified IPv6 with zone", "[::%eth0]:80", "tcp", "[::%eth0]:80", false),
+		newParseRemoteTestCase("tcp unspecified IPv4-mapped", "[::ffff:0.0.0.0]:80", "tcp", "0.0.0.0:80", false),
 
 		// Unix socket cases with unix: prefix
 		newParseRemoteTestCase("unix with prefix", "unix:/var/run/app.sock", "unix", "/var/run/app.sock", false),
@@ -83,7 +104,7 @@ func makeParseRemoteTestCases() []core.TestCase {
 		newParseRemoteTestCase("tcp missing port", "example.com", "", "", true),
 		newParseRemoteTestCase("tcp colon no port", "example.com:", "", "", true),
 		newParseRemoteTestCase("tcp port zero", "localhost:0", "", "", true),
-		newParseRemoteTestCase("tcp empty host", ":8080", "", "", true),
+		newParseRemoteTestCase("tcp padded port zero", "localhost:00", "", "", true),
 		newParseRemoteTestCase("unix empty after prefix", "unix:", "", "", true),
 		newParseRemoteTestCase("abstract socket empty name", "@", "", "", true),
 		newParseRemoteTestCase("unix path with null byte", "/tmp/sock\x00et", "", "", true),
