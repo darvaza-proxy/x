@@ -179,12 +179,17 @@ func doCleanHostLabel(host string) (string, error) {
 	return s, nil
 }
 
+// defaultPortFor returns the port a URL of the scheme takes when the
+// URL names none, or "" for a scheme it knows no default port for,
+// the empty one included.
 func defaultPortFor(scheme string) string {
 	switch scheme {
 	case "http", "ws":
 		return "80"
 	case "https", "wss":
 		return "443"
+	default:
+		// a scheme with no known default port
+		return ""
 	}
-	return ""
 }
