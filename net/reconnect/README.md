@@ -275,7 +275,9 @@ func (cfg *Config) ExportDialer() net.Dialer
 ```go
 // ParseRemote determines network type and address from a remote string.
 // Returns (network, address, error) where network is reconnect.NetworkTCP or
-// reconnect.NetworkUnix.
+// reconnect.NetworkUnix. A TCP address comes back normalised, as
+// net.CleanDialAddress returns it; an empty or unspecified host is accepted,
+// and dials the local system.
 func ParseRemote(remote string) (network, address string, err error)
 
 // ValidateRemote validates a remote address for TCP or Unix socket connection.

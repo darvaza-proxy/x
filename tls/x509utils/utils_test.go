@@ -45,7 +45,6 @@ type publicKeyFromPrivateKeyTestCase struct {
 func (tc publicKeyFromPrivateKeyTestCase) Name() string { return tc.name }
 
 func (tc publicKeyFromPrivateKeyTestCase) Test(t *testing.T) {
-	t.Helper()
 	got := x509utils.PublicKeyFromPrivateKey(tc.key)
 	if tc.want == nil {
 		core.AssertNil(t, got, "public key")
@@ -95,7 +94,6 @@ type publicKeyFromCertificateTestCase struct {
 func (tc publicKeyFromCertificateTestCase) Name() string { return tc.name }
 
 func (tc publicKeyFromCertificateTestCase) Test(t *testing.T) {
-	t.Helper()
 	got := x509utils.PublicKeyFromCertificate(tc.cert)
 	if tc.want == nil {
 		core.AssertNil(t, got, "public key")

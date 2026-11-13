@@ -50,7 +50,6 @@ func newCountStateTestCase(name string, setup func() *cond.Count,
 func (tc countStateTestCase) Name() string { return tc.name }
 
 func (tc countStateTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	core.AssertEqual(t, tc.wantNil, c.IsNil(), "IsNil")
 	core.AssertEqual(t, tc.wantClosed, c.IsClosed(), "IsClosed")
@@ -111,7 +110,6 @@ func newCountInitTestCase(name string, setup func() *cond.Count,
 func (tc countInitTestCase) Name() string { return tc.name }
 
 func (tc countInitTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	err := c.Init(tc.initial)
 	if tc.wantErr == nil {
@@ -167,7 +165,6 @@ func newCountCloseTestCase(name string, setup func() *cond.Count,
 func (tc countCloseTestCase) Name() string { return tc.name }
 
 func (tc countCloseTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	err := c.Close()
 	if tc.wantErr == nil {
@@ -232,7 +229,6 @@ func newCountResetTestCase(name string, setup func() *cond.Count, value int,
 func (tc countResetTestCase) Name() string { return tc.name }
 
 func (tc countResetTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	err := c.Reset(tc.value)
 	if tc.wantErr == nil {
@@ -299,7 +295,6 @@ func newCountErrorOpTestCase(name string, setup func() *cond.Count,
 func (tc countErrorOpTestCase) Name() string { return tc.name }
 
 func (tc countErrorOpTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	err := tc.op(c)
 	core.AssertErrorIs(t, err, tc.wantErr, "op error")
@@ -372,7 +367,6 @@ func newCountPanicTestCase(name string, setup func() *cond.Count,
 func (tc countPanicTestCase) Name() string { return tc.name }
 
 func (tc countPanicTestCase) Test(t *testing.T) {
-	t.Helper()
 	c := tc.setup()
 	core.AssertPanic(t, func() { tc.op(c) }, tc.wantErr, "panic error")
 }

@@ -27,7 +27,6 @@ func (tc getTempDirTestCase) Name() string {
 }
 
 func (tc getTempDirTestCase) Test(t *testing.T) {
-	t.Helper()
 	t.Setenv("TMPDIR", tc.tmpDir)
 
 	got, err := getTempDir()

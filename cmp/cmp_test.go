@@ -37,7 +37,6 @@ func (tc cmpTestCase[T]) Name() string {
 }
 
 func (tc cmpTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	result := tc.fn(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, tc.fmt, tc.a, tc.b)
 }
@@ -50,7 +49,6 @@ func TestEq(t *testing.T) {
 }
 
 func runTestEqWithIntegers(t *testing.T) {
-	t.Helper()
 	tests := []cmpTestCase[int]{
 		newCmpTestCase("equal values", 5, 5, true, cmp.Eq[int], "Eq(%d, %d)"),
 		newCmpTestCase("different values", 5, 10, false, cmp.Eq[int], "Eq(%d, %d)"),
@@ -64,7 +62,6 @@ func runTestEqWithIntegers(t *testing.T) {
 }
 
 func runTestEqWithStrings(t *testing.T) {
-	t.Helper()
 	tests := []cmpTestCase[string]{
 		newCmpTestCase("equal strings", "hello", "hello", true, cmp.Eq[string], "Eq(%q, %q)"),
 		newCmpTestCase("different strings", "hello", "world", false, cmp.Eq[string], "Eq(%q, %q)"),
@@ -110,7 +107,6 @@ func (tc cmpFnTestCase[T]) Name() string {
 }
 
 func (tc cmpFnTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	result := tc.check(tc.a, tc.b, tc.cmp)
 	core.AssertEqual(t, tc.expected, result, tc.fmt, tc.a, tc.b)
 }
@@ -123,7 +119,6 @@ func TestEqFn(t *testing.T) {
 }
 
 func runTestEqFnWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -147,7 +142,6 @@ func runTestEqFnWithIntegers(t *testing.T) {
 }
 
 func runTestEqFnCustomStruct(t *testing.T) {
-	t.Helper()
 	type score struct {
 		value float64
 	}
@@ -172,7 +166,6 @@ func runTestEqFnCustomStruct(t *testing.T) {
 }
 
 func runTestEqFn2WithIntegers(t *testing.T) {
-	t.Helper()
 	// Equality function that considers numbers equal if they have the same parity
 	sameParity := func(a, b int) bool {
 		return (a%2 == 0 && b%2 == 0) || (a%2 != 0 && b%2 != 0)
@@ -191,7 +184,6 @@ func runTestEqFn2WithIntegers(t *testing.T) {
 }
 
 func runTestNotEqFnWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -214,7 +206,6 @@ func runTestNotEqFnWithIntegers(t *testing.T) {
 }
 
 func runTestNotEqFn2WithIntegers(t *testing.T) {
-	t.Helper()
 	// Equality function that considers numbers equal if they have the same parity
 	sameParity := func(a, b int) bool {
 		return (a%2 == 0 && b%2 == 0) || (a%2 != 0 && b%2 != 0)
@@ -231,7 +222,6 @@ func runTestNotEqFn2WithIntegers(t *testing.T) {
 }
 
 func runTestLtFnWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -293,7 +283,6 @@ func (tc cmpFn2TestCase[T]) Name() string {
 }
 
 func (tc cmpFn2TestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	result := tc.fn(tc.a, tc.b, tc.cond)
 	core.AssertEqual(t, tc.expected, result, tc.fmt, tc.a, tc.b)
 }
@@ -306,7 +295,6 @@ func TestEqFn2(t *testing.T) {
 }
 
 func runTestEqFn2CustomStruct(t *testing.T) {
-	t.Helper()
 	type person struct {
 		name string
 		age  int
@@ -341,7 +329,6 @@ func TestNotEq(t *testing.T) {
 }
 
 func runTestNotEqWithIntegers(t *testing.T) {
-	t.Helper()
 	tests := []cmpTestCase[int]{
 		newCmpTestCase("equal values", 5, 5, false, cmp.NotEq[int], "NotEq(%d, %d)"),
 		newCmpTestCase("different values", 5, 10, true, cmp.NotEq[int], "NotEq(%d, %d)"),
@@ -354,7 +341,6 @@ func runTestNotEqWithIntegers(t *testing.T) {
 }
 
 func runTestNotEqWithStrings(t *testing.T) {
-	t.Helper()
 	tests := []cmpTestCase[string]{
 		newCmpTestCase("equal strings", "hello", "hello", false, cmp.NotEq[string], "NotEq(%q, %q)"),
 		newCmpTestCase("different strings", "hello", "world", true, cmp.NotEq[string], "NotEq(%q, %q)"),
@@ -401,7 +387,6 @@ func TestLt(t *testing.T) {
 }
 
 func runTestLtWithIntegers(t *testing.T) {
-	t.Helper()
 	tests := []cmpTestCase[int]{
 		newCmpTestCase("less", 5, 10, true, cmp.Lt[int], "Lt(%d, %d)"),
 		newCmpTestCase("greater", 10, 5, false, cmp.Lt[int], "Lt(%d, %d)"),
@@ -415,7 +400,6 @@ func runTestLtWithIntegers(t *testing.T) {
 }
 
 func runTestLtWithStrings(t *testing.T) {
-	t.Helper()
 	tests := []cmpTestCase[string]{
 		newCmpTestCase("lexicographically less", "apple", "banana", true, cmp.Lt[string], "Lt(%q, %q)"),
 		newCmpTestCase("lexicographically greater", "zebra", "apple", false, cmp.Lt[string], "Lt(%q, %q)"),
@@ -626,7 +610,6 @@ func (tc ltEqFn2TestCase[T]) Name() string {
 }
 
 func (tc ltEqFn2TestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	result := cmp.LtEqFn2(tc.a, tc.b, tc.less)
 	core.AssertEqual(t, tc.expected, result, tc.fmt, tc.a, tc.b)
 }
@@ -658,7 +641,6 @@ func TestLtEqFn2(t *testing.T) {
 }
 
 func runTestLtEqFn2Temperature(t *testing.T) {
-	t.Helper()
 	type temperature struct {
 		celsius float64
 	}
@@ -696,7 +678,6 @@ func TestLtFn2(t *testing.T) {
 }
 
 func runTestLtFn2WithIntegers(t *testing.T) {
-	t.Helper()
 	// Custom less-than function
 	less := func(a, b int) bool {
 		return a < b
@@ -714,7 +695,6 @@ func runTestLtFn2WithIntegers(t *testing.T) {
 }
 
 func runTestLtFn2Panic(t *testing.T) {
-	t.Helper()
 	core.AssertPanic(t, func() {
 		cmp.LtFn2(1, 2, nil)
 	}, expectedNilCondFuncErr, "LtFn2 nil less")
@@ -728,7 +708,6 @@ func TestGtEqFn2(t *testing.T) {
 }
 
 func runTestGtEqFn2WithIntegers(t *testing.T) {
-	t.Helper()
 	// Custom less-than function
 	less := func(a, b int) bool {
 		return a < b
@@ -746,7 +725,6 @@ func runTestGtEqFn2WithIntegers(t *testing.T) {
 }
 
 func runTestGtEqFn2Panic(t *testing.T) {
-	t.Helper()
 	core.AssertPanic(t, func() {
 		cmp.GtEqFn2(1, 2, nil)
 	}, expectedNilCondFuncErr, "GtEqFn2 nil less")

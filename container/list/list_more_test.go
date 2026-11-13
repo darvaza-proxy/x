@@ -39,8 +39,6 @@ func newFrontBackTestCase(name string, input []string,
 func (tc frontBackTestCase) Name() string { return tc.name }
 
 func (tc frontBackTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	l := list.New(tc.input...)
 	front, frontOK := l.Front()
 	back, backOK := l.Back()
@@ -98,8 +96,6 @@ func newDeleteMatchFnTestCase(name string, input,
 func (tc deleteMatchFnTestCase) Name() string { return tc.name }
 
 func (tc deleteMatchFnTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	l := list.New(tc.input...)
 	l.DeleteMatchFn(func(v int) bool { return v%2 == 0 })
 	core.AssertSliceEqual(t, tc.want, l.Values(), "values")
@@ -145,8 +141,6 @@ func newPopFirstMatchFnTestCase(name string, input []int, wantValue int,
 func (tc popFirstMatchFnTestCase) Name() string { return tc.name }
 
 func (tc popFirstMatchFnTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	l := list.New(tc.input...)
 	v, ok := l.PopFirstMatchFn(func(n int) bool { return n%2 == 0 })
 
@@ -211,8 +205,6 @@ func newFirstMatchFnTestCase(name string, input []string, wantValue string,
 func (tc firstMatchFnTestCase) Name() string { return tc.name }
 
 func (tc firstMatchFnTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	l := list.New(tc.input...)
 	v, ok := l.FirstMatchFn(func(s string) bool { return len(s) > 5 })
 

@@ -78,8 +78,6 @@ func (tc streamSpawnTestCase) Name() string {
 }
 
 func (tc streamSpawnTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	if tc.started {
 		core.AssertMustNoError(t, tc.session.Spawn(), "initial Spawn")
 		t.Cleanup(func() {
@@ -147,8 +145,6 @@ func TestStreamSessionBeforeSpawn(t *testing.T) {
 // It returns Next's result; asserting on ok stays with the caller.
 func nextWithin(t *testing.T, s *reconnect.StreamSession[string, string],
 	name string) (string, bool) {
-	t.Helper()
-
 	type result struct {
 		value string
 		ok    bool
@@ -210,8 +206,6 @@ func TestStreamSessionEcho(t *testing.T) {
 // It returns Wait's result; asserting on it stays with the caller.
 func waitWithin(t *testing.T, s *reconnect.StreamSession[string, string],
 	name string) error {
-	t.Helper()
-
 	done := make(chan error, 1)
 	go func() { done <- s.Wait() }()
 
@@ -223,16 +217,12 @@ func waitWithin(t *testing.T, s *reconnect.StreamSession[string, string],
 // cleanly within a short deadline.
 func assertWaitReturns(t *testing.T, s *reconnect.StreamSession[string, string],
 	name string) {
-	t.Helper()
-
 	core.AssertNoError(t, waitWithin(t, s, name), name)
 }
 
 // shutdownWithin shuts s down, bounded by a short deadline, and asserts
 // the cause it reports is the user-initiated cancellation.
 func shutdownWithin(t *testing.T, s *reconnect.StreamSession[string, string]) {
-	t.Helper()
-
 	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	core.AssertErrorIs(t, s.Shutdown(ctx), context.Canceled, "Shutdown")
@@ -242,8 +232,6 @@ func shutdownWithin(t *testing.T, s *reconnect.StreamSession[string, string]) {
 // its end open until cleanup, and the channel its OnError reports on.
 func newSpawnedSession(t *testing.T) (*reconnect.StreamSession[string, string],
 	<-chan error) {
-	t.Helper()
-
 	c1, c2 := net.Pipe()
 	t.Cleanup(func() { _ = c2.Close() })
 
@@ -271,8 +259,6 @@ func TestStreamSessionGo(t *testing.T) {
 // runTestStreamSessionGoRuns runs a worker under Go and checks it
 // received a live context, then shuts the session down cleanly.
 func runTestStreamSessionGoRuns(t *testing.T) {
-	t.Helper()
-
 	s, _ := newSpawnedSession(t)
 
 	ran := make(chan error, 1)
@@ -292,8 +278,6 @@ func runTestStreamSessionGoRuns(t *testing.T) {
 // no catch the error cancels the session: OnError receives it and
 // Wait reports it as the cause.
 func runTestStreamSessionGoFails(t *testing.T) {
-	t.Helper()
-
 	errWorker := errors.New("worker failed")
 	s, got := newSpawnedSession(t)
 
@@ -311,8 +295,6 @@ func runTestStreamSessionGoFails(t *testing.T) {
 // GoCatch with a catch that absorbs the error. The catch sees it, the
 // session stays live, and the later shutdown is clean.
 func runTestStreamSessionGoCatchAbsorbs(t *testing.T) {
-	t.Helper()
-
 	errWorker := errors.New("worker failed")
 	s, got := newSpawnedSession(t)
 

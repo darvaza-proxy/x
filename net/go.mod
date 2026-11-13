@@ -3,7 +3,7 @@ module darvaza.org/x/net
 go 1.25.0
 
 require (
-	darvaza.org/core v0.23.1
+	darvaza.org/core v0.23.3
 	darvaza.org/slog v0.11.0
 	darvaza.org/slog/handlers/discard v0.8.0
 	darvaza.org/x/fs v0.8.1
@@ -11,12 +11,10 @@ require (
 	github.com/amery/defaults v0.1.0
 )
 
-require (
-	golang.org/x/net v0.58.0
-	golang.org/x/sys v0.47.0
-)
+require golang.org/x/sys v0.47.0
 
 require (
 	github.com/gobwas/glob v1.0.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 )

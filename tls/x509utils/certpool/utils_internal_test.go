@@ -23,7 +23,6 @@ func (tc validCertTestCase) Name() string { return tc.name }
 
 // Test asserts validCert's verdict for the case's certificate.
 func (tc validCertTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, validCert(tc.cert), "validCert")
 }
 

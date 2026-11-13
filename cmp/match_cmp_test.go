@@ -15,7 +15,6 @@ func TestMatchEq(t *testing.T) {
 }
 
 func runTestMatchEqWithIntegers(t *testing.T) {
-	t.Helper()
 	// Create matchers
 	matchFive := cmp.MatchEq(5)
 	matchZero := cmp.MatchEq(0)
@@ -32,7 +31,6 @@ func runTestMatchEqWithIntegers(t *testing.T) {
 }
 
 func runTestMatchEqWithStrings(t *testing.T) {
-	t.Helper()
 	// Create matchers
 	matchHello := cmp.MatchEq("hello")
 	matchEmpty := cmp.MatchEq("")
@@ -49,7 +47,6 @@ func runTestMatchEqWithStrings(t *testing.T) {
 }
 
 func runTestMatchEqFnWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -76,7 +73,6 @@ func runTestMatchEqFnWithIntegers(t *testing.T) {
 }
 
 func runTestMatchEqFnWithCustomStruct(t *testing.T) {
-	t.Helper()
 	type score struct {
 		value float64
 	}
@@ -138,7 +134,6 @@ func TestMatchNotEq(t *testing.T) {
 }
 
 func runTestMatchNotEqWithIntegers(t *testing.T) {
-	t.Helper()
 	// Create matchers
 	notFive := cmp.MatchNotEq(5)
 	notZero := cmp.MatchNotEq(0)
@@ -162,7 +157,6 @@ func TestMatchNotEqFn(t *testing.T) {
 }
 
 func runTestMatchNotEqFnWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -190,7 +184,6 @@ func runTestMatchNotEqFnWithIntegers(t *testing.T) {
 }
 
 func runTestMatchNotEqFnPanic(t *testing.T) {
-	t.Helper()
 	core.AssertPanic(t, func() {
 		cmp.MatchNotEqFn(1, nil)
 	}, expectedNilCompFuncErr, "nil comparison")
@@ -204,7 +197,6 @@ func TestMatchNotEqFn2(t *testing.T) {
 }
 
 func runTestMatchNotEqFn2WithIntegers(t *testing.T) {
-	t.Helper()
 	// Custom equality function
 	eq := func(a, b int) bool {
 		return a == b
@@ -226,7 +218,6 @@ func runTestMatchNotEqFn2WithIntegers(t *testing.T) {
 }
 
 func runTestMatchNotEqFn2Panic(t *testing.T) {
-	t.Helper()
 	core.AssertPanic(t, func() {
 		cmp.MatchNotEqFn2(1, nil)
 	}, expectedNilCondFuncErr, "nil condition")
@@ -239,7 +230,6 @@ func TestMatchGt(t *testing.T) {
 }
 
 func runTestMatchGtWithIntegers(t *testing.T) {
-	t.Helper()
 	// Create matchers
 	greaterThanFive := cmp.MatchGt(5)
 	greaterThanZero := cmp.MatchGt(0)
@@ -263,7 +253,6 @@ func TestMatchGtFn(t *testing.T) {
 }
 
 func runTestMatchGtFnWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -301,7 +290,6 @@ func TestMatchLt(t *testing.T) {
 }
 
 func runTestMatchLtWithIntegers(t *testing.T) {
-	t.Helper()
 	// Create matchers
 	lessThanFive := cmp.MatchLt(5)
 	lessThanZero := cmp.MatchLt(0)
@@ -325,7 +313,6 @@ func TestMatchLtFn(t *testing.T) {
 }
 
 func runTestMatchLtFnWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -363,7 +350,6 @@ func TestMatchLtFn2(t *testing.T) {
 }
 
 func runTestMatchLtFn2WithIntegers(t *testing.T) {
-	t.Helper()
 	// Less than condition function
 	isLess := func(a, b int) bool {
 		return a < b
@@ -395,7 +381,6 @@ func TestMatchGtEq(t *testing.T) {
 }
 
 func runTestMatchGtEqWithIntegers(t *testing.T) {
-	t.Helper()
 	// Create matchers
 	gtEqFive := cmp.MatchGtEq(5)
 	gtEqZero := cmp.MatchGtEq(0)
@@ -420,7 +405,6 @@ func TestMatchGtEqFn(t *testing.T) {
 }
 
 func runTestMatchGtEqFnWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -460,7 +444,6 @@ func TestMatchGtEqFn2(t *testing.T) {
 }
 
 func runTestMatchGtEqFn2WithIntegers(t *testing.T) {
-	t.Helper()
 	// Less than condition function
 	isLess := func(a, b int) bool {
 		return a < b
@@ -493,7 +476,6 @@ func TestMatchLtEq(t *testing.T) {
 }
 
 func runTestMatchLtEqWithIntegers(t *testing.T) {
-	t.Helper()
 	// Create matchers
 	ltEqFive := cmp.MatchLtEq(5)
 	ltEqZero := cmp.MatchLtEq(0)
@@ -518,7 +500,6 @@ func TestMatchLtEqFn(t *testing.T) {
 }
 
 func runTestMatchLtEqFnWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -558,7 +539,6 @@ func TestMatchLtEqFn2(t *testing.T) {
 }
 
 func runTestMatchLtEqFn2WithIntegers(t *testing.T) {
-	t.Helper()
 	// Less than condition function
 	isLess := func(a, b int) bool {
 		return a < b
@@ -593,7 +573,6 @@ func TestCustomTypeWithMatchers(t *testing.T) {
 }
 
 func runTestMatchEqFn2WithIntegers(t *testing.T) {
-	t.Helper()
 	// Equality function that considers numbers equal if they have the same parity
 	sameParity := func(a, b int) bool {
 		return (a%2 == 0 && b%2 == 0) || (a%2 != 0 && b%2 != 0)
@@ -617,7 +596,6 @@ func runTestMatchEqFn2WithIntegers(t *testing.T) {
 }
 
 func runTestMatchEqFn2WithCustomStruct(t *testing.T) {
-	t.Helper()
 	type person struct {
 		name string
 		age  int
@@ -639,7 +617,6 @@ func runTestMatchEqFn2WithCustomStruct(t *testing.T) {
 }
 
 func runTestCustomTypeEqualityMatchers(t *testing.T) {
-	t.Helper()
 	type customType struct {
 		value int
 	}
@@ -674,7 +651,6 @@ func runTestCustomTypeEqualityMatchers(t *testing.T) {
 }
 
 func runTestCustomTypeComparisonMatchers(t *testing.T) {
-	t.Helper()
 	type customType struct {
 		value int
 	}

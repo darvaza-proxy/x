@@ -29,7 +29,6 @@ func (tc orderedSetTestCase) Name() string {
 }
 
 func (tc orderedSetTestCase) Test(t *testing.T) {
-	t.Helper()
 	got := slices.NewOrderedSet(tc.input...)
 	core.AssertSliceEqual(t, tc.want, got.Export(), "values")
 }
@@ -75,7 +74,6 @@ func (tc sortedSetAddTestCase) Name() string {
 }
 
 func (tc sortedSetAddTestCase) Test(t *testing.T) {
-	t.Helper()
 	set := slices.NewOrderedSet[int]()
 	set.Add(tc.initial...)
 	core.AssertEqual(t, tc.want, set.Add(tc.add...), "Add count")
@@ -128,7 +126,6 @@ func (tc sortedSetRemoveTestCase) Name() string {
 }
 
 func (tc sortedSetRemoveTestCase) Test(t *testing.T) {
-	t.Helper()
 	set := slices.NewOrderedSet[int]()
 	set.Add(tc.initial...)
 	core.AssertEqual(t, tc.want, set.Remove(tc.remove...), "Remove count")
@@ -181,7 +178,6 @@ func (tc trimNTestCase) Name() string {
 }
 
 func (tc trimNTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.set.TrimN(tc.minCapacity), "TrimN")
 	if tc.set != nil {
 		_, c := tc.set.Cap()

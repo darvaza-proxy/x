@@ -21,14 +21,12 @@ func TestSemaphore_Init(t *testing.T) {
 }
 
 func runTestInitNilReceiver(t *testing.T) {
-	t.Helper()
 	var s *Semaphore
 	core.AssertErrorIs(t, s.lazyInit(), core.ErrNilReceiver,
 		"lazyInit on nil receiver")
 }
 
 func runTestInitChannels(t *testing.T) {
-	t.Helper()
 	s := &Semaphore{}
 	core.AssertMustNoError(t, s.lazyInit(), "lazyInit")
 	core.AssertNotNil(t, s.global, "global channel")
@@ -36,7 +34,6 @@ func runTestInitChannels(t *testing.T) {
 }
 
 func runTestInitIdempotent(t *testing.T) {
-	t.Helper()
 	s := &Semaphore{}
 	core.AssertMustNoError(t, s.lazyInit(), "first lazyInit")
 
@@ -113,7 +110,6 @@ func TestSemaphore_UnsafeRLockCancelled(t *testing.T) {
 // reports cancellation and leaves the slot empty, so the receiver stays idle
 // across rounds.
 func runTestUnsafeRLockCancelledFirst(t *testing.T) {
-	t.Helper()
 	s := &Semaphore{}
 	core.AssertMustNoError(t, s.lazyInit(), "lazyInit")
 
@@ -130,7 +126,6 @@ func runTestUnsafeRLockCancelledFirst(t *testing.T) {
 // the rollback puts the count back. Each round restores the held reader, so
 // the receiver state is stable across rounds.
 func runTestUnsafeRLockCancelledSubsequent(t *testing.T) {
-	t.Helper()
 	s := &Semaphore{}
 	core.AssertMustNoError(t, s.lazyInit(), "lazyInit")
 
@@ -185,7 +180,6 @@ func TestSemaphore_WriterPreference(t *testing.T) {
 // arriving from then on wait behind it.
 func newSemaphoreWithQueuedWriter(t *testing.T, lock func(*Semaphore) error) (
 	*Semaphore, <-chan error) {
-	t.Helper()
 	s := &Semaphore{}
 	s.RLock()
 
@@ -209,7 +203,6 @@ func writerLock(s *Semaphore) error {
 }
 
 func runTestReaderBehindWriter(t *testing.T) {
-	t.Helper()
 	lock := writerLockContext(t.Context())
 	s, locking := newSemaphoreWithQueuedWriter(t, lock)
 	reading := goWait(func() error { return s.RLockContext(t.Context()) })
@@ -219,7 +212,6 @@ func runTestReaderBehindWriter(t *testing.T) {
 // runTestRLockBehindLock queues the writer through Lock and the reader
 // through RLock, the forms that cannot be cancelled.
 func runTestRLockBehindLock(t *testing.T) {
-	t.Helper()
 	s, locking := newSemaphoreWithQueuedWriter(t, writerLock)
 	reading := goWait(func() error { s.RLock(); return nil })
 	assertReaderBehindWriter(t, s, locking, reading)
@@ -243,7 +235,6 @@ func assertReaderBehindWriter(t *testing.T, s *Semaphore,
 }
 
 func runTestTryRLockBehindWriter(t *testing.T) {
-	t.Helper()
 	lock := writerLockContext(t.Context())
 	s, locking := newSemaphoreWithQueuedWriter(t, lock)
 	core.AssertMustFalse(t, s.TryRLock(), "TryRLock behind the writer")
@@ -257,7 +248,6 @@ func runTestTryRLockBehindWriter(t *testing.T) {
 // writer, and states that it took nothing: the writer gets the lock once
 // the first reader leaves.
 func runTestRLockContextBehindWriter(t *testing.T) {
-	t.Helper()
 	lock := writerLockContext(t.Context())
 	s, locking := newSemaphoreWithQueuedWriter(t, lock)
 	ctx, cancel := context.WithCancel(t.Context())
@@ -277,7 +267,6 @@ func runTestRLockContextBehindWriter(t *testing.T) {
 // reader, and states that it gives the turnstile back: another reader
 // gets in while the first still holds the lock.
 func runTestLockContextCancelledQueued(t *testing.T) {
-	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	lock := writerLockContext(ctx)
@@ -295,7 +284,6 @@ func runTestLockContextCancelledQueued(t *testing.T) {
 // turnstile check covers. Behind a writer already waiting on global, the
 // lock is taken and TryLock would fail either way.
 func runTestTryLockTurnstileHeld(t *testing.T) {
-	t.Helper()
 	s := &Semaphore{}
 	s.turn.Lock()
 	defer s.turn.Unlock()
@@ -317,7 +305,6 @@ func TestSemaphore_UnlockReadLocked(t *testing.T) {
 // runTestUnlockReadLockedWriterWaiting calls Unlock while a reader holds
 // the lock and a writer waits for it. The writer stays behind the reader.
 func runTestUnlockReadLockedWriterWaiting(t *testing.T) {
-	t.Helper()
 	lock := writerLockContext(t.Context())
 	s, locking := newSemaphoreWithQueuedWriter(t, lock)
 
@@ -333,7 +320,6 @@ func runTestUnlockReadLockedWriterWaiting(t *testing.T) {
 // is out, so Unlock takes the readers' value from global, and puts it
 // back.
 func runTestUnlockReadLockedCountInUse(t *testing.T) {
-	t.Helper()
 	s := &Semaphore{}
 	s.RLock()
 	readers := <-s.readers
@@ -351,7 +337,6 @@ func runTestUnlockReadLockedCountInUse(t *testing.T) {
 // readers' count is out and a writer waits. Taking the readers' value
 // from global hands the slot to the writer, so Unlock cannot put it back.
 func runTestUnlockReadLockedCountInUseWriterWaiting(t *testing.T) {
-	t.Helper()
 	lock := writerLockContext(t.Context())
 	s, locking := newSemaphoreWithQueuedWriter(t, lock)
 	<-s.readers
@@ -370,14 +355,12 @@ func goWait(fn func() error) <-chan error {
 
 // assertWaiting states that the call behind done is still blocked.
 func assertWaiting(t *testing.T, done <-chan error, name string) {
-	t.Helper()
 	core.AssertMustQuiet(t, done, semaphoreOpenGuard, "%s waiting", name)
 }
 
 // assertReturns waits for the call behind done and states that it
 // failed with want, or succeeded when want is nil.
 func assertReturns(t *testing.T, done <-chan error, want error, name string) {
-	t.Helper()
 	got := core.AssertMustReceives(t, done, 1, semaphoreTestTimeout, name)
 	if want == nil {
 		core.AssertNoError(t, got[0], name)

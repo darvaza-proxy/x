@@ -26,7 +26,6 @@ var (
 // encoding: an EC key marshals to the uncompressed point, RSA to the PKCS1
 // SEQUENCE, Ed25519 to the raw 32-byte key.
 func spkiBytes(t *testing.T, pub crypto.PublicKey) []byte {
-	t.Helper()
 	switch k := pub.(type) {
 	case *ecdsa.PublicKey:
 		ecdhPub, err := k.ECDH()
@@ -55,7 +54,6 @@ type subjectPublicKeyBytesTestCase struct {
 func (tc subjectPublicKeyBytesTestCase) Name() string { return tc.name }
 
 func (tc subjectPublicKeyBytesTestCase) Test(t *testing.T) {
-	t.Helper()
 	got, err := x509utils.SubjectPublicKeyBytes(tc.pub)
 	if tc.wantErr != "" {
 		core.AssertError(t, err, "error")
@@ -120,8 +118,6 @@ type subjectPublicKeyHashTestCase struct {
 func (tc subjectPublicKeyHashTestCase) Name() string { return tc.name }
 
 func (tc subjectPublicKeyHashTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	h1, err1 := x509utils.SubjectPublicKeySHA1(tc.pub)
 	h224, err224 := x509utils.SubjectPublicKeySHA224(tc.pub)
 	h256, err256 := x509utils.SubjectPublicKeySHA256(tc.pub)

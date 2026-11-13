@@ -41,7 +41,6 @@ func newCompoundErrorOKTestCase(name string, ce *errors.CompoundError,
 func (tc compoundErrorOKTestCase) Name() string { return tc.name }
 
 func (tc compoundErrorOKTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.expect, tc.ce.OK(), "OK")
 }
 
@@ -83,8 +82,6 @@ func newAppendErrorTestCase(name string, input,
 func (tc appendErrorTestCase) Name() string { return tc.name }
 
 func (tc appendErrorTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	ce := new(errors.CompoundError)
 	got := ce.AppendError(tc.input...)
 	core.AssertSame(t, ce, got, "receiver")
@@ -117,7 +114,6 @@ func TestCompoundErrorAppend(t *testing.T) {
 }
 
 func runTestAppendNoteOnly(t *testing.T) {
-	t.Helper()
 	ce := new(errors.CompoundError)
 	_ = ce.Append(nil, "boom %d", 42)
 
@@ -126,7 +122,6 @@ func runTestAppendNoteOnly(t *testing.T) {
 }
 
 func runTestAppendWrap(t *testing.T) {
-	t.Helper()
 	ce := new(errors.CompoundError)
 	_ = ce.Append(errOne, "context")
 
@@ -135,7 +130,6 @@ func runTestAppendWrap(t *testing.T) {
 }
 
 func runTestAppendNoOp(t *testing.T) {
-	t.Helper()
 	ce := new(errors.CompoundError)
 	_ = ce.Append(nil, "")
 
@@ -160,19 +154,16 @@ func TestCompoundErrorAsError(t *testing.T) {
 }
 
 func runTestAsErrorEmpty(t *testing.T) {
-	t.Helper()
 	ce := new(errors.CompoundError)
 	core.AssertNil(t, ce.AsError(), "AsError")
 }
 
 func runTestAsErrorReceiver(t *testing.T) {
-	t.Helper()
 	ce := newLoadedCompoundError(errOne)
 	core.AssertSame(t, ce, ce.AsError(), "AsError receiver")
 }
 
 func runTestAsErrorTraversable(t *testing.T) {
-	t.Helper()
 	ce := newLoadedCompoundError(errOne, errTwo)
 	core.AssertErrorIs(t, ce.AsError(), errTwo, "AsError Is")
 }
@@ -183,13 +174,11 @@ func TestCompoundErrorError(t *testing.T) {
 }
 
 func runTestErrorEmpty(t *testing.T) {
-	t.Helper()
 	ce := new(errors.CompoundError)
 	core.AssertEqual(t, "", ce.Error(), "Error")
 }
 
 func runTestErrorJoined(t *testing.T) {
-	t.Helper()
 	ce := newLoadedCompoundError(errOne, errTwo)
 	core.AssertEqual(t, "error one\nerror two", ce.Error(), "Error")
 }

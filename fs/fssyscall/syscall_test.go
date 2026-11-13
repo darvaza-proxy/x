@@ -25,8 +25,6 @@ func (tc handleTestCase) Name() string {
 }
 
 func (tc handleTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := tc.handle.Close()
 
 	if tc.wantErr {
@@ -57,8 +55,6 @@ func (tc openTestCase) Name() string {
 }
 
 func (tc openTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	handle, err := fssyscall.Open(tc.filename, tc.mode, tc.perm)
 
 	if tc.wantErr {
@@ -126,15 +122,11 @@ func TestIsZero(t *testing.T) {
 }
 
 func runTestIsZeroTrue(t *testing.T) {
-	t.Helper()
-
 	result := fssyscall.ZeroHandle.IsZero()
 	core.AssertTrue(t, result, "zero handle is zero")
 }
 
 func runTestIsZeroFalse(t *testing.T) {
-	t.Helper()
-
 	// Create a temporary file to get a valid handle
 	tempFile, err := os.CreateTemp("", "syscall_is_zero_test_*.tmp")
 	core.AssertNoError(t, err, "create temp file")
@@ -154,8 +146,6 @@ func TestHandleLocking(t *testing.T) {
 }
 
 func runTestHandleLockSequence(t *testing.T) {
-	t.Helper()
-
 	// Create a temporary file to get a valid handle
 	tempFile, err := os.CreateTemp("", "syscall_lock_test_*.tmp")
 	core.AssertNoError(t, err, "create temp file")
@@ -176,8 +166,6 @@ func runTestHandleLockSequence(t *testing.T) {
 }
 
 func runTestHandleTryLock(t *testing.T) {
-	t.Helper()
-
 	// Create a temporary file to get a valid handle
 	tempFile, err := os.CreateTemp("", "syscall_trylock_test_*.tmp")
 	core.AssertNoError(t, err, "create temp file")
@@ -202,8 +190,6 @@ func TestConcurrentLocking(t *testing.T) {
 }
 
 func runTestConcurrentTryLock(t *testing.T) {
-	t.Helper()
-
 	// Create a temporary file for shared access
 	tempFile, err := os.CreateTemp("", "syscall_concurrent_test_*.tmp")
 	core.AssertNoError(t, err, "create temp file")

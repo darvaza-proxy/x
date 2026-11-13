@@ -110,8 +110,6 @@ func TestCertVerifyErrorClassification(t *testing.T) {
 // connect or handshake timeout, a reset mid-handshake — says nothing about
 // the pool and skips instead.
 func dialGitHub(t *testing.T, roots *x509.CertPool) *tls.Conn {
-	t.Helper()
-
 	conn, err := dialTLS("github.com:443", roots)
 	if err != nil {
 		if !isCertVerifyError(err) {

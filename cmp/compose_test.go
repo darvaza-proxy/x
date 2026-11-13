@@ -33,7 +33,6 @@ func (tc composeTestCase[T]) Name() string {
 }
 
 func (tc composeTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	result := tc.matcher.Match(tc.input)
 	core.AssertEqual(t, tc.expected, result, "Match(%+v)", tc.input)
 }
@@ -49,7 +48,6 @@ func TestCompose(t *testing.T) {
 }
 
 func runTestComposeStructFields(t *testing.T) {
-	t.Helper()
 	type Person struct {
 		Name string
 		Age  int
@@ -88,7 +86,6 @@ func runTestComposeStructFields(t *testing.T) {
 }
 
 func runTestComposeTypeTransformations(t *testing.T) {
-	t.Helper()
 	// Convert int to string and check if it has a specific length
 	hasThreeDigits := cmp.Compose(
 		func(i int) (string, bool) { return strconv.Itoa(i), true },
@@ -108,7 +105,6 @@ func runTestComposeTypeTransformations(t *testing.T) {
 }
 
 func runTestComposeAccessorFalse(t *testing.T) {
-	t.Helper()
 	// Accessor that fails for even numbers
 	failsForEven := cmp.Compose(
 		func(i int) (int, bool) { return i, i%2 != 0 },
@@ -127,7 +123,6 @@ func runTestComposeAccessorFalse(t *testing.T) {
 }
 
 func runTestComposeNested(t *testing.T) {
-	t.Helper()
 	type Address struct {
 		Street string
 		City   string
@@ -198,7 +193,6 @@ func runTestComposeNested(t *testing.T) {
 }
 
 func runTestComposeComplex(t *testing.T) {
-	t.Helper()
 	type Score struct {
 		Value int
 		Max   int
@@ -233,14 +227,12 @@ func TestComposePanic(t *testing.T) {
 }
 
 func runTestComposePanicNilAccessor(t *testing.T) {
-	t.Helper()
 	core.AssertPanic(t, func() {
 		cmp.Compose[int](nil, cmp.MatchGtEq(5))
 	}, "nil accessor function", "nil accessor")
 }
 
 func runTestComposePanicNilMatcher(t *testing.T) {
-	t.Helper()
 	core.AssertPanic(t, func() {
 		cmp.Compose(func(i int) (int, bool) { return i, true }, nil)
 	}, "no match condition", "nil matcher")

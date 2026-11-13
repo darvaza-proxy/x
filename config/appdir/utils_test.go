@@ -27,8 +27,6 @@ func (tc joinTestCase) Name() string {
 }
 
 func (tc joinTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got := appdir.Join(tc.base, tc.sub...)
 	core.AssertEqual(t, filepath.FromSlash(tc.want), got, "join")
 }

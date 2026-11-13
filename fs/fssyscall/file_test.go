@@ -23,8 +23,6 @@ func (tc fileLockTestCase) Name() string {
 }
 
 func (tc fileLockTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := tc.fn(tc.file)
 
 	if tc.expectedErr != nil {
@@ -86,8 +84,6 @@ func TestLockUnlockSequence(t *testing.T) {
 }
 
 func runTestLockUnlockSequence(t *testing.T) {
-	t.Helper()
-
 	tempFile, err := os.CreateTemp("", "fssyscall_lock_test_*.tmp")
 	core.AssertNoError(t, err, "create temp file")
 	defer func() {
@@ -110,8 +106,6 @@ func TestTryLockBehaviour(t *testing.T) {
 }
 
 func runTestTryLockUnlocked(t *testing.T) {
-	t.Helper()
-
 	tempFile, err := os.CreateTemp("", "fssyscall_trylock_test_*.tmp")
 	core.AssertNoError(t, err, "create temp file")
 	defer func() {
@@ -134,8 +128,6 @@ func TestErrorHandling(t *testing.T) {
 }
 
 func runTestNilFileValidation(t *testing.T) {
-	t.Helper()
-
 	// Test all functions with nil file
 	err := fssyscall.FLockEx(nil)
 	core.AssertError(t, err, "FLockEx with nil")

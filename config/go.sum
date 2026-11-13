@@ -1,5 +1,5 @@
-darvaza.org/core v0.23.1 h1:0g/tgwZDXvJjNzAEWDmZPQl28sFiOGQ71dZVyhCsi7c=
-darvaza.org/core v0.23.1/go.mod h1:J4e8C8EAiASH13I24EBzxlyuL5MbLJGmJFdUe4slLng=
+darvaza.org/core v0.23.3 h1:qtDlWSkOM/FsTQIfkmR2S6QkCIbaRPVmPZQ+6SDrANo=
+darvaza.org/core v0.23.3/go.mod h1:J4e8C8EAiASH13I24EBzxlyuL5MbLJGmJFdUe4slLng=
 github.com/amery/defaults v0.1.0 h1:4AhTgLUnj8BPjVRBzg4+/cSCwPWPT6+yWCM4rD6Feyc=
 github.com/amery/defaults v0.1.0/go.mod h1:duOYkvd60q8XOL1+vdSHx5ABTGDMU2iFKr5xJnMEpBk=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

@@ -32,7 +32,6 @@ func (tc matchImplTestCase[T]) Name() string {
 }
 
 func (tc matchImplTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	result := tc.matcher.Match(tc.value)
 	core.AssertEqual(t, tc.expected, result, "Match(%v)", tc.value)
 }
@@ -48,7 +47,6 @@ func TestAndsImplementation(t *testing.T) {
 }
 
 func runTestAndsAnd(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -69,7 +67,6 @@ func runTestAndsAnd(t *testing.T) {
 }
 
 func runTestAndsOr(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -90,7 +87,6 @@ func runTestAndsOr(t *testing.T) {
 }
 
 func runTestAndsNot(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -117,7 +113,6 @@ func TestOrsImplementation(t *testing.T) {
 }
 
 func runTestOrsAnd(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -138,7 +133,6 @@ func runTestOrsAnd(t *testing.T) {
 }
 
 func runTestOrsOr(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -160,7 +154,6 @@ func runTestOrsOr(t *testing.T) {
 }
 
 func runTestOrsNot(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -191,7 +184,6 @@ func TestQClean(t *testing.T) {
 }
 
 func runTestAndsMatching(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -213,7 +205,6 @@ func runTestAndsMatching(t *testing.T) {
 }
 
 func runTestOrsMatching(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -235,7 +226,6 @@ func runTestOrsMatching(t *testing.T) {
 }
 
 func runTestQJoinValidFirst(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -253,7 +243,6 @@ func runTestQJoinValidFirst(t *testing.T) {
 }
 
 func runTestQJoinNilFirst(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -271,7 +260,6 @@ func runTestQJoinNilFirst(t *testing.T) {
 }
 
 func runTestQJoinNilsInOthers(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -289,7 +277,6 @@ func runTestQJoinNilsInOthers(t *testing.T) {
 }
 
 func runTestQCleanWithNils(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -306,7 +293,6 @@ func runTestQCleanWithNils(t *testing.T) {
 }
 
 func runTestAndsWithNil(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -317,7 +303,6 @@ func runTestAndsWithNil(t *testing.T) {
 }
 
 func runTestOrsWithNil(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -328,19 +313,16 @@ func runTestOrsWithNil(t *testing.T) {
 }
 
 func runTestAndsEmpty(t *testing.T) {
-	t.Helper()
 	andMatcher := ands[int]([]Matcher[int]{})
 	core.AssertTrue(t, andMatcher.Match(42), "empty AND")
 }
 
 func runTestOrsEmpty(t *testing.T) {
-	t.Helper()
 	orMatcher := ors[int]([]Matcher[int]{})
 	core.AssertFalse(t, orMatcher.Match(42), "empty OR")
 }
 
 func runTestQCleanNoNils(t *testing.T) {
-	t.Helper()
 	isEven := MatchFunc[int](func(n int) bool {
 		return n%2 == 0
 	})
@@ -355,7 +337,6 @@ func runTestQCleanNoNils(t *testing.T) {
 }
 
 func runTestQCleanAllNils(t *testing.T) {
-	t.Helper()
 	queries := []Matcher[int]{nil, nil, nil}
 	result := qClean(queries)
 	core.AssertEqual(t, 0, len(result), "length")

@@ -41,8 +41,6 @@ func (tc validateRemoteTestCase) Name() string {
 }
 
 func (tc validateRemoteTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := reconnect.ValidateRemote(tc.input)
 	if tc.wantErr {
 		core.AssertError(t, err, "ValidateRemote")
@@ -58,6 +56,7 @@ func makeValidateRemoteTestCases() []core.TestCase {
 		newValidateRemoteTestCase("valid tcp IP:port", "192.168.1.1:443", false),
 		newValidateRemoteTestCase("valid tcp localhost:port", "localhost:3000", false),
 		newValidateRemoteTestCase("valid tcp IPv6", "[::1]:8080", false),
+		newValidateRemoteTestCase("valid tcp empty host", ":8080", false),
 
 		// Valid Unix socket addresses
 		newValidateRemoteTestCase("valid unix with prefix", "unix:/var/run/app.sock", false),
@@ -76,7 +75,6 @@ func makeValidateRemoteTestCases() []core.TestCase {
 		newValidateRemoteTestCase("tcp colon no port", "example.com:", true),
 		newValidateRemoteTestCase("tcp port zero", "localhost:0", true),
 		newValidateRemoteTestCase("tcp port zero ipv6", "[::1]:0", true),
-		newValidateRemoteTestCase("tcp empty host", ":8080", true),
 		newValidateRemoteTestCase("unix empty after prefix", "unix:", true),
 		newValidateRemoteTestCase("abstract socket empty name", "@", true),
 		newValidateRemoteTestCase("unix path too long", "/"+strings.Repeat("a", 107), true),
@@ -89,7 +87,6 @@ func TestValidateRemote(t *testing.T) {
 }
 
 func runTestConfigValidValidConfig(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteTCP,
@@ -102,7 +99,6 @@ func runTestConfigValidValidConfig(t *testing.T) {
 }
 
 func runTestConfigValidInvalidRemote(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteInvalid,
@@ -115,7 +111,6 @@ func runTestConfigValidInvalidRemote(t *testing.T) {
 }
 
 func runTestConfigValidMissingContext(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Remote: remoteTCP,
 	}
@@ -129,7 +124,6 @@ func runTestConfigValidMissingContext(t *testing.T) {
 }
 
 func runTestConfigValidMissingLogger(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteTCP,
@@ -144,7 +138,6 @@ func runTestConfigValidMissingLogger(t *testing.T) {
 }
 
 func runTestConfigValidMissingWaitReconnect(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteTCP,
@@ -167,7 +160,6 @@ func TestConfigValid(t *testing.T) {
 }
 
 func runTestNewValidConfig(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteTCP,
@@ -179,7 +171,6 @@ func runTestNewValidConfig(t *testing.T) {
 }
 
 func runTestNewUnixSocketConfig(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteUnix,
@@ -190,8 +181,18 @@ func runTestNewUnixSocketConfig(t *testing.T) {
 	core.AssertNotNil(t, client, "client")
 }
 
+func runTestNewEmptyHostConfig(t *testing.T) {
+	cfg := &reconnect.Config{
+		Context: context.Background(),
+		Remote:  ":8080",
+	}
+
+	client, err := reconnect.New(cfg)
+	core.AssertNoError(t, err, "new client with an empty host")
+	core.AssertNotNil(t, client, "client")
+}
+
 func runTestNewInvalidConfig(t *testing.T) {
-	t.Helper()
 	cfg := &reconnect.Config{
 		Context: context.Background(),
 		Remote:  remoteInvalid,
@@ -205,5 +206,6 @@ func runTestNewInvalidConfig(t *testing.T) {
 func TestNew(t *testing.T) {
 	t.Run("valid config", runTestNewValidConfig)
 	t.Run("unix socket config", runTestNewUnixSocketConfig)
+	t.Run("empty host config", runTestNewEmptyHostConfig)
 	t.Run("invalid config", runTestNewInvalidConfig)
 }

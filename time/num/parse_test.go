@@ -107,7 +107,6 @@ func (tc parseCase[T, PT]) Name() string { return tc.name }
 
 //revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (tc parseCase[T, PT]) Test(t *testing.T) {
-	t.Helper()
 	got, err := parseAs[T](tc.in)
 	core.AssertEqual(t, tc.want, got, "value")
 	tc.assertError(t, err)
@@ -118,7 +117,6 @@ func (tc parseCase[T, PT]) Test(t *testing.T) {
 // stores the value on success and, on failure, wraps the parser's
 // report in its own name and leaves the seeded receiver alone.
 func (tc parseCase[T, PT]) testUnmarshalText(t *testing.T) {
-	t.Helper()
 	core.AssertMustNotEqual(t, tc.want, tc.seed, "seed")
 	got := tc.seed
 	err := PT(&got).UnmarshalText([]byte(tc.in))
@@ -137,7 +135,6 @@ func (tc parseCase[T, PT]) testUnmarshalText(t *testing.T) {
 // otherwise a ParseError whose cause is the sentinel, naming the
 // parser and quoting the text.
 func (tc parseCase[T, PT]) assertError(t *testing.T, err error) {
-	t.Helper()
 	if tc.wantErr == nil {
 		core.AssertNoError(t, err, "error")
 		return
@@ -149,7 +146,6 @@ func (tc parseCase[T, PT]) assertError(t *testing.T, err error) {
 // wantErr, naming the parser of T and quoting text, the text it read.
 func assertParseReport[T num.Number[T]](t *testing.T, err error,
 	text string, wantErr error) {
-	t.Helper()
 	p := core.AssertMustErrorAs[*num.ParseError](t, err, "report")
 	core.AssertEqual(t, parseFuncName[T](), p.Func, "func")
 	core.AssertEqual(t, text, p.Num, "num")
@@ -354,22 +350,18 @@ func TestParse(t *testing.T) {
 }
 
 func runTestParseInt32(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, parseInt32Cases())
 }
 
 func runTestParseInt64(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, parseInt64Cases())
 }
 
 func runTestParseUint128(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, parseUint128Cases())
 }
 
 func runTestParseInt128(t *testing.T) {
-	t.Helper()
 	core.RunTestCases(t, parseInt128Cases())
 }
 
@@ -394,14 +386,12 @@ func (tc parseAllocsCase[T, PT]) Name() string { return tc.name }
 
 //revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (tc parseAllocsCase[T, PT]) Test(t *testing.T) {
-	t.Helper()
 	tc.countParse(t)
 	tc.countUnmarshalText(t)
 }
 
 // countParse reads the text through the parser of T.
 func (tc parseAllocsCase[T, PT]) countParse(t *testing.T) {
-	t.Helper()
 	var got T
 	var err error
 	allocs := testing.AllocsPerRun(10, func() {
@@ -415,7 +405,6 @@ func (tc parseAllocsCase[T, PT]) countParse(t *testing.T) {
 // countUnmarshalText reads the text through UnmarshalText on *T, from
 // bytes made before the count starts.
 func (tc parseAllocsCase[T, PT]) countUnmarshalText(t *testing.T) {
-	t.Helper()
 	b := []byte(tc.in)
 	var got T
 	var err error
@@ -444,7 +433,6 @@ func parseAllocsCases[T num.Number[T], PT textUnmarshaler[T]](text string,
 // 128-bit integers' as printed alone, already past the 32 bytes, 39 for
 // MaxUint128 and 40 for MinInt128.
 func runTestParseAllocs(t *testing.T) {
-	t.Helper()
 	int32s := parseAllocsCases[num.Int32, *num.Int32]("-2147483648",
 		num.AsInt32(math.MinInt32))
 	int64s := parseAllocsCases[num.Int64, *num.Int64]("-9223372036854775808",
@@ -509,7 +497,6 @@ type roundTrip func(t *testing.T, cases []textCase) int
 func runTestParseRoundTrip(table func() []textCase,
 	parsers ...roundTrip) func(*testing.T) {
 	return func(t *testing.T) {
-		t.Helper()
 		cases := table()
 		taken := 0
 		for _, p := range parsers {
@@ -524,7 +511,6 @@ func runTestParseRoundTrip(table func() []textCase,
 func roundTripOf[T num.Number[T], PT textUnmarshaler[T]](name string,
 	seed T) roundTrip {
 	return func(t *testing.T, cases []textCase) int {
-		t.Helper()
 		rows := textParseCases[T, PT](cases, seed)
 		t.Run(name, func(t *testing.T) {
 			core.AssertMustNotEqual(t, 0, len(rows), "rows")
@@ -567,7 +553,6 @@ func quoteName(s string) string {
 func (tc parseCrossCase) Name() string { return tc.name }
 
 func (tc parseCrossCase) Test(t *testing.T) {
-	t.Helper()
 	want32, err32 := strconv.ParseInt(tc.in, 10, 32)
 	t.Run("int32", newParseCaseFromStrconv(tc.name, tc.in, seed32,
 		num.AsInt32(int32(want32)), err32).Test)
@@ -583,7 +568,6 @@ func (tc parseCrossCase) Test(t *testing.T) {
 // testUint128 checks ParseUint128 against strconv.ParseUint at 64 bits,
 // past whose range the bound is MaxUint128.
 func (tc parseCrossCase) testUint128(t *testing.T) {
-	t.Helper()
 	want, err := strconv.ParseUint(tc.in, 10, 64)
 	if !errors.Is(err, strconv.ErrRange) {
 		newParseCaseFromStrconv(tc.name, tc.in, seedU128, num.AsUint128(want),
@@ -596,7 +580,6 @@ func (tc parseCrossCase) testUint128(t *testing.T) {
 // testInt128 checks ParseInt128 against strconv.ParseInt at 64 bits,
 // past whose range the bound is the one on the side strconv clamps to.
 func (tc parseCrossCase) testInt128(t *testing.T) {
-	t.Helper()
 	want, err := strconv.ParseInt(tc.in, 10, 64)
 	if !errors.Is(err, strconv.ErrRange) {
 		newParseCaseFromStrconv(tc.name, tc.in, seed128, num.AsInt128(want),
@@ -622,7 +605,6 @@ func (tc parseCrossCase) testInt128(t *testing.T) {
 // UnmarshalText as on any other row.
 func runTestPastStrconv[T num.Number[T], PT textUnmarshaler[T]](t *testing.T,
 	tc parseCrossCase, seed T, bound string) {
-	t.Helper()
 	var zero T
 	neg, run, rest := splitDigitRun(tc.in)
 	u, limit := bigOf(t, run), bigOf(t, bound)
@@ -657,7 +639,6 @@ func splitDigitRun(s string) (neg bool, run, rest string) {
 // bigOf returns the value of a decimal text, an optional sign and the
 // digits, as math/big reads it.
 func bigOf(t *testing.T, s string) *big.Int {
-	t.Helper()
 	v, ok := new(big.Int).SetString(s, 10)
 	core.AssertMustTrue(t, ok, "decimal %q", s)
 	return v
@@ -845,7 +826,6 @@ func (tc unmarshalTextNilCase[T, PT]) Name() string { return tc.name }
 
 //revive:disable-next-line:confusing-naming two-parameter receiver misfiled as a function
 func (tc unmarshalTextNilCase[T, PT]) Test(t *testing.T) {
-	t.Helper()
 	var p PT
 	err := p.UnmarshalText([]byte(tc.in))
 	core.AssertMustError(t, err, "UnmarshalText")

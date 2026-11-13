@@ -85,7 +85,6 @@ func itemID(v testItem) int {
 // maps a value to its ID.
 func assertSetContainsAllFn[T any](t *testing.T, s *set.Set[int, int, testItem],
 	accessor func(T) int, values ...T) {
-	t.Helper()
 	core.AssertEqual(t, len(values), len(s.Values()), "count")
 
 	for _, value := range values {

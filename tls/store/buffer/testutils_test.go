@@ -31,8 +31,6 @@ type certSpec struct {
 // build generates the certificate described by the spec, returning a
 // [tls.Certificate] with Leaf, Certificate chain and PrivateKey populated.
 func (spec certSpec) build(t *testing.T) *tls.Certificate {
-	t.Helper()
-
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	core.AssertMustNoError(t, err, "generate key")
 
@@ -88,7 +86,6 @@ func (spec certSpec) template(t *testing.T) *x509.Certificate {
 // self-signed spec, or the configured parent otherwise.
 func (spec certSpec) parentFor(t *testing.T, leafTmpl *x509.Certificate,
 	leafKey crypto.Signer) (*x509.Certificate, crypto.Signer) {
-	t.Helper()
 	if spec.parent == nil {
 		return leafTmpl, leafKey
 	}
@@ -98,7 +95,6 @@ func (spec certSpec) parentFor(t *testing.T, leafTmpl *x509.Certificate,
 }
 
 func mkSerial(t *testing.T) *big.Int {
-	t.Helper()
 	n, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 	core.AssertMustNoError(t, err, "serial")
 	return n
@@ -132,7 +128,6 @@ func mkSelfSignedLeaf(t *testing.T, cn string) *tls.Certificate {
 
 // keyOf returns the private key as an [x509utils.PrivateKey].
 func keyOf(t *testing.T, c *tls.Certificate) x509utils.PrivateKey {
-	t.Helper()
 	return core.AssertMustTypeIs[x509utils.PrivateKey](t, c.PrivateKey, "key")
 }
 
@@ -143,7 +138,6 @@ func certBlock(c *tls.Certificate) *pem.Block {
 
 // keyBlock returns the private key as a PEM PRIVATE KEY (PKCS#8) block.
 func keyBlock(t *testing.T, c *tls.Certificate) *pem.Block {
-	t.Helper()
 	body, err := x509.MarshalPKCS8PrivateKey(c.PrivateKey)
 	core.AssertMustNoError(t, err, "marshal key")
 	return &pem.Block{Type: "PRIVATE KEY", Bytes: body}

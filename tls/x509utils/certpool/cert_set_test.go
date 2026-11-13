@@ -78,7 +78,6 @@ func TestCertSetGetByPrivateKey(t *testing.T) {
 // Equal length would pass even for a shared backing store; the mutation is the
 // load-bearing proof.
 func assertSetIndependent(t *testing.T, src, dup *certpool.CertSet, name string) {
-	t.Helper()
 	srcLen := src.Len()
 	extra := mkTestLeaf(t, name+"-extra.example.com", nil).cert
 	_, err := dup.Push(extra)

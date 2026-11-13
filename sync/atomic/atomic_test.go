@@ -32,7 +32,6 @@ func newBitmaskOrTestCase(name string, start, mask, wantResult uint32,
 func (tc bitmaskOrTestCase) Name() string { return tc.name }
 
 func (tc bitmaskOrTestCase) Test(t *testing.T) {
-	t.Helper()
 	var p atomic.Uint32
 	p.Store(tc.start)
 
@@ -107,7 +106,6 @@ func newUpdateMaxTestCase(name string, start, val, wantVal int32) updateMaxTestC
 func (tc updateMaxTestCase) Name() string { return tc.name }
 
 func (tc updateMaxTestCase) Test(t *testing.T) {
-	t.Helper()
 	var p atomic.Int32
 	p.Store(tc.start)
 

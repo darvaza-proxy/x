@@ -22,8 +22,6 @@ var _ core.TestCase = verifyRejectTestCase{}
 // it with the key that owns it.
 func mkVerifyLeaf(t *testing.T, notBefore, notAfter time.Time) (
 	*x509.Certificate, *ecdsa.PrivateKey) {
-	t.Helper()
-
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	core.AssertMustNoError(t, err, "key")
 
@@ -71,8 +69,6 @@ type verifyRejectTestCase struct {
 func (tc verifyRejectTestCase) Name() string { return tc.name }
 
 func (tc verifyRejectTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := tls.Verify(tc.cert, nil)
 	core.AssertMustError(t, err, "error")
 	core.AssertEqual(t, tc.wantMsg, err.Error(), "message")
@@ -86,8 +82,6 @@ func newVerifyRejectTestCase(name string, cert *tls.Certificate,
 }
 
 func verifyRejectTestCases(t *testing.T) []verifyRejectTestCase {
-	t.Helper()
-
 	now := time.Now().UTC()
 	valid, _ := mkVerifyLeaf(t, now.Add(-time.Hour), now.Add(time.Hour))
 	expired, _ := mkVerifyLeaf(t, now.Add(-2*time.Hour), now.Add(-time.Hour))

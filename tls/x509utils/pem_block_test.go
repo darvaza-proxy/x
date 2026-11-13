@@ -24,7 +24,6 @@ var (
 
 // mkRSAKey generates a fresh RSA key.
 func mkRSAKey(t *testing.T) *rsa.PrivateKey {
-	t.Helper()
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	core.AssertMustNoError(t, err, "generate RSA key")
 	return key
@@ -32,7 +31,6 @@ func mkRSAKey(t *testing.T) *rsa.PrivateKey {
 
 // mkEd25519Key generates a fresh Ed25519 key.
 func mkEd25519Key(t *testing.T) ed25519.PrivateKey {
-	t.Helper()
 	_, key, err := ed25519.GenerateKey(rand.Reader)
 	core.AssertMustNoError(t, err, "generate Ed25519 key")
 	return key
@@ -41,7 +39,6 @@ func mkEd25519Key(t *testing.T) ed25519.PrivateKey {
 // mkX25519Key generates a fresh X25519 key. It marshals to PKCS8 but is a
 // key-agreement key, not a crypto.Signer, so it is not an x509utils.PrivateKey.
 func mkX25519Key(t *testing.T) *ecdh.PrivateKey {
-	t.Helper()
 	key, err := ecdh.X25519().GenerateKey(rand.Reader)
 	core.AssertMustNoError(t, err, "generate X25519 key")
 	return key
@@ -69,7 +66,6 @@ func pkcs1Block(t *testing.T, key *rsa.PrivateKey) *pem.Block {
 // pkcs8Block wraps any PKCS8-marshallable key as a "PRIVATE KEY" block,
 // including key types (such as X25519) that are not x509utils.PrivateKey.
 func pkcs8Block(t *testing.T, key crypto.PrivateKey) *pem.Block {
-	t.Helper()
 	der, err := x509.MarshalPKCS8PrivateKey(key)
 	core.AssertMustNoError(t, err, "marshal PKCS8")
 	return keyBlock(der)
@@ -77,7 +73,6 @@ func pkcs8Block(t *testing.T, key crypto.PrivateKey) *pem.Block {
 
 // sec1Block wraps an ECDSA key as a SEC1 "EC PRIVATE KEY" block.
 func sec1Block(t *testing.T, key *ecdsa.PrivateKey) *pem.Block {
-	t.Helper()
 	der, err := x509.MarshalECPrivateKey(key)
 	core.AssertMustNoError(t, err, "marshal SEC1")
 	return &pem.Block{Type: "EC PRIVATE KEY", Bytes: der}
@@ -105,8 +100,6 @@ func newBlockToPrivateKeyTestCase(name string, block *pem.Block,
 func (tc blockToPrivateKeyTestCase) Name() string { return tc.name }
 
 func (tc blockToPrivateKeyTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, err := x509utils.BlockToPrivateKey(tc.block)
 	if tc.wantErr != nil {
 		core.AssertErrorIs(t, err, tc.wantErr, "error")
@@ -196,8 +189,6 @@ func newBlockToCertificateTestCase(name string, block *pem.Block,
 func (tc blockToCertificateTestCase) Name() string { return tc.name }
 
 func (tc blockToCertificateTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, err := x509utils.BlockToCertificate(tc.block)
 	if tc.wantErr != nil {
 		core.AssertErrorIs(t, err, tc.wantErr, "error")
@@ -258,8 +249,6 @@ func newBlockToRSAPrivateKeyTestCase(name string, block *pem.Block,
 func (tc blockToRSAPrivateKeyTestCase) Name() string { return tc.name }
 
 func (tc blockToRSAPrivateKeyTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	got, err := x509utils.BlockToRSAPrivateKey(tc.block)
 	if tc.wantErr != nil {
 		core.AssertErrorIs(t, err, tc.wantErr, "error")

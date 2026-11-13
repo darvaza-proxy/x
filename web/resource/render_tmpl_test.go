@@ -36,8 +36,6 @@ func (tc renderTemplateTestCase) Name() string {
 }
 
 func (tc renderTemplateTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	rw := httptest.NewRecorder()
 	req := httptest.NewRequest(tc.method, "/", http.NoBody)
 

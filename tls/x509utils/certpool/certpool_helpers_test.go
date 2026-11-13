@@ -15,7 +15,6 @@ import (
 // mkIPLeaf builds a self-signed leaf whose only SAN is an IP address, so it is
 // reachable through the IP name key rather than a DNS name.
 func mkIPLeaf(t *testing.T, ip string) testCert {
-	t.Helper()
 	parsed := net.ParseIP(ip)
 	core.AssertMustNotNil(t, parsed, "parse ip")
 
@@ -27,7 +26,6 @@ func mkIPLeaf(t *testing.T, ip string) testCert {
 // mkPopulatedPool builds a pool holding a root CA and two leaves it signed,
 // returning the pool and the certificates it contains in insertion order.
 func mkPopulatedPool(t *testing.T) (*certpool.CertPool, []*x509.Certificate) {
-	t.Helper()
 	root := mkTestCA(t, "Pool Root", nil)
 	one := mkTestLeaf(t, "one.example.com", &root)
 	two := mkTestLeaf(t, "two.example.com", &root)
@@ -42,7 +40,6 @@ func mkPopulatedPool(t *testing.T) (*certpool.CertPool, []*x509.Certificate) {
 
 // certPEM encodes certificates as concatenated PEM CERTIFICATE blocks.
 func certPEM(t *testing.T, certs ...*x509.Certificate) []byte {
-	t.Helper()
 	var buf bytes.Buffer
 	for _, c := range certs {
 		err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: c.Raw})

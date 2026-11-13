@@ -14,8 +14,36 @@
 ## Overview
 
 The `net` package provides advanced networking utilities that extend Go's
-standard net package. It includes sophisticated port binding mechanisms,
-automatic reconnection clients, and platform-specific socket control.
+standard net package. It includes host:port helpers, sophisticated port
+binding mechanisms, automatic reconnection clients, and platform-specific
+socket control.
+
+## Root Package
+
+Helpers for host:port addresses, an interface for dialling, and aliases of
+standard types.
+
+```go
+host, port, err := net.SplitHostPort("example.com:443")
+
+remote, err := net.CleanDialAddress("Example.com:443")
+
+addr, err := net.JoinHostPort("example.com", 443)
+
+addrs, err := net.JoinAllHostPorts([]string{"example.com", "::1"},
+    []uint16{80, 443})
+```
+
+* `SplitHostPort` splits an address into its host and its port, as a
+  `uint16`, checking both.
+* `CleanDialAddress` checks an address to dial, refusing one with no port
+  or port 0, and returns it normalised.
+* `JoinHostPort` joins a host and a port, checking the host.
+* `JoinAllHostPorts` joins every host with every port.
+* `Dialer` is an interface for `DialContext`, which `*net.Dialer`
+  satisfies.
+* `Addr`, `AddrError`, `Conn`, `IP`, `Listener`, `TCPAddr`, `TCPConn` and
+  `TCPListener` are aliases of the standard types.
 
 ## Packages
 
@@ -130,7 +158,6 @@ client := reconnect.NewClient(cfg,
 * [`darvaza.org/x/fs`][fs-link]: File system utilities.
 * [`darvaza.org/x/sync`][sync-link]: Synchronisation primitives.
 * [`github.com/amery/defaults`][defaults-link]: Struct default values.
-* [`golang.org/x/net`][xnet-link]: IDNA host name conversion.
 * [`golang.org/x/sys`][xsys-link]: Platform socket control.
 * Standard library (net, syscall, context).
 
@@ -140,7 +167,6 @@ client := reconnect.NewClient(cfg,
 [fs-link]: https://pkg.go.dev/darvaza.org/x/fs
 [sync-link]: https://pkg.go.dev/darvaza.org/x/sync
 [defaults-link]: https://pkg.go.dev/github.com/amery/defaults
-[xnet-link]: https://pkg.go.dev/golang.org/x/net
 [xsys-link]: https://pkg.go.dev/golang.org/x/sys
 
 ## Platform Support

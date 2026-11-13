@@ -19,4 +19,6 @@ type (
 	Listener = net.Listener
 	// TCPListener is an alias of the standard net.TCPListener type
 	TCPListener = net.TCPListener
+	// AddrError is an alias of the standard net.AddrError type
+	AddrError = net.AddrError
 )

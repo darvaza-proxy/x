@@ -1,9 +1,12 @@
 package x509utils_test
 
+// cspell:words fsqu
+
 import (
 	"crypto/x509"
 	"net"
 	"net/url"
+	"strings"
 	"testing"
 
 	"darvaza.org/core"
@@ -32,7 +35,6 @@ type nameAsIPTestCase struct {
 func (tc nameAsIPTestCase) Name() string { return tc.name }
 
 func (tc nameAsIPTestCase) Test(t *testing.T) {
-	t.Helper()
 	got, ok := x509utils.NameAsIP(tc.input)
 	core.AssertEqual(t, tc.expected, got, "addr")
 	core.AssertEqual(t, tc.expected != "", ok, "ok")
@@ -50,12 +52,12 @@ func nameAsIPTestCases() []nameAsIPTestCase {
 	return core.S(
 		newNameAsIPTestCase("hostname", "a.b.c", ""),
 		newNameAsIPTestCase("bare zero", "0", "[0.0.0.0]"),
-		newNameAsIPTestCase("ipv4", "1.2.3.4", "[1.2.3.4]"),
+		newNameAsIPTestCase("IPv4", "1.2.3.4", "[1.2.3.4]"),
 		newNameAsIPTestCase("overflow octet", "1.2.3.400", ""),
-		newNameAsIPTestCase("ipv6 unspecified", "::", "[::]"),
-		newNameAsIPTestCase("ipv4-mapped ipv6", "::ffff:1.2.3.4", "[1.2.3.4]"),
+		newNameAsIPTestCase("IPv6 unspecified", "::", "[::]"),
+		newNameAsIPTestCase("IPv4-mapped IPv6", "::ffff:1.2.3.4", "[1.2.3.4]"),
 		newNameAsIPTestCase("zoned link-local", "fe80::1%eth0", "[fe80::1]"),
-		newNameAsIPTestCase("fqdn", "foo.example.org", ""),
+		newNameAsIPTestCase("FQDN", "foo.example.org", ""),
 	)
 }
 
@@ -76,7 +78,6 @@ type nameAsSuffixTestCase struct {
 func (tc nameAsSuffixTestCase) Name() string { return tc.name }
 
 func (tc nameAsSuffixTestCase) Test(t *testing.T) {
-	t.Helper()
 	got, ok := x509utils.NameAsSuffix(tc.input)
 	core.AssertEqual(t, tc.expected, got, "suffix")
 	core.AssertEqual(t, len(tc.expected) > 1, ok, "ok")
@@ -125,7 +126,6 @@ type sanitizeNameTestCase struct {
 func (tc sanitizeNameTestCase) Name() string { return tc.name }
 
 func (tc sanitizeNameTestCase) Test(t *testing.T) {
-	t.Helper()
 	got, ok := x509utils.SanitizeName(tc.input)
 	core.AssertEqual(t, tc.expected, got, "name")
 	core.AssertEqual(t, tc.expected != "", ok, "ok")
@@ -141,6 +141,11 @@ func newSanitizeNameTestCase(name, input,
 }
 
 func sanitizeNameTestCases() []sanitizeNameTestCase {
+	label63 := strings.Repeat("a", 63)
+	label64 := label63 + "a"
+	name253 := strings.Join(core.S(label63, label63, label63, label63[2:]), ".")
+	name254 := name253 + "a"
+
 	return core.S(
 		// DNS names are case-insensitive (RFC 6125): an uppercase query
 		// folds to the lower-cased form Names stores under.
@@ -150,17 +155,35 @@ func sanitizeNameTestCases() []sanitizeNameTestCase {
 			"www.example.com"),
 		newSanitizeNameTestCase("mixed case with port", "Mixed.Case.ORG:443",
 			"mixed.case.org"),
-		newSanitizeNameTestCase("ipv4", "1.2.3.4", "1.2.3.4"),
-		newSanitizeNameTestCase("ipv6 with port", "[2001:DB8::1]:443",
+		// An international name comes back in the ASCII form certificates
+		// carry, whichever spelling it arrives in.
+		newSanitizeNameTestCase("punycode name", "xn--fsqu00a.example",
+			"xn--fsqu00a.example"),
+		newSanitizeNameTestCase("punycode uppercase", "XN--FSQU00A.example",
+			"xn--fsqu00a.example"),
+		newSanitizeNameTestCase("international name", "例子.example",
+			"xn--fsqu00a.example"),
+		// A label holds up to 63 octets, and a name up to 253.
+		newSanitizeNameTestCase("63-octet label", label63, label63),
+		newSanitizeNameTestCase("253-octet name", name253, name253),
+		newSanitizeNameTestCase("64-octet label", label64, ""),
+		newSanitizeNameTestCase("254-octet name", name254, ""),
+		// A name whose last label is a number is refused.
+		newSanitizeNameTestCase("numeric name", "1234", ""),
+		newSanitizeNameTestCase("IPv4", "1.2.3.4", "1.2.3.4"),
+		// A host UTS 46 maps into an IP address comes back as that address.
+		newSanitizeNameTestCase("full-width IPv4 mapped", "１２７．０．０．１",
+			"127.0.0.1"),
+		newSanitizeNameTestCase("IPv6 with port", "[2001:DB8::1]:443",
 			"2001:db8::1"),
-		// An IP scope zone is stripped on the IP branch by WithZone(""),
-		// never by removeZone.
-		newSanitizeNameTestCase("ipv6 zone", "[fe80::1%eth0]:443",
+		// An IP scope zone is stripped on the IP branch by WithZone("").
+		newSanitizeNameTestCase("IPv6 zone", "[fe80::1%eth0]:443",
 			"fe80::1"),
-		// A '%' can only survive nameRE inside a non-final label, and idna's
-		// STD3 rules then reject it, so SplitHostPort fails before
-		// doSanitizeName: the removeZone name-branch is never reached.
+		// The split refuses a name holding '%', so a name carries no
+		// zone to strip.
 		newSanitizeNameTestCase("percent in host", "foo%bar.example", ""),
+		// A port alone names no host.
+		newSanitizeNameTestCase("port only", ":443", ""),
 		newSanitizeNameTestCase("empty", "", ""),
 	)
 }
@@ -183,7 +206,6 @@ type namesTestCase struct {
 func (tc namesTestCase) Name() string { return tc.name }
 
 func (tc namesTestCase) Test(t *testing.T) {
-	t.Helper()
 	names, patterns := x509utils.Names(tc.cert)
 	core.AssertSliceEqual(t, tc.names, names, "names")
 	core.AssertSliceEqual(t, tc.patterns, patterns, "patterns")
@@ -211,7 +233,7 @@ func namesTestCases(t *testing.T) []namesTestCase {
 	none := core.S[string]()
 
 	return core.S(
-		newNamesTestCase("dns literal", dns("a.example.com"),
+		newNamesTestCase("DNS literal", dns("a.example.com"),
 			core.S("a.example.com"), none),
 		// RFC 6125: DNS names are case-insensitive; Names lower-cases them.
 		newNamesTestCase("uppercase folds", dns("Foo.Example.COM"),
@@ -222,10 +244,10 @@ func namesTestCases(t *testing.T) []namesTestCase {
 		newNamesTestCase("literal and wildcard",
 			dns("a.example.com", "*.example.com"),
 			core.S("a.example.com"), core.S(".example.com")),
-		newNamesTestCase("ipv4 bracketed",
+		newNamesTestCase("IPv4 bracketed",
 			ip("host", net.ParseIP("1.2.3.4")),
 			core.S("[1.2.3.4]"), none),
-		newNamesTestCase("ipv6 bracketed",
+		newNamesTestCase("IPv6 bracketed",
 			ip("host", net.ParseIP("2001:db8::1")),
 			core.S("[2001:db8::1]"), none),
 	)
@@ -295,7 +317,6 @@ type namesIPTestCase struct {
 func (tc namesIPTestCase) Name() string { return tc.name }
 
 func (tc namesIPTestCase) Test(t *testing.T) {
-	t.Helper()
 	cert := &x509.Certificate{IPAddresses: tc.ips}
 	names, _ := x509utils.Names(cert)
 	core.AssertSliceEqual(t, tc.names, names, "names")
@@ -316,14 +337,14 @@ func namesIPTestCases() []namesIPTestCase {
 		newNamesIPTestCase("nil element", core.S[net.IP](nil), none),
 		newNamesIPTestCase("empty", []net.IP{{}}, none),
 		newNamesIPTestCase("three bytes", []net.IP{{1, 2, 3}}, none),
-		newNamesIPTestCase("ipv4", []net.IP{{1, 2, 3, 4}},
+		newNamesIPTestCase("IPv4", []net.IP{{1, 2, 3, 4}},
 			core.S("[1.2.3.4]")),
 		newNamesIPTestCase("five bytes", []net.IP{{1, 2, 3, 4, 5}}, none),
 		newNamesIPTestCase("fifteen bytes", []net.IP{make([]byte, 15)}, none),
-		newNamesIPTestCase("ipv4-mapped ipv6",
+		newNamesIPTestCase("IPv4-mapped IPv6",
 			[]net.IP{{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 1, 2, 3, 4}},
 			core.S("[1.2.3.4]")),
-		newNamesIPTestCase("ipv6", []net.IP{net.ParseIP("2001:db8::1")},
+		newNamesIPTestCase("IPv6", []net.IP{net.ParseIP("2001:db8::1")},
 			core.S("[2001:db8::1]")),
 		newNamesIPTestCase("seventeen bytes", []net.IP{make([]byte, 17)}, none),
 	)

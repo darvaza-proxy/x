@@ -23,7 +23,6 @@ type envFnTestCase struct {
 func (tc envFnTestCase) Name() string { return tc.name }
 
 func (tc envFnTestCase) Test(t *testing.T) {
-	t.Helper()
 	_, err := certpool.NewFromEnvFn(tc.getEnv, tc.varName)
 	core.AssertErrorIs(t, err, tc.wantErr, "error")
 }

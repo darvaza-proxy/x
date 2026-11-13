@@ -22,8 +22,7 @@ var (
 // web.NewStatusFound: args formatting, CleanURL normalisation
 // and Location header wiring. wantErr selects between the
 // success path (302, Location set) and the error path where
-// CleanURL rejects via url.Parse, core.SplitHostPort or the
-// DNS label-length check — caller asked for 302, factory
+// CleanURL rejects the dest — caller asked for 302, factory
 // wraps the failure as a 500.
 type redirectTestCase struct {
 	name    string
@@ -38,8 +37,6 @@ func (tc redirectTestCase) Name() string {
 }
 
 func (tc redirectTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := web.NewStatusFound(tc.dest, tc.args...)
 	core.AssertMustNotNil(t, err, "HTTPError")
 
@@ -112,15 +109,18 @@ func redirectTestCases() []redirectTestCase {
 		// the failure as a 500 rather than emit a broken
 		// Location.
 		newRedirectErrorTestCase("invalid percent escape", "%ZZ"),
-		// SplitHostPort rejects the host shape — same 500 path
-		// as the url.Parse branch, different trigger.
+		// SplitHostPortASCII rejects the host shape — same 500
+		// path as the url.Parse branch, different trigger.
 		newRedirectErrorTestCase("host starts with dot", "//.com/x"),
 		newRedirectErrorTestCase("port out of range",
 			"https://example.com:99999/x"),
-		// DNS label-length check rejects labels over 63 bytes
-		// — the third CleanURL error source.
-		newRedirectErrorTestCase("dns label too long",
+		// CleanURL refuses port 0, which the split accepts.
+		newRedirectErrorTestCase("port 0", "https://example.com:0/x"),
+		// SplitHostPortASCII rejects labels over 63 bytes.
+		newRedirectErrorTestCase("DNS label too long",
 			"https://"+strings.Repeat("a", 64)+".example.com/x"),
+		// CleanURL refuses an authority with no host.
+		newRedirectErrorTestCase("missing host", "https://:443/x"),
 	}
 }
 
@@ -145,8 +145,6 @@ func (tc redirectStatusTestCase) Name() string {
 }
 
 func (tc redirectStatusTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := tc.factory(tc.dest)
 	core.AssertMustNotNil(t, err, "HTTPError")
 	core.AssertEqual(t, tc.code, err.HTTPStatus(), "status code")

@@ -26,8 +26,6 @@ type errInvalidCertTestCase struct {
 func (tc errInvalidCertTestCase) Name() string { return tc.name }
 
 func (tc errInvalidCertTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	err := x509utils.NewErrInvalidCert(nil, tc.inErr, tc.reason)
 
 	core.AssertEqual(t, tc.wantMsg, err.Error(), "message")

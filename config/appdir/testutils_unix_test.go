@@ -30,8 +30,6 @@ func getXDGEnvKey(kind Kind) (string, bool) {
 // category to value, failing the test if the category is not
 // recognised.
 func setXDGEnv(t *testing.T, kind Kind, value string) {
-	t.Helper()
-
 	key, ok := getXDGEnvKey(kind)
 	core.AssertMustTrue(t, ok, "%s env key", kind)
 	t.Setenv(key, value)

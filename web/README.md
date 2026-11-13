@@ -59,16 +59,17 @@ Three helpers normalise URL paths and references:
   `/..` blocks had to be discarded.
 * `CleanURL(s)` normalises a URL reference for an outbound
   `Location` header. Parses with `url.Parse`, normalises the
-  host through `core.SplitHostPort` (lowercased, IDN labels
+  host through `core.SplitHostPortASCII` (lowercased, IDN labels
   converted to ASCII punycode, IPv6 canonicalised) and strips
   the default port when it matches the scheme (`http`/`ws` →
   80, `https`/`wss` → 443); the scheme passes through verbatim
   and the path is reduced through `Clean`. Leading rooted
   `/..` is silently stripped — `CleanURL` mirrors browser URL
   clamping rather than signalling escape attempts. Returns a
-  non-nil error when `url.Parse`, `core.SplitHostPort`, or a
-  DNS label-length check rejects the input, signalling a
-  malformed composition the caller should surface as 500.
+  non-nil error when `url.Parse` or `core.SplitHostPortASCII`
+  rejects the input, or the authority has no host or has port 0,
+  signalling a malformed composition the caller should surface
+  as 500.
   `CleanURL` is a composer, not an origin validator — callers
   passing untrusted input must allowlist scheme or origin
   themselves.
@@ -136,13 +137,11 @@ Cache-Control duration conventions:
 
 * [`darvaza.org/core`][core-link]: Core utilities.
 * [`darvaza.org/x/fs`][fs-link]: File system utilities.
-* [`golang.org/x/net`][xnet-link]: IDNA host name conversion.
 * [`lukechampine.com/blake3`][blake3-link]: Asset checksums.
 * Standard library (net/http, encoding/json, mime).
 
 [core-link]: https://pkg.go.dev/darvaza.org/core
 [fs-link]: https://pkg.go.dev/darvaza.org/x/fs
-[xnet-link]: https://pkg.go.dev/golang.org/x/net
 [blake3-link]: https://pkg.go.dev/lukechampine.com/blake3
 
 ## Development

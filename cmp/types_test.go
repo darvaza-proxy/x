@@ -40,7 +40,6 @@ func (tc reverseTestCase[T]) Name() string {
 }
 
 func (tc reverseTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	reversedCmp := cmp.Reverse(tc.cmp)
 	result := reversedCmp(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, "Reverse")
@@ -48,7 +47,6 @@ func (tc reverseTestCase[T]) Test(t *testing.T) {
 
 // runTestReverseWithIntegers tests Reverse with integer comparison
 func runTestReverseWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -81,7 +79,6 @@ func TestReverse(t *testing.T) {
 
 // runTestReverseCustomStruct tests Reverse with a custom struct type
 func runTestReverseCustomStruct(t *testing.T) {
-	t.Helper()
 	type score struct {
 		value float64
 	}
@@ -127,7 +124,6 @@ func (tc reverseChainedTestCase) Name() string {
 }
 
 func (tc reverseChainedTestCase) Test(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -187,7 +183,6 @@ func (tc asLessTestCase[T]) Name() string {
 }
 
 func (tc asLessTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	less := cmp.AsLess(tc.cmp)
 	result := less(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, "AsLess")
@@ -195,7 +190,6 @@ func (tc asLessTestCase[T]) Test(t *testing.T) {
 
 // runTestAsLessWithStrings tests AsLess with string comparison
 func runTestAsLessWithStrings(t *testing.T) {
-	t.Helper()
 	strCmp := func(a, b string) int {
 		switch {
 		case a < b:
@@ -219,7 +213,6 @@ func runTestAsLessWithStrings(t *testing.T) {
 
 // runTestAsLessWithIntegers tests AsLess with integer comparison
 func runTestAsLessWithIntegers(t *testing.T) {
-	t.Helper()
 	fn := func(a, b int) int {
 		switch {
 		case a < b:
@@ -255,7 +248,6 @@ func TestAsLess(t *testing.T) {
 
 // runTestAsLessCustomStruct tests AsLess with a custom struct type
 func runTestAsLessCustomStruct(t *testing.T) {
-	t.Helper()
 	type version struct {
 		major, minor, patch int
 	}
@@ -318,7 +310,6 @@ func (tc asEqualTestCase[T]) Name() string {
 }
 
 func (tc asEqualTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	equal := cmp.AsEqual(tc.cmp)
 	result := equal(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, "AsEqual")
@@ -326,7 +317,6 @@ func (tc asEqualTestCase[T]) Test(t *testing.T) {
 
 // runTestAsEqualWithFloats tests AsEqual with float comparison
 func runTestAsEqualWithFloats(t *testing.T) {
-	t.Helper()
 	floatCmp := func(a, b float64) int {
 		switch {
 		case a < b:
@@ -386,7 +376,6 @@ func (tc asCmpTestCase[T]) Name() string {
 }
 
 func (tc asCmpTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	fn := cmp.AsCmp(tc.less)
 	result := fn(tc.a, tc.b)
 	core.AssertEqual(t, tc.expected, result, "AsCmp")
@@ -394,7 +383,6 @@ func (tc asCmpTestCase[T]) Test(t *testing.T) {
 
 // runTestAsCmpWithIntegers tests AsCmp with integer less function
 func runTestAsCmpWithIntegers(t *testing.T) {
-	t.Helper()
 	// Create a less-than condition function
 	less := func(a, b int) bool {
 		return a < b
@@ -414,7 +402,6 @@ func runTestAsCmpWithIntegers(t *testing.T) {
 
 // runTestAsCmpWithStrings tests AsCmp with string less function
 func runTestAsCmpWithStrings(t *testing.T) {
-	t.Helper()
 	// Create a less-than condition function for strings
 	less := func(a, b string) bool {
 		return a < b
@@ -440,7 +427,6 @@ func TestAsCmp(t *testing.T) {
 
 // runTestAsCmpCustomStruct tests AsCmp with a custom struct type
 func runTestAsCmpCustomStruct(t *testing.T) {
-	t.Helper()
 	type version struct {
 		major, minor, patch int
 	}
@@ -501,7 +487,6 @@ func (tc asCmpAsLessCycleTestCase[T]) Name() string {
 }
 
 func (tc asCmpAsLessCycleTestCase[T]) Test(t *testing.T) {
-	t.Helper()
 	// Original less function
 	less := func(a, b T) bool {
 		return a < b

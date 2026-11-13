@@ -113,7 +113,6 @@ func (tc containsTestCase) Name() string {
 }
 
 func (tc containsTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.set.Contains(tc.key), "contains %d", tc.key)
 }
 
@@ -241,7 +240,6 @@ func (tc configValidationTestCase) Name() string {
 }
 
 func (tc configValidationTestCase) Test(t *testing.T) {
-	t.Helper()
 	err := tc.cfg.Validate()
 	if tc.wantErr {
 		core.AssertError(t, err, "validate")

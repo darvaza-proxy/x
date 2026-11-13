@@ -32,7 +32,6 @@ func newSentinelTestCase(name string, err, target error) sentinelTestCase {
 func (tc sentinelTestCase) Name() string { return tc.name }
 
 func (tc sentinelTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertErrorIs(t, tc.err, tc.target, "matches")
 	core.AssertContains(t, tc.err.Error(), "num: ", "text")
 }
@@ -94,7 +93,6 @@ func newSentinelDistinctTestCase(name string,
 func (tc sentinelDistinctTestCase) Name() string { return tc.name }
 
 func (tc sentinelDistinctTestCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertNotErrorIs(t, tc.err, tc.other, "distinct")
 }
 
@@ -162,7 +160,6 @@ func newParseErrorTextCase(name string, err *num.ParseError,
 func (tc parseErrorTextCase) Name() string { return tc.name }
 
 func (tc parseErrorTextCase) Test(t *testing.T) {
-	t.Helper()
 	core.AssertEqual(t, tc.want, tc.err.Error(), "text")
 	core.AssertSame(t, tc.wantCause, tc.err.Unwrap(), "unwrap")
 }

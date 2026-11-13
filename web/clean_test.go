@@ -25,8 +25,6 @@ func (tc cleanTestCase) Name() string {
 }
 
 func (tc cleanTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	s, ok := web.Clean(tc.path)
 	core.AssertEqual(t, tc.out, s, "cleaned")
 	core.AssertEqual(t, tc.ok, ok, "ok")
@@ -128,8 +126,6 @@ func (tc cleanURLTestCase) Name() string {
 }
 
 func (tc cleanURLTestCase) Test(t *testing.T) {
-	t.Helper()
-
 	s, err := web.CleanURL(tc.in)
 	core.AssertEqual(t, tc.out, s, "cleaned")
 	if tc.wantErr {
@@ -222,8 +218,23 @@ func cleanURLTestCases() []cleanURLTestCase {
 			"https://[::1]:8080/x", "https://[::1]:8080/x"),
 		newCleanURLTestCase("IPv6 canonicalised",
 			"https://[2001:0DB8::0001]/x", "https://[2001:db8::1]/x"),
+		// A zone is kept as given, its non-ASCII bytes escaped on
+		// output.
+		newCleanURLTestCase("IPv6 non-ASCII zone preserved",
+			"https://[fe80::1%25ü]/x", "https://[fe80::1%25%C3%BC]/x"),
+		// An unspecified address is kept as given.
+		newCleanURLTestCase("unspecified IPv4 preserved",
+			"https://0.0.0.0/x", "https://0.0.0.0/x"),
+		newCleanURLTestCase("unspecified IPv6 preserved",
+			"https://[::]/x", "https://[::]/x"),
 		newCleanURLTestCase("protocol-relative host lowercased",
 			"//Example.COM/x", "//example.com/x"),
+		// Labels with '_' or '--' pass through as given.
+		newCleanURLTestCase("underscore label",
+			"https://_dmarc.example.com/x",
+			"https://_dmarc.example.com/x"),
+		newCleanURLTestCase("double hyphen label",
+			"https://ab--c.example/x", "https://ab--c.example/x"),
 		// IDN normalisation: punycode / raw Unicode / mixed-case
 		// punycode all converge on lowercase punycode on output
 		// — the canonical wire form for IDN in URL hosts.
@@ -236,6 +247,10 @@ func cleanURLTestCases() []cleanURLTestCase {
 		newCleanURLTestCase("IDN raw Unicode converted to punycode",
 			"https://例子.example/x",
 			"https://xn--fsqu00a.example/x"),
+		// A host UTS 46 maps into an IP address comes back as that
+		// address.
+		newCleanURLTestCase("full-width IPv4 mapped",
+			"https://１２７．０．０．１/x", "https://127.0.0.1/x"),
 		// Userinfo round-trip: username:password should pass
 		// through untouched, host component still lowercased.
 		newCleanURLTestCase("userinfo preserved host lowercased",
@@ -247,28 +262,51 @@ func cleanURLTestCases() []cleanURLTestCase {
 		// is preserved verbatim.
 		newCleanURLTestCase("unknown scheme port preserved",
 			"ftp://example.com:21/x", "ftp://example.com:21/x"),
+		// A scheme's default port is kept under another scheme, or
+		// with no scheme.
+		newCleanURLTestCase("https default port under http preserved",
+			"http://example.com:443/x", "http://example.com:443/x"),
+		newCleanURLTestCase("http default port under https preserved",
+			"https://example.com:80/x", "https://example.com:80/x"),
+		newCleanURLTestCase("protocol-relative port preserved",
+			"//example.com:80/x", "//example.com:80/x"),
 		// Error path: url.Parse rejects the input — signals a
 		// server-side bug, caller routes to 500.
 		newCleanURLErrorTestCase("invalid percent escape", "%ZZ"),
 		// Error path: trailing-dot FQDN — DNS-valid but
-		// core.SplitHostPort rejects, surfaced as a malformed
+		// core.SplitHostPortASCII rejects, surfaced as a malformed
 		// composition (500).
 		newCleanURLErrorTestCase("trailing dot host rejected",
 			"https://example.com./x"),
-		// Error path: url.Parse accepts but SplitHostPort rejects
-		// the host shape (leading dot). Same 500 signal.
+		// Error path: url.Parse accepts but SplitHostPortASCII
+		// rejects the host shape (leading dot). Same 500 signal.
 		newCleanURLErrorTestCase("host starts with dot", "//.com/x"),
+		// Error path: url.Parse accepts but SplitHostPortASCII
+		// rejects a name whose last label is a number.
+		newCleanURLErrorTestCase("numeric last label rejected",
+			"https://256.1.1.1/x"),
+		// Error path: an authority with no host before the port
+		// names nothing to redirect to.
+		newCleanURLErrorTestCase("missing host rejected",
+			"https://:443/x"),
 		// Error path: url.Parse accepts the port but it's out of
-		// the 1-65535 range; SplitHostPort rejects.
+		// the 0-65535 range; SplitHostPortASCII rejects.
 		newCleanURLErrorTestCase("port out of range",
 			"https://example.com:99999/x"),
-		// Error path: a Unicode label long enough that its
-		// punycode A-label exceeds the 63-byte DNS limit
-		// idna.Display.ToASCII enforces but
-		// idna.Display.ToUnicode (used by core.SplitHostPort)
-		// tolerates.
-		newCleanURLErrorTestCase("label too long after punycode",
+		// Error path: url.Parse accepts port 0, which reaches no
+		// service; CleanURL rejects.
+		newCleanURLErrorTestCase("port 0 rejected",
+			"https://example.com:0/x"),
+		newCleanURLErrorTestCase("padded port 0 rejected",
+			"https://example.com:00/x"),
+		// Error path: a label over the 63-byte DNS limit, in
+		// Unicode as in punycode.
+		newCleanURLErrorTestCase("Unicode label too long",
 			"https://"+strings.Repeat("日", 100)+".example/x"),
+		// Error path: a label of 63 bytes in UTF-8 whose punycode
+		// A-label exceeds the limit.
+		newCleanURLErrorTestCase("label too long after punycode",
+			"https://日本語ドメイン名例子測試網站電腦資訊伺服器.example/x"),
 	}
 }
 

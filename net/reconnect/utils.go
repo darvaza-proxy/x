@@ -2,7 +2,6 @@ package reconnect
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	stdnet "net"
 	"strings"
@@ -59,11 +58,12 @@ func TimeoutToAbsoluteTime(base time.Time, d time.Duration) time.Time {
 
 // ParseRemote determines the network type and address from a remote string.
 // It supports:
-// - "unix:/path/to/socket" - explicit Unix socket.
-// - "/path/to/socket" - Unix socket (absolute path).
-// - "@abstract-name" - abstract Unix socket.
-// - "path/to/file.sock" - Unix socket (ends with .sock).
-// - "host:port" - TCP socket.
+//   - "unix:/path/to/socket" - explicit Unix socket.
+//   - "/path/to/socket" - Unix socket (absolute path).
+//   - "@abstract-name" - abstract Unix socket.
+//   - "path/to/file.sock" - Unix socket (ends with .sock).
+//   - "host:port" - TCP socket, its address normalised as
+//     [net.CleanDialAddress] returns it.
 func ParseRemote(remote string) (network, address string, err error) {
 	if remote == "" {
 		return "", "", errors.New("remote address missing")
@@ -148,24 +148,20 @@ func validateUNIXName(name string) error {
 }
 
 func parseRemoteTCP(remote string) (network, address string, err error) {
-	// TCP - validate host:port using darvaza.org/x/net
-	host, port, err := net.SplitHostPort(remote)
-	switch {
-	case err != nil:
+	address, err = net.CleanDialAddress(remote)
+	if err != nil {
+		// refused
 		return "", "", err
-	case host == "", host == "::", host == "0.0.0.0", host == "0":
-		return "", "", fmt.Errorf("%q: host missing", remote)
-	case port == 0:
-		return "", "", fmt.Errorf("%q: port missing", remote)
-	default:
-		return NetworkTCP, remote, nil
 	}
+	// the address checked, normalised
+	return NetworkTCP, address, nil
 }
 
 // ValidateRemote validates a remote address for use with reconnect clients.
 // It returns nil if the address is valid for either TCP or Unix socket connection.
 // For TCP addresses, it validates host:port format.
-// For Unix socket addresses, it accepts the address as-is.
+// For Unix socket addresses, it checks that the name is not empty, is no
+// longer than [MaxUNIXSocketPathLength] and holds no NUL byte.
 func ValidateRemote(remote string) error {
 	_, _, err := ParseRemote(remote)
 	return err
