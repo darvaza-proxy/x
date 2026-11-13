@@ -262,6 +262,14 @@ func cleanURLTestCases() []cleanURLTestCase {
 		// is preserved verbatim.
 		newCleanURLTestCase("unknown scheme port preserved",
 			"ftp://example.com:21/x", "ftp://example.com:21/x"),
+		// A scheme's default port is kept under another scheme, or
+		// with no scheme.
+		newCleanURLTestCase("https default port under http preserved",
+			"http://example.com:443/x", "http://example.com:443/x"),
+		newCleanURLTestCase("http default port under https preserved",
+			"https://example.com:80/x", "https://example.com:80/x"),
+		newCleanURLTestCase("protocol-relative port preserved",
+			"//example.com:80/x", "//example.com:80/x"),
 		// Error path: url.Parse rejects the input — signals a
 		// server-side bug, caller routes to 500.
 		newCleanURLErrorTestCase("invalid percent escape", "%ZZ"),

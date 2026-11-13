@@ -170,6 +170,8 @@ func defaultPortFor(scheme string) string {
 		return "80"
 	case "https", "wss":
 		return "443"
+	default:
+		// no known default port, so doCleanHost keeps the port given
+		return ""
 	}
-	return ""
 }
