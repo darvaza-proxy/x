@@ -61,27 +61,36 @@ func (tc writeCertTestCase) Test(t *testing.T) {
 	core.AssertSame(t, tc.cert, ec.Cert, "cert")
 }
 
-func newWriteCertTestCase(name string, cert *x509.Certificate,
+func newWriteCertTestCase(name string,
+	cert *x509.Certificate) writeCertTestCase {
+	return writeCertTestCase{
+		cert:    cert,
+		name:    name,
+		wantMsg: "",
+	}
+}
+
+func newWriteCertTestCaseError(name string, cert *x509.Certificate,
 	wantMsg string) writeCertTestCase {
 	return writeCertTestCase{
 		cert:    cert,
 		name:    name,
-		wantMsg: wantMsg,
+		wantMsg: mustNotZero(wantMsg, "writeCertTestCase: every refused row must state its message"),
 	}
 }
 
 func writeCertTestCases() []writeCertTestCase {
 	return core.S(
 		// nil cert: nothing to thread through, just a reason.
-		newWriteCertTestCase("nil", nil,
+		newWriteCertTestCaseError("nil", nil,
 			"invalid certificate: not provided"),
 		// a cert with no DER cannot be encoded; the cert is carried.
-		newWriteCertTestCase("empty raw", &x509.Certificate{},
+		newWriteCertTestCaseError("empty raw", &x509.Certificate{},
 			"invalid certificate: missing Raw DER certificate"),
 		// pem.Encode wraps the Raw bytes verbatim; no parsing happens, so any
 		// non-empty Raw yields a PEM block.
 		newWriteCertTestCase("encodes raw",
-			&x509.Certificate{Raw: []byte("not real DER")}, ""),
+			&x509.Certificate{Raw: []byte("not real DER")}),
 	)
 }
 
@@ -149,12 +158,21 @@ func (tc writeKeyTestCase) Test(t *testing.T) {
 	core.AssertTrue(t, got.Equal(tc.key), "key round-trip")
 }
 
-func newWriteKeyTestCase(name string, key x509utils.PrivateKey,
-	wantErr bool) writeKeyTestCase {
+func newWriteKeyTestCase(name string,
+	key x509utils.PrivateKey) writeKeyTestCase {
+	return writeKeyTestCase{
+		key:     mustNotZero(key, "writeKeyTestCase: every accepted row must state the key it writes"),
+		name:    name,
+		wantErr: false,
+	}
+}
+
+func newWriteKeyTestCaseError(name string,
+	key x509utils.PrivateKey) writeKeyTestCase {
 	return writeKeyTestCase{
 		key:     key,
 		name:    name,
-		wantErr: wantErr,
+		wantErr: true,
 	}
 }
 
@@ -162,10 +180,10 @@ func writeKeyTestCases(t *testing.T) []writeKeyTestCase {
 	return core.S(
 		// a real key round-trips through PKCS8; WriteKey is type-agnostic,
 		// so one key type covers the encode-and-flush path.
-		newWriteKeyTestCase("ECDSA", mkKey(t), false),
+		newWriteKeyTestCase("ECDSA", mkKey(t)),
 		// a nil key and an unrecognised key type both fail PKCS8 marshalling.
-		newWriteKeyTestCase("nil key", nil, true),
-		newWriteKeyTestCase("unsupported key", unsupportedKey{}, true),
+		newWriteKeyTestCaseError("nil key", nil),
+		newWriteKeyTestCaseError("unsupported key", unsupportedKey{}),
 	)
 }
 

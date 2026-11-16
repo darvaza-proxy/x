@@ -47,3 +47,12 @@ func certPEM(t *testing.T, certs ...*x509.Certificate) []byte {
 	}
 	return buf.Bytes()
 }
+
+// mustNotZero returns value, and panics with message when it is the zero
+// value of its type.
+func mustNotZero[T any](value T, message string) T {
+	if core.IsZero(value) {
+		panic(message)
+	}
+	return value
+}

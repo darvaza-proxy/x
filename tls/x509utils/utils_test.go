@@ -56,7 +56,16 @@ func (tc publicKeyFromPrivateKeyTestCase) Test(t *testing.T) {
 
 func newPublicKeyFromPrivateKeyTestCase(name string, key crypto.PrivateKey,
 	want crypto.PublicKey) publicKeyFromPrivateKeyTestCase {
-	return publicKeyFromPrivateKeyTestCase{key: key, want: want, name: name}
+	return publicKeyFromPrivateKeyTestCase{
+		key:  key,
+		want: mustNotZero(want, "publicKeyFromPrivateKeyTestCase: every accepted row must state the key it gives"),
+		name: name,
+	}
+}
+
+func newPublicKeyFromPrivateKeyTestCaseRefused(name string,
+	key crypto.PrivateKey) publicKeyFromPrivateKeyTestCase {
+	return publicKeyFromPrivateKeyTestCase{key: key, want: nil, name: name}
 }
 
 func publicKeyFromPrivateKeyTestCases(
@@ -66,13 +75,13 @@ func publicKeyFromPrivateKeyTestCases(
 
 	return core.S(
 		newPublicKeyFromPrivateKeyTestCase("ECDSA key", key, key.Public()),
-		newPublicKeyFromPrivateKeyTestCase("nil", nil, nil),
+		newPublicKeyFromPrivateKeyTestCaseRefused("nil", nil),
 		// a value that is not an x509utils.PrivateKey fails the first assertion.
-		newPublicKeyFromPrivateKeyTestCase("non-key value", "not a key", nil),
+		newPublicKeyFromPrivateKeyTestCaseRefused("non-key value", "not a key"),
 		// a well-typed key whose Public is not an x509utils.PublicKey fails the
 		// second assertion.
-		newPublicKeyFromPrivateKeyTestCase("public not a key", fakeSigner{},
-			nil),
+		newPublicKeyFromPrivateKeyTestCaseRefused("public not a key",
+			fakeSigner{}),
 	)
 }
 
@@ -103,7 +112,16 @@ func (tc publicKeyFromCertificateTestCase) Test(t *testing.T) {
 
 func newPublicKeyFromCertificateTestCase(name string, cert *x509.Certificate,
 	want crypto.PublicKey) publicKeyFromCertificateTestCase {
-	return publicKeyFromCertificateTestCase{cert: cert, want: want, name: name}
+	return publicKeyFromCertificateTestCase{
+		cert: cert,
+		want: mustNotZero(want, "publicKeyFromCertificateTestCase: every accepted row must state the key it gives"),
+		name: name,
+	}
+}
+
+func newPublicKeyFromCertificateTestCaseRefused(name string,
+	cert *x509.Certificate) publicKeyFromCertificateTestCase {
+	return publicKeyFromCertificateTestCase{cert: cert, want: nil, name: name}
 }
 
 func publicKeyFromCertificateTestCases(
@@ -115,12 +133,12 @@ func publicKeyFromCertificateTestCases(
 	return core.S(
 		newPublicKeyFromCertificateTestCase("ECDSA cert", leaf.cert,
 			leaf.cert.PublicKey),
-		newPublicKeyFromCertificateTestCase("nil cert", nil, nil),
-		newPublicKeyFromCertificateTestCase("nil public key",
-			&x509.Certificate{}, nil),
+		newPublicKeyFromCertificateTestCaseRefused("nil cert", nil),
+		newPublicKeyFromCertificateTestCaseRefused("nil public key",
+			&x509.Certificate{}),
 		// a public key without Equal fails the assertion.
-		newPublicKeyFromCertificateTestCase("public not a key",
-			&x509.Certificate{PublicKey: notPublicKey{}}, nil),
+		newPublicKeyFromCertificateTestCaseRefused("public not a key",
+			&x509.Certificate{PublicKey: notPublicKey{}}),
 	)
 }
 

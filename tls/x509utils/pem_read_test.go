@@ -55,12 +55,22 @@ type readPEMTestCase struct {
 	wantBlocks int
 }
 
-func newReadPEMTestCase(name, input string, wantErr error,
+func newReadPEMTestCase(name, input string,
 	wantBlocks int) readPEMTestCase {
 	return readPEMTestCase{
 		name:       name,
 		input:      input,
-		wantErr:    wantErr,
+		wantErr:    nil,
+		wantBlocks: wantBlocks,
+	}
+}
+
+func newReadPEMTestCaseError(name, input string, wantErr error,
+	wantBlocks int) readPEMTestCase {
+	return readPEMTestCase{
+		name:       name,
+		input:      input,
+		wantErr:    mustNotZero(wantErr, "readPEMTestCase: every refused row must state its error"),
 		wantBlocks: wantBlocks,
 	}
 }
@@ -79,16 +89,16 @@ func readPEMTestCases() []readPEMTestCase {
 	block := string(testPEM())
 
 	return core.S(
-		newReadPEMTestCase("empty input", "", x509utils.ErrEmpty, 0),
-		newReadPEMTestCase("garbage only", "no PEM here\n",
+		newReadPEMTestCaseError("empty input", "", x509utils.ErrEmpty, 0),
+		newReadPEMTestCaseError("garbage only", "no PEM here\n",
 			core.ErrInvalid, 0),
-		newReadPEMTestCase("single block", block, nil, 1),
-		newReadPEMTestCase("trailing blank line", block+"\n", nil, 1),
+		newReadPEMTestCase("single block", block, 1),
+		newReadPEMTestCase("trailing blank line", block+"\n", 1),
 		newReadPEMTestCase("trailing garbage",
-			block+"trailing text\n", nil, 1),
-		newReadPEMTestCase("two blocks", block+block, nil, 2),
+			block+"trailing text\n", 1),
+		newReadPEMTestCase("two blocks", block+block, 2),
 		newReadPEMTestCase("text between blocks",
-			block+"subject=test\n"+block, nil, 2),
+			block+"subject=test\n"+block, 2),
 	)
 }
 
@@ -105,12 +115,22 @@ type readStringPEMTestCase struct {
 	wantBlocks int
 }
 
-func newReadStringPEMTestCase(name, input string, wantErr error,
+func newReadStringPEMTestCase(name, input string,
 	wantBlocks int) readStringPEMTestCase {
 	return readStringPEMTestCase{
 		name:       name,
 		input:      input,
-		wantErr:    wantErr,
+		wantErr:    nil,
+		wantBlocks: wantBlocks,
+	}
+}
+
+func newReadStringPEMTestCaseError(name, input string, wantErr error,
+	wantBlocks int) readStringPEMTestCase {
+	return readStringPEMTestCase{
+		name:       name,
+		input:      input,
+		wantErr:    mustNotZero(wantErr, "readStringPEMTestCase: every refused row must state its error"),
 		wantBlocks: wantBlocks,
 	}
 }
@@ -130,16 +150,16 @@ func readStringPEMTestCases(t *testing.T) []readStringPEMTestCase {
 	missing := filepath.Join(t.TempDir(), "missing.pem")
 
 	return core.S(
-		newReadStringPEMTestCase("raw block", block, nil, 1),
+		newReadStringPEMTestCase("raw block", block, 1),
 		newReadStringPEMTestCase("raw block trailing blank line",
-			block+"\n", nil, 1),
-		newReadStringPEMTestCase("missing path",
+			block+"\n", 1),
+		newReadStringPEMTestCaseError("missing path",
 			missing, fs.ErrNotExist, 0),
 		// exactly PATH_MAX: the boundary row — a path this long is
 		// impossible, so the guard must fire without a stat.
-		newReadStringPEMTestCase("overlong non-path",
+		newReadStringPEMTestCaseError("overlong non-path",
 			strings.Repeat("#", 4096), fs.ErrInvalid, 0),
-		newReadStringPEMTestCase("NUL byte non-path",
+		newReadStringPEMTestCaseError("NUL byte non-path",
 			"not\x00a-path", fs.ErrInvalid, 0),
 	)
 }
@@ -283,12 +303,23 @@ type readFilePEMTestCase struct {
 }
 
 func newReadFilePEMTestCase(name string, fSys fs.FS, file string,
+	wantBlocks int) readFilePEMTestCase {
+	return readFilePEMTestCase{
+		name:       name,
+		fSys:       fSys,
+		file:       file,
+		wantErr:    nil,
+		wantBlocks: wantBlocks,
+	}
+}
+
+func newReadFilePEMTestCaseError(name string, fSys fs.FS, file string,
 	wantErr error, wantBlocks int) readFilePEMTestCase {
 	return readFilePEMTestCase{
 		name:       name,
 		fSys:       fSys,
 		file:       file,
-		wantErr:    wantErr,
+		wantErr:    mustNotZero(wantErr, "readFilePEMTestCase: every refused row must state its error"),
 		wantBlocks: wantBlocks,
 	}
 }
@@ -304,11 +335,11 @@ func (tc readFilePEMTestCase) Test(t *testing.T) {
 func readFilePEMTestCases() []readFilePEMTestCase {
 	fSys := pemGoodFS()
 	return core.S(
-		newReadFilePEMTestCase("single block", fSys, "a.pem", nil, 1),
-		newReadFilePEMTestCase("two blocks", fSys, "sub/two.pem", nil, 2),
-		newReadFilePEMTestCase("non-PEM file", pemMixedFS(), "bad.txt",
+		newReadFilePEMTestCase("single block", fSys, "a.pem", 1),
+		newReadFilePEMTestCase("two blocks", fSys, "sub/two.pem", 2),
+		newReadFilePEMTestCaseError("non-PEM file", pemMixedFS(), "bad.txt",
 			core.ErrInvalid, 0),
-		newReadFilePEMTestCase("missing file", fSys, "missing.pem",
+		newReadFilePEMTestCaseError("missing file", fSys, "missing.pem",
 			fs.ErrNotExist, 0),
 	)
 }
@@ -338,12 +369,23 @@ type readDirPEMTestCase struct {
 }
 
 func newReadDirPEMTestCase(name string, fSys fs.FS, dir string,
+	wantBlocks int) readDirPEMTestCase {
+	return readDirPEMTestCase{
+		name:       name,
+		fSys:       fSys,
+		dir:        dir,
+		wantErr:    nil,
+		wantBlocks: wantBlocks,
+	}
+}
+
+func newReadDirPEMTestCaseError(name string, fSys fs.FS, dir string,
 	wantErr error, wantBlocks int) readDirPEMTestCase {
 	return readDirPEMTestCase{
 		name:       name,
 		fSys:       fSys,
 		dir:        dir,
-		wantErr:    wantErr,
+		wantErr:    mustNotZero(wantErr, "readDirPEMTestCase: every refused row must state its error"),
 		wantBlocks: wantBlocks,
 	}
 }
@@ -359,15 +401,15 @@ func (tc readDirPEMTestCase) Test(t *testing.T) {
 func readDirPEMTestCases() []readDirPEMTestCase {
 	return core.S(
 		// descends into sub/ to reach the two blocks there.
-		newReadDirPEMTestCase("recursive", pemGoodFS(), ".", nil, 3),
+		newReadDirPEMTestCase("recursive", pemGoodFS(), ".", 3),
 		// the non-PEM file fails, yet the valid blocks are still delivered.
-		newReadDirPEMTestCase("aggregates errors", pemMixedFS(), ".",
+		newReadDirPEMTestCaseError("aggregates errors", pemMixedFS(), ".",
 			core.ErrInvalid, 3),
 		// same, but the failing file lives in the sub-directory, so the error
 		// bubbles up through the recursive descent.
-		newReadDirPEMTestCase("aggregates subdir errors", pemBadSubdirFS(), ".",
+		newReadDirPEMTestCaseError("aggregates subdir errors", pemBadSubdirFS(), ".",
 			core.ErrInvalid, 3),
-		newReadDirPEMTestCase("missing dir", pemGoodFS(), "nope",
+		newReadDirPEMTestCaseError("missing dir", pemGoodFS(), "nope",
 			fs.ErrNotExist, 0),
 	)
 }

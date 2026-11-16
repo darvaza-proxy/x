@@ -45,13 +45,24 @@ func (tc getTestCase) Test(t *testing.T) {
 }
 
 func newGetTestCase(name string, pool *certpool.CertPool, query string,
-	want *x509.Certificate, wantErr error) getTestCase {
+	want *x509.Certificate) getTestCase {
 	return getTestCase{
 		pool:    pool,
-		want:    want,
+		want:    mustNotZero(want, "getTestCase: every accepted row must state the certificate it gives"),
 		name:    name,
 		query:   query,
-		wantErr: wantErr,
+		wantErr: nil,
+	}
+}
+
+func newGetTestCaseError(name string, pool *certpool.CertPool, query string,
+	wantErr error) getTestCase {
+	return getTestCase{
+		pool:    pool,
+		want:    nil,
+		name:    name,
+		query:   query,
+		wantErr: mustNotZero(wantErr, "getTestCase: every refused row must state its error"),
 	}
 }
 
@@ -66,13 +77,13 @@ func getTestCases(t *testing.T) []getTestCase {
 	core.AssertMustTrue(t, pool.AddCert(ipLeaf.cert), "add IP")
 
 	return core.S(
-		newGetTestCase("exact name", pool, "exact.example.com", exact.cert, nil),
+		newGetTestCase("exact name", pool, "exact.example.com", exact.cert),
 		newGetTestCase("wildcard suffix", pool, "host.wild.example.com",
-			wild.cert, nil),
-		newGetTestCase("IP address", pool, "203.0.113.7", ipLeaf.cert, nil),
-		newGetTestCase("absent name", pool, "absent.example.com", nil,
+			wild.cert),
+		newGetTestCase("IP address", pool, "203.0.113.7", ipLeaf.cert),
+		newGetTestCaseError("absent name", pool, "absent.example.com",
 			core.ErrNotExists),
-		newGetTestCase("bad name", pool, "", nil, core.ErrInvalid),
+		newGetTestCaseError("bad name", pool, "", core.ErrInvalid),
 	)
 }
 

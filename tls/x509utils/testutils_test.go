@@ -92,3 +92,12 @@ func mkKey(t *testing.T) *ecdsa.PrivateKey {
 	core.AssertMustNoError(t, err, "generate key")
 	return key
 }
+
+// mustNotZero returns value, and panics with message when it is the zero
+// value of its type.
+func mustNotZero[T any](value T, message string) T {
+	if core.IsZero(value) {
+		panic(message)
+	}
+	return value
+}

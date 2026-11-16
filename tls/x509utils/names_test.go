@@ -20,9 +20,7 @@ var (
 )
 
 // nameAsIPTestCase exercises NameAsIP: a parseable address is bracketed and
-// accepted, anything else is rejected. Acceptance and a non-empty result are
-// inseparable, so ok is asserted as the invariant expected != "" rather than
-// declared as a redundant column.
+// accepted, anything else is rejected.
 type nameAsIPTestCase struct {
 	input    string
 	expected string
@@ -31,30 +29,45 @@ type nameAsIPTestCase struct {
 
 func (tc nameAsIPTestCase) Name() string { return tc.name }
 
+// wantErr tells whether the row expects NameAsIP to refuse its input.
+// Acceptance and a non-empty result are inseparable, so a row with an
+// empty expected expects a refusal.
+func (tc nameAsIPTestCase) wantErr() bool {
+	return tc.expected == ""
+}
+
 func (tc nameAsIPTestCase) Test(t *testing.T) {
 	got, ok := x509utils.NameAsIP(tc.input)
 	core.AssertEqual(t, tc.expected, got, "addr")
-	core.AssertEqual(t, tc.expected != "", ok, "ok")
+	core.AssertEqual(t, !tc.wantErr(), ok, "ok")
 }
 
 func newNameAsIPTestCase(name, input, expected string) nameAsIPTestCase {
 	return nameAsIPTestCase{
 		input:    input,
-		expected: expected,
+		expected: mustNotZero(expected, "nameAsIPTestCase: every accepted row must state the address it gives"),
+		name:     name,
+	}
+}
+
+func newNameAsIPTestCaseRefused(name, input string) nameAsIPTestCase {
+	return nameAsIPTestCase{
+		input:    input,
+		expected: "",
 		name:     name,
 	}
 }
 
 func nameAsIPTestCases() []nameAsIPTestCase {
 	return core.S(
-		newNameAsIPTestCase("hostname", "a.b.c", ""),
+		newNameAsIPTestCaseRefused("hostname", "a.b.c"),
 		newNameAsIPTestCase("bare zero", "0", "[0.0.0.0]"),
 		newNameAsIPTestCase("IPv4", "1.2.3.4", "[1.2.3.4]"),
-		newNameAsIPTestCase("overflow octet", "1.2.3.400", ""),
+		newNameAsIPTestCaseRefused("overflow octet", "1.2.3.400"),
 		newNameAsIPTestCase("IPv6 unspecified", "::", "[::]"),
 		newNameAsIPTestCase("IPv4-mapped IPv6", "::ffff:1.2.3.4", "[1.2.3.4]"),
 		newNameAsIPTestCase("zoned link-local", "fe80::1%eth0", "[fe80::1]"),
-		newNameAsIPTestCase("FQDN", "foo.example.org", ""),
+		newNameAsIPTestCaseRefused("FQDN", "foo.example.org"),
 	)
 }
 
@@ -64,8 +77,7 @@ func TestNameAsIP(t *testing.T) {
 
 // nameAsSuffixTestCase exercises NameAsSuffix: the name is reduced to the
 // dotted suffix after its first label, accepted only when that suffix is
-// longer than a lone dot. ok is therefore the invariant len(expected) > 1, not
-// expected != "": "a." yields "." yet is rejected.
+// longer than a lone dot.
 type nameAsSuffixTestCase struct {
 	input    string
 	expected string
@@ -74,14 +86,39 @@ type nameAsSuffixTestCase struct {
 
 func (tc nameAsSuffixTestCase) Name() string { return tc.name }
 
+// wantErr tells whether the row expects NameAsSuffix to refuse its input.
+// A suffix is accepted only when longer than a lone dot, so a row whose
+// expected is empty or a lone dot expects a refusal: "a." yields "." yet
+// is refused.
+func (tc nameAsSuffixTestCase) wantErr() bool {
+	return len(tc.expected) <= 1
+}
+
 func (tc nameAsSuffixTestCase) Test(t *testing.T) {
 	got, ok := x509utils.NameAsSuffix(tc.input)
 	core.AssertEqual(t, tc.expected, got, "suffix")
-	core.AssertEqual(t, len(tc.expected) > 1, ok, "ok")
+	core.AssertEqual(t, !tc.wantErr(), ok, "ok")
 }
 
 func newNameAsSuffixTestCase(name, input,
 	expected string) nameAsSuffixTestCase {
+	if len(expected) <= 1 {
+		panic("nameAsSuffixTestCase: every accepted row must state a suffix longer than a lone dot")
+	}
+	return nameAsSuffixTestCase{
+		input:    input,
+		expected: expected,
+		name:     name,
+	}
+}
+
+// newNameAsSuffixTestCaseRefused takes the suffix a refused row still
+// gives, empty or a lone dot.
+func newNameAsSuffixTestCaseRefused(name, input,
+	expected string) nameAsSuffixTestCase {
+	if len(expected) > 1 {
+		panic("nameAsSuffixTestCase: a refused row gives no suffix longer than a lone dot")
+	}
 	return nameAsSuffixTestCase{
 		input:    input,
 		expected: expected,
@@ -93,16 +130,16 @@ func nameAsSuffixTestCases() []nameAsSuffixTestCase {
 	return core.S(
 		newNameAsSuffixTestCase("dotted host", "foo.example.com",
 			".example.com"),
-		newNameAsSuffixTestCase("leading dot", ".example.com", ""),
+		newNameAsSuffixTestCaseRefused("leading dot", ".example.com", ""),
 		newNameAsSuffixTestCase("two labels", "a.b.c", ".b.c"),
-		newNameAsSuffixTestCase("leading dot two labels", ".b.c", ""),
+		newNameAsSuffixTestCaseRefused("leading dot two labels", ".b.c", ""),
 		newNameAsSuffixTestCase("single inner label", "b.c", ".c"),
-		newNameAsSuffixTestCase("leading dot one label", ".c", ""),
-		newNameAsSuffixTestCase("bare label", "c", ""),
+		newNameAsSuffixTestCaseRefused("leading dot one label", ".c", ""),
+		newNameAsSuffixTestCaseRefused("bare label", "c", ""),
 		// idx>0 yields a lone dot, which fails the len>1 gate: a non-empty
-		// result with ok=false, the row that makes the invariant load-bearing.
-		newNameAsSuffixTestCase("trailing dot", "a.", "."),
-		newNameAsSuffixTestCase("empty", "", ""),
+		// result with ok=false, a refusal wantErr reads from the length.
+		newNameAsSuffixTestCaseRefused("trailing dot", "a.", "."),
+		newNameAsSuffixTestCaseRefused("empty", "", ""),
 	)
 }
 
@@ -112,8 +149,7 @@ func TestNameAsSuffix(t *testing.T) {
 
 // sanitizeNameTestCase exercises SanitizeName: the name is split from its
 // optional port and case-folded to the form Names stores under (RFC 6125),
-// with IP addresses normalised. Acceptance and a non-empty result are
-// inseparable, so ok is asserted as the invariant expected != "".
+// with IP addresses normalised.
 type sanitizeNameTestCase struct {
 	input    string
 	expected string
@@ -122,17 +158,32 @@ type sanitizeNameTestCase struct {
 
 func (tc sanitizeNameTestCase) Name() string { return tc.name }
 
+// wantErr tells whether the row expects SanitizeName to refuse its input.
+// Acceptance and a non-empty result are inseparable, so a row with an
+// empty expected expects a refusal.
+func (tc sanitizeNameTestCase) wantErr() bool {
+	return tc.expected == ""
+}
+
 func (tc sanitizeNameTestCase) Test(t *testing.T) {
 	got, ok := x509utils.SanitizeName(tc.input)
 	core.AssertEqual(t, tc.expected, got, "name")
-	core.AssertEqual(t, tc.expected != "", ok, "ok")
+	core.AssertEqual(t, !tc.wantErr(), ok, "ok")
 }
 
 func newSanitizeNameTestCase(name, input,
 	expected string) sanitizeNameTestCase {
 	return sanitizeNameTestCase{
 		input:    input,
-		expected: expected,
+		expected: mustNotZero(expected, "sanitizeNameTestCase: every accepted row must state the name it gives"),
+		name:     name,
+	}
+}
+
+func newSanitizeNameTestCaseRefused(name, input string) sanitizeNameTestCase {
+	return sanitizeNameTestCase{
+		input:    input,
+		expected: "",
 		name:     name,
 	}
 }
@@ -157,8 +208,8 @@ func sanitizeNameTestCases() []sanitizeNameTestCase {
 		// A '%' can only survive nameRE inside a non-final label, and idna's
 		// STD3 rules then reject it, so SplitHostPort fails before
 		// doSanitizeName: the removeZone name-branch is never reached.
-		newSanitizeNameTestCase("percent in host", "foo%bar.example", ""),
-		newSanitizeNameTestCase("empty", "", ""),
+		newSanitizeNameTestCaseRefused("percent in host", "foo%bar.example"),
+		newSanitizeNameTestCaseRefused("empty", ""),
 	)
 }
 

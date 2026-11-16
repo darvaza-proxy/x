@@ -66,12 +66,22 @@ func (tc subjectPublicKeyBytesTestCase) Test(t *testing.T) {
 }
 
 func newSubjectPublicKeyBytesTestCase(name string, pub crypto.PublicKey,
-	want []byte, wantErr string) subjectPublicKeyBytesTestCase {
+	want []byte) subjectPublicKeyBytesTestCase {
 	return subjectPublicKeyBytesTestCase{
 		pub:     pub,
-		want:    want,
+		want:    mustNotZero(want, "subjectPublicKeyBytesTestCase: every accepted row must state the bytes it gives"),
 		name:    name,
-		wantErr: wantErr,
+		wantErr: "",
+	}
+}
+
+func newSubjectPublicKeyBytesTestCaseError(name string, pub crypto.PublicKey,
+	wantErr string) subjectPublicKeyBytesTestCase {
+	return subjectPublicKeyBytesTestCase{
+		pub:     pub,
+		want:    nil,
+		name:    name,
+		wantErr: mustNotZero(wantErr, "subjectPublicKeyBytesTestCase: every refused row must state its error"),
 	}
 }
 
@@ -86,14 +96,14 @@ func subjectPublicKeyBytesTestCases(t *testing.T) []subjectPublicKeyBytesTestCas
 	// and an unsupported type both fail MarshalPKIXPublicKey.
 	return core.S(
 		newSubjectPublicKeyBytesTestCase("ECDSA P-256", ecPub,
-			spkiBytes(t, ecPub), ""),
+			spkiBytes(t, ecPub)),
 		newSubjectPublicKeyBytesTestCase("RSA", rsaPub,
-			spkiBytes(t, rsaPub), ""),
+			spkiBytes(t, rsaPub)),
 		newSubjectPublicKeyBytesTestCase("Ed25519", edPub,
-			spkiBytes(t, edPub), ""),
-		newSubjectPublicKeyBytesTestCase("nil public key", nil, nil,
+			spkiBytes(t, edPub)),
+		newSubjectPublicKeyBytesTestCaseError("nil public key", nil,
 			"failed to encode public key"),
-		newSubjectPublicKeyBytesTestCase("unsupported type", struct{}{}, nil,
+		newSubjectPublicKeyBytesTestCaseError("unsupported type", struct{}{},
 			"failed to encode public key"),
 	)
 }
@@ -136,12 +146,22 @@ func (tc subjectPublicKeyHashTestCase) Test(t *testing.T) {
 }
 
 func newSubjectPublicKeyHashTestCase(name string, pub crypto.PublicKey,
-	spki []byte, wantErr bool) subjectPublicKeyHashTestCase {
+	spki []byte) subjectPublicKeyHashTestCase {
 	return subjectPublicKeyHashTestCase{
 		pub:     pub,
-		spki:    spki,
+		spki:    mustNotZero(spki, "subjectPublicKeyHashTestCase: every accepted row must state the bytes it hashes"),
 		name:    name,
-		wantErr: wantErr,
+		wantErr: false,
+	}
+}
+
+func newSubjectPublicKeyHashTestCaseError(name string,
+	pub crypto.PublicKey) subjectPublicKeyHashTestCase {
+	return subjectPublicKeyHashTestCase{
+		pub:     pub,
+		spki:    nil,
+		name:    name,
+		wantErr: true,
 	}
 }
 
@@ -150,9 +170,8 @@ func subjectPublicKeyHashTestCases(t *testing.T) []subjectPublicKeyHashTestCase 
 
 	return core.S(
 		newSubjectPublicKeyHashTestCase("ECDSA P-256", ecPub,
-			spkiBytes(t, ecPub), false),
-		newSubjectPublicKeyHashTestCase("unsupported type", struct{}{}, nil,
-			true),
+			spkiBytes(t, ecPub)),
+		newSubjectPublicKeyHashTestCaseError("unsupported type", struct{}{}),
 	)
 }
 

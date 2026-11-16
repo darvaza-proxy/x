@@ -87,10 +87,20 @@ type blockToPrivateKeyTestCase struct {
 }
 
 func newBlockToPrivateKeyTestCase(name string, block *pem.Block,
-	want x509utils.PrivateKey, wantErr error) blockToPrivateKeyTestCase {
+	want x509utils.PrivateKey) blockToPrivateKeyTestCase {
 	return blockToPrivateKeyTestCase{
-		want:    want,
-		wantErr: wantErr,
+		want:    mustNotZero(want, "blockToPrivateKeyTestCase: every accepted row must state the key it gives"),
+		wantErr: nil,
+		block:   block,
+		name:    name,
+	}
+}
+
+func newBlockToPrivateKeyTestCaseError(name string, block *pem.Block,
+	wantErr error) blockToPrivateKeyTestCase {
+	return blockToPrivateKeyTestCase{
+		want:    nil,
+		wantErr: mustNotZero(wantErr, "blockToPrivateKeyTestCase: every refused row must state its error"),
 		block:   block,
 		name:    name,
 	}
@@ -118,19 +128,19 @@ func blockToPrivateKeyTestCases(t *testing.T) []blockToPrivateKeyTestCase {
 
 	return core.S(
 		newBlockToPrivateKeyTestCase("RSA PKCS1",
-			pkcs1Block(rsaKey), rsaKey, nil),
+			pkcs1Block(rsaKey), rsaKey),
 		newBlockToPrivateKeyTestCase("EC PKCS8",
-			pkcs8Block(t, ecKey), ecKey, nil),
+			pkcs8Block(t, ecKey), ecKey),
 		newBlockToPrivateKeyTestCase("EC SEC1",
-			sec1Block(t, ecKey), ecKey, nil),
+			sec1Block(t, ecKey), ecKey),
 		newBlockToPrivateKeyTestCase("Ed25519 PKCS8",
-			pkcs8Block(t, edKey), edKey, nil),
+			pkcs8Block(t, edKey), edKey),
 		// X25519 parses as PKCS8 but is not a crypto.Signer, so the
 		// PrivateKey assertion fails: ErrNotSupported, not a defensive arm.
-		newBlockToPrivateKeyTestCase("X25519 PKCS8 unsupported",
-			pkcs8Block(t, mkX25519Key(t)), nil, x509utils.ErrNotSupported),
-		newBlockToPrivateKeyTestCase("certificate block",
-			certBlock(nil), nil, x509utils.ErrIgnored),
+		newBlockToPrivateKeyTestCaseError("X25519 PKCS8 unsupported",
+			pkcs8Block(t, mkX25519Key(t)), x509utils.ErrNotSupported),
+		newBlockToPrivateKeyTestCaseError("certificate block",
+			certBlock(nil), x509utils.ErrIgnored),
 	)
 }
 
@@ -174,10 +184,21 @@ type blockToCertificateTestCase struct {
 }
 
 func newBlockToCertificateTestCase(name string, block *pem.Block,
-	want *x509.Certificate, wantErr error) blockToCertificateTestCase {
+	want *x509.Certificate) blockToCertificateTestCase {
 	return blockToCertificateTestCase{
-		want:    want,
-		wantErr: wantErr,
+		want: mustNotZero(want,
+			"blockToCertificateTestCase: every accepted row must state the certificate it gives"),
+		wantErr: nil,
+		block:   block,
+		name:    name,
+	}
+}
+
+func newBlockToCertificateTestCaseError(name string, block *pem.Block,
+	wantErr error) blockToCertificateTestCase {
+	return blockToCertificateTestCase{
+		want:    nil,
+		wantErr: mustNotZero(wantErr, "blockToCertificateTestCase: every refused row must state its error"),
 		block:   block,
 		name:    name,
 	}
@@ -203,9 +224,9 @@ func blockToCertificateTestCases(t *testing.T) []blockToCertificateTestCase {
 
 	return core.S(
 		newBlockToCertificateTestCase("certificate",
-			certBlock(cert.Raw), cert, nil),
-		newBlockToCertificateTestCase("wrong type",
-			keyBlock(nil), nil, x509utils.ErrIgnored),
+			certBlock(cert.Raw), cert),
+		newBlockToCertificateTestCaseError("wrong type",
+			keyBlock(nil), x509utils.ErrIgnored),
 	)
 }
 
@@ -232,10 +253,20 @@ type blockToRSAPrivateKeyTestCase struct {
 }
 
 func newBlockToRSAPrivateKeyTestCase(name string, block *pem.Block,
-	want *rsa.PrivateKey, wantErr error) blockToRSAPrivateKeyTestCase {
+	want *rsa.PrivateKey) blockToRSAPrivateKeyTestCase {
 	return blockToRSAPrivateKeyTestCase{
-		want:    want,
-		wantErr: wantErr,
+		want:    mustNotZero(want, "blockToRSAPrivateKeyTestCase: every accepted row must state the key it gives"),
+		wantErr: nil,
+		block:   block,
+		name:    name,
+	}
+}
+
+func newBlockToRSAPrivateKeyTestCaseError(name string, block *pem.Block,
+	wantErr error) blockToRSAPrivateKeyTestCase {
+	return blockToRSAPrivateKeyTestCase{
+		want:    nil,
+		wantErr: mustNotZero(wantErr, "blockToRSAPrivateKeyTestCase: every refused row must state its error"),
 		block:   block,
 		name:    name,
 	}
@@ -261,9 +292,9 @@ func blockToRSAPrivateKeyTestCases(t *testing.T) []blockToRSAPrivateKeyTestCase 
 
 	return core.S(
 		newBlockToRSAPrivateKeyTestCase("RSA PKCS1",
-			pkcs1Block(rsaKey), rsaKey, nil),
-		newBlockToRSAPrivateKeyTestCase("EC ignored",
-			pkcs8Block(t, mkKey(t)), nil, x509utils.ErrIgnored),
+			pkcs1Block(rsaKey), rsaKey),
+		newBlockToRSAPrivateKeyTestCaseError("EC ignored",
+			pkcs8Block(t, mkKey(t)), x509utils.ErrIgnored),
 	)
 }
 
