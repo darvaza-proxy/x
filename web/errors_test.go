@@ -117,7 +117,7 @@ func redirectTestCases() []redirectTestCase {
 			"https://example.com:99999/x"),
 		// DNS label-length check rejects labels over 63 bytes
 		// — the third CleanURL error source.
-		newRedirectErrorTestCase("dns label too long",
+		newRedirectErrorTestCase("DNS label too long",
 			"https://"+strings.Repeat("a", 64)+".example.com/x"),
 	}
 }

@@ -101,7 +101,7 @@ func cleanTestCases() []cleanTestCase {
 			"/a\nb", "/a\nb", true),
 		newCleanTestCase("null byte passes through",
 			"/a\x00b", "/a\x00b", true),
-		newCleanTestCase("url-encoded dotdot not decoded",
+		newCleanTestCase("URL-encoded dotdot not decoded",
 			"/%2e%2e/evil.com", "/%2e%2e/evil.com", true),
 		newCleanTestCase("full URL input mangled",
 			"http://evil.com/foo", "http:/evil.com/foo", true),
