@@ -63,13 +63,13 @@ func getTestCases(t *testing.T) []getTestCase {
 	pool := certpool.New()
 	core.AssertMustTrue(t, pool.AddCert(exact.cert), "add exact")
 	core.AssertMustTrue(t, pool.AddCert(wild.cert), "add wildcard")
-	core.AssertMustTrue(t, pool.AddCert(ipLeaf.cert), "add ip")
+	core.AssertMustTrue(t, pool.AddCert(ipLeaf.cert), "add IP")
 
 	return core.S(
 		newGetTestCase("exact name", pool, "exact.example.com", exact.cert, nil),
 		newGetTestCase("wildcard suffix", pool, "host.wild.example.com",
 			wild.cert, nil),
-		newGetTestCase("ip address", pool, "203.0.113.7", ipLeaf.cert, nil),
+		newGetTestCase("IP address", pool, "203.0.113.7", ipLeaf.cert, nil),
 		newGetTestCase("absent name", pool, "absent.example.com", nil,
 			core.ErrNotExists),
 		newGetTestCase("bad name", pool, "", nil, core.ErrInvalid),

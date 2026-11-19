@@ -46,7 +46,7 @@ func (tc writeCertTestCase) Test(t *testing.T) {
 	if tc.wantMsg == "" {
 		core.AssertNoError(t, err, "error")
 		core.AssertEqual(t, int64(buf.Len()), n, "written")
-		core.AssertContains(t, buf.String(), "BEGIN CERTIFICATE", "pem")
+		core.AssertContains(t, buf.String(), "BEGIN CERTIFICATE", "PEM")
 		return
 	}
 

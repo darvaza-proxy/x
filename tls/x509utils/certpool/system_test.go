@@ -115,7 +115,7 @@ func dialGitHub(t *testing.T, roots *x509.CertPool) *tls.Conn {
 		if !isCertVerifyError(err) {
 			t.Skipf("github.com:443 unreachable: %v", err)
 		}
-		core.AssertMustNoError(t, err, "tls verify github.com")
+		core.AssertMustNoError(t, err, "TLS verify github.com")
 	}
 	return conn
 }

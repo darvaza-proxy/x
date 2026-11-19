@@ -16,7 +16,7 @@ import (
 // reachable through the IP name key rather than a DNS name.
 func mkIPLeaf(t *testing.T, ip string) testCert {
 	parsed := net.ParseIP(ip)
-	core.AssertMustNotNil(t, parsed, "parse ip")
+	core.AssertMustNotNil(t, parsed, "parse IP")
 
 	tmpl := baseTemplate(t, ip, nil)
 	tmpl.IPAddresses = []net.IP{parsed}
@@ -43,7 +43,7 @@ func certPEM(t *testing.T, certs ...*x509.Certificate) []byte {
 	var buf bytes.Buffer
 	for _, c := range certs {
 		err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: c.Raw})
-		core.AssertMustNoError(t, err, "encode pem")
+		core.AssertMustNoError(t, err, "encode PEM")
 	}
 	return buf.Bytes()
 }

@@ -318,7 +318,7 @@ func TestImportPEMParsesAndIgnores(t *testing.T) {
 
 	pool := certpool.New()
 	n, err := pool.ImportPEM(context.Background(), blob)
-	core.AssertMustNoError(t, err, "import pem")
+	core.AssertMustNoError(t, err, "import PEM")
 	core.AssertEqual(t, 2, n, "two certs, key ignored")
 }
 
