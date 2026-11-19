@@ -52,33 +52,33 @@ func (tc validateRemoteTestCase) Test(t *testing.T) {
 func makeValidateRemoteTestCases() []core.TestCase {
 	return []core.TestCase{
 		// Valid TCP addresses
-		newValidateRemoteTestCase("valid tcp host:port", "example.com:8080", false),
-		newValidateRemoteTestCase("valid tcp IP:port", "192.168.1.1:443", false),
-		newValidateRemoteTestCase("valid tcp localhost:port", "localhost:3000", false),
-		newValidateRemoteTestCase("valid tcp IPv6", "[::1]:8080", false),
+		newValidateRemoteTestCase("valid TCP host:port", "example.com:8080", false),
+		newValidateRemoteTestCase("valid TCP IP:port", "192.168.1.1:443", false),
+		newValidateRemoteTestCase("valid TCP localhost:port", "localhost:3000", false),
+		newValidateRemoteTestCase("valid TCP IPv6", "[::1]:8080", false),
 
 		// Valid Unix socket addresses
-		newValidateRemoteTestCase("valid unix with prefix", "unix:/var/run/app.sock", false),
-		newValidateRemoteTestCase("valid unix with triple slash", "unix:///var/run/app.sock", false),
-		newValidateRemoteTestCase("valid unix absolute path", "/var/run/app.sock", false),
-		newValidateRemoteTestCase("valid unix with .sock", "app.sock", false),
-		newValidateRemoteTestCase("valid unix relative", "./run/app.sock", false),
+		newValidateRemoteTestCase("valid Unix with prefix", "unix:/var/run/app.sock", false),
+		newValidateRemoteTestCase("valid Unix with triple slash", "unix:///var/run/app.sock", false),
+		newValidateRemoteTestCase("valid Unix absolute path", "/var/run/app.sock", false),
+		newValidateRemoteTestCase("valid Unix with .sock", "app.sock", false),
+		newValidateRemoteTestCase("valid Unix relative", "./run/app.sock", false),
 		newValidateRemoteTestCase("valid abstract socket", "@abstract-name", false),
 
 		// Valid TCP addresses (edge cases)
-		newValidateRemoteTestCase("valid tcp hostname ending with .sock", "foo.sock:443", false),
+		newValidateRemoteTestCase("valid TCP hostname ending with .sock", "foo.sock:443", false),
 
 		// Invalid addresses
 		newValidateRemoteTestCase("empty string", "", true),
-		newValidateRemoteTestCase("tcp missing port", "example.com", true),
-		newValidateRemoteTestCase("tcp colon no port", "example.com:", true),
-		newValidateRemoteTestCase("tcp port zero", "localhost:0", true),
-		newValidateRemoteTestCase("tcp port zero ipv6", "[::1]:0", true),
-		newValidateRemoteTestCase("tcp empty host", ":8080", true),
-		newValidateRemoteTestCase("unix empty after prefix", "unix:", true),
+		newValidateRemoteTestCase("TCP missing port", "example.com", true),
+		newValidateRemoteTestCase("TCP colon no port", "example.com:", true),
+		newValidateRemoteTestCase("TCP port zero", "localhost:0", true),
+		newValidateRemoteTestCase("TCP port zero IPv6", "[::1]:0", true),
+		newValidateRemoteTestCase("TCP empty host", ":8080", true),
+		newValidateRemoteTestCase("Unix empty after prefix", "unix:", true),
 		newValidateRemoteTestCase("abstract socket empty name", "@", true),
-		newValidateRemoteTestCase("unix path too long", "/"+strings.Repeat("a", 107), true),
-		newValidateRemoteTestCase("unix path with null byte", "/tmp/sock\x00et", true),
+		newValidateRemoteTestCase("Unix path too long", "/"+strings.Repeat("a", 107), true),
+		newValidateRemoteTestCase("Unix path with null byte", "/tmp/sock\x00et", true),
 	}
 }
 
@@ -177,7 +177,7 @@ func runTestNewUnixSocketConfig(t *testing.T) {
 	}
 
 	client, err := reconnect.New(cfg)
-	core.AssertNoError(t, err, "new unix client")
+	core.AssertNoError(t, err, "new Unix client")
 	core.AssertNotNil(t, client, "client")
 }
 
@@ -194,6 +194,6 @@ func runTestNewInvalidConfig(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	t.Run("valid config", runTestNewValidConfig)
-	t.Run("unix socket config", runTestNewUnixSocketConfig)
+	t.Run("Unix socket config", runTestNewUnixSocketConfig)
 	t.Run("invalid config", runTestNewInvalidConfig)
 }

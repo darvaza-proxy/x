@@ -51,27 +51,27 @@ func (tc parseRemoteTestCase) Test(t *testing.T) {
 func makeParseRemoteTestCases() []core.TestCase {
 	return []core.TestCase{
 		// TCP cases
-		newParseRemoteTestCase("tcp with host and port", "example.com:8080", "tcp", "example.com:8080", false),
-		newParseRemoteTestCase("tcp with IP and port", "192.168.1.1:443", "tcp", "192.168.1.1:443", false),
-		newParseRemoteTestCase("tcp with localhost", "localhost:3000", "tcp", "localhost:3000", false),
-		newParseRemoteTestCase("tcp with .sock in hostname", "service.sock.example.com:8080", "tcp",
+		newParseRemoteTestCase("TCP with host and port", "example.com:8080", "tcp", "example.com:8080", false),
+		newParseRemoteTestCase("TCP with IP and port", "192.168.1.1:443", "tcp", "192.168.1.1:443", false),
+		newParseRemoteTestCase("TCP with localhost", "localhost:3000", "tcp", "localhost:3000", false),
+		newParseRemoteTestCase("TCP with .sock in hostname", "service.sock.example.com:8080", "tcp",
 			"service.sock.example.com:8080", false),
 
 		// Unix socket cases with unix: prefix
-		newParseRemoteTestCase("unix with prefix", "unix:/var/run/app.sock", "unix", "/var/run/app.sock", false),
-		newParseRemoteTestCase("unix with prefix no extension", "unix:/tmp/socket", "unix", "/tmp/socket", false),
-		newParseRemoteTestCase("unix with prefix relative", "unix:./app.sock", "unix", "./app.sock", false),
+		newParseRemoteTestCase("Unix with prefix", "unix:/var/run/app.sock", "unix", "/var/run/app.sock", false),
+		newParseRemoteTestCase("Unix with prefix no extension", "unix:/tmp/socket", "unix", "/tmp/socket", false),
+		newParseRemoteTestCase("Unix with prefix relative", "unix:./app.sock", "unix", "./app.sock", false),
 
 		// Unix socket cases with absolute path
-		newParseRemoteTestCase("unix absolute path", "/var/run/app.sock", "unix", "/var/run/app.sock", false),
-		newParseRemoteTestCase("unix absolute no extension", "/tmp/socket", "unix", "/tmp/socket", false),
-		newParseRemoteTestCase("unix absolute deep", "/usr/local/var/run/app.sock", "unix",
+		newParseRemoteTestCase("Unix absolute path", "/var/run/app.sock", "unix", "/var/run/app.sock", false),
+		newParseRemoteTestCase("Unix absolute no extension", "/tmp/socket", "unix", "/tmp/socket", false),
+		newParseRemoteTestCase("Unix absolute deep", "/usr/local/var/run/app.sock", "unix",
 			"/usr/local/var/run/app.sock", false),
 
 		// Unix socket cases with .sock extension
-		newParseRemoteTestCase("unix relative with .sock", "app.sock", "unix", "app.sock", false),
-		newParseRemoteTestCase("unix relative path with .sock", "./run/app.sock", "unix", "./run/app.sock", false),
-		newParseRemoteTestCase("unix relative nested with .sock", "var/run/app.sock", "unix",
+		newParseRemoteTestCase("Unix relative with .sock", "app.sock", "unix", "app.sock", false),
+		newParseRemoteTestCase("Unix relative path with .sock", "./run/app.sock", "unix", "./run/app.sock", false),
+		newParseRemoteTestCase("Unix relative nested with .sock", "var/run/app.sock", "unix",
 			"var/run/app.sock", false),
 
 		// Unix socket cases with abstract sockets
@@ -80,13 +80,13 @@ func makeParseRemoteTestCases() []core.TestCase {
 
 		// Error cases
 		newParseRemoteTestCase("empty string", "", "", "", true),
-		newParseRemoteTestCase("tcp missing port", "example.com", "", "", true),
-		newParseRemoteTestCase("tcp colon no port", "example.com:", "", "", true),
-		newParseRemoteTestCase("tcp port zero", "localhost:0", "", "", true),
-		newParseRemoteTestCase("tcp empty host", ":8080", "", "", true),
-		newParseRemoteTestCase("unix empty after prefix", "unix:", "", "", true),
+		newParseRemoteTestCase("TCP missing port", "example.com", "", "", true),
+		newParseRemoteTestCase("TCP colon no port", "example.com:", "", "", true),
+		newParseRemoteTestCase("TCP port zero", "localhost:0", "", "", true),
+		newParseRemoteTestCase("TCP empty host", ":8080", "", "", true),
+		newParseRemoteTestCase("Unix empty after prefix", "unix:", "", "", true),
 		newParseRemoteTestCase("abstract socket empty name", "@", "", "", true),
-		newParseRemoteTestCase("unix path with null byte", "/tmp/sock\x00et", "", "", true),
+		newParseRemoteTestCase("Unix path with null byte", "/tmp/sock\x00et", "", "", true),
 	}
 }
 
