@@ -9,7 +9,7 @@ require (
 
 require (
 	golang.org/x/net v0.58.0
-	lukechampine.com/blake3 v1.4.1
+	lukechampine.com/blake3 v1.5.1
 )
 
 require (
