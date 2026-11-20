@@ -530,12 +530,11 @@ func roundTripOf[T num.Number[T], PT textUnmarshaler[T]](name string,
 // any width: a success with the same value, and a syntax failure, its
 // stray byte coming before any overflow, with zero; past strconv's
 // range they read on where strconv stops, their answer read from the
-// text itself, as runTestPastStrconv checks. Each text is run, through
-// the parser and through UnmarshalText on the pointer, as the
-// parseCase row built from strconv's answer, so the whole corpus
-// reaches the bytes path too. The corpus holds the forms strconv takes
-// and the ones it refuses, so the rows enforce strconv's grammar
-// rather than transcribe a reading of it.
+// text itself by newParseCasePastStrconv. Each text is run, through the
+// parser and through UnmarshalText on the pointer, as the parseCase row
+// of its answer, so the whole corpus reaches the bytes path too. The
+// corpus holds the forms strconv takes and the ones it refuses, so the
+// rows enforce strconv's grammar rather than transcribe a reading of it.
 type parseCrossCase struct {
 	in   string
 	name string
@@ -576,7 +575,8 @@ func (tc parseCrossCase) testUint128(t *testing.T) {
 			err).Test(t)
 		return
 	}
-	runTestPastStrconv(t, tc, seedU128, maxUint128Text)
+	newParseCasePastStrconv(t, tc.name, tc.in, seedU128,
+		maxUint128Text).Test(t)
 }
 
 // testInt128 checks ParseInt128 against strconv.ParseInt at 64 bits,
@@ -592,37 +592,35 @@ func (tc parseCrossCase) testInt128(t *testing.T) {
 	if want < 0 {
 		bound = minInt128Text
 	}
-	runTestPastStrconv(t, tc, seed128, bound)
+	newParseCasePastStrconv(t, tc.name, tc.in, seed128, bound).Test(t)
 }
 
-// runTestPastStrconv checks the 128-bit parser of T on a text strconv
-// refuses as past its 64-bit range, bound being the text of the
-// parser's own bound on the side strconv clamps to. The answer is read
-// from the text through math/big, from the left as strconv reads it: a
-// run of digits past 128 bits fails on range with the bound, whatever
-// follows it; any other run fails on syntax with zero when a byte
-// follows it, on range with the bound when it passes the magnitude of
-// the bound, and otherwise parses to the value it names under the
-// sign. The parseCase row of that answer checks the report and
-// UnmarshalText as on any other row.
-func runTestPastStrconv[T num.Number[T], PT textUnmarshaler[T]](t *testing.T,
-	tc parseCrossCase, seed T, bound string) {
+// newParseCasePastStrconv returns the parseCase row for in on the
+// 128-bit parser of T, in being a text strconv refuses as past its
+// 64-bit range, and bound the text of the parser's own bound on the side
+// strconv clamps to. The answer it expects is read from the text through
+// math/big, from the left as strconv reads it: a run of digits past 128
+// bits fails on range with the bound, whatever follows it; any other
+// run fails on syntax with zero when a byte follows it, on range with
+// the bound when it passes the magnitude of the bound, and otherwise
+// parses to the value it names under the sign.
+func newParseCasePastStrconv[T num.Number[T], PT textUnmarshaler[T]](
+	t *testing.T, name, in string, seed T, bound string) parseCase[T, PT] {
 	var zero T
-	neg, run, rest := splitDigitRun(tc.in)
+	neg, run, rest := splitDigitRun(in)
 	u, limit := bigOf(t, run), bigOf(t, bound)
 	clamp := fromBig[T](limit)
 	switch {
 	case u.Cmp(bigOf(t, maxUint128Text)) > 0:
-		newParseCaseErr[T, PT](tc.name, tc.in, seed, clamp, num.ErrRange).Test(t)
+		return newParseCaseErr[T, PT](name, in, seed, clamp, num.ErrRange)
 	case rest != "":
-		newParseCaseErr[T, PT](tc.name, tc.in, seed, zero, num.ErrSyntax).Test(t)
+		return newParseCaseErr[T, PT](name, in, seed, zero, num.ErrSyntax)
 	case u.CmpAbs(limit) > 0:
-		newParseCaseErr[T, PT](tc.name, tc.in, seed, clamp, num.ErrRange).Test(t)
+		return newParseCaseErr[T, PT](name, in, seed, clamp, num.ErrRange)
 	case neg:
-		want := fromBig[T](u.Neg(u))
-		newParseCase[T, PT](tc.name, tc.in, seed, want).Test(t)
+		return newParseCase[T, PT](name, in, seed, fromBig[T](u.Neg(u)))
 	default:
-		newParseCase[T, PT](tc.name, tc.in, seed, fromBig[T](u)).Test(t)
+		return newParseCase[T, PT](name, in, seed, fromBig[T](u))
 	}
 }
 
