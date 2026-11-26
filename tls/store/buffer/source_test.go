@@ -23,10 +23,9 @@ func mkSource(name string, certs []*x509.Certificate,
 	}
 }
 
-// TestSourceAddCertPairSameSourceKey is the F34 regression: with a nil KeySet
-// the same-source loop in findKeyForCert is the ONLY way to pair the leaf with
-// its key. The bug (key.Public method value vs key.Public()) made the loop
-// never match, so the pair went out with a nil key.
+// TestSourceAddCertPairSameSourceKey confirms the same-source loop in
+// findKeyForCert pairs a leaf with the key its own source holds, a nil KeySet
+// leaving it no other way to the key.
 func TestSourceAddCertPairSameSourceKey(t *testing.T) {
 	leaf := mkSelfSignedLeaf(t, "same-source.example.org")
 	src := mkSource("pair.pem",
@@ -39,7 +38,7 @@ func TestSourceAddCertPairSameSourceKey(t *testing.T) {
 	core.AssertMustNoError(t, err, "add")
 	core.AssertEqual(t, 1, n, "count")
 	core.AssertMustEqual(t, 1, len(store.pairs), "pairs")
-	core.AssertMustNotNil(t, store.pairs[0].key, "paired key (F34)")
+	core.AssertMustNotNil(t, store.pairs[0].key, "paired key")
 	core.AssertTrue(t,
 		x509utils.ValidCertKeyPair(leaf.Leaf, store.pairs[0].key),
 		"paired key matches leaf")

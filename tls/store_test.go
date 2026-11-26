@@ -64,11 +64,12 @@ func tcpAddr(ip string, zone string) *net.TCPAddr {
 	return &net.TCPAddr{IP: net.ParseIP(ip), Zone: zone, Port: 443}
 }
 
-// TestSplitClientHelloInfo covers the F60 fallback: the typed local address is
-// taken through core.AddrPort, which selects the IP, removes any 4-in-6
-// mapping and drops the scope zone, landing on the bracketed key form. A
-// connection with no resolvable address yields an empty serverName rather than
-// a bracketed string.
+// TestSplitClientHelloInfo covers the fallback to the local address when the
+// ClientHello names no server: the typed local address is taken through
+// core.AddrPort, which selects the IP, removes any 4-in-6 mapping and drops
+// the scope zone, landing on the bracketed key form. A connection with no
+// resolvable address yields an empty serverName rather than a bracketed
+// string.
 func TestSplitClientHelloInfo(t *testing.T) {
 	cases := []splitCHITestCase{
 		newSplitCHITestCase("explicit SNI", "example.com", nil,

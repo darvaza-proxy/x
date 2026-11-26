@@ -314,9 +314,9 @@ func TestNamesDropsAndDeduplicates(t *testing.T) {
 
 // TestNamesMappedIP confirms a 16-byte IPv4-mapped-IPv6 iPAddress SAN is
 // stored under the canonical unmapped key ([1.2.3.4]), matching what the
-// lookup paths produce for the same address, rather than [::ffff:1.2.3.4]
-// (F61). A certificate literal carries the mapped SAN verbatim; a minted cert
-// would normalise it to a 4-byte SAN.
+// lookup paths produce for the same address, rather than [::ffff:1.2.3.4].
+// A certificate literal carries the mapped SAN verbatim; a minted cert would
+// normalise it to a 4-byte SAN.
 func TestNamesMappedIP(t *testing.T) {
 	mapped := net.IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 1, 2, 3, 4}
 	cert := &x509.Certificate{IPAddresses: []net.IP{mapped}}
@@ -330,7 +330,7 @@ func TestNamesMappedIP(t *testing.T) {
 // slices, both of which yield a valid address, so nothing shorter or longer
 // survives and no ok-but-invalid address exists. That is why appendIPAddresses
 // needs no IsValid() guard: these rows produce the same output with or without
-// it, and would catch a bad address leaking through if one ever could (F72).
+// it, and would catch a bad address leaking through if one ever could.
 type namesIPTestCase struct {
 	name  string
 	ips   []net.IP

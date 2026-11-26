@@ -56,9 +56,8 @@ func newErrorTestCases() []newErrorTestCase {
 		newNewErrorTestCase("op and note", nil, "read", "bad", "read: bad"),
 		newNewErrorTestCase("note only", nil, "", "bad", "bad"),
 		newNewErrorTestCase("op only", nil, "read", "", "read"),
-		// err != nil: the annotation must wrap the base. F52 regression: the
-		// single-annotation arms wrapped with the empty variable, so
-		// core.Wrap returned the bare base and the annotation was lost.
+		// err != nil: the annotation must wrap the base, a single
+		// annotation, op or note alone, included.
 		newNewErrorTestCase("wrap pass-through", errBoom, "", "", "boom"),
 		newNewErrorTestCase("wrap note only", errBoom, "", "label", "label"),
 		newNewErrorTestCase("wrap op only", errBoom, "verb", "", "verb"),

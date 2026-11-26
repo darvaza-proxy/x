@@ -158,7 +158,7 @@ func TestBlockToPrivateKeyMalformed(t *testing.T) {
 }
 
 // TestBlockNilGuards checks the public block parsers reject a nil *pem.Block
-// with core.ErrInvalid instead of dereferencing it and panicking (F63).
+// with core.ErrInvalid instead of dereferencing it and panicking.
 func TestBlockNilGuards(t *testing.T) {
 	t.Run("BlockToPrivateKey", func(t *testing.T) {
 		_, err := x509utils.BlockToPrivateKey(nil)

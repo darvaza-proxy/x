@@ -53,7 +53,7 @@ func (tc writeCertTestCase) Test(t *testing.T) {
 	core.AssertEqual(t, int64(0), n, "written")
 	core.AssertMustError(t, err, "error")
 	core.AssertEqual(t, tc.wantMsg, err.Error(), "message")
-	// every WriteCert rejection defaults to core.ErrInvalid (F44).
+	// every WriteCert rejection defaults to core.ErrInvalid.
 	core.AssertErrorIs(t, err, core.ErrInvalid, "invalid")
 
 	// the rejection threads the offending cert through unchanged.

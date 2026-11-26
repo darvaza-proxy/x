@@ -160,9 +160,8 @@ func TestAddCert(t *testing.T) {
 	core.AssertEqual(t, 1, len(store.certs), "stored certs")
 }
 
-// TestAddPrivateKeyKeyOnly is the regression guard for F51: a key-only source
-// (no certificate) must still flush its key. The old cond filtered on
-// len(Certs)>0, so AddPrivateKey silently added nothing.
+// TestAddPrivateKeyKeyOnly confirms a key-only source (no certificate) still
+// flushes its key.
 func TestAddPrivateKeyKeyOnly(t *testing.T) {
 	leaf := mkSelfSignedLeaf(t, "key.example.org")
 
@@ -255,8 +254,8 @@ func TestAddCertPairIntermediates(t *testing.T) {
 	core.AssertEqual(t, 1, len(store.pairs[0].inter), "intermediates")
 }
 
-// TestAddPrivateKeyIdempotent is the regression guard for F49: re-applying keys
-// already present is a successful no-op (count 0, nil), not ErrEmpty.
+// TestAddPrivateKeyIdempotent confirms re-applying keys already present is a
+// successful no-op (count 0, nil), not ErrEmpty.
 func TestAddPrivateKeyIdempotent(t *testing.T) {
 	leaf := mkSelfSignedLeaf(t, "key.example.org")
 
@@ -274,8 +273,8 @@ func TestAddPrivateKeyIdempotent(t *testing.T) {
 	core.AssertEqual(t, 0, n, "re-apply count")
 }
 
-// TestAddEmptyBuffer confirms a genuinely empty buffer still reports ErrEmpty —
-// the distinction F49 preserves.
+// TestAddEmptyBuffer confirms a genuinely empty buffer still reports ErrEmpty,
+// where a flush whose keys are all present already reports no error.
 func TestAddEmptyBuffer(t *testing.T) {
 	buf := buffer.New(context.Background(), nil)
 	store := newFakeStore()

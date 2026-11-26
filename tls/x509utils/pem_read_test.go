@@ -225,7 +225,7 @@ func TestReadPEMAbort(t *testing.T) {
 
 // TestReadPEMNilCallback covers ReadPEM's nil-callback arm: with valid PEM and
 // no callback the decode loop runs every block to EOF and returns nil, rather
-// than invoking the absent callback (F70).
+// than invoking the absent callback.
 func TestReadPEMNilCallback(t *testing.T) {
 	// two blocks, so the loop iterates with the callback skipped each time.
 	err := x509utils.ReadPEM(bytes.Repeat(testPEM(), 2), nil)
